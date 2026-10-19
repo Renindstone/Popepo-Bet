@@ -13,10 +13,11 @@ cat > "$UNIT_DIR/apuestas-db.service" <<UNIT
 Description=PostgreSQL del proyecto App Apuestas (puerto 5433)
 
 [Service]
-Type=forking
+# oneshot + RemainAfterExit: "db.sh start" es idempotente, así no falla si el cluster ya estaba en marcha
+Type=oneshot
+RemainAfterExit=yes
 ExecStart="$PROJECT_DIR/scripts/db.sh" start
 ExecStop="$PROJECT_DIR/scripts/db.sh" stop
-Restart=on-failure
 
 [Install]
 WantedBy=default.target
@@ -48,9 +49,6 @@ for arg in "$@"; do
     --with-bot) unit bot bot "bot de Telegram"; services+=(apuestas-bot) ;;
   esac
 done
-
-# Si el cluster ya está corriendo fuera de systemd, se para para que systemd lo gestione
-"$PROJECT_DIR/scripts/db.sh" status >/dev/null 2>&1 && "$PROJECT_DIR/scripts/db.sh" stop || true
 
 systemctl --user daemon-reload
 systemctl --user enable --now "${services[@]}"

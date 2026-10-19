@@ -11,6 +11,11 @@ LOG_FILE="$HOME/.local/share/apuestas/postgres.log"
 ENV_FILE="$PROJECT_DIR/.env"
 
 start() {
+  # Idempotente: si ya está en marcha no hace nada (útil para systemd y para varias sesiones)
+  if pg_ctl -D "$DATA_DIR" status >/dev/null 2>&1; then
+    echo "PostgreSQL ya está en marcha"; return 0
+  fi
+  mkdir -p "$RUN_DIR"
   pg_ctl -D "$DATA_DIR" -l "$LOG_FILE" -w -o "-p $PORT -k $RUN_DIR -c listen_addresses=127.0.0.1" start
 }
 

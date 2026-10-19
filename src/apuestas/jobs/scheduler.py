@@ -11,6 +11,7 @@ lunes 04:00  niveles de almacenamiento (temporadas terminadas -> resumen y archi
 
 from __future__ import annotations
 
+import functools
 import logging
 from datetime import UTC, datetime, timedelta
 
@@ -28,13 +29,13 @@ log = logging.getLogger(__name__)
 
 def _safe(name: str):
     def deco(fn):
+        @functools.wraps(fn)
         def wrapper(*a, **k):
             log.info("Tarea %s: inicio", name)
             try:
                 return fn(*a, **k)
             except Exception:  # noqa: BLE001
                 log.exception("Tarea %s falló", name)
-        wrapper.__name__ = fn.__name__
         return wrapper
     return deco
 
