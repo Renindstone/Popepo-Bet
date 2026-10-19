@@ -31,6 +31,8 @@ OddsPapi (opcional) ─┘        │
   amigos                                           cada 20' alineaciones
 ```
 
+El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia.
+
 ## Flujo diario (hora de Lima)
 
 1. **05:30**: resultados de ayer (FotMob, football-data, Understat), detalles de partidos jugados, liquidación de picks y apuestas, reentrenamiento (`var/models/latest.json`).

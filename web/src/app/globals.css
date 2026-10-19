@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/*
+  Hoja de análisis marcada a bolígrafo: papel gris verdoso, tinta oscura y un único azul de
+  bolígrafo para lo que el modelo señala (valor, enlaces, foco). Rojo para pérdidas o valor
+  negativo y amarillo tarjeta para avisos.
+*/
+:root {
+  --papel: #eef1ec;
+  --hoja: #fafbf8;
+  --tinta: #1c2624;
+  --grafito: #5a6764;
+  --regla: #d3dad4;
+  --regla-suave: #e3e8e3;
+  --boli: #2643c4;
+  --boli-suave: #dfe4f8;
+  --rojo: #b3412b;
+  --rojo-suave: #f4e0da;
+  --tarjeta: #c9950f;
+  --tarjeta-suave: #f7ecca;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --papel: #131816;
+    --hoja: #1b2220;
+    --tinta: #e3e9e5;
+    --grafito: #97a39f;
+    --regla: #2f3936;
+    --regla-suave: #252e2b;
+    --boli: #93a6ff;
+    --boli-suave: #232c4f;
+    --rojo: #f08a72;
+    --rojo-suave: #3d2621;
+    --tarjeta: #f0c552;
+    --tarjeta-suave: #3a321c;
+  }
+}
+
+@theme inline {
+  --color-papel: var(--papel);
+  --color-hoja: var(--hoja);
+  --color-tinta: var(--tinta);
+  --color-grafito: var(--grafito);
+  --color-regla: var(--regla);
+  --color-regla-suave: var(--regla-suave);
+  --color-boli: var(--boli);
+  --color-boli-suave: var(--boli-suave);
+  --color-rojo: var(--rojo);
+  --color-rojo-suave: var(--rojo-suave);
+  --color-tarjeta: var(--tarjeta);
+  --color-tarjeta-suave: var(--tarjeta-suave);
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* El ancho de la tipografía marca la jerarquía: estrecha para cifras y nombres, normal para leer */
+.cond {
+  font-stretch: 72%;
+}
+.semi {
+  font-stretch: 86%;
+}
+.ancha {
+  font-stretch: 112%;
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--boli);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--boli-suave);
+}
+
+/* Trazo de bolígrafo que rodea la cuota de la apuesta del día */
+.trazo {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: trazar 900ms 250ms cubic-bezier(0.6, 0.1, 0.3, 1) forwards;
+}
+@keyframes trazar {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.esqueleto {
+  background: linear-gradient(90deg, var(--regla-suave), var(--regla), var(--regla-suave));
+  background-size: 200% 100%;
+  animation: brillo 1.4s ease-in-out infinite;
+}
+@keyframes brillo {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trazo {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .esqueleto {
+    animation: none;
+  }
+}

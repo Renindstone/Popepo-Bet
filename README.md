@@ -56,6 +56,23 @@ Tu amigo añade el servidor con su clave como `Authorization: Bearer apk_...`. P
 `claude mcp add --transport http apuestas https://TU_HOST/mcp --header "Authorization: Bearer apk_..."`.
 Para exponerlo fuera de tu red usa un túnel (Cloudflare Tunnel o Tailscale Funnel). Ver [docs/adr/0004-mcp-y-multiusuario.md](docs/adr/0004-mcp-y-multiusuario.md).
 
+### Panel web
+
+Interfaz visual en [web/](web/) (Next.js + ECharts). Tiene cinco páginas: **Hoy** (apuesta del día, otras con valor y props con cuota mínima), **Partidos** (análisis completo de cada partido), **Evaluar cuota** (comprobar una cuota de Betano y registrar la apuesta), **Mis apuestas** (ROI, CLV, desglose y banca) y **Datos** (frescura de las fuentes y del modelo). Necesita Node.js 20.9 o superior.
+
+```bash
+.venv/bin/apuestas api        # API en http://127.0.0.1:8000; déjala corriendo en otra terminal
+cd web
+npm install                   # solo la primera vez
+npm run dev                   # panel en http://localhost:3000
+```
+
+Para el uso diario sin modo desarrollo: `npm run build && npm start` (también en el puerto 3000).
+
+- El panel llama a la API desde el navegador. La API solo acepta peticiones del panel abierto en `http://localhost:3000` o `http://127.0.0.1:3000` (CORS), así que ábrelo en una de esas direcciones.
+- Desde la misma máquina la API no pide clave. Si la API corre en otra máquina (por ejemplo, detrás de un túnel), copia `web/.env.example` a `web/.env.local`, pon su dirección en `NEXT_PUBLIC_API_URL` y escribe tu clave en *Datos → Conexión*.
+- Cargar **Hoy** recalcula las apuestas del día igual que `apuestas picks`, así que la primera carga puede tardar unos segundos.
+
 ### Telegram (opcional)
 
 Crea un bot con @BotFather y pon `APUESTAS_TELEGRAM_TOKEN` y `APUESTAS_TELEGRAM_CHAT_ID` en `.env`. El worker envía la apuesta del día a las 9:00 (Lima) y avisa si cambia al salir las alineaciones.

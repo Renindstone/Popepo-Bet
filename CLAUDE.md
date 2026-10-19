@@ -14,6 +14,7 @@ Análisis de apuestas de fútbol (EPL, Bundesliga, LaLiga, Champions; solo prepa
 - `src/apuestas/models/`: `ratings.py` (fuerza conjunta), `distributions.py` (mercados y líneas asiáticas), `fitting.py` (paquete de modelos en var/models/latest.json)
 - `src/apuestas/features/`: alineación vs once típico, contexto, dificultad
 - `src/apuestas/services/`: `analysis.py` (partido completo), `picks.py` (apuesta del día, liquidación), `tracker.py`, `queries.py` (capa común de API/MCP/bot)
+- `web/`: panel Next.js + TypeScript + Tailwind + ECharts que consume la API (`cd web && npm run dev`, ver README)
 - Docs: `docs/arquitectura.md`, `docs/modelos.md` (incluye resultados del backtest), `docs/fuentes.md`, `docs/adr/`
 
 ## Convenciones
