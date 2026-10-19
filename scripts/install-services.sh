@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Instala servicios systemd de usuario: base de datos, worker (tareas programadas) y, opcionalmente, API y bot.
-# Uso: scripts/install-services.sh [--with-api] [--with-bot]
+# Instala servicios systemd de usuario: base de datos, worker (tareas programadas) y, opcionalmente,
+# API REST, panel web y bot de Telegram. Se puede volver a ejecutar sin problema (reescribe las unidades).
+# Uso: scripts/install-services.sh [--with-api] [--with-web] [--with-bot]
+#   --with-web instala también la API (el panel y las capturas la necesitan)
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -41,16 +43,54 @@ WantedBy=default.target
 UNIT
 }
 
+web_unit() {
+  local npm
+  npm="$(command -v npm)" || { echo "Falta Node.js/npm para el panel web" >&2; exit 1; }
+  if [[ ! -d "$PROJECT_DIR/web/node_modules" ]]; then
+    echo "Instalando dependencias del panel (npm ci)…"
+    (cd "$PROJECT_DIR/web" && "$npm" ci --no-audit --no-fund)
+  fi
+  cat > "$UNIT_DIR/apuestas-web.service" <<UNIT
+[Unit]
+Description=App Apuestas: panel web (http://localhost:3000)
+After=apuestas-api.service
+Wants=apuestas-api.service
+
+[Service]
+WorkingDirectory=$PROJECT_DIR/web
+Environment=NODE_ENV=production
+# Compila al arrancar: tras actualizar el código basta con reiniciar el servicio
+ExecStartPre="$npm" run build
+ExecStart="$npm" run start -- --hostname 127.0.0.1 --port 3000
+TimeoutStartSec=600
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
+UNIT
+}
+
 unit worker worker "tareas programadas"
 services=(apuestas-db apuestas-worker)
+with_api=false
 for arg in "$@"; do
   case "$arg" in
-    --with-api) unit api "api --host 127.0.0.1 --port 8000" "API REST"; services+=(apuestas-api) ;;
+    --with-api) with_api=true ;;
+    --with-web) with_api=true; web_unit; services+=(apuestas-web) ;;
     --with-bot) unit bot bot "bot de Telegram"; services+=(apuestas-bot) ;;
+    *) echo "Opción desconocida: $arg" >&2; exit 1 ;;
   esac
 done
+if $with_api; then
+  unit api "api --host 127.0.0.1 --port 8000" "API REST y capturas"
+  services+=(apuestas-api)
+fi
 
 systemctl --user daemon-reload
-systemctl --user enable --now "${services[@]}"
-systemctl --user --no-pager status "${services[@]}" | grep -E "●|Active:"
-echo "Logs: journalctl --user -u apuestas-worker -f"
+systemctl --user enable "${services[@]}"
+# La BD solo se arranca (reiniciarla cortaría a los demás); el resto se reinicia para cargar el código actual
+systemctl --user start apuestas-db
+systemctl --user restart "${services[@]:1}"
+systemctl --user --no-pager status "${services[@]}" | grep -E "●|Active:" || true
+echo "Logs: journalctl --user -u apuestas-worker -f   (o apuestas-api, apuestas-web)"

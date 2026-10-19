@@ -8,7 +8,8 @@ Análisis de apuestas de fútbol (EPL, Bundesliga, LaLiga, Champions; solo prepa
 - BD: `scripts/db.sh start|stop|status|psql` (cluster propio en 127.0.0.1:5433, datos en ~/.local/share/apuestas/pgdata)
 - Migraciones: `.venv/bin/alembic revision --autogenerate -m "..."` y `.venv/bin/alembic upgrade head`
 - CLI: `.venv/bin/apuestas --help` (ingest, train, picks, analyze, evaluate, backtest, mcp, api, bot, worker, archive, user, capturas)
-- Panel: `.venv/bin/apuestas api` + `npm --prefix web run dev` (o `.claude/launch.json`: api y panel)
+- Servicios (systemd de usuario): `scripts/install-services.sh --with-web` → apuestas-db, -worker, -api (:8000), -web (:3000). Instalación completa: `docs/instalacion.md`
+- Panel en desarrollo: `.claude/launch.json` (api y panel) usa los mismos puertos que los servicios; antes detén `apuestas-web` y `apuestas-api` con `systemctl --user stop`, y vuelve a arrancarlos al terminar
 
 ## Estructura
 - `src/apuestas/ingest/`: un módulo por fuente + `store.py` (resolución de entidades, validación entre fuentes) + `pipeline.py`

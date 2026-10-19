@@ -19,6 +19,8 @@ Pensado para usarlo desde Claude (u otro agente) mediante **MCP**, por Telegram 
 
 ## Puesta en marcha
 
+Guía completa, con requisitos, servicios, actualización y problemas frecuentes: **[docs/instalacion.md](docs/instalacion.md)**. Resumen:
+
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 scripts/db.sh init                      # crea un PostgreSQL propio del proyecto (puerto 5433) y el .env
@@ -28,7 +30,11 @@ scripts/db.sh init                      # crea un PostgreSQL propio del proyecto
 .venv/bin/apuestas picks                # apuestas con valor de hoy
 ```
 
-Servicios permanentes en tu PC (systemd de usuario): `scripts/install-services.sh`.
+Servicios permanentes en tu PC (systemd de usuario), con panel web incluido:
+
+```bash
+scripts/install-services.sh --with-web   # BD + worker + API + panel en http://localhost:3000
+```
 
 ## Uso diario
 
@@ -66,6 +72,8 @@ Interfaz visual en [web/](web/) (Next.js + ECharts). Necesita Node.js 20.9 o sup
 - **Mis apuestas**: ROI, CLV, desglose y banca.
 - **Datos**: frescura de las fuentes y del modelo.
 
+Con los servicios instalados (`scripts/install-services.sh --with-web`), el panel está siempre en **http://localhost:3000**. Para desarrollarlo a mano, detén antes los servicios (`systemctl --user stop apuestas-web apuestas-api`) y lanza:
+
 ```bash
 .venv/bin/apuestas api        # API en http://127.0.0.1:8000; déjala corriendo en otra terminal
 cd web
@@ -73,7 +81,7 @@ npm install                   # solo la primera vez
 npm run dev                   # panel en http://localhost:3000
 ```
 
-Para el uso diario sin modo desarrollo: `npm run build && npm start` (también en el puerto 3000).
+Para el uso diario, el servicio `apuestas-web` ya compila y sirve la versión de producción (`npm run build && npm start`).
 
 - El panel llama a la API desde el navegador. La API solo acepta peticiones del panel abierto en `http://localhost:3000` o `http://127.0.0.1:3000` (CORS), así que ábrelo en una de esas direcciones.
 - Desde la misma máquina la API no pide clave. Si la API corre en otra máquina (por ejemplo, detrás de un túnel), copia `web/.env.example` a `web/.env.local`, pon su dirección en `NEXT_PUBLIC_API_URL` y escribe tu clave en *Datos → Conexión*.
