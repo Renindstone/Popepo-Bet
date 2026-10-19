@@ -89,6 +89,7 @@ def backtest(
     w_model: float = 0.25,
     market_weight: float = typer.Option(None, help="Peso de los goles implícitos del cierre (por defecto el del modelo)"),
     lineups: bool = typer.Option(False, help="Mide también el ajuste por once confirmado (log-loss y regresión)"),
+    europa: bool = typer.Option(False, help="Mide también la log-loss del modelo en Champions/Europa/Conference"),
     out: str = "",
 ) -> None:
     """Backtest walk-forward contra cuotas históricas de bet365."""
@@ -100,7 +101,7 @@ def backtest(
     _logging(False)
     res = engine.run(date.fromisoformat(start), date.fromisoformat(end), half_life_days=half_life,
                      xg_weight=xg_weight, min_ev=min_ev, w_model=w_model, market_weight=market_weight,
-                     lineups=lineups)
+                     lineups=lineups, extra_competitions=("UCL", "UEL", "UECL") if europa else ())
     summary = res.summary()
     if out:
         with open(out, "w") as fh:

@@ -6,6 +6,7 @@ Métricas:
 - ROI de apuestas con valor (1X2, más/menos 2.5 y hándicap asiático principal) a cuota previa de bet365.
 - CLV medio: cuota tomada vs cuota de cierre de bet365 (indicador de ventaja real a corto plazo).
 - Calibración de modelos de remates, córners y tarjetas (verosimilitud frente a la media de la liga).
+- Log-loss del modelo por competición, también donde no hay cuotas (`extra_competitions`, p. ej. Champions).
 
 Alineaciones (opción `lineups`): con los onces confirmados históricos de FotMob se mide, en los partidos
 que los tienen, la log-loss del modelo con y sin el ajuste por alineación, y se estima por regresión
@@ -70,6 +71,7 @@ class BacktestResult:
     bets: list[Bet] = field(default_factory=list)
     count_calibration: dict[str, dict] = field(default_factory=dict)
     lineups: dict = field(default_factory=dict)
+    ll_by_comp: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
 
     def summary(self) -> dict:
         def agg(items: list[Bet]) -> dict:
@@ -93,6 +95,8 @@ class BacktestResult:
             "matches_evaluated": self.n_matches,
             "logloss_1x2": {k: round(v, 4) for k, v in self.logloss.items()},
             "brier_1x2": {k: round(v, 4) for k, v in self.brier.items()},
+            "logloss_modelo_por_competicion": {k: {"partidos": len(v), "logloss": round(float(np.mean(v)), 4)}
+                                               for k, v in sorted(self.ll_by_comp.items())},
             "betting": {strat: {k: agg(v) for k, v in groups.items()} for strat, groups in by.items()},
             "count_models": self.count_calibration,
             **({"lineups": self.lineups} if self.lineups else {}),
@@ -124,7 +128,9 @@ def run(
     market_weight: float | None = None,
     market_half_life: float | None = None,
     lineups: bool = False,
+    extra_competitions: tuple[str, ...] = (),
 ) -> BacktestResult:
+    """`extra_competitions`: competiciones donde solo se mide el modelo (sin cuotas ni apuestas)."""
     from apuestas.db.session import _factory
 
     market_weight = fitting.MARKET_WEIGHT if market_weight is None else market_weight
@@ -132,13 +138,14 @@ def run(
     res = BacktestResult(params={"start": start.isoformat(), "end": end.isoformat(), "half_life": half_life_days,
                                  "xg_weight": xg_weight, "min_ev": min_ev, "odds_range": odds_range,
                                  "competitions": competitions, "w_model": w_model, "market_weight": market_weight,
-                                 "market_half_life": market_half_life})
+                                 "market_half_life": market_half_life, "extra_competitions": extra_competitions})
     s = _factory()()
     try:
         before = datetime.combine(end, datetime.min.time(), UTC) + timedelta(days=1)
         since = datetime.combine(start, datetime.min.time(), UTC) - timedelta(days=1100)
         all_rows = load_matches(s, before=before, since=since)
-        odds = _odds_map(s, [r.match_id for r in all_rows if r.competition in competitions and r.day >= start])
+        evaluated = set(competitions) | set(extra_competitions)
+        odds = _odds_map(s, [r.match_id for r in all_rows if r.competition in evaluated and r.day >= start])
         # Solo se usan las cuotas de cierre de partidos ya jugados antes de cada reajuste (train)
         implied = load_market_goals(s, before=before, since=since) if market_weight > 0 else {}
         xi_hist = lu.xi_history(s) if lineups else {}
@@ -156,7 +163,7 @@ def run(
     while cur <= end:
         nxt = cur + timedelta(days=step_days)
         train = [r for r in all_rows if r.day < cur]
-        test = [r for r in all_rows if cur <= r.day < nxt and r.competition in competitions]
+        test = [r for r in all_rows if cur <= r.day < nxt and r.competition in evaluated]
         if test and len(train) > 500:
             gm = ratings.fit(goals_obs(train, xg_weight) + market_obs(train, implied, market_weight), cur,
                              half_life_days=half_life_days, market_half_life_days=market_half_life)
@@ -168,8 +175,11 @@ def run(
                     cms[stat] = ratings.fit(obs, cur, half_life_days=half_life_days, l2=1.0)
             refs = fit_referees(train, cms["cards"], cms.get("fouls")) if "cards" in cms else {}
             for r in test:
-                _evaluate_match(r, gm, rho, odds.get(r.match_id, {}), res, ll, br, min_ev, odds_range, w_model)
-                _evaluate_counts(r, cms, count_ll, refs)
+                main = r.competition in competitions
+                _evaluate_match(r, gm, rho, odds.get(r.match_id, {}), res, ll, br, min_ev, odds_range, w_model,
+                                model_only=not main)
+                if main:
+                    _evaluate_counts(r, cms, count_ll, refs)
                 if lineups:
                     _evaluate_lineup(r, gm, rho, odds.get(r.match_id, {}), xi_hist, xi_idx, ll_lu, lu_rows)
         cur = nxt
@@ -179,7 +189,10 @@ def run(
     if lineups:
         res.lineups = {"betas": {"att": lu.BETA_ATT, "def": lu.BETA_DEF},
                        "matches": len(ll_lu["modelo"]),
-                       "logloss_1x2": {k: round(float(np.mean(v)), 4) for k, v in ll_lu.items() if v},
+                       "logloss_1x2": {k: round(float(np.mean(v)), 4) for k, v in ll_lu.items() if v and ":" not in k},
+                       "logloss_modelo_por_competicion": {
+                           k: {"partidos": len(v), "logloss": round(float(np.mean(v)), 4)}
+                           for k, v in sorted(ll_lu.items()) if ":" in k},
                        "regresion": lineup_regression(lu_rows)}
     for stat, pairs in count_ll.items():
         model_ll = float(np.mean([p[0] for p in pairs]))
@@ -191,13 +204,16 @@ def run(
 
 
 def _evaluate_match(r: MatchRow, gm, rho: float, od: dict, res: BacktestResult, ll, br, min_ev, odds_range,
-                    w_model: float = W_MODEL) -> None:
+                    w_model: float = W_MODEL, model_only: bool = False) -> None:
     if r.home not in gm.attack or r.away not in gm.attack:
         return
     lh, la = gm.expected(r.home, r.away, r.neutral)
     mat = dist.dixon_coles_matrix(lh, la, rho)
     p_model = [float(np.tril(mat, -1).sum()), float(np.trace(mat)), float(np.triu(mat, 1).sum())]
     outcome_idx = 0 if r.hg > r.ag else (1 if r.hg == r.ag else 2)
+    res.ll_by_comp[r.competition].append(-math.log(max(p_model[outcome_idx], 1e-9)))
+    if model_only:
+        return  # competición sin cuotas (Champions...): solo cuenta la log-loss del modelo
     res.n_matches += 1
 
     sharp = _book_probs(od, "pinnacle") or _book_probs(od, "betfair_ex")
@@ -299,20 +315,21 @@ def _evaluate_lineup(r: MatchRow, gm, rho: float, od: dict, xi_hist: dict, xi_id
     # (partido, media del modelo, Δataque propio, Δdefensa rival, goles, xG)
     lu_rows.append((r.match_id, lh, dah, dda, r.hg, r.stats_h.get("xg")))
     lu_rows.append((r.match_id, la, daa, ddh, r.ag, r.stats_a.get("xg")))
-    b365, sharp = _book_probs(od, "bet365"), _book_probs(od, "pinnacle") or _book_probs(od, "betfair_ex")
-    if not (b365 and sharp):
-        return
+    k = 0 if r.hg > r.ag else (1 if r.hg == r.ag else 2)
     variants = {
         "modelo": _probs_1x2(lh, la, rho),
         "modelo+alineacion": _probs_1x2(lh * math.exp(lu.BETA_ATT * dah - lu.BETA_DEF * dda),
                                         la * math.exp(lu.BETA_ATT * daa - lu.BETA_DEF * ddh), rho),
-        "bet365": b365,
-        "pinnacle": sharp,
     }
+    for name, p in variants.items():  # todas las competiciones, haya cuotas o no
+        ll_lu[f"{r.competition}:{name}"].append(-math.log(max(p[k], 1e-9)))
+    b365, sharp = _book_probs(od, "bet365"), _book_probs(od, "pinnacle") or _book_probs(od, "betfair_ex")
+    if not (b365 and sharp):
+        return
+    variants |= {"bet365": b365, "pinnacle": sharp}
     closing = _book_probs(od, "pinnacle", "closing")
     if closing:
         variants["pinnacle_cierre"] = closing  # referencia: el cierre ya conoce las alineaciones
-    k = 0 if r.hg > r.ag else (1 if r.hg == r.ag else 2)
     for name, p in variants.items():
         ll_lu[name].append(-math.log(max(p[k], 1e-9)))
 

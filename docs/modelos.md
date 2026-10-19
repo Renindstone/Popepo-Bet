@@ -103,6 +103,18 @@ El error estándar del ROI con 1.500-2.700 apuestas a cuota ~2,2 es de 2-3 punto
 
 Con β = 0,10 la mejora frente a no ajustar es −0,0014 ± 0,0010; con 0,30 el modelo empeoraba. La mejora viene sobre todo de LaLiga (−0,003); en la Premier es nula. Las apuestas del backtest no usan este ajuste: el once sale ~1 h antes del partido y la cuota previa es de días antes.
 
+Variantes probadas sin mejora (diferencia de log-loss frente a no ajustar; 2.119 partidos de liga + 361 de Champions):
+
+| Variante (β = 0,10 salvo indicación) | Ligas | Champions |
+|---|---|---|
+| Once típico de todas las competiciones (se mantiene) | −0,0014 ± 0,0009 | −0,0011 ± 0,0024 |
+| Once típico de la misma competición | −0,0012 ± 0,0009 | −0,0018 ± 0,0024 |
+| Once típico de liga frente a copas europeas | −0,0012 ± 0,0009 | −0,0018 ± 0,0024 |
+| Tope del ajuste (±10 % en la media de goles) | −0,0015 ± 0,0009 | −0,0010 ± 0,0024 |
+| β = 0,30 (anterior) | +0,0013 ± 0,0028 | +0,0004 ± 0,0072 |
+
+Los onces *previstos* (FotMob) no se pueden calibrar porque no se guarda su historial: cuando sale el confirmado, la fila se sobrescribe. Se les aplica el mismo β, que probablemente es algo alto para ellos, porque un once previsto mal acertado mete ruido. Ejemplo: en Liverpool-Villarreal (UCL, 20-10-2026) el once previsto de Liverpool incluye a varios suplentes y el de Villarreal es el de Champions (en liga rota). Con β = 0,30 el modelo daba 0,43 al local; con 0,10 da 0,59; el mercado, ~0,66.
+
 **Árbitro en tarjetas** (mejora de log-verosimilitud por partido frente al modelo sin árbitro; 2.105 partidos):
 
 | K | Total | Premier | Bundesliga | LaLiga |
@@ -114,6 +126,10 @@ Con β = 0,10 la mejora frente a no ajustar es −0,0014 ± 0,0010; con 0,30 el 
 | 250 | +0,0024 | −0,0009 | +0,0021 | +0,0061 |
 
 K = 80 mejora a 120 en +0,0006 ± 0,0004. K = 40 da algo más de media, pero con más varianza. En la Premier el historial del árbitro no predice las tarjetas con ningún K (−0,003 ± 0,002 con K = 80). No se ha puesto una excepción por liga para no ajustarla a la misma muestra. En faltas se mantiene K = 20 (con 40 la diferencia es menor que su error).
+
+**Copas europeas** (`--europa`; no hay cuotas de football-data, así que solo se mide el modelo). Log-loss 1X2 del modelo: Champions 0,903 (377 partidos), Europa League 0,984 (371) y Conference 1,021 (282). Sin referencia de mercado no se puede decir cuánto le falta. Hay dos limitaciones conocidas:
+- 102 equipos solo aparecen en copas europeas: son de ligas que no se descargan (Noruega, Austria, Dinamarca, Suiza...). No tienen ratings del mercado, así que su rating sale solo de pocos partidos europeos. Ejemplo: Bodø/Glimt sale casi tan fuerte como el Napoli (+0,62 frente a +0,67), mientras que la cuota de 1,30 del Napoli implica ~77 %. Una ventaja local propia por equipo (Bodø: +0,3 de xG en casa y −1,7 fuera) se probó y no mejora: empeora las ligas en +0,001 y no cambia la Champions.
+- Hay equipos duplicados entre fuentes: "AEK" y "AEK Athens", "PAOK" y "PAOK Thessaloniki", "Nijmegen" y "NEC Nijmegen", "Antwerp" y "Royal Antwerp". Sus partidos europeos no se conectan con su liga.
 
 | Estadísticas (log-verosimilitud por partido) | Mejora frente a la media de la liga |
 |---|---|
@@ -129,10 +145,12 @@ K = 80 mejora a 120 en +0,0006 ± 0,0004. K = 40 da algo más de media, pero con
 3. El cierre de Pinnacle (0,963) es mucho mejor que su cuota previa (0,976): entre la previa y el partido llega mucha información (alineaciones, noticias). El índice de calidad del once solo capta una parte (β = 0,10).
 4. Donde el modelo sí aporta información (faltas, remates, tarjetas, jugadores) es justo donde las casas tienen menos precisión. Ahí hay que comparar las cuotas de Betano con la **cuota mínima** que da el sistema. El árbitro ayuda en las tarjetas de LaLiga y la Bundesliga, no en las de la Premier.
 
-Reproducir: `apuestas backtest --lineups --out var/backtests/x.json` (`--market-weight 0` para el modelo sin mercado).
+Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (`--market-weight 0` para el modelo sin mercado).
 
 ## Próximas mejoras previstas
 
+- Descargar las ligas extra de football-data (Austria, Dinamarca, Noruega, Suiza, Polonia...) para que los rivales europeos tengan ratings del mercado, y unir los equipos duplicados entre fuentes.
+- Guardar el historial de onces previstos para calibrar su β por separado.
 - Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
 - Medir la antigüedad de las observaciones del mercado en jornadas en lugar de días, para no perder el mercado durante el parón de verano.
 - Backtest de props cuando haya cuotas guardadas de Betano (OddsPapi).
