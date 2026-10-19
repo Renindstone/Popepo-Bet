@@ -255,8 +255,11 @@ def evaluate_bet(
         reasons.append(f"Modelo {model_p:.0%} · mercado afilado {sharp_p:.0%} · mezcla {prob:.0%}")
     else:
         reasons.append(f"Probabilidad del modelo {model_p:.0%} (sin referencia de mercado afilado)")
-    return BetEval(market, selection, line, bookmaker, odds, model_p, sharp_p, prob,
-                   1 / prob if prob > 0 else float("inf"), ev, stake, conf, player_id, reasons)
+    # float(): los cálculos devuelven tipos numpy, que no se serializan a JSON (p.ej. numpy.bool en comparaciones)
+    return BetEval(market, selection, line, bookmaker, float(odds), float(model_p),
+                   float(sharp_p) if sharp_p is not None else None, float(prob),
+                   1 / float(prob) if prob > 0 else float("inf"), float(ev), float(stake), float(conf),
+                   player_id, reasons)
 
 
 # --------------------------------------------------------------------------- análisis

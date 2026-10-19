@@ -119,3 +119,17 @@ def test_profit():
     assert profit("half_win", 10, 2.0) == 5.0
     assert profit("half_loss", 10, 2.0) == -5.0
     assert profit("push", 10, 2.0) == 0.0
+
+
+def test_bet_eval_is_json_serializable():
+    """Regresión: los tipos numpy (numpy.bool) rompían GET /picks en la API."""
+    import json
+
+    from apuestas.services.analysis import evaluate_bet
+    from apuestas.services.picks import qualifies
+
+    quality = {"lineup_factor": 1.0, "sample_factor": 1.0, "lineup_status": "confirmed"}
+    b = evaluate_bet(_mm(), quality, "baja", [], "ou_corners", "over", 9.5, 1.9, "betano")
+    assert type(qualifies(b)) is bool
+    assert all(type(getattr(b, f)) is float for f in ("odds", "model_prob", "prob", "ev", "confidence"))
+    json.dumps({**b.to_dict(), "qualifies": qualifies(b)})
