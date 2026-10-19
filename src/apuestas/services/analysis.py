@@ -396,12 +396,33 @@ def evaluate_user_odds(
     odds: float, bookmaker: str = "betano", player_id: int | None = None,
 ) -> tuple[MatchAnalysis, BetEval]:
     """Evalúa una cuota que el usuario ve en su casa de apuestas."""
+    an, (ev,) = evaluate_user_odds_many(s, bundle, match, [(market, selection, line, odds, bookmaker, player_id)])
+    if isinstance(ev, Exception):
+        raise ev
+    return an, ev
+
+
+def evaluate_user_odds_many(
+    s: Session, bundle: ModelBundle, match: m.Match,
+    items: list[tuple[str, str, float | None, float, str, int | None]],
+) -> tuple[MatchAnalysis, list[BetEval | ValueError]]:
+    """Evalúa varias cuotas del mismo partido con un solo análisis (p.ej. todas las de una captura).
+
+    Cada elemento es (mercado, selección, línea, cuota, casa, id_jugador). Una cuota con un mercado o línea
+    no válidos devuelve su ValueError en su posición, sin impedir evaluar las demás.
+    """
     an = analyze(s, bundle, match)
     rotation = max((an.context["home"]["rotation_risk"], an.context["away"]["rotation_risk"]),
                    key=["baja", "media", "alta"].index)
-    ev = evaluate_bet(an.model, an.data_quality, rotation, _latest_odds(s, match.id), market, selection, line,
-                      odds, bookmaker, player_id)
-    return an, ev
+    odds_rows = _latest_odds(s, match.id)
+    out: list[BetEval | ValueError] = []
+    for market, selection, line, odds, bookmaker, player_id in items:
+        try:
+            out.append(evaluate_bet(an.model, an.data_quality, rotation, odds_rows, market, selection, line,
+                                    odds, bookmaker, player_id))
+        except (ValueError, KeyError) as exc:
+            out.append(exc if isinstance(exc, ValueError) else ValueError(f"Selección no válida: {exc}"))
+    return an, out
 
 
 def now_utc() -> datetime:

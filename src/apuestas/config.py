@@ -46,6 +46,22 @@ class Settings(BaseSettings):
     pick_min_ev: float = 0.03
     pick_min_confidence: float = 0.60
 
+    # Capturas de cuotas (imágenes de bet365/Betano que lee una IA vía MCP)
+    # Motor automático: claude_code (CLI con la suscripción del dueño), api (API de Claude, de pago) o none
+    # (solo agentes externos conectados por MCP).
+    captures_engine: str = "claude_code"
+    # Usuarios cuyas capturas procesa el motor automático, separados por comas (vacío = solo default_user).
+    # Con claude_code deja solo al dueño: la suscripción es personal.
+    captures_engine_users: str = ""
+    captures_timeout_s: int = 300
+    captures_max_mb: float = 10.0
+    claude_bin: str = "claude"
+    captures_cli_model: str = "sonnet"  # alias del CLI de Claude Code
+    anthropic_api_key: str = ""  # solo motor api
+    captures_api_model: str = "claude-sonnet-5-5"
+    # Usuario con el que actúa el servidor MCP en modo stdio (vacío = default_user)
+    mcp_user: str = ""
+
     @property
     def tz(self) -> ZoneInfo:
         return ZoneInfo(self.timezone)
@@ -57,6 +73,17 @@ class Settings(BaseSettings):
     @property
     def archive_dir(self) -> Path:
         return self.var_dir / "archive"
+
+    @property
+    def captures_dir(self) -> Path:
+        return self.var_dir / "capturas"
+
+    def captures_engine_for(self, username: str) -> str | None:
+        """Motor automático que procesa las capturas de este usuario (None = las procesa su propio agente)."""
+        if self.captures_engine == "none":
+            return None
+        allowed = {u.strip() for u in self.captures_engine_users.split(",") if u.strip()} or {self.default_user}
+        return self.captures_engine if username in allowed else None
 
 
 @lru_cache

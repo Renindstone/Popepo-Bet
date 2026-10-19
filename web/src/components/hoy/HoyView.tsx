@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useState } from "react";
+import { CaptureDrop } from "@/components/capturas/CaptureDrop";
 import { PenMark } from "@/components/PenMark";
 import { Button, EdgeBar, Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag, TriBar } from "@/components/ui";
 import { api, type ApiError, useApi } from "@/lib/api";
@@ -20,7 +21,7 @@ import {
 } from "@/lib/format";
 import { useToday } from "@/lib/hooks";
 import { betLabel, bookmakerName } from "@/lib/markets";
-import type { DayMatch, PastValueBet, Performance, PickOfDay, PicksReport, PropMinOdds, ValueBet } from "@/lib/types";
+import type { Capture, DayMatch, PastValueBet, Performance, PickOfDay, PicksReport, PropMinOdds, ValueBet } from "@/lib/types";
 
 function dayTitle(day: string, today: string): string {
   if (day === today) return "Hoy";
@@ -112,11 +113,20 @@ export function HoyView() {
               </p>
             ))}
         </div>
-        <MarginNote />
+        <div className="space-y-6">
+          {!past && <CaptureQuick />}
+          <MarginNote />
+        </div>
       </div>
 
       {data && (
         <>
+          {!past && data.matches && (
+            <Section title="Partidos del día">
+              <DayMatches rows={data.matches} />
+            </Section>
+          )}
+
           <Section
             title="Otras apuestas con valor"
             intro={
@@ -137,14 +147,26 @@ export function HoyView() {
             </Section>
           )}
 
-          {!past && data.matches && (
-            <Section title="Partidos del día">
-              <DayMatches rows={data.matches} />
-            </Section>
-          )}
         </>
       )}
     </>
+  );
+}
+
+// --------------------------------------------------------------------------- capturas
+
+/** Atajo para revisar una cuota vista en la casa de apuestas: se sube y se abre en Capturas */
+function CaptureQuick() {
+  const router = useRouter();
+  const onUploaded = useCallback((c: Capture) => router.push(`/capturas?nueva=${c.id}`), [router]);
+  return (
+    <div>
+      <h2 className="semi mb-1 text-base font-bold text-tinta">¿Viste una cuota?</h2>
+      <p className="mb-3 text-[0.92rem] text-grafito">
+        Sube o pega la captura de Betano o bet365: Claude la lee y el modelo te dice si tiene valor.
+      </p>
+      <CaptureDrop onUploaded={onUploaded} compact />
+    </div>
   );
 }
 

@@ -249,5 +249,35 @@ def user_bankroll(username: str, amount: float, currency: str = "PEN") -> None:
     _print_json(queries.set_bankroll(username, amount, currency))
 
 
+captures_app = typer.Typer(help="Capturas de cuotas que lee una IA", no_args_is_help=True)
+app.add_typer(captures_app, name="capturas")
+
+
+@captures_app.command("lista")
+def captures_list(user: str = typer.Option(None, help="Usuario (por defecto el principal)")) -> None:
+    """Últimas capturas subidas y su estado."""
+    from apuestas.config import get_settings
+    from apuestas.services import captures
+
+    rows = captures.list_for(user or get_settings().default_user, 20)
+    _print_json([{k: r[k] for k in ("id", "status", "created_local", "match_hint", "summary", "error")} for r in rows])
+
+
+@captures_app.command("procesar")
+def captures_process(capture_id: int) -> None:
+    """Procesa ahora una captura pendiente o con error, con el motor configurado (sin pasar por la API)."""
+    from apuestas.config import get_settings
+    from apuestas.services import capture_engines, captures
+
+    _logging(False)
+    owner = captures.owner(capture_id)
+    if owner is None:
+        raise typer.BadParameter(f"No existe la captura {capture_id}")
+    if captures.get(owner, capture_id)["status"] == "error":
+        captures.reset_for_retry(owner, capture_id)
+    info = capture_engines.process(capture_id)
+    _print_json({"motor": get_settings().captures_engine, **info, "captura": captures.get(owner, capture_id)})
+
+
 if __name__ == "__main__":
     app()

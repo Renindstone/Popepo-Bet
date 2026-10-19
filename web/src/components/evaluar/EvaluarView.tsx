@@ -38,8 +38,8 @@ export function EvaluarView() {
   const [selection, setSelection] = useState(params.get("seleccion") ?? selectionsFor(initial.base.sel)[0].value);
   const [line, setLine] = useState(params.get("linea") ?? (initial.base.line != null ? String(initial.base.line) : ""));
   const [player, setPlayer] = useState(params.get("jugador") ?? "");
-  const [price, setPrice] = useState("");
-  const [bookmaker, setBookmaker] = useState("betano");
+  const [price, setPrice] = useState(params.get("cuota") ?? "");
+  const [bookmaker, setBookmaker] = useState(params.get("casa") === "bet365" ? "bet365" : "betano");
   const [result, setResult] = useState<{ r: Evaluation; matchId: string; player: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);

@@ -50,7 +50,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   const key = getApiKey();
   if (key) headers.set("X-API-Key", key);
-  if (init?.body) headers.set("Content-Type", "application/json");
+  // Los formularios con archivos (FormData) llevan su propio Content-Type con el separador
+  if (typeof init?.body === "string") headers.set("Content-Type", "application/json");
 
   let res: Response;
   try {
@@ -81,6 +82,29 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function post<T>(path: string, body: unknown): Promise<T> {
   return api<T>(path, { method: "POST", body: JSON.stringify(body) });
+}
+
+export function put<T>(path: string, body: unknown): Promise<T> {
+  return api<T>(path, { method: "PUT", body: JSON.stringify(body) });
+}
+
+export function del<T>(path: string): Promise<T> {
+  return api<T>(path, { method: "DELETE" });
+}
+
+/** Sube un formulario con archivos (multipart). */
+export function upload<T>(path: string, form: FormData): Promise<T> {
+  return api<T>(path, { method: "POST", body: form });
+}
+
+/** Descarga un archivo protegido por la clave y lo deja como URL local (para <img>). */
+export async function blobUrl(path: string): Promise<string> {
+  const headers = new Headers();
+  const key = getApiKey();
+  if (key) headers.set("X-API-Key", key);
+  const res = await fetch(`${API_URL}${path}`, { headers });
+  if (!res.ok) throw new ApiError(res.status, `No se pudo cargar la imagen (${res.status}).`);
+  return URL.createObjectURL(await res.blob());
 }
 
 export function useApi<T>(path: string | null, config?: SWRConfiguration<T, ApiError>) {

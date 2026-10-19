@@ -16,10 +16,11 @@ from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import AccessToken
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.utilities.types import Image
 
 from apuestas.config import get_settings
 from apuestas.db.session import session_scope
-from apuestas.services import queries, tracker
+from apuestas.services import captures, queries, tracker
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +41,9 @@ Mercados (parámetro `mercado`) y selecciones:
 
 Reglas: no recomiendes apostar si el veredicto no es "APOSTAR"; recuerda la gestión de banca y que
 "no apostar" es válido. Las bajas manuales sirven para noticias que FotMob aún no refleja.
+
+Capturas: el usuario sube imágenes de cuotas en el panel. capturas_pendientes → ver_captura (imagen + guía) →
+evaluar_captura (las cuotas que leíste; el modelo calcula el veredicto) → guardar_veredicto_captura (resumen).
 """
 
 
@@ -56,7 +60,10 @@ class ApiKeyVerifier:
 
 def _user() -> str:
     tok = get_access_token()
-    return tok.client_id if tok else get_settings().default_user
+    if tok:
+        return tok.client_id
+    st = get_settings()
+    return st.mcp_user or st.default_user
 
 
 def _safe(fn, *args: Any, **kwargs: Any) -> str:
@@ -66,7 +73,7 @@ def _safe(fn, *args: Any, **kwargs: Any) -> str:
         return json.dumps({"error": str(exc)}, ensure_ascii=False)
     except FileNotFoundError:
         return json.dumps({"error": "Los modelos aún no están entrenados. Ejecuta `apuestas train`."})
-    except ValueError as exc:
+    except ValueError as exc:  # incluye CaptureError
         return json.dumps({"error": str(exc)}, ensure_ascii=False)
 
 
@@ -159,6 +166,33 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
         from apuestas.services import picks
 
         return _safe(picks.pick_history, dias)
+
+    @server.tool()
+    def capturas_pendientes() -> str:
+        """Capturas de cuotas (imágenes de bet365/Betano) que el usuario subió al panel y esperan lectura."""
+        return _safe(captures.pending, _user())
+
+    @server.tool()
+    def ver_captura(captura_id: int) -> list[Image | str]:
+        """Devuelve la imagen de una captura de cuotas con las pistas del usuario, los partidos próximos y la guía
+        para pasar cada mercado al formato de evaluar_captura."""
+        try:
+            path, mime, text = captures.context_for_ai(_user(), captura_id)
+        except queries.NotFound as exc:
+            return [json.dumps({"error": str(exc)}, ensure_ascii=False)]
+        return [Image(data=path.read_bytes(), format=mime.split("/")[1]), text]
+
+    @server.tool()
+    def evaluar_captura(captura_id: int, lineas: list[captures.CaptureLine], partido: str | None = None,
+                        notas: str | None = None) -> str:
+        """Envía las cuotas leídas en una captura. El modelo devuelve probabilidad, cuota justa, valor esperado,
+        stake y veredicto de cada una (las guarda en la captura). partido: id o 'Local vs Visitante'."""
+        return _safe(captures.evaluate_lines, _user(), captura_id, lineas, partido, notas)
+
+    @server.tool()
+    def guardar_veredicto_captura(captura_id: int, veredicto: str) -> str:
+        """Guarda el resumen final de la captura (2 a 5 frases basadas solo en los números del modelo)."""
+        return _safe(captures.save_verdict, _user(), captura_id, veredicto)
 
     @server.tool()
     def estado_datos() -> str:

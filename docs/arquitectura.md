@@ -33,6 +33,8 @@ OddsPapi (opcional) ─┘        │
 
 El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia.
 
+**Capturas de cuotas** (`services/captures.py`, `services/capture_engines.py`): el panel sube la imagen a la API. Un hilo de la API lanza Claude Code (`claude -p`), aislado y con el servidor MCP del proyecto. Claude lee la imagen con `ver_captura`, manda las cuotas a `evaluar_captura` (las evalúa el mismo modelo que `evaluar_cuota`) y guarda un resumen. Ver [ADR 0005](adr/0005-capturas-con-ia.md).
+
 ## Flujo diario (hora de Lima)
 
 1. **05:30**: resultados de ayer (FotMob, football-data, Understat), detalles de partidos jugados, liquidación de picks y apuestas, reentrenamiento (`var/models/latest.json`).

@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/", label: "Hoy" },
   { href: "/partidos", label: "Partidos" },
   { href: "/evaluar", label: "Evaluar cuota" },
+  { href: "/capturas", label: "Capturas" },
   { href: "/rendimiento", label: "Mis apuestas" },
   { href: "/datos", label: "Datos" },
 ];

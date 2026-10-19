@@ -43,7 +43,7 @@ Servicios permanentes en tu PC (systemd de usuario): `scripts/install-services.s
 
 ### Conectar Claude (MCP)
 
-El repo incluye [.mcp.json](.mcp.json): al abrir Claude Code en esta carpeta aparece el servidor `apuestas`. Para Claude Desktop, añade el mismo bloque en su configuración. Herramientas: `apuesta_del_dia`, `analizar_partido`, `evaluar_cuota`, `bajas_equipo`, `registrar_baja`, `perfil_arbitro`, `proyeccion_jugador`, `registrar_apuesta`, `mi_rendimiento`, etc.
+El repo incluye [.mcp.json](.mcp.json): al abrir Claude Code en esta carpeta aparece el servidor `apuestas`. Para Claude Desktop, añade el mismo bloque en su configuración. Herramientas: `apuesta_del_dia`, `analizar_partido`, `evaluar_cuota`, `bajas_equipo`, `registrar_baja`, `perfil_arbitro`, `proyeccion_jugador`, `registrar_apuesta`, `mi_rendimiento`, `capturas_pendientes`, `ver_captura`, `evaluar_captura`, etc.
 
 ### Amigos (cada uno con su agente)
 
@@ -58,7 +58,13 @@ Para exponerlo fuera de tu red usa un túnel (Cloudflare Tunnel o Tailscale Funn
 
 ### Panel web
 
-Interfaz visual en [web/](web/) (Next.js + ECharts). Tiene cinco páginas: **Hoy** (apuesta del día, otras con valor y props con cuota mínima), **Partidos** (análisis completo de cada partido), **Evaluar cuota** (comprobar una cuota de Betano y registrar la apuesta), **Mis apuestas** (ROI, CLV, desglose y banca) y **Datos** (frescura de las fuentes y del modelo). Necesita Node.js 20.9 o superior.
+Interfaz visual en [web/](web/) (Next.js + ECharts). Necesita Node.js 20.9 o superior. Tiene seis páginas:
+- **Hoy**: apuesta del día arriba, partidos del día debajo, luego otras apuestas con valor y props con cuota mínima, más un acceso rápido para subir capturas.
+- **Partidos**: análisis completo de cada partido.
+- **Evaluar cuota**: comprobar una cuota de Betano y registrar la apuesta.
+- **Capturas**: subir o pegar una captura de cuotas. Claude la lee y el modelo da el veredicto de cada cuota (ver más abajo).
+- **Mis apuestas**: ROI, CLV, desglose y banca.
+- **Datos**: frescura de las fuentes y del modelo.
 
 ```bash
 .venv/bin/apuestas api        # API en http://127.0.0.1:8000; déjala corriendo en otra terminal
@@ -72,6 +78,22 @@ Para el uso diario sin modo desarrollo: `npm run build && npm start` (también e
 - El panel llama a la API desde el navegador. La API solo acepta peticiones del panel abierto en `http://localhost:3000` o `http://127.0.0.1:3000` (CORS), así que ábrelo en una de esas direcciones.
 - Desde la misma máquina la API no pide clave. Si la API corre en otra máquina (por ejemplo, detrás de un túnel), copia `web/.env.example` a `web/.env.local`, pon su dirección en `NEXT_PUBLIC_API_URL` y escribe tu clave en *Datos → Conexión*.
 - Cargar **Hoy** recalcula las apuestas del día igual que `apuestas picks`, así que la primera carga puede tardar unos segundos.
+
+### Capturas de cuotas (Claude lee la imagen)
+
+En **Capturas** (o en el recuadro de **Hoy**) arrastra, elige o pega con Ctrl+V una captura de Betano o bet365. La API guarda la imagen y lanza Claude Code en segundo plano (`claude -p`) con el servidor MCP del proyecto:
+1. Claude mira la imagen (`ver_captura`) y pasa cada cuota al formato del sistema.
+2. El modelo calcula la probabilidad, el valor esperado y el veredicto de cada una (`evaluar_captura`).
+3. Claude escribe un resumen (`guardar_veredicto_captura`).
+
+La página se actualiza sola. Tarda unos 10 a 15 segundos por captura. Si Claude leyó mal una cuota, usa **Corregir cuotas**: se reevalúa con el modelo sin volver a Claude.
+
+- Usa **tu suscripción de Claude**: cuenta para tu límite de uso, sin coste extra. Necesita el CLI `claude` con la sesión iniciada en esta PC y la API corriendo.
+- La IA corre aislada: sin acceso a archivos ni a la terminal, solo con las tres herramientas de capturas.
+- Por defecto solo se procesan automáticamente **tus** capturas (`APUESTAS_DEFAULT_USER`), porque la suscripción es personal. Los amigos conectan su propio agente al MCP y le piden «procesa mis capturas pendientes».
+- Para pasar a la API de Claude (de pago, por captura): `.venv/bin/pip install -e ".[api]"`, y en `.env` pon `APUESTAS_CAPTURES_ENGINE=api` y `APUESTAS_ANTHROPIC_API_KEY=...`. Ese motor está preparado pero **aún no se ha probado con una clave real**.
+- Desde la terminal: `apuestas capturas lista` y `apuestas capturas procesar <id>`.
+- Detalles y alternativas: [docs/adr/0005-capturas-con-ia.md](docs/adr/0005-capturas-con-ia.md).
 
 ### Telegram (opcional)
 

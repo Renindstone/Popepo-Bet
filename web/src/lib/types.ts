@@ -349,3 +349,53 @@ export interface DataStatus {
   };
   model_as_of: string | null;
 }
+
+// --------------------------------------------------------------------------- capturas de cuotas
+
+export type CaptureStatus = "pendiente" | "procesando" | "evaluada" | "lista" | "error";
+
+export interface CaptureEval extends BetEval {
+  verdict: Evaluation["verdict"];
+  min_odds_for_value: number | null;
+}
+
+export interface CaptureLine {
+  market: string;
+  selection: string;
+  line: number | null;
+  odds: number;
+  player: string | null;
+  bookmaker: string;
+  text: string | null;
+  label?: string;
+  eval?: CaptureEval;
+  error?: string;
+}
+
+export interface Capture {
+  id: number;
+  status: CaptureStatus;
+  created_at: string | null;
+  created_local: string | null;
+  match_hint: string | null;
+  bookmaker_hint: string | null;
+  note: string | null;
+  match: { match_id: number; home: string; away: string; competition: Competicion; kickoff_local: string } | null;
+  lines: CaptureLine[];
+  summary: {
+    lines: number;
+    evaluated: number;
+    errors: number;
+    bet: number;
+    positive_ev: number;
+    best: { label: string | null; odds: number; ev: number; verdict: string } | null;
+  };
+  ai_notes: string | null;
+  verdict: string | null;
+  edited: boolean;
+  engine: string | null;
+  auto_engine: "claude_code" | "api" | null;
+  error: string | null;
+  duration_s: number | null;
+  duplicated: boolean;
+}

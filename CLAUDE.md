@@ -7,13 +7,15 @@ Análisis de apuestas de fútbol (EPL, Bundesliga, LaLiga, Champions; solo prepa
 - Tests: `.venv/bin/pytest` · Lint: `.venv/bin/ruff check src tests`
 - BD: `scripts/db.sh start|stop|status|psql` (cluster propio en 127.0.0.1:5433, datos en ~/.local/share/apuestas/pgdata)
 - Migraciones: `.venv/bin/alembic revision --autogenerate -m "..."` y `.venv/bin/alembic upgrade head`
-- CLI: `.venv/bin/apuestas --help` (ingest, train, picks, analyze, evaluate, backtest, mcp, api, bot, worker, archive, user)
+- CLI: `.venv/bin/apuestas --help` (ingest, train, picks, analyze, evaluate, backtest, mcp, api, bot, worker, archive, user, capturas)
+- Panel: `.venv/bin/apuestas api` + `npm --prefix web run dev` (o `.claude/launch.json`: api y panel)
 
 ## Estructura
 - `src/apuestas/ingest/`: un módulo por fuente + `store.py` (resolución de entidades, validación entre fuentes) + `pipeline.py`
 - `src/apuestas/models/`: `ratings.py` (fuerza conjunta), `distributions.py` (mercados y líneas asiáticas), `fitting.py` (paquete de modelos en var/models/latest.json)
 - `src/apuestas/features/`: alineación vs once típico, contexto, dificultad
-- `src/apuestas/services/`: `analysis.py` (partido completo), `picks.py` (apuesta del día, liquidación), `tracker.py`, `queries.py` (capa común de API/MCP/bot)
+- `src/apuestas/services/`: `analysis.py` (partido completo), `picks.py` (apuesta del día, liquidación), `tracker.py`, `queries.py` (capa común de API/MCP/bot), `captures.py` + `capture_engines.py` (capturas de cuotas que lee una IA, ADR 0005)
+- `web/`: panel Next.js (lee `web/AGENTS.md` antes de tocarlo)
 - `web/`: panel Next.js + TypeScript + Tailwind + ECharts que consume la API (`cd web && npm run dev`, ver README)
 - Docs: `docs/arquitectura.md`, `docs/modelos.md` (incluye resultados del backtest), `docs/fuentes.md`, `docs/adr/`
 

@@ -134,16 +134,20 @@ def evaluate_odds(ref: str | int, market: str, selection: str, odds: float, line
         if player:
             player_id = find_player(s, player).id
         an, ev = analysis.evaluate_user_odds(s, bundle, match, market, selection, line, odds, bookmaker, player_id)
-        st = get_settings()
-        verdict = "APOSTAR" if picks.qualifies(ev) else ("valor pequeño o poca confianza" if ev.ev > 0 else "NO apostar")
         return {
             "match": f"{match.home_team.name} vs {match.away_team.name}",
             "bet": ev.label(match.home_team.name, match.away_team.name, player),
-            **ev.to_dict(),
-            "verdict": verdict,
-            "min_odds_for_value": round((1 + st.pick_min_ev) / ev.prob, 2) if ev.prob > 0 else None,
+            **verdict_fields(ev),
             "lineup_status": an.stage,
         }
+
+
+def verdict_fields(ev: analysis.BetEval) -> dict:
+    """Números de una cuota evaluada + veredicto (lo comparten evaluar_cuota y las capturas)."""
+    st = get_settings()
+    verdict = "APOSTAR" if picks.qualifies(ev) else ("valor pequeño o poca confianza" if ev.ev > 0 else "NO apostar")
+    return {**ev.to_dict(), "verdict": verdict,
+            "min_odds_for_value": round((1 + st.pick_min_ev) / ev.prob, 2) if ev.prob > 0 else None}
 
 
 def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:

@@ -20,6 +20,7 @@ dependencies = [
     "pandas>=2.2",
     "scikit-learn>=1.5",
     "fastapi>=0.115",
+    "python-multipart>=0.0.9",  # subida de capturas
     "uvicorn[standard]>=0.30",
     "mcp>=2.3,<3",
     "typer>=0.12",
@@ -33,6 +34,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
+api = ["anthropic>=0.40"]  # motor de capturas con la API de Claude (de pago)
 
 [project.scripts]
 apuestas = "apuestas.cli:app"

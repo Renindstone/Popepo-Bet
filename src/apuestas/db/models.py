@@ -363,6 +363,37 @@ class UserBet(Base, TimestampMixin):
     match: Mapped[Match] = relationship()
 
 
+class OddsCapture(Base, TimestampMixin):
+    """Captura de cuotas subida por un usuario (imagen de bet365/Betano) y lo que una IA leyó en ella.
+
+    `lines` guarda cada cuota leída y su evaluación con el modelo: la IA solo lee y resume, los números
+    los calcula el modelo. Estados: pendiente → procesando → evaluada → lista (o error).
+    """
+
+    __tablename__ = "odds_capture"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("app_user.id"), index=True)
+    status: Mapped[str] = mapped_column(String(12), default="pendiente", index=True)
+    image_path: Mapped[str] = mapped_column(String(255))  # relativa a var/capturas
+    mime: Mapped[str] = mapped_column(String(20))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    match_hint: Mapped[str | None] = mapped_column(String(120))
+    bookmaker_hint: Mapped[str | None] = mapped_column(String(24))
+    note: Mapped[str | None] = mapped_column(Text)
+    match_id: Mapped[int | None] = mapped_column(ForeignKey("match.id"))
+    lines: Mapped[list | None] = mapped_column(JSONType)
+    ai_notes: Mapped[str | None] = mapped_column(Text)
+    verdict: Mapped[str | None] = mapped_column(Text)
+    edited: Mapped[bool] = mapped_column(Boolean, default=False)  # el usuario corrigió las cuotas a mano
+    engine: Mapped[str | None] = mapped_column(String(16))  # claude_code | api | mcp (agente externo)
+    engine_info: Mapped[dict | None] = mapped_column(JSONType)
+    error: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    match: Mapped[Match | None] = relationship()
+
+
 # --------------------------------------------------------------------------- resúmenes y operación
 
 
