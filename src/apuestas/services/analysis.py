@@ -1,0 +1,405 @@
+"""Análisis completo de un partido: modelo + alineaciones + bajas + árbitro + contexto + cuotas."""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from apuestas.betting import odds as oddsmath
+from apuestas.config import get_settings
+from apuestas.db import models as m
+from apuestas.features import context as ctx
+from apuestas.features import lineup as lu
+from apuestas.models.distributions import Outcome
+from apuestas.models.fitting import ModelBundle
+from apuestas.services.match_model import MatchModel, PlayerProjection
+
+MY_BOOKS = ("bet365", "betano")
+SHARP_BOOKS = ("pinnacle", "betfair_ex")
+W_MODEL = 0.25  # peso del modelo frente al mercado afilado: el backtest muestra que el mercado sabe más
+MAIN_MARKETS = ("1x2", "ou_goals", "ah", "btts", "dnb", "dc")
+COUNT_LINE_STATS = ("shots", "shots_on_target", "corners", "cards", "fouls")
+MARKET_LABELS = {
+    "1x2": "Resultado", "ah": "Hándicap asiático", "eh": "Hándicap europeo", "ou_goals": "Goles",
+    "btts": "Ambos marcan", "dnb": "Empate no válido", "dc": "Doble oportunidad",
+    "ou_shots": "Remates totales", "ou_shots_on_target": "Remates a puerta", "ou_corners": "Córners",
+    "ou_cards": "Tarjetas", "ou_fouls": "Faltas", "player_shots": "Remates del jugador",
+    "player_sot": "Remates a puerta del jugador", "player_card": "Tarjeta al jugador",
+    "player_goal": "Gol del jugador", "player_fouls": "Faltas del jugador",
+}
+
+
+@dataclass
+class BetEval:
+    market: str
+    selection: str
+    line: float | None
+    bookmaker: str
+    odds: float
+    model_prob: float
+    sharp_prob: float | None
+    prob: float  # probabilidad final (mezcla)
+    fair_odds: float
+    ev: float
+    stake_pct: float
+    confidence: float
+    player_id: int | None = None
+    reasons: list[str] = field(default_factory=list)
+
+    def label(self, home: str, away: str, player_name: str | None = None) -> str:
+        sel = {"home": home, "away": away, "draw": "Empate", "over": "Más de", "under": "Menos de",
+               "yes": "Sí", "no": "No"}.get(self.selection, self.selection)
+        base = MARKET_LABELS.get(self.market.replace("_home", "").replace("_away", ""), self.market)
+        if self.market.endswith("_home"):
+            base += f" ({home})"
+        elif self.market.endswith("_away"):
+            base += f" ({away})"
+        if player_name:
+            base += f" — {player_name}"
+        if self.market.startswith("ah") and self.line is not None:
+            return f"{base}: {sel} {self.line:+g}"
+        if self.line is not None:
+            return f"{base}: {sel} {self.line:g}"
+        return f"{base}: {sel}"
+
+    def to_dict(self) -> dict:
+        return {
+            "market": self.market, "selection": self.selection, "line": self.line, "bookmaker": self.bookmaker,
+            "odds": self.odds, "model_prob": round(self.model_prob, 4),
+            "sharp_prob": round(self.sharp_prob, 4) if self.sharp_prob is not None else None,
+            "prob": round(self.prob, 4), "fair_odds": round(self.fair_odds, 3), "ev": round(self.ev, 4),
+            "stake_pct": self.stake_pct, "confidence": round(self.confidence, 3), "player_id": self.player_id,
+            "reasons": self.reasons,
+        }
+
+
+@dataclass
+class MatchAnalysis:
+    match: m.Match
+    model: MatchModel
+    stage: str
+    difficulty: dict
+    adjustments: dict
+    context: dict
+    referee: dict | None
+    data_quality: dict
+    bets: list[BetEval]
+    min_odds_props: list[dict]
+
+    def to_dict(self) -> dict:
+        mt = self.match
+        return {
+            "match_id": mt.id,
+            "competition": mt.competition.name,
+            "kickoff_utc": mt.kickoff_utc.isoformat(),
+            "kickoff_local": mt.kickoff_utc.astimezone(get_settings().tz).strftime("%Y-%m-%d %H:%M"),
+            "home": mt.home_team.name,
+            "away": mt.away_team.name,
+            "stage": self.stage,
+            "model": self.model.summary(),
+            "difficulty": self.difficulty,
+            "lineups_and_absences": self.adjustments,
+            "context": self.context,
+            "referee": self.referee,
+            "data_quality": self.data_quality,
+            "value_bets": [
+                {**b.to_dict(), "label": b.label(mt.home_team.name, mt.away_team.name,
+                                                 self.model.players[b.player_id].name if b.player_id in self.model.players else None)}
+                for b in self.bets if b.ev > 0
+            ],
+            "props_min_odds": self.min_odds_props,
+            "players": [p.to_dict() for p in sorted(self.model.players.values(), key=lambda p: -p.lam.get("shots", 0))[:16]],
+        }
+
+
+# --------------------------------------------------------------------------- piezas
+
+
+def _team_avg(model, team_id: int, home: bool) -> float:
+    """Media del equipo contra un rival promedio (para escalar a los jugadores)."""
+    return math.exp(model.mu + (model.home_adv if home else 0) + model.attack.get(team_id, 0.0))
+
+
+def _player_projections(
+    s: Session, bundle: ModelBundle, match: m.Match, team_id: int, is_home: bool, count_means: dict, goal_lam: float
+) -> list[PlayerProjection]:
+    lineup = s.execute(
+        select(m.Lineup, m.Player).join(m.Player, m.Player.id == m.Lineup.player_id)
+        .where(m.Lineup.match_id == match.id, m.Lineup.team_id == team_id)
+    ).all()
+    out_players = {
+        a.player_id for a in s.scalars(
+            select(m.Availability).where(m.Availability.team_id == team_id, m.Availability.active.is_(True))
+        ) if a.kind in ("injury", "suspension")
+    }
+    candidates: list[tuple[int, str, str | None, float]] = []  # player, name, pos, start_prob
+    if lineup:
+        confirmed = lineup[0][0].status == "confirmed"
+        for row, p in lineup:
+            if row.is_starter:
+                candidates.append((p.id, p.name, row.position or p.position, 1.0 if confirmed else 0.85))
+            else:
+                candidates.append((p.id, p.name, row.position or p.position, 0.0))
+    else:
+        for pid, pr in bundle.players.items():
+            if pr["team_id"] == team_id and pid not in out_players and pr["starts"] >= 2:
+                rate = pr["starts"] / max(pr["apps"], 1)
+                candidates.append((pid, pr["name"], pr["position"], min(0.9, rate)))
+
+    goals_model = bundle.goals
+    team_shots_ratio = 1.0
+    if "shots" in bundle.counts:
+        team_shots_ratio = count_means["shots"][0 if is_home else 1] / _team_avg(bundle.counts["shots"], team_id, is_home)
+    goals_ratio = goal_lam / _team_avg(goals_model, team_id, is_home)
+    cards_ratio = 1.0
+    if "cards" in bundle.counts:
+        cards_ratio = count_means["cards"][0 if is_home else 1] / _team_avg(bundle.counts["cards"], team_id, is_home)
+
+    projections = []
+    for pid, name, pos, start_prob in candidates:
+        pr = bundle.players.get(pid)
+        prior = bundle.priors.get(pos or "MF") or bundle.priors.get("MF") or {}
+        k = 4.0  # equivale a 4 partidos completos de la media de su posición
+        rates = {}
+        for st in ("shots", "shots_on_target", "goals", "xg", "fouls_committed", "yellow_cards"):
+            obs90, mins90 = (pr["per90"].get(st, 0.0), pr["minutes90"]) if pr else (0.0, 0.0)
+            rates[st] = (obs90 * mins90 + prior.get(st, 0.0) * k) / (mins90 + k)
+        avg_start_min = (pr or {}).get("avg_starter_minutes") or 78.0
+        exp_min = start_prob * avg_start_min + (1 - start_prob) * (0.55 * 22 if lineup else 0.0)
+        if exp_min < 5:
+            continue
+        f = exp_min / 90
+        goal_rate = 0.5 * rates["goals"] + 0.5 * rates["xg"]
+        lam = {
+            "shots": rates["shots"] * f * team_shots_ratio,
+            "shots_on_target": rates["shots_on_target"] * f * team_shots_ratio,
+            "goals": goal_rate * f * goals_ratio,
+            "fouls_committed": rates["fouls_committed"] * f,
+            "yellow_cards": rates["yellow_cards"] * f * cards_ratio,
+        }
+        projections.append(PlayerProjection(pid, name, team_id, pos, exp_min, start_prob, lam))
+    return projections
+
+
+def _latest_odds(s: Session, match_id: int) -> list[m.OddsSnapshot]:
+    rows = s.scalars(
+        select(m.OddsSnapshot)
+        .where(m.OddsSnapshot.match_id == match_id, m.OddsSnapshot.kind != "closing")
+        .order_by(m.OddsSnapshot.captured_at)
+    ).all()
+    latest: dict[tuple, m.OddsSnapshot] = {}
+    for r in rows:
+        latest[(r.bookmaker, r.market, r.selection, r.line)] = r
+    return list(latest.values())
+
+
+def _sharp_prob(odds_rows: list[m.OddsSnapshot], market: str, selection: str, line: float | None) -> float | None:
+    """Probabilidad sin margen según Pinnacle / Betfair Exchange para esa selección."""
+    for book in SHARP_BOOKS:
+        rows = [r for r in odds_rows if r.bookmaker == book and r.market == market]
+        if market == "1x2":
+            book_odds = {r.selection: r.price for r in rows}
+            if len(book_odds) == 3:
+                probs = oddsmath.devig([book_odds["home"], book_odds["draw"], book_odds["away"]])
+                return dict(zip(["home", "draw", "away"], probs, strict=True))[selection]
+        elif market == "ou_goals":
+            pair = {r.selection: r.price for r in rows if r.line == line}
+            if len(pair) == 2:
+                p_over, p_under = oddsmath.devig([pair["over"], pair["under"]])
+                return p_over if selection == "over" else p_under
+        elif market == "ah":
+            home = next((r.price for r in rows if r.selection == "home" and r.line == (line if selection == "home" else -line)), None)
+            away = next((r.price for r in rows if r.selection == "away" and r.line == (line if selection == "away" else -line)), None)
+            if home and away:
+                ph, pa = oddsmath.devig([home, away])
+                return ph if selection == "home" else pa
+    return None
+
+
+def _confidence(
+    market: str, quality: dict, has_sharp: bool, model_p: float, sharp_p: float | None, rotation: str
+) -> float:
+    c = quality["lineup_factor"] * quality["sample_factor"]
+    if market.startswith("player_"):
+        c *= 0.65
+    elif market in MAIN_MARKETS:
+        c *= 1.0 if has_sharp else 0.85
+    else:
+        c *= 0.75
+    if sharp_p is not None:
+        c *= 0.5 + 0.5 * (1 - min(1.0, abs(model_p - sharp_p) / 0.2))
+    if quality["lineup_status"] != "confirmed":
+        c *= {"alta": 0.75, "media": 0.9}.get(rotation, 1.0)
+    return max(0.0, min(1.0, c))
+
+
+def evaluate_bet(
+    analysis_model: MatchModel, quality: dict, rotation: str, odds_rows: list[m.OddsSnapshot],
+    market: str, selection: str, line: float | None, odds: float, bookmaker: str, player_id: int | None = None,
+) -> BetEval:
+    settings = get_settings()
+    out: Outcome = analysis_model.outcome(market, selection, line, player_id)
+    model_p = out.effective_prob()
+    sharp_p = _sharp_prob(odds_rows, market, selection, line) if market in ("1x2", "ou_goals", "ah") else None
+    prob = W_MODEL * model_p + (1 - W_MODEL) * sharp_p if sharp_p is not None else model_p
+    no_push = max(1e-9, 1 - out.push)
+    ev = (prob * odds - 1) * no_push
+    stake = oddsmath.stake_pct(prob, odds, settings.kelly_fraction, settings.max_stake_pct)
+    conf = _confidence(market, quality, sharp_p is not None, model_p, sharp_p, rotation)
+    reasons = []
+    if sharp_p is not None:
+        reasons.append(f"Modelo {model_p:.0%} · mercado afilado {sharp_p:.0%} · mezcla {prob:.0%}")
+    else:
+        reasons.append(f"Probabilidad del modelo {model_p:.0%} (sin referencia de mercado afilado)")
+    return BetEval(market, selection, line, bookmaker, odds, model_p, sharp_p, prob,
+                   1 / prob if prob > 0 else float("inf"), ev, stake, conf, player_id, reasons)
+
+
+# --------------------------------------------------------------------------- análisis
+
+
+def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
+    home, away = match.home_team_id, match.away_team_id
+    base_h, base_a = bundle.goals.expected(home, away, match.neutral_venue)
+
+    adj_h = lu.adjustment(s, match, home)
+    adj_a = lu.adjustment(s, match, away)
+    lam_h = base_h * adj_h.attack_mult * adj_a.defence_mult
+    lam_a = base_a * adj_a.attack_mult * adj_h.defence_mult
+
+    referee = None
+    ref_cards = ref_fouls = 1.0
+    if match.referee_id:
+        r = bundle.referees.get(match.referee_id)
+        ref = s.get(m.Referee, match.referee_id)
+        referee = {"name": ref.name, **(r or {"matches": 0, "note": "Sin historial suficiente"})}
+        if r:
+            ref_cards, ref_fouls = r["cards_factor"], r.get("fouls_factor", 1.0)
+
+    count_means: dict[str, tuple[float, float]] = {}
+    dispersion: dict[str, float] = {}
+    for stat, cm in bundle.counts.items():
+        mh, ma = cm.expected(home, away, match.neutral_venue)
+        if stat in ("shots", "shots_on_target", "corners"):
+            # Un equipo más fuerte de lo habitual genera más volumen ofensivo (efecto atenuado)
+            mh *= (adj_h.attack_mult * adj_a.defence_mult) ** 0.7
+            ma *= (adj_a.attack_mult * adj_h.defence_mult) ** 0.7
+        elif stat == "cards":
+            mh, ma = mh * ref_cards, ma * ref_cards
+        elif stat == "fouls":
+            mh, ma = mh * ref_fouls, ma * ref_fouls
+        count_means[stat] = (mh, ma)
+        dispersion[stat] = cm.dispersion
+
+    mm = MatchModel(home, away, lam_h, lam_a, bundle.rho, count_means, dispersion)
+    for is_home, tid, lam in ((True, home, lam_h), (False, away, lam_a)):
+        for pp in _player_projections(s, bundle, match, tid, is_home, count_means, lam):
+            mm.players[pp.player_id] = pp
+
+    # Dificultad para cada equipo: con la fuerza base (ambos al completo) y con la alineación real
+    difficulty = {
+        "home": {"base": ctx.difficulty_label(base_h - base_a), "ajustada": ctx.difficulty_label(lam_h - lam_a),
+                 "goal_diff": round(lam_h - lam_a, 2)},
+        "away": {"base": ctx.difficulty_label(base_a - base_h), "ajustada": ctx.difficulty_label(lam_a - lam_h),
+                 "goal_diff": round(lam_a - lam_h, 2)},
+    }
+    c_h = ctx.team_context(s, match, home, lam_h - lam_a)
+    c_a = ctx.team_context(s, match, away, lam_a - lam_h)
+    rotation = max((c_h.rotation_risk, c_a.rotation_risk), key=["baja", "media", "alta"].index)
+
+    lineup_status = "confirmed" if adj_h.source == adj_a.source == "confirmed" else (
+        "predicted" if "predicted" in (adj_h.source, adj_a.source) else adj_h.source)
+    lineup_factor = {"confirmed": 1.0, "predicted": 0.85, "injuries_only": 0.72, "none": 0.6}.get(lineup_status, 0.7)
+    n_min = min(bundle.goals.n_matches.get(home, 0.0), bundle.goals.n_matches.get(away, 0.0))
+    quality = {
+        "lineup_status": lineup_status,
+        "lineup_factor": lineup_factor,
+        "sample_factor": round(min(1.0, 0.4 + n_min / 25), 3),
+        "weighted_matches_min": round(n_min, 1),
+        "referee_known": referee is not None,
+        "model_as_of": bundle.as_of.isoformat(),
+    }
+
+    # Evaluar todas las cuotas disponibles de mis casas
+    odds_rows = _latest_odds(s, match.id)
+    bets = []
+    for r in odds_rows:
+        if r.bookmaker not in MY_BOOKS:
+            continue
+        try:
+            bets.append(evaluate_bet(mm, quality, rotation, odds_rows, r.market, r.selection, r.line, r.price, r.bookmaker))
+        except ValueError:
+            continue
+    bets.sort(key=lambda b: -b.ev)
+
+    # Props sin cuota: cuota mínima a pedir en Betano/bet365 para tener +5% de valor
+    min_odds = []
+    for stat in COUNT_LINE_STATS:
+        if stat not in count_means:
+            continue
+        total = sum(count_means[stat])
+        for ln in (math.floor(total) - 1.5, math.floor(total) - 0.5, math.floor(total) + 0.5, math.floor(total) + 1.5):
+            if ln <= 0:
+                continue
+            for sel in ("over", "under"):
+                o = mm.outcome(f"ou_{stat}", sel, ln)
+                p = o.effective_prob()
+                if 0.55 <= p <= 0.80:
+                    min_odds.append({"market": f"ou_{stat}", "selection": sel, "line": ln, "prob": round(p, 3),
+                                     "fair_odds": round(1 / p, 2), "min_odds": round(1.05 / p, 2)})
+    for pp in mm.players.values():
+        if pp.start_prob < 0.8:
+            continue
+        for market, sel, ln in (("player_shots", "over", 0.5), ("player_shots", "over", 1.5),
+                                ("player_sot", "over", 0.5), ("player_card", "yes", None)):
+            p = mm.outcome(market, sel, ln, pp.player_id).effective_prob()
+            if 0.5 <= p <= 0.85 or (market == "player_card" and p >= 0.3):
+                min_odds.append({"market": market, "selection": sel, "line": ln, "player_id": pp.player_id,
+                                 "player": pp.name, "prob": round(p, 3), "fair_odds": round(1 / p, 2),
+                                 "min_odds": round(1.05 / p, 2)})
+    min_odds.sort(key=lambda x: -x["prob"])
+
+    def adj_dict(a: lu.LineupAdjustment) -> dict:
+        return {"source": a.source, "attack_mult": a.attack_mult, "defence_mult": a.defence_mult,
+                "xi_attack": a.xi_attack, "base_attack": a.base_attack, "xi_defence": a.xi_defence,
+                "base_defence": a.base_defence, "missing_regulars": a.missing_regulars, "notes": a.notes}
+
+    def ctx_dict(c: ctx.TeamContext) -> dict:
+        return {"rest_days": round(c.rest_days, 1) if c.rest_days is not None else None,
+                "matches_last_14d": c.matches_last_14d, "next_match_days": c.next_match_days,
+                "next_match_competition": c.next_match_competition, "rotation_risk": c.rotation_risk,
+                "notes": c.notes}
+
+    return MatchAnalysis(
+        match=match,
+        model=mm,
+        stage=lineup_status,
+        difficulty=difficulty,
+        adjustments={"home": adj_dict(adj_h), "away": adj_dict(adj_a)},
+        context={"home": ctx_dict(c_h), "away": ctx_dict(c_a)},
+        referee=referee,
+        data_quality=quality,
+        bets=bets,
+        min_odds_props=min_odds[:25],
+    )
+
+
+def evaluate_user_odds(
+    s: Session, bundle: ModelBundle, match: m.Match, market: str, selection: str, line: float | None,
+    odds: float, bookmaker: str = "betano", player_id: int | None = None,
+) -> tuple[MatchAnalysis, BetEval]:
+    """Evalúa una cuota que el usuario ve en su casa de apuestas."""
+    an = analyze(s, bundle, match)
+    rotation = max((an.context["home"]["rotation_risk"], an.context["away"]["rotation_risk"]),
+                   key=["baja", "media", "alta"].index)
+    ev = evaluate_bet(an.model, an.data_quality, rotation, _latest_odds(s, match.id), market, selection, line,
+                      odds, bookmaker, player_id)
+    return an, ev
+
+
+def now_utc() -> datetime:
+    return datetime.now(UTC)

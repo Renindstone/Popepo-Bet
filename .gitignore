@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+
+# Configuración local y secretos
+.env
+
+# Datos generados (caché HTTP, archivos Parquet, logs)
+var/
+
+# graphify
+graphify-out/
+
+# Node (web)
+node_modules/
+.next/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store

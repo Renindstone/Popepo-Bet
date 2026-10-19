@@ -1,0 +1,253 @@
+"""Línea de comandos: `apuestas --help`."""
+
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime
+
+import typer
+from rich.console import Console
+
+app = typer.Typer(help="Análisis de apuestas de fútbol", no_args_is_help=True)
+ingest_app = typer.Typer(help="Descarga de datos", no_args_is_help=True)
+app.add_typer(ingest_app, name="ingest")
+console = Console()
+
+
+def _logging(verbose: bool) -> None:
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+@ingest_app.command("all")
+def ingest_all(
+    seasons: int = typer.Option(None, help="Temporadas de historial además de la actual"),
+    backfill: int = typer.Option(300, help="Máximo de partidos jugados sin detalle a descargar"),
+    verbose: bool = False,
+) -> None:
+    """Sincroniza todas las fuentes (calendario, resultados, estadísticas, cuotas)."""
+    from apuestas.core.competitions import season_start_year
+    from apuestas.ingest import pipeline
+
+    _logging(verbose)
+    years = None
+    if seasons is not None:
+        cur = season_start_year(datetime.now(UTC).date())
+        years = list(range(cur - seasons, cur + 1))
+    pipeline.full_sync(years, backfill_limit=backfill)
+    console.print("[green]Ingesta completa[/green]")
+
+
+@ingest_app.command("details")
+def ingest_details(days: int = 4, backfill: int = 300, force: bool = False, verbose: bool = False) -> None:
+    """Detalles FotMob: alineaciones, bajas, árbitro y estadísticas."""
+    from apuestas.ingest import pipeline
+
+    _logging(verbose)
+    n = pipeline.sync_fotmob_details(days_ahead=days, backfill_limit=backfill, force_upcoming=force)
+    console.print(f"{n} partidos actualizados")
+
+
+@ingest_app.command("odds")
+def ingest_odds(verbose: bool = False) -> None:
+    """Cuotas de los próximos partidos."""
+    from apuestas.ingest import pipeline
+
+    _logging(verbose)
+    pipeline.sync_upcoming_odds()
+
+
+def _print_json(data) -> None:
+    import json
+
+    console.print_json(json.dumps(data, ensure_ascii=False, default=str))
+
+
+@app.command()
+def train(verbose: bool = False) -> None:
+    """Reentrena todos los modelos con los datos actuales."""
+    from apuestas.models.fitting import fit_all, save_bundle, store_team_ratings
+
+    _logging(verbose)
+    bundle = fit_all()
+    path = save_bundle(bundle)
+    store_team_ratings(bundle)
+    console.print(f"Modelos guardados en {path} (equipos: {len(bundle.goals.teams)}, jugadores: {len(bundle.players)}, "
+                  f"árbitros: {len(bundle.referees)}, rho={bundle.rho:.3f})")
+
+
+@app.command()
+def backtest(
+    start: str = "2024-08-01",
+    end: str = "2026-06-30",
+    half_life: float = 240.0,
+    xg_weight: float = 0.85,
+    min_ev: float = 0.03,
+    w_model: float = 0.25,
+    out: str = "",
+) -> None:
+    """Backtest walk-forward contra cuotas históricas de bet365."""
+    import json
+    from datetime import date
+
+    from apuestas.backtest import engine
+
+    _logging(False)
+    res = engine.run(date.fromisoformat(start), date.fromisoformat(end), half_life_days=half_life,
+                     xg_weight=xg_weight, min_ev=min_ev, w_model=w_model)
+    summary = res.summary()
+    if out:
+        with open(out, "w") as fh:
+            json.dump(summary, fh, indent=1, default=str)
+    _print_json(summary)
+
+
+@app.command()
+def picks(day: str = typer.Option(None, help="AAAA-MM-DD (hoy por defecto)"), send: bool = False) -> None:
+    """Calcula las apuestas con valor y la apuesta del día."""
+    from datetime import date
+
+    from apuestas.bot import telegram
+    from apuestas.services import picks as picks_service
+
+    _logging(False)
+    rep = picks_service.generate(date.fromisoformat(day) if day else None)
+    text = telegram.fmt_pick_report(rep)
+    console.print(text.replace("<b>", "").replace("</b>", ""))
+    if send:
+        telegram.send(text)
+
+
+@app.command()
+def analyze(match: str, as_json: bool = typer.Option(False, "--json")) -> None:
+    """Analiza un partido: 'Arsenal vs Chelsea', 'Arsenal' o un id."""
+    from apuestas.bot import telegram
+    from apuestas.services import queries
+
+    _logging(False)
+    data = queries.match_analysis(match)
+    if as_json:
+        _print_json(data)
+    else:
+        console.print(telegram.fmt_analysis(data).replace("<b>", "").replace("</b>", ""))
+
+
+@app.command()
+def evaluate(match: str, market: str, selection: str, odds: float, line: float = typer.Option(None),
+             bookmaker: str = "betano", player: str = typer.Option(None)) -> None:
+    """Evalúa una cuota: apuestas evaluate "Arsenal vs Chelsea" ou_corners over 1.85 --line 9.5"""
+    from apuestas.services import queries
+
+    _logging(False)
+    _print_json(queries.evaluate_odds(match, market, selection, odds, line, bookmaker, player))
+
+
+@app.command()
+def settle() -> None:
+    """Liquida picks y apuestas de partidos terminados."""
+    from apuestas.services.picks import settle_all
+
+    _logging(False)
+    _print_json(settle_all())
+
+
+@app.command()
+def status() -> None:
+    """Estado de las fuentes de datos y del modelo."""
+    from apuestas.services import queries
+
+    _print_json(queries.data_status())
+
+
+@app.command()
+def mcp(http: bool = False, host: str = "127.0.0.1", port: int = 8765, public_url: str = typer.Option(None)) -> None:
+    """Servidor MCP (stdio por defecto; --http para amigos con clave)."""
+    from apuestas.mcp_server.server import run
+
+    logging.basicConfig(level=logging.WARNING)
+    run(http=http, host=host, port=port, public_url=public_url)
+
+
+@app.command()
+def api(host: str = "127.0.0.1", port: int = 8000) -> None:
+    """API REST (documentación en /docs)."""
+    import uvicorn
+
+    uvicorn.run("apuestas.api.app:app", host=host, port=port)
+
+
+@app.command()
+def bot() -> None:
+    """Bot de Telegram (consultas)."""
+    from apuestas.bot.telegram import poll_forever
+
+    _logging(False)
+    poll_forever()
+
+
+@app.command()
+def worker() -> None:
+    """Tareas programadas (ingesta diaria, apuesta del día, alineaciones, archivo)."""
+    from apuestas.jobs.scheduler import run
+
+    _logging(False)
+    run()
+
+
+archive_app = typer.Typer(help="Almacenamiento por niveles y archivo histórico", no_args_is_help=True)
+app.add_typer(archive_app, name="archive")
+
+
+@archive_app.command("tiers")
+def archive_tiers() -> None:
+    """Aplica hot/warm/cold a las temporadas (resumen + poda de cuotas + exportación a Parquet)."""
+    from apuestas.archive.seasons import apply_tiers
+
+    _logging(False)
+    _print_json(apply_tiers())
+
+
+@archive_app.command("report")
+def archive_report() -> None:
+    """Espacio usado en PostgreSQL y en los archivos Parquet."""
+    from apuestas.archive.seasons import storage_report
+
+    _print_json(storage_report())
+
+
+@archive_app.command("query")
+def archive_query(sql: str) -> None:
+    """SQL DuckDB sobre el archivo: "select count(*) from 'archive://*/EPL/match.parquet'" """
+    from apuestas.archive.seasons import query_archive
+
+    console.print(query_archive(sql).to_string())
+
+
+user_app = typer.Typer(help="Usuarios y claves para amigos", no_args_is_help=True)
+app.add_typer(user_app, name="user")
+
+
+@user_app.command("create-key")
+def user_create_key(username: str) -> None:
+    """Crea (o renueva) la clave de un usuario. Se muestra una sola vez."""
+    from apuestas.db.session import session_scope
+    from apuestas.services.tracker import create_api_key
+
+    with session_scope() as s:
+        key = create_api_key(s, username)
+    console.print(f"Clave para [bold]{username}[/bold]: {key}\nGuárdala: no se puede volver a mostrar.")
+
+
+@user_app.command("bankroll")
+def user_bankroll(username: str, amount: float, currency: str = "PEN") -> None:
+    """Fija la banca de un usuario."""
+    from apuestas.services import queries
+
+    _print_json(queries.set_bankroll(username, amount, currency))
+
+
+if __name__ == "__main__":
+    app()
