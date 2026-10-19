@@ -7,6 +7,7 @@ se permite sin clave usando el usuario por defecto.
 from __future__ import annotations
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from apuestas import __version__
@@ -16,6 +17,14 @@ from apuestas.services import picks, queries, tracker
 
 app = FastAPI(title="Apuestas fútbol", version=__version__,
               description="Análisis de apuestas: Premier League, Bundesliga, LaLiga y Champions League")
+
+# Panel web (web/, Next.js) en desarrollo local
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-API-Key"],
+)
 
 
 def current_user(request: Request, x_api_key: str | None = Header(default=None)) -> str:
