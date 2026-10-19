@@ -57,6 +57,7 @@ _TEAM_SEEDS = {
     "aek": "aek athens", "paok": "paok thessaloniki", "antwerp": "royal antwerp", "nijmegen": "nec nijmegen",
     "nec": "nec nijmegen", "guimaraes": "vitoria guimaraes", "saint gilloise": "union saint gilloise",
     "union sg": "union saint gilloise", "verona": "hellas verona", "clermont": "clermont foot",
+    "hearts": "heart of midlothian", "buyuksehyr": "basaksehir",
 }
 
 # Letras que NFKD no descompone ("Bodø" -> "bodo", "Kraków" sí se descompone solo)
