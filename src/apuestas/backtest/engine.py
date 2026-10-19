@@ -7,8 +7,10 @@ Métricas:
 - CLV medio: cuota tomada vs cuota de cierre de bet365 (indicador de ventaja real a corto plazo).
 - Calibración de modelos de remates, córners y tarjetas (verosimilitud frente a la media de la liga).
 
-Limitación honesta: el backtest no usa alineaciones (no hay alineaciones previstas históricas), así que
-mide el modelo base; los ajustes por alineación/bajas solo se podrán evaluar con los picks reales.
+Alineaciones (opción `lineups`): con los onces confirmados históricos de FotMob se mide, en los partidos
+que los tienen, la log-loss del modelo con y sin el ajuste por alineación, y se estima por regresión
+(Poisson con offset) cuánto cambian los goles/xG por cada punto de diferencia entre el once y el once típico.
+Las apuestas siguen usando el modelo base: el once se publica ~1 h antes y la cuota previa es de días antes.
 """
 
 from __future__ import annotations
@@ -19,14 +21,16 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
 import numpy as np
+from scipy.optimize import minimize
 from scipy.stats import nbinom, poisson
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from apuestas.betting import odds as oddsmath
 from apuestas.db import models as m
+from apuestas.features import lineup as lu
 from apuestas.models import distributions as dist
-from apuestas.models import ratings
+from apuestas.models import fitting, ratings
 from apuestas.models.fitting import (
     COUNT_STATS,
     MatchRow,
@@ -34,7 +38,9 @@ from apuestas.models.fitting import (
     fit_referees,
     fit_rho,
     goals_obs,
+    load_market_goals,
     load_matches,
+    market_obs,
 )
 
 W_MODEL = 0.25
@@ -63,6 +69,7 @@ class BacktestResult:
     brier: dict[str, float] = field(default_factory=dict)
     bets: list[Bet] = field(default_factory=list)
     count_calibration: dict[str, dict] = field(default_factory=dict)
+    lineups: dict = field(default_factory=dict)
 
     def summary(self) -> dict:
         def agg(items: list[Bet]) -> dict:
@@ -88,6 +95,7 @@ class BacktestResult:
             "brier_1x2": {k: round(v, 4) for k, v in self.brier.items()},
             "betting": {strat: {k: agg(v) for k, v in groups.items()} for strat, groups in by.items()},
             "count_models": self.count_calibration,
+            **({"lineups": self.lineups} if self.lineups else {}),
         }
 
 
@@ -113,23 +121,36 @@ def run(
     odds_range: tuple[float, float] = (1.4, 3.6),
     step_days: int = 7,
     w_model: float = W_MODEL,
+    market_weight: float | None = None,
+    market_half_life: float | None = None,
+    lineups: bool = False,
 ) -> BacktestResult:
     from apuestas.db.session import _factory
 
+    market_weight = fitting.MARKET_WEIGHT if market_weight is None else market_weight
+    market_half_life = fitting.MARKET_HALF_LIFE if market_half_life is None else market_half_life
     res = BacktestResult(params={"start": start.isoformat(), "end": end.isoformat(), "half_life": half_life_days,
                                  "xg_weight": xg_weight, "min_ev": min_ev, "odds_range": odds_range,
-                                 "competitions": competitions, "w_model": w_model})
+                                 "competitions": competitions, "w_model": w_model, "market_weight": market_weight,
+                                 "market_half_life": market_half_life})
     s = _factory()()
     try:
-        all_rows = load_matches(s, before=datetime.combine(end, datetime.min.time(), UTC) + timedelta(days=1),
-                                since=datetime.combine(start, datetime.min.time(), UTC) - timedelta(days=1100))
+        before = datetime.combine(end, datetime.min.time(), UTC) + timedelta(days=1)
+        since = datetime.combine(start, datetime.min.time(), UTC) - timedelta(days=1100)
+        all_rows = load_matches(s, before=before, since=since)
         odds = _odds_map(s, [r.match_id for r in all_rows if r.competition in competitions and r.day >= start])
+        # Solo se usan las cuotas de cierre de partidos ya jugados antes de cada reajuste (train)
+        implied = load_market_goals(s, before=before, since=since) if market_weight > 0 else {}
+        xi_hist = lu.xi_history(s) if lineups else {}
     finally:
         s.close()
 
     ll: dict[str, list[float]] = defaultdict(list)
     br: dict[str, list[float]] = defaultdict(list)
     count_ll: dict[str, list[tuple[float, float]]] = defaultdict(list)
+    xi_idx = {(mid, tid): xi for tid, hist in xi_hist.items() for _, mid, xi in hist}
+    ll_lu: dict[str, list[float]] = defaultdict(list)
+    lu_rows: list[tuple] = []
 
     cur = start
     while cur <= end:
@@ -137,7 +158,8 @@ def run(
         train = [r for r in all_rows if r.day < cur]
         test = [r for r in all_rows if cur <= r.day < nxt and r.competition in competitions]
         if test and len(train) > 500:
-            gm = ratings.fit(goals_obs(train, xg_weight), cur, half_life_days=half_life_days)
+            gm = ratings.fit(goals_obs(train, xg_weight) + market_obs(train, implied, market_weight), cur,
+                             half_life_days=half_life_days, market_half_life_days=market_half_life)
             rho = fit_rho([r for r in train if (cur - r.day).days < 730], gm, set(competitions))
             cms = {}
             for stat in COUNT_STATS:
@@ -148,10 +170,17 @@ def run(
             for r in test:
                 _evaluate_match(r, gm, rho, odds.get(r.match_id, {}), res, ll, br, min_ev, odds_range, w_model)
                 _evaluate_counts(r, cms, count_ll, refs)
+                if lineups:
+                    _evaluate_lineup(r, gm, rho, odds.get(r.match_id, {}), xi_hist, xi_idx, ll_lu, lu_rows)
         cur = nxt
 
     res.logloss = {k: float(np.mean(v)) for k, v in ll.items() if v}
     res.brier = {k: float(np.mean(v)) for k, v in br.items() if v}
+    if lineups:
+        res.lineups = {"betas": {"att": lu.BETA_ATT, "def": lu.BETA_DEF},
+                       "matches": len(ll_lu["modelo"]),
+                       "logloss_1x2": {k: round(float(np.mean(v)), 4) for k, v in ll_lu.items() if v},
+                       "regresion": lineup_regression(lu_rows)}
     for stat, pairs in count_ll.items():
         model_ll = float(np.mean([p[0] for p in pairs]))
         naive_ll = float(np.mean([p[1] for p in pairs]))
@@ -171,12 +200,8 @@ def _evaluate_match(r: MatchRow, gm, rho: float, od: dict, res: BacktestResult, 
     outcome_idx = 0 if r.hg > r.ag else (1 if r.hg == r.ag else 2)
     res.n_matches += 1
 
-    def book_probs(book: str) -> list[float] | None:
-        o = [od.get((book, "1x2", sel, None, "opening")) for sel in ("home", "draw", "away")]
-        return oddsmath.devig(o) if all(o) else None
-
-    sharp = book_probs("pinnacle") or book_probs("betfair_ex")
-    b365 = book_probs("bet365")
+    sharp = _book_probs(od, "pinnacle") or _book_probs(od, "betfair_ex")
+    b365 = _book_probs(od, "bet365")
     variants = {"modelo": p_model}
     if b365:
         variants["bet365"] = b365
@@ -246,6 +271,83 @@ def _evaluate_match(r: MatchRow, gm, rho: float, od: dict, res: BacktestResult, 
             if ev_s >= min_ev:
                 res.bets.append(Bet(r.day, r.competition, market, sel, line, o, closing, sharp_p, ev_s, result,
                                     "solo_mercado_afilado"))
+
+
+def _book_probs(od: dict, book: str, kind: str = "opening") -> list[float] | None:
+    o = [od.get((book, "1x2", sel, None, kind)) for sel in ("home", "draw", "away")]
+    return oddsmath.devig(o) if all(o) else None
+
+
+def _probs_1x2(lh: float, la: float, rho: float) -> list[float]:
+    mat = dist.dixon_coles_matrix(lh, la, rho)
+    return [float(np.tril(mat, -1).sum()), float(np.trace(mat)), float(np.triu(mat, 1).sum())]
+
+
+def _evaluate_lineup(r: MatchRow, gm, rho: float, od: dict, xi_hist: dict, xi_idx: dict, ll_lu, lu_rows) -> None:
+    """Partidos con once confirmado de ambos equipos: log-loss con/sin ajuste y datos para la regresión."""
+    if r.home not in gm.attack or r.away not in gm.attack:
+        return
+    deltas = []
+    for tid in (r.home, r.away):
+        xi = xi_idx.get((r.match_id, tid))
+        base = lu.baseline_from_history(xi_hist.get(tid, []), r.day)
+        if xi is None or base is None:
+            return
+        deltas.append((xi.attack - base.attack, xi.defence - base.defence))
+    (dah, ddh), (daa, dda) = deltas
+    lh, la = gm.expected(r.home, r.away, r.neutral)
+    # (partido, media del modelo, Δataque propio, Δdefensa rival, goles, xG)
+    lu_rows.append((r.match_id, lh, dah, dda, r.hg, r.stats_h.get("xg")))
+    lu_rows.append((r.match_id, la, daa, ddh, r.ag, r.stats_a.get("xg")))
+    b365, sharp = _book_probs(od, "bet365"), _book_probs(od, "pinnacle") or _book_probs(od, "betfair_ex")
+    if not (b365 and sharp):
+        return
+    variants = {
+        "modelo": _probs_1x2(lh, la, rho),
+        "modelo+alineacion": _probs_1x2(lh * math.exp(lu.BETA_ATT * dah - lu.BETA_DEF * dda),
+                                        la * math.exp(lu.BETA_ATT * daa - lu.BETA_DEF * ddh), rho),
+        "bet365": b365,
+        "pinnacle": sharp,
+    }
+    closing = _book_probs(od, "pinnacle", "closing")
+    if closing:
+        variants["pinnacle_cierre"] = closing  # referencia: el cierre ya conoce las alineaciones
+    k = 0 if r.hg > r.ag else (1 if r.hg == r.ag else 2)
+    for name, p in variants.items():
+        ll_lu[name].append(-math.log(max(p[k], 1e-9)))
+
+
+def lineup_regression(rows: list[tuple]) -> dict:
+    """Poisson con offset: log E[y] = log(media del modelo) + c + b_att·Δataque − b_def·Δdefensa_rival.
+
+    Errores estándar robustos agrupando por partido. Con y = goles y con y = xG (menos ruido).
+    """
+    out = {}
+    for target, col in (("goles", 4), ("xg", 5)):
+        data = [r for r in rows if r[col] is not None]
+        if len(data) < 200:
+            continue
+        y = np.array([r[col] for r in data], dtype=float)
+        off = np.log([r[1] for r in data])
+        x = np.column_stack([np.ones(len(data)), [r[2] for r in data], [-r[3] for r in data]])
+
+        def nll(b: np.ndarray, y=y, off=off, x=x) -> tuple[float, np.ndarray]:
+            eta = off + x @ b
+            mu = np.exp(eta)
+            return float(np.sum(mu - y * eta)), x.T @ (mu - y)
+
+        b = minimize(nll, np.zeros(3), jac=True, method="BFGS").x
+        mu = np.exp(off + x @ b)
+        h_inv = np.linalg.inv((x * mu[:, None]).T @ x)
+        groups = np.unique([r[0] for r in data], return_inverse=True)[1]
+        score = np.zeros((groups.max() + 1, 3))
+        np.add.at(score, groups, x * (y - mu)[:, None])
+        se = np.sqrt(np.diag(h_inv @ score.T @ score @ h_inv))
+        out[target] = {"n": len(data), "intercept": round(float(b[0]), 4),
+                       "beta_att": round(float(b[1]), 4), "se_att": round(float(se[1]), 4),
+                       "beta_def": round(float(b[2]), 4), "se_def": round(float(se[2]), 4),
+                       "sd_d_att": round(float(np.std(x[:, 1])), 4), "sd_d_def": round(float(np.std(x[:, 2])), 4)}
+    return out
 
 
 def _settle(r: MatchRow, market: str, sel: str, line: float | None) -> str:

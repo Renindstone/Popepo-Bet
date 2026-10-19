@@ -1,7 +1,8 @@
 """Ajuste de todos los modelos a partir de la base de datos y guardado del "paquete" de modelos.
 
 Paquete (var/models/latest.json):
-- goals: fuerza ataque/defensa con objetivo = 40% goles + 60% xG (el xG predice mejor que los goles)
+- goals: fuerza ataque/defensa con objetivo = 15% goles + 85% xG (el xG predice mejor que los goles),
+  más los goles esperados implícitos en las cuotas de cierre como observaciones extra (MARKET_WEIGHT)
 - rho: corrección Dixon-Coles para marcadores bajos
 - counts[stat]: modelos de remates, remates a puerta, córners, faltas y tarjetas (binomial negativa)
 - referees: factor de tarjetas/faltas de cada árbitro (con contracción hacia 1)
@@ -24,9 +25,10 @@ from scipy.stats import poisson
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session, aliased
 
+from apuestas.betting import odds as oddsmath
 from apuestas.config import get_settings
 from apuestas.db import models as m
-from apuestas.models import ratings
+from apuestas.models import market, ratings
 from apuestas.models.ratings import MatchObs, RatingModel
 
 log = logging.getLogger(__name__)
@@ -183,6 +185,65 @@ def goals_obs(rows: list[MatchRow], xg_weight: float = GOALS_XG_WEIGHT) -> list[
     return out
 
 
+# Peso de cada partido "visto por el mercado" (goles esperados de las cuotas de cierre) frente al partido real,
+# y vida media (días) de esas observaciones. Backtest 2024-26: log-loss 1X2 0,9928 -> 0,9811 (meseta entre
+# peso 64-512 y vida media 7-14; 14 días aguanta mejor el arranque de temporada, tras el parón de verano).
+MARKET_WEIGHT = 128.0
+MARKET_HALF_LIFE = 14.0
+MARKET_BOOKS = ("pinnacle", "bet365")  # por orden de preferencia
+MARKET_MAX_RMSE = 0.02  # descarta cuotas que el modelo Dixon-Coles no puede reproducir (errores, mercados raros)
+
+
+def load_market_goals(s: Session, before: datetime, since: datetime) -> dict[int, tuple[float, float]]:
+    """Goles esperados (local, visitante) implícitos en el cierre de Pinnacle o bet365, sin margen."""
+    q = (
+        select(m.OddsSnapshot.match_id, m.OddsSnapshot.bookmaker, m.OddsSnapshot.market, m.OddsSnapshot.selection,
+               m.OddsSnapshot.line, m.OddsSnapshot.price)
+        .join(m.Match, m.Match.id == m.OddsSnapshot.match_id)
+        .where(
+            m.OddsSnapshot.kind == "closing",
+            m.OddsSnapshot.bookmaker.in_(MARKET_BOOKS),
+            m.OddsSnapshot.market.in_(("1x2", "ou_goals")),
+            m.Match.kickoff_utc < before,
+            m.Match.kickoff_utc >= since,
+        )
+    )
+    prices: dict[int, dict[tuple, float]] = {}
+    for mid, book, mkt, sel, line, price in s.execute(q):
+        if mkt == "ou_goals" and line != 2.5:
+            continue
+        prices.setdefault(mid, {})[(book, mkt, sel)] = price
+    ids, p1x2, p_over = [], [], []
+    for mid, od in prices.items():
+        for book in MARKET_BOOKS:
+            o = [od.get((book, "1x2", sel)) for sel in ("home", "draw", "away")]
+            if not all(o) or min(o) <= 1.0:
+                continue
+            p_ov = math.nan  # más/menos 2.5 de la misma casa o, si falta, de la otra
+            for b in (book, *MARKET_BOOKS):
+                ou = [od.get((b, "ou_goals", sel)) for sel in ("over", "under")]
+                if all(ou) and min(ou) > 1.0:
+                    p_ov = oddsmath.devig(ou)[0]
+                    break
+            ids.append(mid)
+            p1x2.append(oddsmath.devig(o))
+            p_over.append(p_ov)
+            break
+    if not ids:
+        return {}
+    lam, rmse = market.implied_goals(np.array(p1x2), np.array(p_over))
+    return {mid: (float(lh), float(la)) for mid, (lh, la), e in zip(ids, lam, rmse, strict=True)
+            if e <= MARKET_MAX_RMSE}
+
+
+def market_obs(rows: list[MatchRow], implied: dict[int, tuple[float, float]],
+               weight: float = MARKET_WEIGHT) -> list[MatchObs]:
+    if weight <= 0:
+        return []
+    return [MatchObs(r.home, r.away, r.day, *implied[r.match_id], r.neutral, weight=weight, market=True)
+            for r in rows if r.match_id in implied]
+
+
 def count_obs(rows: list[MatchRow], stat: str) -> list[MatchObs]:
     out = []
     for r in rows:
@@ -223,9 +284,10 @@ def fit_rho(rows: list[MatchRow], model: RatingModel, full_codes: set[str]) -> f
 
 
 # Contracción del factor de árbitro (en "partidos neutros" añadidos). Elegido con el backtest 2024-26:
-# en faltas el árbitro ayuda (mejor con 20); en tarjetas, con datos sobre todo de la Premier, no mejoró
-# la predicción, así que se contrae mucho (120 ~ casi neutro). Revisar cuando haya árbitros de LaLiga/Bundesliga.
-REFEREE_PRIOR_MATCHES = 120.0
+# en faltas el árbitro ayuda (mejor con 20-40; se mantiene 20). En tarjetas, ya con árbitros de LaLiga y la
+# Bundesliga (FotMob), lo mejor es 40-80: se usa 80 (+0,0044 de log-verosimilitud por partido frente a +0,0037
+# con 120). Ayuda en LaLiga (+0,012) y la Bundesliga (+0,005); en la Premier no (-0,003 ± 0,002).
+REFEREE_PRIOR_MATCHES = 80.0
 REFEREE_PRIOR_MATCHES_FOULS = 20.0
 
 
@@ -340,9 +402,11 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
     full_codes = {c.code for c in FULL}
     with Session_() as s:
         rows = load_matches(s, before=as_of, since=since)
+        implied = load_market_goals(s, before=as_of, since=since) if MARKET_WEIGHT > 0 else {}
         players, priors = fit_players(s, before=as_of)
-    log.info("Ajustando modelos con %d partidos", len(rows))
-    goals = ratings.fit(goals_obs(rows), as_of.date(), half_life_days=half_life_days)
+    log.info("Ajustando modelos con %d partidos (%d con cuotas de cierre)", len(rows), len(implied))
+    goals = ratings.fit(goals_obs(rows) + market_obs(rows, implied), as_of.date(), half_life_days=half_life_days,
+                        market_half_life_days=MARKET_HALF_LIFE)
     rho = fit_rho([r for r in rows if (as_of.date() - r.day).days < 730], goals, full_codes)
     counts = {}
     for stat in COUNT_STATS:

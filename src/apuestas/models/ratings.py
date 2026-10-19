@@ -9,6 +9,8 @@ log E[y_away] = mu        + att[away] - def[home]
 - Regularización L2 hacia 0 para equipos con pocos partidos (ascendidos, rivales exóticos de Champions).
 - Todas las ligas se ajustan juntas: los partidos de Champions/Europa y los ascensos/descensos
   conectan las escalas, así un 1.8 de ataque significa lo mismo en Inglaterra que en Portugal.
+- Observaciones del mercado (market=True): goles esperados implícitos en las cuotas de cierre. Entran en el
+  ajuste con su peso, pero no cuentan como partidos jugados ni para estimar la sobredispersión.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ class MatchObs:
     y_away: float
     neutral: bool = False
     weight: float = 1.0
+    market: bool = False
 
 
 @dataclass
@@ -86,6 +89,7 @@ def fit(
     half_life_days: float = 240.0,
     l2: float = 2.0,
     max_age_days: int = 1100,
+    market_half_life_days: float | None = None,
 ) -> RatingModel:
     obs = [o for o in obs if 0 <= (as_of - o.day).days <= max_age_days]
     if not obs:
@@ -98,7 +102,13 @@ def fit(
     yh = np.array([o.y_home for o in obs], dtype=float)
     ya = np.array([o.y_away for o in obs], dtype=float)
     hm = np.array([0.0 if o.neutral else 1.0 for o in obs])
-    w = time_weights(np.array([o.day for o in obs]), as_of, half_life_days) * np.array([o.weight for o in obs])
+    real = np.array([not o.market for o in obs])
+    days = np.array([o.day for o in obs])
+    ow = np.array([o.weight for o in obs])
+    w = time_weights(days, as_of, half_life_days) * ow
+    if market_half_life_days and not real.all():
+        # El mercado apenas tiene ruido: puede pesar más lo reciente que en los partidos reales
+        w = np.where(real, w, time_weights(days, as_of, market_half_life_days) * ow)
 
     def unpack(theta: np.ndarray) -> tuple[float, float, np.ndarray, np.ndarray]:
         return theta[0], theta[1], theta[2 : 2 + n], theta[2 + n :]
@@ -127,15 +137,16 @@ def fit(
     res = minimize(objective, theta0, jac=True, method="L-BFGS-B", options={"maxiter": 2000})
     mu, home, att, de = unpack(res.x)
 
-    # Sobredispersión (alfa de NB) por momentos: Var = m + alfa m^2
+    # Sobredispersión (alfa de NB) por momentos: Var = m + alfa m^2 (solo con partidos reales)
     lh = np.exp(mu + home * hm + att[hi] - de[ai])
     la = np.exp(mu + att[ai] - de[hi])
-    y = np.concatenate([yh, ya])
-    mm = np.concatenate([lh, la])
-    ww = np.concatenate([w, w])
+    y = np.concatenate([yh[real], ya[real]])
+    mm = np.concatenate([lh[real], la[real]])
+    ww = np.concatenate([w[real], w[real]])
     alpha = float(np.sum(ww * ((y - mm) ** 2 - mm)) / max(np.sum(ww * mm**2), 1e-9))
 
-    counts = np.bincount(hi, weights=w, minlength=n) + np.bincount(ai, weights=w, minlength=n)
+    wr = np.where(real, w, 0.0)
+    counts = np.bincount(hi, weights=wr, minlength=n) + np.bincount(ai, weights=wr, minlength=n)
     return RatingModel(
         teams=teams,
         mu=float(mu),
