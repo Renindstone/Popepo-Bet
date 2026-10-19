@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session, aliased
 
 from apuestas.betting import odds as oddsmath
 from apuestas.config import get_settings
+from apuestas.core.competitions import COMPETITIONS
 from apuestas.db import models as m
 from apuestas.models import market, ratings
 from apuestas.models.ratings import MatchObs, RatingModel
@@ -134,6 +135,9 @@ def load_matches(s: Session, before: datetime, since: datetime) -> list[MatchRow
             m.Match.home_goals.is_not(None),
             m.Match.kickoff_utc < before,
             m.Match.kickoff_utc >= since,
+            # Solo las competiciones que conoce esta versión del código: la BD es compartida y otra rama puede
+            # haber cargado ligas que aún no se han validado con el backtest
+            m.Competition.code.in_(list(COMPETITIONS)),
         )
     )
     rows = []
@@ -200,7 +204,9 @@ def load_market_goals(s: Session, before: datetime, since: datetime) -> dict[int
         select(m.OddsSnapshot.match_id, m.OddsSnapshot.bookmaker, m.OddsSnapshot.market, m.OddsSnapshot.selection,
                m.OddsSnapshot.line, m.OddsSnapshot.price)
         .join(m.Match, m.Match.id == m.OddsSnapshot.match_id)
+        .join(m.Competition, m.Competition.id == m.Match.competition_id)
         .where(
+            m.Competition.code.in_(list(COMPETITIONS)),
             m.OddsSnapshot.kind == "closing",
             m.OddsSnapshot.bookmaker.in_(MARKET_BOOKS),
             m.OddsSnapshot.market.in_(("1x2", "ou_goals")),

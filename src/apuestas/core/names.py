@@ -51,11 +51,21 @@ _TEAM_SEEDS = {
     "atalanta": "atalanta", "lazio": "lazio", "psv eindhoven": "psv", "psv": "psv", "ajax": "ajax",
     "feyenoord": "feyenoord", "az alkmaar": "az", "club brugge": "club brugge", "brugge": "club brugge",
     "galatasaray": "galatasaray", "fenerbahce": "fenerbahce", "besiktas": "besiktas", "celtic": "celtic",
-    "rangers": "rangers", "olympiakos": "olympiacos", "olympiacos": "olympiacos", "paok": "paok",
+    "rangers": "rangers", "olympiakos": "olympiacos", "olympiacos": "olympiacos",
+    # Mismo club con otro nombre en football-data (revisados a mano; ver ingest/dedupe.py). Ojo: "AEK" es el
+    # de Atenas (liga griega); "AEK Larnaca" (Chipre) y "Aris Limassol" son otros clubes.
+    "aek": "aek athens", "paok": "paok thessaloniki", "antwerp": "royal antwerp", "nijmegen": "nec nijmegen",
+    "nec": "nec nijmegen", "guimaraes": "vitoria guimaraes", "saint gilloise": "union saint gilloise",
+    "union sg": "union saint gilloise", "verona": "hellas verona", "clermont": "clermont foot",
 }
+
+# Letras que NFKD no descompone ("Bodø" -> "bodo", "Kraków" sí se descompone solo)
+_TRANSLIT = str.maketrans({"ø": "o", "Ø": "O", "æ": "ae", "Æ": "AE", "œ": "oe", "Œ": "OE", "ß": "ss",
+                           "ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ı": "i", "þ": "th", "ð": "d"})
 
 
 def strip_accents(text: str) -> str:
+    text = text.translate(_TRANSLIT)
     return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
 
 
@@ -64,7 +74,7 @@ def normalize(name: str) -> str:
     s = re.sub(r"['’`´]", "", s)
     s = re.sub(r"[.\-/()]", " ", s)
     s = re.sub(r"[^a-z0-9 ]", "", s)
-    tokens = [t for t in s.split() if t and t not in _STOP]
+    tokens = ["saint" if t == "st" else t for t in s.split() if t and t not in _STOP]  # "St Etienne" = "Saint-Étienne"
     return " ".join(tokens)
 
 

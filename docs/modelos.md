@@ -51,7 +51,17 @@ Limitación: en partidos antiguos el valor de mercado es el de la fecha de desca
 
 - **Probabilidad final** = 25 % modelo + 75 % mercado afilado (Pinnacle/Betfair sin margen) cuando existe. Si no existe, solo el modelo.
 - **Valor esperado** = prob × cuota − 1 (corregido por la probabilidad de devolución en líneas asiáticas).
-- **Confianza** (0-1) = alineación (confirmada 1 · prevista 0,85 · solo bajas 0,72) × muestra × tipo de mercado (principal 1 / estadísticas 0,75 / jugador 0,65) × acuerdo modelo-mercado × riesgo de rotación.
+- **Confianza** (0-1) = alineación (confirmada 1 · prevista 0,85 · solo bajas 0,72) × muestra × tipo de mercado (principal 1 / estadísticas 0,75 / jugador 0,65) × acuerdo modelo-mercado × riesgo de rotación × cobertura del mercado (abajo).
+- **Equipos que el mercado no ha visto** (`analysis.MARKET_COVERED`). Se cuentan los partidos de cada equipo con cuotas de cierre en el último año (`RatingModel.market_matches`). Si alguno de los dos equipos tiene menos de 10:
+  - la confianza se multiplica por un factor que baja linealmente hasta 0,6 con 0 partidos;
+  - en los mercados de goles (1X2, doble oportunidad, empate no válido, ambos marcan, hándicaps y más/menos goles), si no hay mercado afilado, la probabilidad se mezcla con la de la propia cuota sin margen (se supone un 5 %). El peso del modelo es el mismo 25 % de la mezcla con Pinnacle cuando el equipo tiene 0 partidos, y sube hasta 100 % con 10.
+
+  Afecta a equipos de ligas que no se descargan y que solo vemos en copas europeas (Bodø/Glimt, Slavia, Shakhtar…). **Es una regla de prudencia, no un parámetro ajustado**: esos partidos no tienen cuotas en football-data, así que el backtest no puede medirla. En las ligas no cambia nada, porque todos sus equipos tienen cuotas. Ejemplo, Napoli-Bodø/Glimt (UCL, 20-10-2026):
+
+  | Cuota | Antes | Ahora |
+  |---|---|---|
+  | Bodø @9,00 | probabilidad 32 %, valor +185 %, confianza 0,65 | probabilidad 15 %, valor +39 %, confianza 0,31 (no puede ser apuesta del día) |
+  | Napoli @1,30 | probabilidad 44 % | probabilidad 66 % |
 - **Apuesta del día**: máxima `valor × confianza` con cuota entre 1,50 y 2,60, prob ≥ 42 %, valor ≥ 3 % y confianza ≥ 0,60. **Si ninguna cumple, no hay apuesta del día.**
 - **Stake**: Kelly × 0,25, con tope del 3 % de la banca. Límites de pérdida: 5 % diario y 10 % semanal.
 
@@ -129,7 +139,23 @@ K = 80 mejora a 120 en +0,0006 ± 0,0004. K = 40 da algo más de media, pero con
 
 **Copas europeas** (`--europa`; no hay cuotas de football-data, así que solo se mide el modelo). Log-loss 1X2 del modelo: Champions 0,903 (377 partidos), Europa League 0,984 (371) y Conference 1,021 (282). Sin referencia de mercado no se puede decir cuánto le falta. Hay dos limitaciones conocidas:
 - 102 equipos solo aparecen en copas europeas: son de ligas que no se descargan (Noruega, Austria, Dinamarca, Suiza...). No tienen ratings del mercado, así que su rating sale solo de pocos partidos europeos. Ejemplo: Bodø/Glimt sale casi tan fuerte como el Napoli (+0,62 frente a +0,67), mientras que la cuota de 1,30 del Napoli implica ~77 %. Una ventaja local propia por equipo (Bodø: +0,3 de xG en casa y −1,7 fuera) se probó y no mejora: empeora las ligas en +0,001 y no cambia la Champions.
-- Hay equipos duplicados entre fuentes: "AEK" y "AEK Athens", "PAOK" y "PAOK Thessaloniki", "Nijmegen" y "NEC Nijmegen", "Antwerp" y "Royal Antwerp". Sus partidos europeos no se conectan con su liga.
+- ~~Hay equipos duplicados entre fuentes~~ **Corregido el 19-10-2026** (`ingest/dedupe.py`). Se fusionaron 9 equipos:
+  - AEK, PAOK, NEC Nijmegen, Royal Antwerp, Union Saint-Gilloise y Vitória de Guimarães: su registro de copas europeas no estaba conectado con el de su liga.
+  - Verona, Clermont y Saint-Étienne: cada partido suyo de Serie A o Ligue 1 estaba **duplicado** (182 en total), uno de FotMob y otro de football-data. El rival de cada jornada "jugaba dos veces".
+
+  La causa era que, en las ligas ligeras con FotMob, football-data creaba el partido en vez de buscarlo. Además, Gladbach nunca tenía enlazadas sus cuotas de football-data y quedaba sin ratings del mercado; ahora sí las tiene.
+
+  La ingesta fusiona sola los pares seguros: nombre igual tras normalizar, fuentes distintas, sin enfrentamientos entre ellos y sin partidos distintos el mismo día. Los dudosos se listan con `apuestas equipos duplicados`, por ejemplo Aris (Grecia) frente a Aris Limassol (Chipre), que son clubes distintos.
+
+  | Log-loss 1X2 del modelo | Antes | Después de fusionar |
+  |---|---|---|
+  | Ligas (2.132 partidos) | 0,9811 | **0,9801** (bet365 0,9749) |
+  | Champions | 0,903 | 0,902 |
+  | Europa League | 0,984 | 0,986 |
+  | Conference | 1,021 | 1,015 |
+
+  En el backtest de apuestas, solo modelo: 1.594 apuestas, ROI −6,3 % (antes −6,8 %), una diferencia que es ruido.
+- El modelo solo se entrena con las competiciones definidas en `core/competitions.py`. La BD es compartida, y una rama puede cargar ligas nuevas que aún no se han validado.
 
 | Estadísticas (log-verosimilitud por partido) | Mejora frente a la media de la liga |
 |---|---|

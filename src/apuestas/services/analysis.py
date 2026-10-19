@@ -22,6 +22,28 @@ MY_BOOKS = ("bet365", "betano")
 SHARP_BOOKS = ("pinnacle", "betfair_ex")
 W_MODEL = 0.25  # peso del modelo frente al mercado afilado: el backtest muestra que el mercado sabe más
 MAIN_MARKETS = ("1x2", "ou_goals", "ah", "btts", "dnb", "dc")
+
+# Equipos que el mercado no ha visto (ligas que no se descargan, p.ej. Bodø/Glimt): su rating sale de pocos
+# partidos europeos y el modelo puede ver un partido parejo donde la cuota dice lo contrario. No hay cuotas de
+# esos partidos para medirlo con el backtest, así que es una regla de prudencia, no un parámetro ajustado:
+# - por debajo de MARKET_COVERED partidos con cuotas de cierre en el último año, la confianza baja (hasta x0,6);
+# - en mercados de goles sin mercado afilado, la probabilidad se mezcla con la de la propia cuota sin margen,
+#   con el peso del modelo W_MODEL (el mismo de la mezcla con Pinnacle) cuando no hay ninguna cuota del equipo.
+MARKET_COVERED = 10
+MIN_MARKET_FACTOR = 0.6
+BOOK_MARGIN = 0.05  # margen típico de bet365/Betano en estos mercados, para quitarlo de una cuota suelta
+GOAL_MARKETS = ("1x2", "dc", "dnb", "btts", "ah", "eh")
+
+
+def market_coverage_weight(n_market: int | None) -> float:
+    """Peso del modelo frente a la cuota (1 = solo modelo) según los partidos del equipo con cuotas."""
+    if n_market is None or n_market >= MARKET_COVERED:
+        return 1.0
+    return W_MODEL + (1 - W_MODEL) * n_market / MARKET_COVERED
+
+
+def _is_goal_market(market: str) -> bool:
+    return market in GOAL_MARKETS or market.startswith("ou_goals")
 COUNT_LINE_STATS = ("shots", "shots_on_target", "corners", "cards", "fouls")
 MARKET_LABELS = {
     "1x2": "Resultado", "ah": "Hándicap asiático", "eh": "Hándicap europeo", "ou_goals": "Goles",
@@ -223,7 +245,7 @@ def _sharp_prob(odds_rows: list[m.OddsSnapshot], market: str, selection: str, li
 def _confidence(
     market: str, quality: dict, has_sharp: bool, model_p: float, sharp_p: float | None, rotation: str
 ) -> float:
-    c = quality["lineup_factor"] * quality["sample_factor"]
+    c = quality["lineup_factor"] * quality["sample_factor"] * quality.get("market_factor", 1.0)
     if market.startswith("player_"):
         c *= 0.65
     elif market in MAIN_MARKETS:
@@ -246,6 +268,11 @@ def evaluate_bet(
     model_p = out.effective_prob()
     sharp_p = _sharp_prob(odds_rows, market, selection, line) if market in ("1x2", "ou_goals", "ah") else None
     prob = W_MODEL * model_p + (1 - W_MODEL) * sharp_p if sharp_p is not None else model_p
+    w_cov = quality.get("market_weight", 1.0)
+    book_p = None
+    if sharp_p is None and w_cov < 1.0 and _is_goal_market(market):
+        book_p = min(0.99, 1 / (odds * (1 + BOOK_MARGIN)))
+        prob = w_cov * model_p + (1 - w_cov) * book_p
     no_push = max(1e-9, 1 - out.push)
     ev = (prob * odds - 1) * no_push
     stake = oddsmath.stake_pct(prob, odds, settings.kelly_fraction, settings.max_stake_pct)
@@ -253,6 +280,9 @@ def evaluate_bet(
     reasons = []
     if sharp_p is not None:
         reasons.append(f"Modelo {model_p:.0%} · mercado afilado {sharp_p:.0%} · mezcla {prob:.0%}")
+    elif book_p is not None:
+        reasons.append(f"Modelo {model_p:.0%} · cuota sin margen {book_p:.0%} · mezcla {prob:.0%}: "
+                       f"{quality.get('no_market_note', 'equipo con pocas cuotas de referencia')}")
     else:
         reasons.append(f"Probabilidad del modelo {model_p:.0%} (sin referencia de mercado afilado)")
     # float(): los cálculos devuelven tipos numpy, que no se serializan a JSON (p.ej. numpy.bool en comparaciones)
@@ -318,6 +348,9 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         "predicted" if "predicted" in (adj_h.source, adj_a.source) else adj_h.source)
     lineup_factor = {"confirmed": 1.0, "predicted": 0.85, "injuries_only": 0.72, "none": 0.6}.get(lineup_status, 0.7)
     n_min = min(bundle.goals.n_matches.get(home, 0.0), bundle.goals.n_matches.get(away, 0.0))
+    cov = bundle.goals.market_matches
+    market_min = min(cov.get(home, 0), cov.get(away, 0)) if cov else None
+    thin = [t.name for t in (match.home_team, match.away_team) if cov and cov.get(t.id, 0) < MARKET_COVERED]
     quality = {
         "lineup_status": lineup_status,
         "lineup_factor": lineup_factor,
@@ -325,7 +358,15 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         "weighted_matches_min": round(n_min, 1),
         "referee_known": referee is not None,
         "model_as_of": bundle.as_of.isoformat(),
+        # Cobertura del mercado (ver MARKET_COVERED): None = el paquete de modelos no la trae
+        "market_matches_min": market_min,
+        "market_factor": round(MIN_MARKET_FACTOR + (1 - MIN_MARKET_FACTOR) * min(1.0, market_min / MARKET_COVERED), 3)
+        if market_min is not None else 1.0,
+        "market_weight": round(market_coverage_weight(market_min), 3),
     }
+    if thin:
+        quality["no_market_note"] = (f"{' y '.join(thin)} casi sin cuotas de su liga en nuestros datos; "
+                                     "el modelo es poco fiable en este partido")
 
     # Evaluar todas las cuotas disponibles de mis casas
     odds_rows = _latest_odds(s, match.id)

@@ -46,6 +46,7 @@ scripts/install-services.sh --with-web   # BD + worker + API + panel en http://l
 | `apuestas status` | Frescura de las fuentes y del modelo |
 | `apuestas backtest` | Valida el modelo contra cuotas históricas de bet365 |
 | `apuestas archive report` | Espacio usado |
+| `apuestas equipos duplicados` | Equipos que parecen el mismo club en dos fuentes (los seguros se fusionan solos en cada ingesta) |
 
 ### Conectar Claude (MCP)
 

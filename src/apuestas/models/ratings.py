@@ -44,6 +44,9 @@ class RatingModel:
     dispersion: float = 0.0  # alfa de la binomial negativa (0 = Poisson)
     n_matches: dict[int, float] = field(default_factory=dict)  # partidos (ponderados) por equipo
     as_of: date | None = None
+    # Partidos con cuotas de cierre en el último año (observaciones del mercado). Vacío = no se sabe (paquetes
+    # antiguos o modelos sin mercado); 0 = el mercado no ha visto a este equipo (p.ej. ligas que no se descargan)
+    market_matches: dict[int, int] = field(default_factory=dict)
 
     def expected(self, home: int, away: int, neutral: bool = False) -> tuple[float, float]:
         ah, aa = self.attack.get(home, 0.0), self.attack.get(away, 0.0)
@@ -60,6 +63,7 @@ class RatingModel:
             "defence": {str(k): v for k, v in self.defence.items()},
             "n_matches": {str(k): v for k, v in self.n_matches.items()},
             "as_of": self.as_of.isoformat() if self.as_of else None,
+            "market_matches": {str(k): v for k, v in self.market_matches.items()},
         }
 
     @classmethod
@@ -74,7 +78,11 @@ class RatingModel:
             dispersion=d.get("dispersion", 0.0),
             n_matches={int(k): v for k, v in d.get("n_matches", {}).items()},
             as_of=date.fromisoformat(d["as_of"]) if d.get("as_of") else None,
+            market_matches={int(k): int(v) for k, v in d.get("market_matches", {}).items()},
         )
+
+
+MARKET_COVERAGE_DAYS = 365  # ventana para contar los partidos de cada equipo con cuotas de cierre
 
 
 def time_weights(days: np.ndarray, as_of: date, half_life_days: float) -> np.ndarray:
@@ -147,6 +155,9 @@ def fit(
 
     wr = np.where(real, w, 0.0)
     counts = np.bincount(hi, weights=wr, minlength=n) + np.bincount(ai, weights=wr, minlength=n)
+    recent_market = ~real & (np.array([(as_of - d).days for d in days]) <= MARKET_COVERAGE_DAYS)
+    market_n = (np.bincount(hi[recent_market], minlength=n) + np.bincount(ai[recent_market], minlength=n)
+                if not real.all() else None)
     return RatingModel(
         teams=teams,
         mu=float(mu),
@@ -156,4 +167,5 @@ def fit(
         dispersion=max(alpha, 0.0),
         n_matches={t: float(counts[i]) for t, i in idx.items()},
         as_of=as_of,
+        market_matches={t: int(market_n[i]) for t, i in idx.items()} if market_n is not None else {},
     )

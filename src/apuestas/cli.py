@@ -253,6 +253,46 @@ def user_bankroll(username: str, amount: float, currency: str = "PEN") -> None:
     _print_json(queries.set_bankroll(username, amount, currency))
 
 
+teams_app = typer.Typer(help="Equipos duplicados entre fuentes", no_args_is_help=True)
+app.add_typer(teams_app, name="equipos")
+
+
+@teams_app.command("duplicados")
+def teams_duplicates() -> None:
+    """Pares que parecen el mismo club. Los seguros se fusionan solos en cada ingesta; el resto, a mano."""
+    from apuestas.db.session import session_scope
+    from apuestas.ingest import dedupe
+
+    with session_scope() as s:
+        _print_json([c.to_dict() for c in dedupe.candidates(s)])
+
+
+@teams_app.command("fusionar")
+def teams_merge(keep_id: int, drop_id: int, si: bool = typer.Option(False, "--si", help="Sin confirmar")) -> None:
+    """Fusiona el equipo DROP_ID en KEEP_ID (partidos duplicados, cuotas, alias…). No se puede deshacer."""
+    from apuestas.db import models as m
+    from apuestas.db.session import session_scope
+    from apuestas.ingest import dedupe
+
+    with session_scope() as s:
+        keep, drop = s.get(m.Team, keep_id), s.get(m.Team, drop_id)
+        if keep is None or drop is None:
+            raise typer.BadParameter("No existe alguno de los dos equipos")
+        if not si and not typer.confirm(f"¿Fusionar «{drop.name}» ({drop_id}) en «{keep.name}» ({keep_id})?"):
+            raise typer.Abort()
+        _print_json(dedupe.merge_teams(s, keep_id, drop_id))
+    console.print("Vuelve a entrenar el modelo: apuestas train")
+
+
+@teams_app.command("fusionar-seguros")
+def teams_merge_safe() -> None:
+    """Fusiona ahora los pares seguros (lo mismo que hace la ingesta al terminar)."""
+    from apuestas.ingest import pipeline
+
+    _logging(False)
+    console.print(f"{pipeline.merge_duplicate_teams()} equipos fusionados. Vuelve a entrenar: apuestas train")
+
+
 captures_app = typer.Typer(help="Capturas de cuotas que lee una IA", no_args_is_help=True)
 app.add_typer(captures_app, name="capturas")
 

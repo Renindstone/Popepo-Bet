@@ -7,12 +7,13 @@ Análisis de apuestas de fútbol (EPL, Bundesliga, LaLiga, Champions; solo prepa
 - Tests: `.venv/bin/pytest` · Lint: `.venv/bin/ruff check src tests`
 - BD: `scripts/db.sh start|stop|status|psql` (cluster propio en 127.0.0.1:5433, datos en ~/.local/share/apuestas/pgdata)
 - Migraciones: `.venv/bin/alembic revision --autogenerate -m "..."` y `.venv/bin/alembic upgrade head`
-- CLI: `.venv/bin/apuestas --help` (ingest, train, picks, analyze, evaluate, backtest, mcp, api, bot, worker, archive, user, capturas)
+- CLI: `.venv/bin/apuestas --help` (ingest, train, picks, analyze, evaluate, backtest, mcp, api, bot, worker, archive, user, capturas, equipos)
 - Servicios (systemd de usuario): `scripts/install-services.sh --with-web` → apuestas-db, -worker, -api (:8000), -web (:3000). Instalación completa: `docs/instalacion.md`
 - Panel en desarrollo: `.claude/launch.json` (api y panel) usa los mismos puertos que los servicios; antes detén `apuestas-web` y `apuestas-api` con `systemctl --user stop`, y vuelve a arrancarlos al terminar
 
 ## Estructura
-- `src/apuestas/ingest/`: un módulo por fuente + `store.py` (resolución de entidades, validación entre fuentes) + `pipeline.py`
+- `src/apuestas/ingest/`: un módulo por fuente + `store.py` (resolución de entidades, validación entre fuentes) + `dedupe.py` (equipos duplicados entre fuentes) + `pipeline.py`
+- La BD (127.0.0.1:5433) es compartida por todas las ramas y worktrees: el modelo solo entrena con las competiciones de `core/competitions.py`. Antes de fusionar o borrar datos, haz `pg_dump` a `var/backups/`
 - `src/apuestas/models/`: `ratings.py` (fuerza conjunta), `distributions.py` (mercados y líneas asiáticas), `fitting.py` (paquete de modelos en var/models/latest.json)
 - `src/apuestas/features/`: alineación vs once típico, contexto, dificultad
 - `src/apuestas/services/`: `analysis.py` (partido completo), `picks.py` (apuesta del día, liquidación), `tracker.py`, `queries.py` (capa común de API/MCP/bot), `captures.py` + `capture_engines.py` (capturas de cuotas que lee una IA, ADR 0005)

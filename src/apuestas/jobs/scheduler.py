@@ -49,6 +49,7 @@ def job_results() -> None:
     pipeline.sync_fotmob_leagues([cur])
     pipeline.sync_football_data([cur])
     pipeline.sync_understat([cur])
+    pipeline.merge_duplicate_teams()
     pipeline.sync_fotmob_details(days_ahead=1, backfill_limit=150)
     settled = settle_all()
     bundle = fit_all()

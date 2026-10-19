@@ -13,7 +13,7 @@ from apuestas.config import get_settings
 from apuestas.core.competitions import COMPETITIONS, FULL, LIGHT, fotmob_season, season_start_year
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
-from apuestas.ingest import football_data, fotmob, store, understat
+from apuestas.ingest import dedupe, football_data, fotmob, store, understat
 from apuestas.ingest.http import SourceBlocked
 
 log = logging.getLogger(__name__)
@@ -161,13 +161,16 @@ def sync_football_data(start_years: list[int]) -> int:
 
 
 def _apply_fd_row(s, comp, season, tier: str, country: str, r: football_data.FDRow) -> m.Match | None:
-    if tier == "full":
-        match = store.find_match(s, comp.id, r.kickoff_utc, r.home, r.away)
-        if match is None:
-            log.debug("fdco sin partido: %s %s vs %s", r.kickoff_utc, r.home, r.away)
-            return None
+    # Si FotMob ya trae esta liga (las completas, Serie A, Ligue 1), el partido ya existe: se busca por fecha y
+    # nombres parecidos en vez de crear otro. Así "Verona" (football-data) no duplica a "Hellas Verona".
+    has_fotmob = tier == "full" or COMPETITIONS[comp.code].fotmob_id is not None
+    match = store.find_match(s, comp.id, r.kickoff_utc, r.home, r.away) if has_fotmob else None
+    if match is not None:
         store.learn_team_alias(s, match.home_team_id, "fdco", f"{country}:{r.home}", r.home)
         store.learn_team_alias(s, match.away_team_id, "fdco", f"{country}:{r.away}", r.away)
+    elif tier == "full":
+        log.debug("fdco sin partido: %s %s vs %s", r.kickoff_utc, r.home, r.away)
+        return None
     else:
         home = store.resolve_team(s, "fdco", f"{country}:{r.home}", r.home, country)
         away = store.resolve_team(s, "fdco", f"{country}:{r.away}", r.away, country)
@@ -248,6 +251,23 @@ def sync_understat(start_years: list[int]) -> int:
     return total
 
 
+# --------------------------------------------------------------------------- equipos duplicados
+
+
+def merge_duplicate_teams() -> int:
+    """Fusiona los equipos que entraron dos veces con nombres distintos (solo los pares seguros)."""
+
+    def task() -> int:
+        with session_scope() as s:
+            done = dedupe.merge_safe(s)
+        for d in done:
+            log.info("Equipo duplicado fusionado: %s -> %s (%d partidos)", d["fusionado"], d["conservado"],
+                     d["partidos_duplicados"])
+        return len(done)
+
+    return _run("dedupe", "equipos duplicados", task)
+
+
 # --------------------------------------------------------------------------- todo junto
 
 
@@ -256,6 +276,7 @@ def full_sync(start_years: list[int] | None = None, backfill_limit: int = 300) -
     sync_fotmob_leagues(years)
     sync_football_data(years)
     sync_understat(years)
+    merge_duplicate_teams()
     sync_fotmob_details(backfill_limit=backfill_limit)
     sync_upcoming_odds()
     try:
