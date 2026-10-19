@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -21,9 +21,11 @@ from apuestas.db import models as m
 
 ATT_W = {"GK": 0.0, "DF": 0.25, "MF": 0.7, "FW": 1.0}
 DEF_W = {"GK": 1.0, "DF": 1.0, "MF": 0.6, "FW": 0.15}
-# Sensibilidad: cuánto cambia (en log) la media de goles por cada punto de diferencia en el índice
-BETA_ATT = 0.30
-BETA_DEF = 0.30
+# Sensibilidad: cuánto cambia (en log) la media de goles por cada punto de diferencia en el índice.
+# Calibrado con los onces confirmados 2024-26 (`apuestas backtest --lineups`): la regresión de goles da
+# 0,11 ± 0,05 (ataque) y 0,10 ± 0,06 (defensa), la de xG 0,06 y 0,08; 0,10 da la mejor log-loss (0,30 empeoraba).
+BETA_ATT = 0.10
+BETA_DEF = 0.10
 BASELINE_MATCHES = 8
 
 
@@ -96,6 +98,41 @@ def baseline(s: Session, team_id: int, before: datetime, n: int = BASELINE_MATCH
         for p in players:
             freq[p["player_id"]] = freq.get(p["player_id"], 0) + 1 / len(match_ids)
     return XIStrength(sum(atts) / len(atts), sum(defs) / len(defs)), freq
+
+
+def xi_history(s: Session) -> dict[int, list[tuple[date, int, XIStrength]]]:
+    """Onces confirmados de todos los partidos terminados, por equipo y en orden cronológico (para backtests).
+
+    Misma calidad por jugador que `_lineup_players`, pero en una sola consulta.
+    """
+    rows = s.execute(
+        select(m.Lineup.match_id, m.Lineup.team_id, m.Match.kickoff_utc, m.Lineup.position, m.Lineup.market_value_eur,
+               m.Lineup.season_rating, m.Player)
+        .join(m.Player, m.Player.id == m.Lineup.player_id)
+        .join(m.Match, m.Match.id == m.Lineup.match_id)
+        .where(m.Lineup.status == "confirmed", m.Lineup.is_starter.is_(True), m.Match.status == "finished")
+    ).all()
+    groups: dict[tuple[int, int], tuple[date, list[dict]]] = {}
+    for mid, tid, ko, pos, mv, sr, p in rows:
+        groups.setdefault((mid, tid), (ko.date(), []))[1].append(
+            {"player_id": p.id, "position": pos or p.position,
+             "quality": player_quality(mv or p.market_value_eur, sr or p.season_rating)}
+        )
+    out: dict[int, list[tuple[date, int, XIStrength]]] = {}
+    for (mid, tid), (day, players) in groups.items():
+        out.setdefault(tid, []).append((day, mid, xi_strength(players)))
+    for hist in out.values():
+        hist.sort(key=lambda x: x[0])
+    return out
+
+
+def baseline_from_history(hist: list[tuple[date, int, XIStrength]], before: date,
+                          n: int = BASELINE_MATCHES) -> XIStrength | None:
+    """Once típico (media de las últimas n titularidades confirmadas antes de `before`)."""
+    prev = [x for day, _, x in hist if day < before][-n:]
+    if not prev:
+        return None
+    return XIStrength(sum(x.attack for x in prev) / len(prev), sum(x.defence for x in prev) / len(prev))
 
 
 @dataclass

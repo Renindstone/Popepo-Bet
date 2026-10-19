@@ -113,10 +113,11 @@ Las cuotas de bet365 llegan gratis vía football-data.co.uk (1X2, goles 2.5 y h�
 
 ## Resultado del backtest (honesto)
 
-Con datos de 2024-25 y 2025-26 (≈2.100 partidos, modelo base sin alineaciones):
+Con datos de 2024-25 y 2025-26 (≈2.100 partidos de EPL, Bundesliga y LaLiga):
 
-- En **1X2, goles 2.5 y hándicap asiático** el modelo **no le gana a bet365**: log-loss 0,992 contra 0,975 del mercado. El mejor ROI fue de −0,8 % en hándicap asiático y de −4 % a −10 % en el resto.
-- Los modelos de **faltas, remates y tarjetas** sí mejoran claramente a la media de la liga, pero no hay cuotas históricas gratuitas para medir su ROI.
+- En **1X2, goles 2.5 y hándicap asiático** el modelo **no le gana a bet365**. Con los ratings implícitos del mercado (cuotas de cierre de partidos anteriores), la log-loss bajó de 0,993 a 0,981, pero bet365 está en 0,975. Ninguna estrategia en esos mercados es rentable: "solo modelo" da un ROI del −6,8 % (antes −4,2 %, diferencia dentro del ruido), con un CLV de +0,5 %.
+- Los modelos de **faltas, remates y tarjetas** sí mejoran claramente a la media de la liga, pero no hay cuotas históricas gratuitas para medir su ROI. El árbitro ayuda en las tarjetas de LaLiga y la Bundesliga, no en las de la Premier.
+- El **once confirmado** aporta poco con el índice actual: el efecto calibrado es un tercio del supuesto al principio (0,10 en lugar de 0,30).
 
 Conclusión: el valor hay que buscarlo en **props, tarjetas con árbitro, remates y noticias de alineaciones**, no en el 1X2. Detalle en [docs/modelos.md](docs/modelos.md).
 
