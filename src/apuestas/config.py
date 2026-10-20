@@ -22,7 +22,9 @@ class Settings(BaseSettings):
 
     # Fuentes opcionales
     oddspapi_key: str = ""
-    oddspapi_bookmakers: str = "betano"  # casas incluidas en tu suscripción de OddsPapi (máximo 3, separadas por comas)
+    # Casas de OddsPapi (slugs). Cada una cuesta 1 petición al día. betano.pe = Betano Perú; Pinnacle da la
+    # referencia del mercado afilado en Champions. Añade ",bet365" para sus cuotas de Champions (+30 al mes)
+    oddspapi_bookmakers: str = "betano.pe,pinnacle"
     telegram_token: str = ""
     telegram_chat_id: str = ""
     default_user: str = "renzo"

@@ -112,14 +112,14 @@ Crea un bot con @BotFather y pon `APUESTAS_TELEGRAM_TOKEN` y `APUESTAS_TELEGRAM_
 
 ### Betano (opcional)
 
-Las cuotas de bet365 y Pinnacle llegan gratis vía football-data.co.uk (1X2, goles 2.5 y hándicap asiático), pero solo para las ligas, no para la Champions. Las de **Betano** (también de la Champions) llegan por [OddsPapi](https://oddspapi.io), que tiene cuenta gratuita:
+Las cuotas de bet365 y Pinnacle llegan gratis vía football-data.co.uk (1X2, goles 2.5 y hándicap asiático), pero solo para las ligas, no para la Champions. Las de **Betano Perú** (también de la Champions, con córners, tarjetas y hándicap normal) llegan por [OddsPapi](https://oddspapi.io), que tiene cuenta gratuita:
 
-1. Crea la cuenta en oddspapi.io y, en la configuración de tu suscripción, elige **Betano** como casa de apuestas. El plan gratuito incluye pocas casas y un número limitado de peticiones al mes.
-2. Copia la clave de API de tu cuenta y pégala en `.env`: `APUESTAS_ODDSPAPI_KEY=...`. Si tu suscripción incluye más casas, añade `APUESTAS_ODDSPAPI_BOOKMAKERS=betano,pinnacle` (máximo 3).
-3. Comprueba la clave y la cuota mensual con `.venv/bin/apuestas ingest oddspapi --estado`, y haz la primera descarga con `.venv/bin/apuestas ingest oddspapi`.
-4. Reinicia el worker: `systemctl --user restart apuestas-worker apuestas-api`. Desde entonces baja las cuotas de Betano cada día a las 08:30.
+1. Crea la cuenta en oddspapi.io y copia la clave de API de tu cuenta.
+2. Pégala en `.env`: `APUESTAS_ODDSPAPI_KEY=...`.
+3. Comprueba la clave con `.venv/bin/apuestas ingest oddspapi --estado` (muestra las peticiones usadas y el límite del mes) y haz la primera descarga con `.venv/bin/apuestas ingest oddspapi`.
+4. Reinicia el worker: `systemctl --user restart apuestas-worker apuestas-api`. Desde entonces baja las cuotas cada día a las 08:30.
 
-Cada descarga gasta unas 5 peticiones: 1 de cuotas para las 4 competiciones y 1 de calendario por competición. Al mes son unas 150. Pendiente de confirmar con una clave real: que la cuota de Betano global coincida con la de betano.pe, y el signo de las líneas del hándicap asiático. Mientras tanto, compara un par de partidos con tu app.
+Por defecto descarga **Betano Perú y Pinnacle** (`APUESTAS_ODDSPAPI_BOOKMAKERS=betano.pe,pinnacle`). Pinnacle sirve de referencia del mercado afilado en la Champions. La API solo admite una casa por petición, así que cada casa cuesta 1 petición al día. Con dos casas son unas 60 peticiones al mes, más ~12 de catálogos (equipos, torneos y mercados, una vez por semana). El plan gratuito da 250 al mes. Para añadir bet365 (sus cuotas de Champions), pon `betano.pe,pinnacle,bet365` (+30 al mes).
 
 ## Resultado del backtest (honesto)
 

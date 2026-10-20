@@ -112,6 +112,12 @@ def similarity(a: str, b: str) -> float:
     return base
 
 
+def contained(a: str, b: str) -> bool:
+    """Las palabras de un nombre están todas en el otro ("Inter" en "Inter Milano", "Lens" en "Racing Club de Lens")."""
+    ta, tb = set(team_key(a).split()), set(team_key(b).split())
+    return bool(ta and tb and (ta <= tb or tb <= ta))
+
+
 def best_match(name: str, candidates: dict[int, str], threshold: float = 80.0) -> tuple[int | None, float]:
     """Devuelve el id del candidato más parecido si supera el umbral."""
     best_id, best_score = None, 0.0

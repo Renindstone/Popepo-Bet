@@ -228,10 +228,15 @@ def find_match(
             m.Match.competition_id == competition_id, m.Match.kickoff_utc >= lo, m.Match.kickoff_utc <= hi
         )
     ).all()
+    def name_score(a: str, b: str) -> float:
+        # Mismo partido, misma hora y los dos equipos: que un nombre contenga al otro basta ("Inter Milano")
+        sc = names.similarity(a, b)
+        return max(sc, 80.0) if names.contained(a, b) else sc
+
     best, best_score = None, 0.0
     for match in rows:
-        sh = names.similarity(home_name, match.home_team.name)
-        sa = names.similarity(away_name, match.away_team.name)
+        sh = name_score(home_name, match.home_team.name)
+        sa = name_score(away_name, match.away_team.name)
         if min(sh, sa) < min_score:
             continue
         hours_off = abs((match.kickoff_utc - kickoff_utc).total_seconds()) / 3600

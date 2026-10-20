@@ -108,7 +108,10 @@ class PoliteClient:
                 last_exc = httpx.HTTPStatusError(f"HTTP {resp.status_code}", request=resp.request, response=resp)
                 time.sleep(2**attempt * 5)
                 continue
-            resp.raise_for_status()
+            if resp.status_code >= 400:
+                # Sin la URL completa: los parámetros pueden llevar claves de API (p.ej. OddsPapi usa ?apiKey=)
+                raise RuntimeError(f"{host} respondió {resp.status_code} para {urlparse(url).path}: "
+                                   f"{resp.text[:300]}")
             self._write_cache(path, resp.content)
             return resp.content
         raise RuntimeError(f"No se pudo descargar {url}: {last_exc}")

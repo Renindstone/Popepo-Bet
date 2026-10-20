@@ -18,6 +18,8 @@ En Arch o CachyOS:
 sudo pacman -S --needed git python postgresql nodejs npm
 ```
 
+Si PostgreSQL ya estaba instalado como dependencia de otro paquete, márcalo como instalado a propósito: `sudo pacman -D --asexplicit postgresql`. Si no, una limpieza de paquetes huérfanos lo desinstala, y la base de datos deja de arrancar.
+
 En Debian o Ubuntu: `sudo apt install git python3 python3-venv postgresql nodejs npm`. Los programas de PostgreSQL quedan en `/usr/lib/postgresql/<versión>/bin`, así que añade esa carpeta al `PATH`.
 
 **Espacio en disco:** unos 2 GB. Se reparten así:
@@ -156,6 +158,7 @@ systemctl --user restart apuestas-worker apuestas-api apuestas-web
 | Una captura queda en "Error" con *No encuentro el CLI de Claude Code* | Instala Claude Code o ajusta `APUESTAS_CLAUDE_BIN` en `.env` |
 | Una captura queda en "Error" con un mensaje de autenticación | Tu sesión de Claude caducó: ejecuta `claude` en una terminal, haz `/login` y pulsa "Reintentar" en la captura |
 | Errores de conexión a la base de datos | `scripts/db.sh status`; si está parada, `systemctl --user restart apuestas-db` |
+| `pg_ctl` o `psql`: *orden no encontrada*, o la BD no arranca tras actualizar el sistema | Se desinstaló el paquete de PostgreSQL (suele pasar en una limpieza de huérfanos). Vuelve a instalarlo con `sudo pacman -S postgresql`; los datos no se pierden |
 | Quieres ver qué hizo el worker | `journalctl --user -u apuestas-worker --since today`, o `.venv/bin/apuestas status` para la frescura de cada fuente |
 
 ## 9. Desinstalar
