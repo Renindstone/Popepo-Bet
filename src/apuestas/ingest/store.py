@@ -482,3 +482,35 @@ def store_odds(s: Session, match: m.Match, odds: Iterable, source: str, captured
         added += 1
     s.flush()
     return added
+
+
+def latest_1x2(s: Session, match: m.Match, bookmaker: str) -> dict[str, float]:
+    """Última cuota 1X2 guardada de una casa (sin las de cierre): {"home": .., "draw": .., "away": ..}."""
+    out: dict[str, float] = {}
+    for row in s.scalars(
+        select(m.OddsSnapshot)
+        .where(
+            m.OddsSnapshot.match_id == match.id,
+            m.OddsSnapshot.bookmaker == bookmaker,
+            m.OddsSnapshot.market == "1x2",
+            m.OddsSnapshot.kind != "closing",
+        )
+        .order_by(m.OddsSnapshot.captured_at)
+    ):
+        out[row.selection] = row.price
+    return out
+
+
+def drop_odds(s: Session, match: m.Match, bookmaker: str, source: str) -> int:
+    """Borra las cuotas de una casa llegadas por una fuente en un partido. Las demás casas y fuentes no se tocan."""
+    n = (
+        s.query(m.OddsSnapshot)
+        .filter(
+            m.OddsSnapshot.match_id == match.id,
+            m.OddsSnapshot.bookmaker == bookmaker,
+            m.OddsSnapshot.source == source,
+        )
+        .delete()
+    )
+    s.flush()
+    return n
