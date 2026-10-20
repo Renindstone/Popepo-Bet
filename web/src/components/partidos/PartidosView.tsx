@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { Empty, ErrorNote, Loading, PageTitle, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { COMPETITIONS, competitionName, stageText } from "@/lib/format";
+import { matchesTeams } from "@/lib/search";
 import type { MatchSummary } from "@/lib/types";
 
 const DAY_OPTIONS = [3, 7, 10];
@@ -15,6 +17,8 @@ export function PartidosView() {
   const pathname = usePathname();
   const days = Number(params.get("dias")) || 3;
   const comp = params.get("comp") ?? "";
+  // El texto vive en el estado para que escribir sea fluido; se copia a la URL para conservarlo al volver de un partido
+  const [query, setQuery] = useState(params.get("q") ?? "");
   const { data, error, mutate } = useApi<MatchSummary[]>(`/matches?days=${days}`);
 
   function setParam(key: string, value: string) {
@@ -24,7 +28,15 @@ export function PartidosView() {
     router.replace(`${pathname}?${next.toString()}`, { scroll: false });
   }
 
-  const rows = (data ?? []).filter((m) => !comp || m.competition === comp);
+  function search(value: string) {
+    setQuery(value);
+    setParam("q", value.trim());
+  }
+
+  const searching = query.trim() !== "";
+  const rows = (data ?? []).filter(
+    (m) => (!comp || m.competition === comp) && matchesTeams(m.home, m.away, query),
+  );
   // "lun 19/10 14:00" → día "lun 19/10" y hora "14:00"
   const groups = new Map<string, MatchSummary[]>();
   for (const m of rows) {
@@ -37,6 +49,7 @@ export function PartidosView() {
       <PageTitle title="Partidos" sub="Próximos partidos de las cuatro competiciones. Elige uno para ver el análisis completo." />
 
       <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pb-6">
+        <TeamSearch value={query} onChange={search} />
         <fieldset className="flex flex-wrap items-center gap-1">
           <legend className="sr-only">Competición</legend>
           {[["", "Todas"], ...Object.entries(COMPETITIONS)].map(([code, name]) => (
@@ -60,9 +73,21 @@ export function PartidosView() {
       ) : !data ? (
         <Loading lines={6} />
       ) : rows.length === 0 ? (
-        <Empty>No hay partidos {comp ? `de ${competitionName(comp)} ` : ""}en los próximos {days} días.</Empty>
+        searching ? (
+          <Empty>
+            Ningún partido {comp ? `de ${competitionName(comp)} ` : ""}con «{query.trim()}» en los próximos {days} días.
+            {days < DAY_OPTIONS[DAY_OPTIONS.length - 1] && " Prueba con más días."}
+          </Empty>
+        ) : (
+          <Empty>No hay partidos {comp ? `de ${competitionName(comp)} ` : ""}en los próximos {days} días.</Empty>
+        )
       ) : (
         <div className="space-y-8 pb-10">
+          {searching && (
+            <p className="-mt-2 text-[0.9rem] text-grafito" aria-live="polite">
+              {rows.length === 1 ? "1 partido" : `${rows.length} partidos`} con «{query.trim()}»
+            </p>
+          )}
           {[...groups.entries()].map(([dayKey, ms]) => (
             <section key={dayKey} aria-label={dayKey}>
               <h2 className="semi border-b border-regla pb-2 text-lg font-bold capitalize">{dayKey}</h2>
@@ -95,6 +120,54 @@ export function PartidosView() {
         </div>
       )}
     </>
+  );
+}
+
+function TeamSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div role="search" className="relative w-full sm:w-72">
+      <label htmlFor="buscar-equipo" className="sr-only">
+        Buscar equipo
+      </label>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-grafito"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </svg>
+      <input
+        id="buscar-equipo"
+        type="text"
+        inputMode="search"
+        autoComplete="off"
+        spellCheck={false}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onChange("");
+        }}
+        placeholder="Buscar equipo"
+        className="h-9 w-full rounded-[3px] border border-regla bg-hoja pr-9 pl-9 text-[0.95rem] text-tinta placeholder:text-grafito focus:border-boli"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="Borrar búsqueda"
+          className="absolute top-1/2 right-1 flex size-7 -translate-y-1/2 items-center justify-center rounded-[3px] text-grafito hover:text-tinta"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }
 
