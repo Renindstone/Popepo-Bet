@@ -1,8 +1,8 @@
 "use client";
 
-import { type FormEvent, useState, useSyncExternalStore } from "react";
-import { Button, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
-import { API_URL, getApiKey, setApiKey, useApi } from "@/lib/api";
+import { useSyncExternalStore } from "react";
+import { ApiKeyForm, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
+import { apiUrl, DIRECT_API_URL, useApi } from "@/lib/api";
 import { ago, dateTimeLima, int, pct, shortDate, todayLima } from "@/lib/format";
 import type { DataStatus } from "@/lib/types";
 
@@ -129,25 +129,16 @@ const noop = () => () => {};
 
 function Conexion() {
   const health = useApi<{ ok: boolean; version: string }>("/health");
-  const stored = useSyncExternalStore(noop, getApiKey, () => "");
-  const [key, setKey] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const value = key ?? stored;
-
-  function save(e: FormEvent) {
-    e.preventDefault();
-    setApiKey(value.trim());
-    setSaved(true);
-  }
+  const url = useSyncExternalStore(noop, apiUrl, () => DIRECT_API_URL);
 
   return (
     <Section
       title="Conexión"
-      intro="Desde esta misma máquina la API no pide clave. Si abres el panel desde otro equipo, escribe tu clave (apuestas user create-key). Se guarda solo en este navegador."
+      intro="Desde esta misma máquina la API no pide clave. Si abres el panel desde otro equipo o por un enlace compartido, escribe tu clave (apuestas user create-key). Se guarda solo en este navegador."
     >
-      <dl className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-[0.95rem]">
+      <dl className="mb-5 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-[0.95rem]">
         <dt className="text-grafito">API</dt>
-        <dd className="num font-semibold break-all">{API_URL}</dd>
+        <dd className="num font-semibold break-all">{url === "/api" ? "a través de este panel (/api)" : url}</dd>
         <dt className="text-grafito">Estado</dt>
         <dd>
           {health.error ? (
@@ -159,27 +150,7 @@ function Conexion() {
           )}
         </dd>
       </dl>
-      <form onSubmit={save} className="mt-5 flex max-w-xl flex-wrap items-end gap-3">
-        <div className="min-w-0 flex-1">
-          <label htmlFor="clave" className="mb-1 block text-[0.9rem] font-semibold">
-            Clave de la API (opcional)
-          </label>
-          <input
-            id="clave"
-            type="password"
-            autoComplete="off"
-            value={value}
-            onChange={(e) => {
-              setKey(e.target.value);
-              setSaved(false);
-            }}
-            placeholder="apk_…"
-            className="h-11 w-full rounded-[3px] border border-regla bg-hoja px-3 text-tinta focus:border-boli"
-          />
-        </div>
-        <Button type="submit">Guardar clave</Button>
-      </form>
-      {saved && <p className="mt-2 text-[0.9rem] text-grafito">{value.trim() ? "Clave guardada." : "Clave borrada."}</p>}
+      <ApiKeyForm label="Clave de la API (opcional)" />
     </Section>
   );
 }

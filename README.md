@@ -113,6 +113,23 @@ Lo que el modelo no puede calcular aparece marcado con su motivo, sin inventar: 
 - Desde la terminal: `apuestas capturas lista` y `apuestas capturas procesar <id>`.
 - Detalles y alternativas: [docs/adr/0005-capturas-con-ia.md](docs/adr/0005-capturas-con-ia.md).
 
+### Compartir el panel con un enlace (sin instalar nada)
+
+Para que otra persona pruebe **tu** panel un rato desde su navegador, abre un túnel rápido de Cloudflare (no pide cuenta):
+
+1. Instala la herramienta: `sudo pacman -S cloudflared` (en otras distribuciones, ver la web de Cloudflare).
+2. Crea su clave: `.venv/bin/apuestas user create-key invitado` (se muestra una sola vez; guárdala).
+3. Abre el túnel mientras lo use: `cloudflared tunnel --url http://localhost:3000`. Muestra un enlace `https://….trycloudflare.com`.
+4. Pásale el enlace y la clave. Al abrirlo, el panel le pide la clave y la guarda en su navegador.
+5. Al terminar, cierra el túnel con Ctrl+C. El enlace deja de funcionar y cambia cada vez que lo abres.
+
+Lo que hay que saber:
+
+- Por el túnel la API **siempre pide clave**: aunque las visitas lleguen desde tu propia máquina, la API reconoce las cabeceras del túnel y del proxy `/api` del panel (`is_local` en `api/app.py`).
+- El panel llama a la API a través de sí mismo (`/api`, en `web/src/proxy.ts`), así que basta con un enlace.
+- Cada clave es un usuario con sus propias apuestas y su propia banca. Sus capturas no usan tu Claude: quedan pendientes (puede usar **Evaluar cuota**).
+- Las bajas que registre (`/absences`) son para todos, porque afectan al modelo.
+
 ### Telegram (opcional)
 
 Crea un bot con @BotFather y pon `APUESTAS_TELEGRAM_TOKEN` y `APUESTAS_TELEGRAM_CHAT_ID` en `.env`. El worker envía la apuesta del día a las 9:00 (Lima) y avisa si cambia al salir las alineaciones.

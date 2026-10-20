@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import type { ApiError } from "@/lib/api";
+import { type FormEvent, type ReactNode, useState, useSyncExternalStore } from "react";
+import { type ApiError, getApiKey, setApiKey } from "@/lib/api";
 import { pct } from "@/lib/format";
 
 export function PageTitle({ title, sub, actions }: { title: string; sub?: ReactNode; actions?: ReactNode }) {
@@ -56,6 +56,15 @@ export function ErrorNote({ error, onRetry }: { error: ApiError | Error; onRetry
   // Reintentar solo tiene sentido si la API no respondió o falló; un 404 o un 400 no cambian
   const status = "status" in error ? error.status : 0;
   const retryable = status === 0 || status >= 500;
+  if (status === 401) {
+    return (
+      <div role="alert" className="max-w-[68ch] border-l-[3px] border-boli bg-boli-suave/60 px-4 py-3">
+        <p className="font-semibold">{error.message}</p>
+        <p className="mt-0.5 mb-3 text-[0.95rem]">Escribe la clave que te pasaron. Se guarda solo en este navegador.</p>
+        <ApiKeyForm onSaved={() => window.location.reload()} />
+      </div>
+    );
+  }
   return (
     <div role="alert" className="max-w-[68ch] border-l-[3px] border-rojo bg-rojo-suave/60 px-4 py-3">
       <p className="font-semibold">No se pudo cargar</p>
@@ -66,6 +75,49 @@ export function ErrorNote({ error, onRetry }: { error: ApiError | Error; onRetry
         </button>
       )}
     </div>
+  );
+}
+
+const noop = () => () => {};
+
+/** Clave de acceso a la API, guardada en este navegador (para usar el panel desde otro equipo o por un túnel). */
+export function ApiKeyForm({ label = "Clave de acceso", onSaved }: { label?: string; onSaved?: (key: string) => void }) {
+  const stored = useSyncExternalStore(noop, getApiKey, () => "");
+  const [key, setKey] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const value = key ?? stored;
+
+  function save(e: FormEvent) {
+    e.preventDefault();
+    setApiKey(value.trim());
+    setSaved(true);
+    onSaved?.(value.trim());
+  }
+
+  return (
+    <>
+      <form onSubmit={save} className="flex max-w-xl flex-wrap items-end gap-3">
+        <div className="min-w-0 flex-1">
+          <label htmlFor="clave" className="mb-1 block text-[0.9rem] font-semibold">
+            {label}
+          </label>
+          <input
+            id="clave"
+            type="password"
+            autoComplete="off"
+            value={value}
+            onChange={(e) => {
+              setKey(e.target.value);
+              setSaved(false);
+            }}
+            placeholder="apk_…"
+            className="h-11 w-full rounded-[3px] border border-regla bg-hoja px-3 text-tinta focus:border-boli"
+          />
+        </div>
+        <Button type="submit">Guardar clave</Button>
+      </form>
+      {saved && <p className="mt-2 text-[0.9rem] text-grafito">{value.trim() ? "Clave guardada." : "Clave borrada."}</p>}
+    </>
   );
 }
 

@@ -31,7 +31,9 @@ OddsPapi (opcional) ─┘        │
   otros usuarios                                   cada 20' alineaciones
 ```
 
-El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia.
+El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia. Si el panel se abre desde otro equipo o por un túnel, el navegador llama a `/api` del propio panel, que la reenvía (`web/src/proxy.ts`) marcada como remota.
+
+**Quién es local:** la API solo atiende sin clave las peticiones que llegan desde la propia máquina **sin** cabeceras de proxy o túnel (`X-Forwarded-For`, `CF-Connecting-IP`, `X-Apuestas-Proxy`…). Todo lo demás necesita `X-API-Key`.
 
 **Capturas de cuotas** (`services/captures.py`, `services/capture_engines.py`): el panel sube la imagen a la API. Un hilo de la API lanza Claude Code (`claude -p`), aislado y con el servidor MCP del proyecto. Claude lee la imagen con `ver_captura`, manda las cuotas a `evaluar_captura` (las evalúa el mismo modelo que `evaluar_cuota`) y guarda un resumen. Ver [ADR 0005](adr/0005-capturas-con-ia.md).
 

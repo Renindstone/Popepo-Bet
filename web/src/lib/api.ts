@@ -3,7 +3,19 @@
 import useSWR, { type SWRConfiguration } from "swr";
 
 // Desde la propia máquina la API no pide clave. Con clave (otra máquina, túnel) se envía X-API-Key.
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+export const DIRECT_API_URL = "http://127.0.0.1:8000";
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+
+/**
+ * Dirección de la API. En esta máquina el navegador la llama directamente; si el panel se abre por un túnel
+ * (cloudflared, ngrok) o desde otro equipo, la pide al propio panel en /api, que la reenvía (src/proxy.ts).
+ */
+export function apiUrl(): string {
+  const fixed = process.env.NEXT_PUBLIC_API_URL;
+  if (fixed) return fixed.replace(/\/$/, "");
+  if (typeof window !== "undefined" && !LOCAL_HOSTS.includes(window.location.hostname)) return "/api";
+  return DIRECT_API_URL;
+}
 
 const KEY_STORAGE = "apuestas.apiKey";
 
@@ -55,11 +67,11 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, { ...init, headers });
+    res = await fetch(`${apiUrl()}${path}`, { ...init, headers });
   } catch {
     throw new ApiError(
       0,
-      `No hay conexión con la API en ${API_URL}. Arráncala con .venv/bin/apuestas api y vuelve a intentarlo.`,
+      `No hay conexión con la API en ${apiUrl()}. Arráncala con .venv/bin/apuestas api y vuelve a intentarlo.`,
     );
   }
   if (!res.ok) {
@@ -70,7 +82,12 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       // Respuesta sin JSON
     }
     if (res.status === 401) {
-      throw new ApiError(401, detail ?? "La API pide una clave. Escríbela en Estado de los datos → Conexión.");
+      throw new ApiError(
+        401,
+        detail === "Clave inválida"
+          ? "La clave guardada no es válida. Revisa que la copiaste completa."
+          : "Para usar el panel desde aquí hace falta una clave de acceso.",
+      );
     }
     if (res.status === 503) {
       throw new ApiError(503, detail ?? "Los modelos aún no están entrenados. Ejecuta .venv/bin/apuestas train.");
@@ -102,7 +119,7 @@ export async function blobUrl(path: string): Promise<string> {
   const headers = new Headers();
   const key = getApiKey();
   if (key) headers.set("X-API-Key", key);
-  const res = await fetch(`${API_URL}${path}`, { headers });
+  const res = await fetch(`${apiUrl()}${path}`, { headers });
   if (!res.ok) throw new ApiError(res.status, `No se pudo cargar la imagen (${res.status}).`);
   return URL.createObjectURL(await res.blob());
 }

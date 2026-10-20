@@ -45,6 +45,18 @@ app.add_middleware(
 )
 
 
+LOCAL_CLIENTS = ("127.0.0.1", "::1", "localhost", "testclient")
+# Cabeceras que añaden los proxies y túneles (cloudflared, ngrok, el proxy /api del panel): la petición viene
+# de fuera aunque llegue desde 127.0.0.1, así que no se trata como local.
+FORWARD_HEADERS = ("x-forwarded-for", "x-forwarded-host", "forwarded", "x-real-ip", "cf-connecting-ip",
+                   "x-apuestas-proxy")
+
+
+def is_local(request: Request) -> bool:
+    client = request.client.host if request.client else ""
+    return client in LOCAL_CLIENTS and not any(h in request.headers for h in FORWARD_HEADERS)
+
+
 def current_user(request: Request, x_api_key: str | None = Header(default=None)) -> str:
     if x_api_key:
         with session_scope() as s:
@@ -52,8 +64,7 @@ def current_user(request: Request, x_api_key: str | None = Header(default=None))
             if user is None:
                 raise HTTPException(401, "Clave inválida")
             return user.username
-    client = request.client.host if request.client else ""
-    if client in ("127.0.0.1", "::1", "localhost", "testclient"):
+    if is_local(request):
         return get_settings().default_user
     raise HTTPException(401, "Falta la cabecera X-API-Key")
 
