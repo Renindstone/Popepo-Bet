@@ -142,6 +142,8 @@ Conclusión: el valor hay que buscarlo en **props, tarjetas con árbitro, remate
 
 Monolito modular más un worker (tareas programadas). Ver [docs/arquitectura.md](docs/arquitectura.md) y las [decisiones (ADR)](docs/adr/).
 
+Si trabajas en el código con una IA (Claude Code, Codex, Cursor…), [AGENTS.md](AGENTS.md) explica cómo debe trabajar y [docs/estado.md](docs/estado.md) en qué punto está el proyecto.
+
 ## Aviso
 
 Herramienta de análisis para uso personal. Ningún modelo garantiza ganancias: apuesta solo lo que puedas permitirte perder. Los datos de fuentes no oficiales se usan con ritmo moderado y no se redistribuyen.

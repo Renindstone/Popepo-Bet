@@ -1,41 +1,19 @@
 # App Apuestas: guía para Claude
 
-Análisis de apuestas de fútbol (EPL, Bundesliga, LaLiga, Champions; solo prepartido). Usuario en Perú: apuesta en bet365 y Betano. Hora local: America/Lima.
+La guía completa para cualquier IA está en `AGENTS.md` (se importa aquí). El estado del proyecto y el trabajo pendiente están en `docs/estado.md`.
 
-## Comandos
-- Entorno: `.venv/bin/...` (Python 3.14, sin uv). Instalar: `.venv/bin/pip install -e ".[dev]"`
-- Tests: `.venv/bin/pytest` · Lint: `.venv/bin/ruff check src tests`
-- BD: `scripts/db.sh start|stop|status|psql` (cluster propio en 127.0.0.1:5433, datos en ~/.local/share/apuestas/pgdata)
-- Migraciones: `.venv/bin/alembic revision --autogenerate -m "..."` y `.venv/bin/alembic upgrade head`
-- CLI: `.venv/bin/apuestas --help` (ingest, train, picks, analyze, evaluate, backtest, mcp, api, bot, worker, archive, user, capturas, equipos)
-- Servicios (systemd de usuario): `scripts/install-services.sh --with-web` → apuestas-db, -worker, -api (:8000), -web (:3000). Instalación completa: `docs/instalacion.md`
-- Panel en desarrollo: `.claude/launch.json` (api y panel) usa los mismos puertos que los servicios; antes detén `apuestas-web` y `apuestas-api` con `systemctl --user stop`, y vuelve a arrancarlos al terminar
+@AGENTS.md
 
-## Estructura
-- `src/apuestas/ingest/`: un módulo por fuente + `store.py` (resolución de entidades, validación entre fuentes) + `dedupe.py` (equipos duplicados entre fuentes) + `pipeline.py`
-- La BD (127.0.0.1:5433) es compartida por todas las ramas y worktrees: el modelo solo entrena con las competiciones de `core/competitions.py`. Antes de fusionar o borrar datos, haz `pg_dump` a `var/backups/`
-- `src/apuestas/models/`: `ratings.py` (fuerza conjunta), `distributions.py` (mercados y líneas asiáticas), `fitting.py` (paquete de modelos en var/models/latest.json)
-- `src/apuestas/features/`: alineación vs once típico, contexto, dificultad
-- `src/apuestas/services/`: `analysis.py` (partido completo), `picks.py` (apuesta del día, liquidación), `tracker.py`, `queries.py` (capa común de API/MCP/bot), `captures.py` + `capture_engines.py` (capturas de cuotas que lee una IA, ADR 0005)
-- `web/`: panel Next.js (lee `web/AGENTS.md` antes de tocarlo)
-- `web/`: panel Next.js + TypeScript + Tailwind + ECharts que consume la API (`cd web && npm run dev`, ver README)
-- Docs: `docs/arquitectura.md`, `docs/modelos.md` (incluye resultados del backtest), `docs/fuentes.md`, `docs/adr/`
+## Solo para Claude
 
-## Convenciones
-- Código y comentarios en español. Fechas en UTC en la BD; se muestran en hora de Lima.
-- Mercados: `1x2`, `dc`, `dnb`, `btts`, `ah`, `eh`, `ou_<stat>[_home|_away]`, `ah_<stat>`, `1x2_<stat>`, `player_shots|player_sot|player_fouls|player_goal|player_card`. Stats: goals, shots, sot, corners, cards, fouls.
-- Ninguna fuente puede tumbar la ingesta: todo pasa por `pipeline._run` (registro en `ingestion_run`).
-- No esquivar protecciones anti-bots. Peticiones solo con `ingest.http.client()` (caché + ritmo).
-- Cualquier cambio de parámetros del modelo se justifica con `apuestas backtest` y se documenta en `docs/modelos.md`.
-- Ser honesto con los resultados: el backtest muestra que el modelo no le gana a bet365 en 1X2/goles/AH. No lo vendas como si lo hiciera.
+- Herramientas MCP del proyecto (`apuestas`): analizar partidos, evaluar cuotas, capturas, bajas y mis apuestas. Úsalas para consultar datos reales en vez de inventar números.
+- Al terminar cada cambio, actualiza `docs/estado.md` junto con el resto de la documentación.
 
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+Si existe `graphify-out/` (no se sube al repositorio), hay un grafo de conocimiento del código con nodos centrales, comunidades y relaciones entre archivos.
 
-Rules:
-- When graphify-out/graph.json exists, run `graphify query "<question>"` before your first grep, search or source-file read for a codebase question, and put this rule in every subagent prompt that explores code. Read raw files only for lines the graph or an earlier read already located. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
-- A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
+- Cuando exista `graphify-out/graph.json`, ejecuta `graphify query "<pregunta>"` antes del primer grep o lectura de código, y pon esta regla en el prompt de cada subagente que explore código. Lee archivos solo en las líneas que el grafo o una lectura anterior ya ubicaron. Usa `graphify path "<A>" "<B>"` para relaciones y `graphify explain "<concepto>"` para conceptos.
+- Si existe `graphify-out/wiki/index.md`, úsalo para navegar en lugar de recorrer el código.
+- Lee `graphify-out/GRAPH_REPORT.md` solo para revisar la arquitectura completa o si query/path/explain no bastan.
+- Después de modificar código, ejecuta `graphify update .` (solo AST, sin coste de API).
