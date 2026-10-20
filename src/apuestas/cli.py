@@ -60,6 +60,21 @@ def ingest_odds(verbose: bool = False) -> None:
     pipeline.sync_upcoming_odds()
 
 
+@ingest_app.command("oddspapi")
+def ingest_oddspapi(estado: bool = typer.Option(False, "--estado", help="Solo muestra la cuota mensual usada"),
+                    verbose: bool = False) -> None:
+    """Cuotas de Betano (u otras casas de tu suscripción) desde OddsPapi. Cada llamada gasta cuota."""
+    from apuestas.ingest import oddspapi, pipeline
+
+    _logging(verbose)
+    if estado:
+        _print_json(oddspapi.account_status())
+        return
+    n = pipeline._run("oddspapi", "upcoming odds", oddspapi.sync_upcoming)
+    console.print(f"{n} cuotas nuevas guardadas")
+    _print_json(oddspapi.account_status())
+
+
 def _print_json(data) -> None:
     import json
 

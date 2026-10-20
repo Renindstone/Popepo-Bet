@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     # Fuentes opcionales
     oddspapi_key: str = ""
+    oddspapi_bookmakers: str = "betano"  # casas incluidas en tu suscripción de OddsPapi (máximo 3, separadas por comas)
     telegram_token: str = ""
     telegram_chat_id: str = ""
     default_user: str = "renzo"
