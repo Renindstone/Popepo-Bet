@@ -42,7 +42,47 @@ def market_coverage_weight(n_market: int | None) -> float:
     return W_MODEL + (1 - W_MODEL) * n_market / MARKET_COVERED
 
 
-def _is_goal_market(market: str) -> bool:
+# Estadísticas (córners, tarjetas…): su modelo no se ha validado contra cuotas reales. Si la propia casa, sin
+# margen, ve la apuesta muy distinta, lo más probable es que se equivoque el modelo: baja la confianza.
+# Regla de prudencia (no hay historial de cuotas de estadísticas para ajustarla con el backtest).
+STAT_DISAGREE_TOLERANCE = 0.05  # hasta 5 puntos no se penaliza: ahí está el valor que se busca
+STAT_DISAGREE_SPAN = 0.15  # de 5 a 20 puntos la confianza baja linealmente hasta el mínimo
+STAT_DISAGREE_MIN_FACTOR = 0.3
+
+
+def book_fair_prob(odds_rows: list[m.OddsSnapshot], bookmaker: str, market: str, selection: str,
+                   line: float | None) -> float | None:
+    """Probabilidad sin margen que da una casa a una selección, si tiene todos los lados de esa línea."""
+    rows = [r for r in odds_rows if r.bookmaker == bookmaker and r.market == market]
+
+    def price(sel: str, ln: float | None) -> float | None:
+        return next((r.price for r in rows if r.selection == sel and r.line == ln), None)
+
+    if market.startswith("ou_"):
+        over, under = price("over", line), price("under", line)
+        if over and under:
+            p_over, p_under = oddsmath.devig([over, under])
+            return p_over if selection == "over" else p_under
+    elif market.startswith("ah") and line is not None and selection in ("home", "away"):
+        mine, other = price(selection, line), price("away" if selection == "home" else "home", -line)
+        if mine and other:
+            return oddsmath.devig([mine, other])[0]
+    elif market.startswith("1x2") or market == "eh":
+        trio = [price(s, line) for s in ("home", "draw", "away")]
+        if all(trio):
+            return dict(zip(("home", "draw", "away"), oddsmath.devig(trio), strict=True)).get(selection)
+    return None
+
+
+def stat_disagreement_factor(model_p: float, book_p: float) -> float:
+    gap = abs(model_p - book_p)
+    if gap <= STAT_DISAGREE_TOLERANCE:
+        return 1.0
+    return max(STAT_DISAGREE_MIN_FACTOR, 1 - (gap - STAT_DISAGREE_TOLERANCE) / STAT_DISAGREE_SPAN)
+
+
+def is_goal_market(market: str) -> bool:
+    """Mercados de goles: los únicos validados en el backtest contra cuotas reales."""
     return market in GOAL_MARKETS or market.startswith("ou_goals")
 COUNT_LINE_STATS = ("shots", "shots_on_target", "corners", "cards", "fouls")
 MARKET_LABELS = {
@@ -277,7 +317,7 @@ def evaluate_bet(
     prob = W_MODEL * model_p + (1 - W_MODEL) * sharp_p if sharp_p is not None else model_p
     w_cov = quality.get("market_weight", 1.0)
     book_p = None
-    if sharp_p is None and w_cov < 1.0 and _is_goal_market(market):
+    if sharp_p is None and w_cov < 1.0 and is_goal_market(market):
         book_p = min(0.99, 1 / (odds * (1 + BOOK_MARGIN)))
         prob = w_cov * model_p + (1 - w_cov) * book_p
     no_push = max(1e-9, 1 - out.push)
@@ -285,6 +325,14 @@ def evaluate_bet(
     stake = oddsmath.stake_pct(prob, odds, settings.kelly_fraction, settings.max_stake_pct)
     conf = _confidence(market, quality, sharp_p is not None, model_p, sharp_p, rotation)
     reasons = []
+    if not is_goal_market(market) and not market.startswith("player_"):
+        house_p = book_fair_prob(odds_rows, bookmaker, market, selection, line)
+        if house_p is not None:
+            factor = stat_disagreement_factor(model_p, house_p)
+            conf *= factor
+            if factor < 1.0:
+                reasons.append(f"La casa (sin margen) da {house_p:.0%} y el modelo {model_p:.0%}: discrepan mucho, "
+                               "probablemente se equivoca el modelo (confianza baja)")
     if sharp_p is not None:
         reasons.append(f"Modelo {model_p:.0%} · mercado afilado {sharp_p:.0%} · mezcla {prob:.0%}")
     elif book_p is not None:

@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     pick_min_prob: float = 0.42
     pick_min_ev: float = 0.03
     pick_min_confidence: float = 0.60
+    # Córners, tarjetas y demás estadísticas (y props de jugador) no se han validado contra cuotas reales: no
+    # pueden ser apuesta del día salvo que se active esto (se siguen mostrando como apuestas con valor)
+    pick_allow_stat_markets: bool = False
 
     # Capturas de cuotas (imágenes de bet365/Betano que lee una IA vía MCP)
     # Motor automático: claude_code (CLI con la suscripción del dueño), api (API de Claude, de pago) o none
