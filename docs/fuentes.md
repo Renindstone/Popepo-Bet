@@ -32,6 +32,7 @@ Cada valor de cada fuente se guarda en `stat_observation`. `store.reconcile()` c
 
 - **Conteos** (remates, córners, tarjetas…): prioridad FotMob > football-data. Si difieren, se anota en `discrepancies`.
 - **xG**: promedio de los proveedores disponibles (Opta/FotMob, Understat y football-data). Cada uno es un modelo distinto, y promediarlos suele predecir mejor que uno solo.
+- **Cuotas de OddsPapi**: OddsPapi a veces mete en un partido cuotas de un evento de la casa con local y visitante invertidos (Betano en Atlético - Deportivo, 24-10-2026: 1X2, hándicaps positivos y goles por equipo al revés, hándicaps negativos bien). La respuesta no dice a qué equipo corresponde cada selección, así que no se puede dar la vuelta: se descartan todas las cuotas de esa casa en ese partido, incluidas las guardadas antes desde OddsPapi, si (a) su 1X2 tiene el favorito contrario al de Pinnacle con 25 puntos o más de diferencia en la probabilidad del local, o (b) sus líneas alternativas no son monótonas (un hándicap más a favor o un over más bajo no puede pagar más, con un 10 % de margen). En la descarga del 19-10-2026 solo cayó ese partido, de 77 de Betano y 74 de Pinnacle.
 
 ## Uso responsable
 

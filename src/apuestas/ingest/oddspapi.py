@@ -169,6 +169,55 @@ def parse_fixture_odds(fx: dict, catalog: dict, books: list[str]) -> list[Price]
     return prices
 
 
+# --------------------------------------------------------------------------- coherencia de las cuotas
+# OddsPapi a veces junta en un mismo partido cuotas de un evento de la casa con local y visitante invertidos
+# (Betano en Atlético - Deportivo, 24-10-2026: 1X2, hándicaps positivos y goles por equipo al revés; hándicaps
+# negativos bien). La respuesta no trae el nombre del equipo de cada selección, así que no se puede dar la vuelta
+# con seguridad: las cuotas de esa casa para ese partido se descartan.
+LINE_TOLERANCE = 1.10  # una línea más favorable nunca paga más; 10 % de margen por redondeos de la casa
+REVERSED_GAP = 0.25  # diferencia mínima en la probabilidad implícita del local frente a Pinnacle
+
+
+def incoherent_lines(prices: list[Price]) -> str | None:
+    """Primer mercado cuyas líneas alternativas no son monótonas (o None si todas lo son).
+
+    Con más hándicap a favor, o un over más bajo, la cuota nunca sube. Si sube, el partido mezcla cuotas de dos
+    orientaciones distintas. El empate del hándicap europeo no es monótono y no se mira.
+    """
+    groups: dict[tuple[str, str], list[tuple[float, float]]] = {}
+    for p in prices:
+        if p.line is not None and p.selection != "draw":
+            groups.setdefault((p.market, p.selection), []).append((p.line, p.price))
+    for (market, sel), pts in groups.items():
+        # La cuota sube con la línea en el over y en el visitante del hándicap europeo (la línea es la del local)
+        rising = sel == "over" or (market == "eh" and sel == "away")
+        pts.sort()
+        for (l1, p1), (l2, p2) in zip(pts, pts[1:], strict=False):
+            if l1 != l2 and (p1 > p2 * LINE_TOLERANCE if rising else p2 > p1 * LINE_TOLERANCE):
+                return f"{market} {sel}: {l1:+g} @{p1} y {l2:+g} @{p2}"
+    return None
+
+
+def reversed_1x2(prices: list[Price], ref: dict[str, float]) -> bool:
+    """¿El favorito del 1X2 es el contrario que en la referencia (Pinnacle) y por mucho?"""
+    own = {p.selection: p.price for p in prices if p.market == "1x2"}
+    if not all(sel in own and sel in ref for sel in ("home", "away")):
+        return False
+    if (own["home"] < own["away"]) == (ref["home"] < ref["away"]):
+        return False
+    return abs(1 / own["home"] - 1 / ref["home"]) >= REVERSED_GAP
+
+
+def rejection_reason(prices: list[Price], ref: dict[str, float] | None) -> str | None:
+    """Motivo para descartar las cuotas de una casa en un partido, o None si parecen coherentes."""
+    if ref and reversed_1x2(prices, ref):
+        own = {p.selection: p.price for p in prices if p.market == "1x2"}
+        return (f"1X2 al revés que Pinnacle: local {own['home']} / visitante {own['away']} "
+                f"frente a {ref['home']} / {ref['away']}")
+    bad = incoherent_lines(prices)
+    return f"líneas incoherentes, {bad}" if bad else None
+
+
 def participants() -> dict[str, str]:
     """participantId -> nombre del equipo (la respuesta de cuotas solo trae ids). Una llamada por semana."""
     data = _get("participants", ttl=7 * 86400, sportId=SOCCER)
@@ -187,14 +236,21 @@ def sync_upcoming() -> int:
     team_names = participants()
     code_of = {tid: code for code, tid in tids.items()}
     now = datetime.now(UTC)
+    # La API exige una sola casa por petición: 1 llamada por casa para las 4 competiciones. Se descargan todas
+    # antes de guardar para que el 1X2 de Pinnacle sirva de referencia a las demás casas.
+    odds = {book: _items(_get("odds-by-tournaments", ttl=1800, bookmaker=book,
+                              tournamentIds=",".join(str(t) for t in tids.values())))
+            for book in books}
+    sharp = {fx.get("fixtureId"): {p.selection: p.price for p in parse_fixture_odds(fx, {}, [book])}
+             for book, fixtures in odds.items() if our_name(book) == "pinnacle" for fx in fixtures}
     n = matched = 0
     unmatched: list[str] = []
-    for book in books:  # la API exige una sola casa por petición: 1 llamada por casa para las 4 competiciones
-        odds = _get("odds-by-tournaments", ttl=1800, bookmaker=book,
-                    tournamentIds=",".join(str(t) for t in tids.values()))
+    rejected: list[str] = []
+    for book, fixtures in odds.items():
+        name = our_name(book)
         with session_scope() as s:
             comps = store.ensure_competitions(s)
-            for fx in _items(odds):
+            for fx in fixtures:
                 code = code_of.get(int(fx.get("tournamentId") or 0))
                 home = team_names.get(str(fx.get("participant1Id")))
                 away = team_names.get(str(fx.get("participant2Id")))
@@ -208,8 +264,21 @@ def sync_upcoming() -> int:
                     unmatched.append(f"{code} {home} vs {away}")
                     continue
                 matched += 1
-                n += store.store_odds(s, match, parse_fixture_odds(fx, catalog, [book]), "oddspapi")
+                prices = parse_fixture_odds(fx, catalog, [book])
+                ref = None
+                if name != "pinnacle":  # Pinnacle de esta misma descarga o, si no vino, la última guardada
+                    ref = sharp.get(fx.get("fixtureId")) or store.latest_1x2(s, match, "pinnacle")
+                why = rejection_reason(prices, ref)
+                if why:
+                    # Las cuotas anteriores de esta casa en el partido vienen del mismo emparejamiento: fuera también
+                    dropped = store.drop_odds(s, match, name, "oddspapi")
+                    log.warning("OddsPapi: descarto %s en %s %s vs %s (%s); %d cuotas anteriores borradas",
+                                name, code, home, away, why, dropped)
+                    rejected.append(f"{name} {home} vs {away}")
+                    continue
+                n += store.store_odds(s, match, prices, "oddspapi")
     if unmatched:
         log.info("OddsPapi sin partido en nuestra BD: %s", "; ".join(sorted(set(unmatched))[:20]))
-    log.info("OddsPapi: %d partido-casa emparejados, %d cuotas nuevas (%s)", matched, n, ",".join(books))
+    log.info("OddsPapi: %d partido-casa emparejados, %d descartados, %d cuotas nuevas (%s)",
+             matched, len(rejected), n, ",".join(books))
     return n
