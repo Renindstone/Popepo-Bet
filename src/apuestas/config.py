@@ -32,6 +32,9 @@ class Settings(BaseSettings):
 
     # Temporadas de historial que usan los modelos (además de la actual)
     history_seasons: int = 3
+    # Entrenar también con las ligas extra de football-data (Austria, Noruega...). Se descargan siempre, pero con
+    # el modelo actual no mejoran el backtest de las copas europeas (ver docs/modelos.md)
+    extra_leagues_in_model: bool = False
 
     # Apuestas: gestión de banca
     kelly_fraction: float = 0.25

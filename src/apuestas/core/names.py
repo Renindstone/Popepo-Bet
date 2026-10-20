@@ -58,6 +58,9 @@ _TEAM_SEEDS = {
     "nec": "nec nijmegen", "guimaraes": "vitoria guimaraes", "saint gilloise": "union saint gilloise",
     "union sg": "union saint gilloise", "verona": "hellas verona", "clermont": "clermont foot",
     "hearts": "heart of midlothian", "buyuksehyr": "basaksehir",
+    # Ligas extra de football-data (izquierda) frente a FotMob (derecha)
+    "rapid": "rapid wien", "copenhagen": "kobenhavn", "aarhus": "agf", "jagiellonia": "jagiellonia bialystok",
+    "legia": "legia warszawa", "rakow": "rakow czestochowa", "univ craiova": "universitatea craiova",
 }
 
 # Letras que NFKD no descompone ("Bodø" -> "bodo", "Kraków" sí se descompone solo)

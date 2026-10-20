@@ -138,7 +138,21 @@ Los onces *previstos* (FotMob) no se pueden calibrar porque no se guarda su hist
 K = 80 mejora a 120 en +0,0006 ± 0,0004. K = 40 da algo más de media, pero con más varianza. En la Premier el historial del árbitro no predice las tarjetas con ningún K (−0,003 ± 0,002 con K = 80). No se ha puesto una excepción por liga para no ajustarla a la misma muestra. En faltas se mantiene K = 20 (con 40 la diferencia es menor que su error).
 
 **Copas europeas** (`--europa`; no hay cuotas de football-data, así que solo se mide el modelo). Log-loss 1X2 del modelo: Champions 0,903 (377 partidos), Europa League 0,984 (371) y Conference 1,021 (282). Sin referencia de mercado no se puede decir cuánto le falta. Hay dos limitaciones conocidas:
-- 102 equipos solo aparecen en copas europeas: son de ligas que no se descargan (Noruega, Austria, Dinamarca, Suiza...). No tienen ratings del mercado, así que su rating sale solo de pocos partidos europeos. Ejemplo: Bodø/Glimt sale casi tan fuerte como el Napoli (+0,62 frente a +0,67), mientras que la cuota de 1,30 del Napoli implica ~77 %. Una ventaja local propia por equipo (Bodø: +0,3 de xG en casa y −1,7 fuera) se probó y no mejora: empeora las ligas en +0,001 y no cambia la Champions.
+- 102 equipos solo aparecen en copas europeas: son de ligas que el modelo no usa. No tienen ratings del mercado, así que su rating sale solo de pocos partidos europeos. Ejemplo: Bodø/Glimt sale casi tan fuerte como el Napoli (+0,62 frente a +0,67), mientras que la cuota de 1,30 del Napoli implica ~77 %. Una ventaja local propia por equipo (Bodø: +0,3 de xG en casa y −1,7 fuera) se probó y no mejora: empeora las ligas en +0,001 y no cambia la Champions. Las ligas extra de football-data cubren 43 de esos 102 equipos, pero con el modelo actual no ayudan (abajo); los otros 59 son de ligas que football-data no tiene (Chequia, Croacia, Serbia, Ucrania, Chipre, Israel...).
+- **Ligas extra de football-data** (19-10-2026): Austria, Dinamarca, Noruega, Suiza, Polonia, Suecia, Rumanía, Finlandia e Irlanda, con 6.852 partidos con cuota de cierre desde 2023. Con ellas tienen ratings del mercado 43 de los 102 equipos: 35 de esas ligas (Bodø/Glimt, Salzburg, Young Boys, Copenhague, Legia, Malmö, FCSB...) y 8 que eran duplicados. **Se descargan, pero no se usan para entrenar** (`APUESTAS_EXTRA_LEAGUES_IN_MODEL=false`), porque no mejoran el modelo actual. A/B sobre la misma BD, con log-loss por partido en los partidos que se evalúan en las dos versiones:
+
+  | Log-loss 1X2 del modelo | Sin ligas extra | Con ligas extra | Diferencia |
+  |---|---|---|---|
+  | Ligas (2.132 partidos) | 0,9801 | 0,9800 | −0,0001 |
+  | Champions (377) | 0,9017 | 0,9064 | +0,0046 ± 0,0061 |
+  | Europa League (371) | 0,9856 | 0,9842 | −0,0014 ± 0,0074 |
+  | Conference (282) | 1,0150 | 1,0236 | +0,0085 ± 0,0108 |
+
+  Con las ligas extra se evalúan además 5 partidos de Europa League y 8 de Conference de equipos que antes no tenían rating. Así, `APUESTAS_EXTRA_LEAGUES_IN_MODEL=true apuestas backtest --lineups --europa` da 0,906 (377) / 0,984 (376) / 1,026 (290).
+
+  El motivo es que el modelo no tiene un nivel por liga. La L2 encoge cada equipo hacia 0, así que una liga entera, conectada con las demás solo por sus partidos europeos, se acerca en bloque a la media: Irlanda sale al nivel de la Eredivisie. Los mejores de cada liga, que le sacan mucha ventaja al resto, quedan inflados. Bodø/Glimt pasa de +0,62 a +0,93 (Napoli +0,73) y Napoli-Bodø pasa de 47/25/28 a 39/24/37, con el mercado en ~77 % para el Napoli. Además, esos equipos dejarían de activar la regla de prudencia para equipos que el mercado no ha visto (sección 6). Bajar la L2 (0,5 o 0,1) separa más las ligas, pero no corrige a Bodø (+0,93 y +0,96).
+
+  Experimento no aplicado: fuerza = nivel de la liga + desviación del equipo, con la L2 solo en la desviación (liga = la de su último partido de liga). Sin ligas extra: Champions 0,8966, Europa League 0,9757, Conference 1,0122 y ligas 0,9798. Con ellas: 0,8957 / 0,9719 / 1,0122 y ligas 0,9797. La mejora viene sobre todo del nivel por liga, y con él las ligas extra dejan de empeorar. Pero ninguna diferencia es significativa (copas juntas −0,008 ± 0,006 frente al modelo actual) y Napoli-Bodø sigue lejos del mercado (50/23/27).
 - ~~Hay equipos duplicados entre fuentes~~ **Corregido el 19-10-2026** (`ingest/dedupe.py`). Se fusionaron 9 equipos:
   - AEK, PAOK, NEC Nijmegen, Royal Antwerp, Union Saint-Gilloise y Vitória de Guimarães: su registro de copas europeas no estaba conectado con el de su liga.
   - Verona, Clermont y Saint-Étienne: cada partido suyo de Serie A o Ligue 1 estaba **duplicado** (182 en total), uno de FotMob y otro de football-data. El rival de cada jornada "jugaba dos veces".
@@ -175,7 +189,7 @@ Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (`
 
 ## Próximas mejoras previstas
 
-- Descargar las ligas extra de football-data (Austria, Dinamarca, Noruega, Suiza, Polonia...) para que los rivales europeos tengan ratings del mercado, y unir los equipos duplicados entre fuentes.
+- Un nivel por liga en el modelo de fuerza (nivel de la liga + desviación del equipo) y, si el backtest lo confirma, entrenar con las ligas extra de football-data, que ya se descargan (ver "Copas europeas" arriba).
 - Guardar el historial de onces previstos para calibrar su β por separado.
 - Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
 - Medir la antigüedad de las observaciones del mercado en jornadas en lugar de días, para no perder el mercado durante el parón de verano.

@@ -138,11 +138,11 @@ def sync_fotmob_details(
 # --------------------------------------------------------------------------- football-data.co.uk
 
 
-def sync_football_data(start_years: list[int]) -> int:
+def sync_football_data(start_years: list[int], codes: list[str] | None = None) -> int:
     total = 0
     current = season_start_year(datetime.now(UTC).date())
     for comp_def in [*FULL, *LIGHT]:
-        if comp_def.fd_code is None:
+        if comp_def.fd_code is None or (codes and comp_def.code not in codes):
             continue
         for year in start_years:
 
@@ -157,6 +157,25 @@ def sync_football_data(start_years: list[int]) -> int:
                 return len(rows)
 
             total += _run("fdco", f"{comp_def.code} {year}", task)
+    for comp_def in LIGHT:
+        if comp_def.fd_extra is None or (codes and comp_def.code not in codes):
+            continue
+        years = set(start_years)
+        if comp_def.calendar_year:  # la temporada europea 2026-27 abarca los años naturales 2026 y 2027
+            years |= {y + 1 for y in start_years}
+
+        def task_extra(comp_def=comp_def, years=years) -> int:
+            rows = [r for r in football_data.extra_league_rows(comp_def.fd_extra) if r.season in years]
+            with session_scope() as s:
+                comp = store.ensure_competitions(s)[comp_def.code]
+                seasons: dict[int, m.Season] = {}
+                for r in rows:
+                    if r.season not in seasons:
+                        seasons[r.season] = store.get_season(s, comp, r.season)
+                    _apply_fd_row(s, comp, seasons[r.season], comp_def.tier, comp_def.country, r)
+            return len(rows)
+
+        total += _run("fdco", f"{comp_def.code} {min(years)}-{max(years)}", task_extra)
     return total
 
 

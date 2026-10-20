@@ -42,7 +42,9 @@ def ensure_competitions(s: Session) -> dict[str, m.Competition]:
 def get_season(s: Session, comp: m.Competition, start_year: int) -> m.Season:
     season = s.scalar(select(m.Season).where(m.Season.competition_id == comp.id, m.Season.start_year == start_year))
     if season is None:
-        season = m.Season(competition_id=comp.id, start_year=start_year, label=season_label(start_year))
+        cdef = COMPETITIONS.get(comp.code)
+        label = season_label(start_year, calendar_year=cdef is not None and cdef.calendar_year)
+        season = m.Season(competition_id=comp.id, start_year=start_year, label=label)
         s.add(season)
         s.flush()
     return season
