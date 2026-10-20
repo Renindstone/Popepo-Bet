@@ -6,7 +6,7 @@
 
 - **Ingesta diaria** de football-data, FotMob y Understat para Premier League, Bundesliga, LaLiga y Champions, más 9 ligas extra de football-data (solo para ratings del mercado de los rivales europeos). Equipos duplicados entre fuentes se fusionan solos cuando es seguro.
 - **Modelo** de goles con fuerza de ataque y defensa, xG promediado y ratings implícitos de las cuotas de cierre; estadísticas (remates, córners, tarjetas, faltas) y proyecciones de jugadores. Ajuste por alineación y bajas.
-- **Apuesta del día** a las 09:00 (solo mercados de goles) y **liquidación automática** de picks y apuestas después de cada partido (tarea `post_match`, a los :15 y :45).
+- **Apuesta del día** a las 09:00 (solo mercados de goles), con un contador de aciertos desde el inicio en Hoy y en Mis apuestas (`GET /picks/record`; las retiradas al recalcular no cuentan) y **liquidación automática** de picks y apuestas después de cada partido (tarea `post_match`, a los :15 y :45).
 - **Cuotas de Betano y Pinnacle** con OddsPapi a las 08:30 (una petición por casa y día), descartando las que vienen con local y visitante invertidos.
 - **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota, mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y Claude Code la lee, incluidas combinadas y Bet Builders.
 - **Servidor MCP** para Claude, **API REST** y **bot de Telegram** (este último sin configurar).

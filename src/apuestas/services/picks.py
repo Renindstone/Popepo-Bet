@@ -222,6 +222,43 @@ def fill_missing_clv(s: Session, days: int = 21) -> int:
     return n
 
 
+HIT_RESULTS = ("win", "half_win")
+MISS_RESULTS = ("loss", "half_loss")
+PUSH_RESULTS = ("push", "void")
+
+
+def record_from(rows: list) -> dict:
+    """Contador de aciertos a partir de picks (status, result, odds, created_at), con 1 unidad por apuesta.
+
+    El porcentaje de acierto no cuenta las devueltas (push/void): no se ganó ni se perdió.
+    `since` es el día (en Lima) en que el sistema eligió la primera.
+    """
+    settled = [p for p in rows if p.status == "settled"]
+    hits = sum(1 for p in settled if p.result in HIT_RESULTS)
+    misses = sum(1 for p in settled if p.result in MISS_RESULTS)
+    pushes = sum(1 for p in settled if p.result in PUSH_RESULTS)
+    pl = sum(profit(p.result, 1.0, p.odds) for p in settled)
+    decided = hits + misses
+    return {
+        "since": min((p.created_at for p in rows), default=None),
+        "settled": len(settled), "hits": hits, "misses": misses, "pushes": pushes,
+        "pending": sum(1 for p in rows if p.status == "open"),
+        "hit_rate": round(hits / decided, 3) if decided else None,
+        "profit_units": round(pl, 2), "roi": round(pl / len(settled), 4) if settled else None,
+    }
+
+
+def pick_record() -> dict:
+    """Aciertos de la apuesta del día desde el primer día del sistema (las retiradas al recalcular no cuentan)."""
+    with session_scope() as s:
+        rows = list(s.scalars(select(m.Pick).where(
+            m.Pick.is_pick_of_day.is_(True), m.Pick.status.in_(("open", "settled")))))
+        out = record_from(rows)
+    if out["since"]:
+        out["since"] = out["since"].astimezone(get_settings().tz).date().isoformat()
+    return out
+
+
 def pick_history(days: int = 60, only_pick_of_day: bool = True) -> dict:
     """Rendimiento histórico de los picks del sistema (stake plano de 1 unidad)."""
     since = today_local() - timedelta(days=days)

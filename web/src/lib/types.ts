@@ -320,6 +320,19 @@ export interface RegisteredBet {
   bankroll: Bankroll;
 }
 
+/** Contador de aciertos de la apuesta del día desde el inicio (GET /picks/record) */
+export interface PickRecord {
+  since: string | null;
+  settled: number;
+  hits: number;
+  misses: number;
+  pushes: number;
+  pending: number;
+  hit_rate: number | null;
+  profit_units: number;
+  roi: number | null;
+}
+
 export interface PickHistory {
   picks: number;
   profit_units: number;

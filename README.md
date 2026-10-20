@@ -68,11 +68,11 @@ Para exponerlo fuera de tu red usa un túnel (Cloudflare Tunnel o Tailscale Funn
 ### Panel web
 
 Interfaz visual en [web/](web/) (Next.js + ECharts). Necesita Node.js 20.9 o superior. Tiene seis páginas:
-- **Hoy**: apuesta del día arriba, partidos del día debajo, luego otras apuestas con valor y props con cuota mínima, más un acceso rápido para subir capturas.
+- **Hoy**: apuesta del día arriba, partidos del día debajo, luego otras apuestas con valor y props con cuota mínima, más un acceso rápido para subir capturas y el **contador de aciertos** de la apuesta del día desde el inicio (aciertos, falladas, devueltas, por jugarse y beneficio con 1 unidad por apuesta).
 - **Partidos**: próximos partidos con filtros por competición y días, y un buscador (lupa) que filtra mientras escribes el nombre de cualquiera de los dos equipos; no distingue tildes y entiende iniciales como "psg". Al elegir uno, análisis completo del partido.
 - **Evaluar cuota**: comprobar una cuota de Betano y registrar la apuesta.
 - **Capturas**: subir o pegar una captura de cuotas. Claude la lee y el modelo da el veredicto de cada cuota (ver más abajo).
-- **Mis apuestas**: ROI, CLV, desglose y banca.
+- **Mis apuestas**: ROI, CLV, desglose y banca, y el historial de la apuesta del día (desde el inicio y en el último año).
 - **Datos**: frescura de las fuentes y del modelo.
 
 Con los servicios instalados (`scripts/install-services.sh --with-web`), el panel está siempre en **http://localhost:3000**. Para desarrollarlo a mano, detén antes los servicios (`systemctl --user stop apuestas-web apuestas-api`) y lanza:

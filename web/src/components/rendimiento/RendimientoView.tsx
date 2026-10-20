@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import { baseOption, Chart, type ChartTheme, useChartTheme } from "@/components/Chart";
+import { PickRecord } from "@/components/PickRecord";
 import { Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { competitionName, int, money, odds, pct, resultText, shortDate, signedPct, splitMatch } from "@/lib/format";
@@ -99,8 +100,10 @@ export function RendimientoView() {
 
       <Section
         title="La apuesta del día del sistema"
-        intro="Cómo le fue a la apuesta del día en el último año, con 1 unidad por apuesta. Mide al sistema, no a ti: sirve para decidir cuánto confiar en él."
+        intro="Cómo le fue a la apuesta del día, con 1 unidad por apuesta. Mide al sistema, no a ti: sirve para decidir cuánto confiar en él."
       >
+        <PickRecord variant="row" />
+        <h3 className="semi mb-3 text-base font-bold">Último año</h3>
         {history.error ? (
           <ErrorNote error={history.error} onRetry={() => history.mutate()} />
         ) : !history.data ? (

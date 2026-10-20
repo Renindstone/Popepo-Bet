@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { CaptureDrop } from "@/components/capturas/CaptureDrop";
 import { PenMark } from "@/components/PenMark";
+import { PickRecord } from "@/components/PickRecord";
 import { Button, EdgeBar, Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag, TriBar } from "@/components/ui";
 import { api, type ApiError, useApi } from "@/lib/api";
 import {
@@ -114,6 +115,7 @@ export function HoyView() {
             ))}
         </div>
         <div className="space-y-6">
+          <PickRecord />
           {!past && <CaptureQuick />}
           <MarginNote />
         </div>

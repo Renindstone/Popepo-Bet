@@ -163,10 +163,11 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
 
     @server.tool()
     def historial_apuesta_del_dia(dias: int = 60) -> str:
-        """Rendimiento real de las apuestas del día pasadas (stake plano de 1 unidad)."""
+        """Rendimiento real de las apuestas del día pasadas (stake plano de 1 unidad), más el contador de
+        aciertos desde el inicio del sistema."""
         from apuestas.services import picks
 
-        return _safe(picks.pick_history, dias)
+        return _safe(lambda d: {**picks.pick_history(d), "desde_el_inicio": picks.pick_record()}, dias)
 
     @server.tool()
     def capturas_pendientes() -> str:

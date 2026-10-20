@@ -127,6 +127,12 @@ def pick_history(days: int = 60, user: str = Depends(current_user)) -> dict:
     return picks.pick_history(days)
 
 
+@app.get("/picks/record")
+def pick_record(user: str = Depends(current_user)) -> dict:
+    """Contador de aciertos de la apuesta del día desde el inicio."""
+    return picks.pick_record()
+
+
 @app.post("/odds/evaluate")
 def evaluate(o: OddsIn, user: str = Depends(current_user)) -> dict:
     return _wrap(queries.evaluate_odds, o.match, o.market, o.selection, o.odds, o.line, o.bookmaker, o.player)
