@@ -11,6 +11,10 @@ const SOURCES: Record<string, { name: string; what: string }> = {
   fotmob: { name: "FotMob", what: "Alineaciones, lesiones, sanciones, árbitros y estadísticas de jugadores" },
   understat: { name: "Understat", what: "Segundo modelo de xG" },
   oddspapi: { name: "OddsPapi", what: "Cuotas de Betano (opcional, experimental)" },
+  dedupe: {
+    name: "Equipos duplicados",
+    what: "Une el mismo equipo escrito distinto en cada fuente (cada día a las 05:30)",
+  },
 };
 
 const STALE_HOURS = 48;
