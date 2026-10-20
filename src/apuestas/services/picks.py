@@ -19,7 +19,7 @@ from apuestas.core.competitions import FULL
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.models.fitting import ModelBundle, load_bundle
-from apuestas.services.analysis import BetEval, MatchAnalysis, analyze
+from apuestas.services.analysis import BetEval, MatchAnalysis, analyze, is_goal_market
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +48,8 @@ def matches_for_day(s: Session, day: date) -> list[m.Match]:
 def qualifies(b: BetEval) -> bool:
     st = get_settings()
     return bool(
-        st.pick_min_odds <= b.odds <= st.pick_max_odds
+        (st.pick_allow_stat_markets or is_goal_market(b.market))
+        and st.pick_min_odds <= b.odds <= st.pick_max_odds
         and b.prob >= st.pick_min_prob
         and b.ev >= st.pick_min_ev
         and b.confidence >= st.pick_min_confidence

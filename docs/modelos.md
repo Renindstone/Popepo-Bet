@@ -63,6 +63,14 @@ Limitación: en partidos antiguos el valor de mercado es el de la fecha de desca
   | Bodø @9,00 | probabilidad 32 %, valor +185 %, confianza 0,65 | probabilidad 15 %, valor +39 %, confianza 0,31 (no puede ser apuesta del día) |
   | Napoli @1,30 | probabilidad 44 % | probabilidad 66 % |
 - **Apuesta del día**: máxima `valor × confianza` con cuota entre 1,50 y 2,60, prob ≥ 42 %, valor ≥ 3 % y confianza ≥ 0,60. **Si ninguna cumple, no hay apuesta del día.**
+  Solo puede salir de los **mercados de goles** (1X2, doble oportunidad, empate no válido, ambos marcan, hándicaps y más/menos goles), que son los validados en el backtest contra cuotas reales. Córners, tarjetas, el resto de estadísticas y las props de jugador se muestran como apuestas con valor, pero no pueden ser apuesta del día hasta validarlos (`APUESTAS_PICK_ALLOW_STAT_MARKETS=true` lo cambia).
+- **Discrepancia con la casa en estadísticas.** En córners, tarjetas y el resto de estadísticas, si la casa tiene todos los lados de la línea (más y menos, o los dos equipos del hándicap), se calcula su probabilidad sin margen y se compara con la del modelo:
+  - hasta 5 puntos de diferencia, la confianza no cambia;
+  - de 5 a 20 puntos, baja linealmente hasta ×0,3 (`STAT_DISAGREE_*` en `analysis.py`).
+
+  La probabilidad del modelo no se toca: solo la confianza. Es una regla de prudencia, porque no hay historial de cuotas de estadísticas para ajustarla con el backtest.
+
+  Motivo: con las cuotas de Betano (OddsPapi, 19-10-2026), el modelo veía "valor" en 412 cuotas de los 9 partidos de Champions del día siguiente. Algunas eran absurdas, como "Napoli más de 10,5 córners" a 9,00 con +164 %. La apuesta del día salía de un hándicap de córners con +41 %.
 - **Stake**: Kelly × 0,25, con tope del 3 % de la banca. Límites de pérdida: 5 % diario y 10 % semanal.
 
 ## 7. Backtest (`backtest/engine.py`)
