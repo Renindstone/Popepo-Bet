@@ -262,8 +262,12 @@ export interface PlayerDetail {
 }
 
 export interface Bankroll {
+  /** Banca inicial declarada por el usuario (base del stake sugerido y de los límites) */
   bankroll: number;
   currency: string;
+  /** Banca inicial + beneficio de todas las apuestas liquidadas */
+  current: number;
+  total_profit: number;
   day_profit: number;
   week_profit: number;
   pending_bets: number;

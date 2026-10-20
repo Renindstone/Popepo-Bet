@@ -72,7 +72,7 @@ Interfaz visual en [web/](web/) (Next.js + ECharts). Necesita Node.js 20.9 o sup
 - **Partidos**: próximos partidos con filtros por competición y días, y un buscador (lupa) que filtra mientras escribes el nombre de cualquiera de los dos equipos; no distingue tildes y entiende iniciales como "psg". Al elegir uno, análisis completo del partido.
 - **Evaluar cuota**: comprobar una cuota de Betano y registrar la apuesta.
 - **Capturas**: subir o pegar una captura de cuotas. Claude la lee y el modelo da el veredicto de cada cuota (ver más abajo).
-- **Mis apuestas**: ROI, CLV, desglose y banca, y el historial de la apuesta del día (desde el inicio y en el último año).
+- **Mis apuestas**: ROI, CLV, desglose y banca, y el historial de la apuesta del día (desde el inicio y en el último año). La **banca inicial** (y su moneda) se edita ahí mismo; de ella salen el stake sugerido y los límites de pérdida, y la banca actual es la inicial más lo ganado o perdido.
 - **Datos**: frescura de las fuentes y del modelo.
 
 Con los servicios instalados (`scripts/install-services.sh --with-web`), el panel está siempre en **http://localhost:3000**. Para desarrollarlo a mano, detén antes los servicios (`systemctl --user stop apuestas-web apuestas-api`) y lanza:

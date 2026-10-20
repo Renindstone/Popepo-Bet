@@ -7,7 +7,7 @@ import secrets
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from apuestas.config import get_settings
@@ -49,6 +49,8 @@ def bankroll_status(s: Session, user: m.User) -> dict:
     settled = list(s.scalars(select(m.UserBet).where(m.UserBet.user_id == user.id, m.UserBet.profit.is_not(None),
                                                     m.UserBet.placed_at >= week_start)))
     pending = list(s.scalars(select(m.UserBet).where(m.UserBet.user_id == user.id, m.UserBet.result.is_(None))))
+    total_pl = s.scalar(select(func.coalesce(func.sum(m.UserBet.profit), 0.0)).where(
+        m.UserBet.user_id == user.id, m.UserBet.profit.is_not(None)))
     day_pl = sum(b.profit for b in settled if b.placed_at >= day_start)
     week_pl = sum(b.profit for b in settled)
     day_limit = -st.daily_loss_limit_pct * user.bankroll
@@ -59,7 +61,10 @@ def bankroll_status(s: Session, user: m.User) -> dict:
     if week_pl <= week_limit:
         warnings.append(f"Llegaste al límite de pérdida semanal ({week_pl:.2f} {user.currency}).")
     return {
-        "bankroll": user.bankroll, "currency": user.currency, "day_profit": round(day_pl, 2),
+        # `bankroll` es la banca inicial que declara el usuario; `current` le suma lo ganado o perdido desde entonces
+        "bankroll": user.bankroll, "currency": user.currency,
+        "current": round(user.bankroll + total_pl, 2), "total_profit": round(total_pl, 2),
+        "day_profit": round(day_pl, 2),
         "week_profit": round(week_pl, 2), "pending_bets": len(pending),
         "pending_stake": round(sum(b.stake for b in pending), 2),
         "daily_loss_limit": round(day_limit, 2), "weekly_loss_limit": round(week_limit, 2),

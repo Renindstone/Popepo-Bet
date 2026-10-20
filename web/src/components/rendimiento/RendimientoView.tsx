@@ -3,11 +3,11 @@
 import type { EChartsCoreOption } from "echarts/core";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { baseOption, Chart, type ChartTheme, useChartTheme } from "@/components/Chart";
 import { PickRecord } from "@/components/PickRecord";
-import { Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
-import { useApi } from "@/lib/api";
+import { Button, Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
+import { put, useApi } from "@/lib/api";
 import { competitionName, int, money, odds, pct, resultText, shortDate, signedPct, splitMatch } from "@/lib/format";
 import { betLabel, bookmakerName, marketName } from "@/lib/markets";
 import type { Aggregate, Bankroll, Performance, PickHistory, UserBet } from "@/lib/types";
@@ -74,7 +74,7 @@ export function RendimientoView() {
       ) : (
         <>
           <Resumen total={p.total} currency={currency} />
-          <Banca b={p.bankroll} />
+          <Banca b={p.bankroll} onSaved={() => perf.mutate()} />
           <Evolucion bets={bets.data} currency={currency} />
           <Desglose p={p} currency={currency} />
         </>
@@ -173,12 +173,41 @@ function LossMeter({ label, profit, limit, currency }: { label: string; profit: 
   );
 }
 
-function Banca({ b }: { b: Bankroll }) {
+function Banca({ b, onSaved }: { b: Bankroll; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const tone = b.total_profit > 0 ? "boli" : b.total_profit < 0 ? "rojo" : undefined;
   return (
-    <Section title="Banca" intro="Los límites de pérdida diaria y semanal salen de tu configuración. Al llegar a uno, para.">
+    <Section
+      title="Banca"
+      intro="La banca inicial es el dinero con el que empiezas: de ella salen el stake sugerido y los límites de pérdida diaria y semanal. Al llegar a un límite, para."
+    >
       <div className="grid gap-x-10 gap-y-6 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-1">
-          <Figure size="lg" value={money(b.bankroll, b.currency)} label="banca" />
+          {editing ? (
+            <BancaForm
+              b={b}
+              onDone={(saved) => {
+                setEditing(false);
+                if (saved) onSaved();
+              }}
+            />
+          ) : (
+            <div>
+              <Figure size="lg" value={money(b.bankroll, b.currency)} label="banca inicial" />
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="mt-1 text-[0.9rem] font-semibold text-boli underline underline-offset-4"
+              >
+                Editar banca inicial
+              </button>
+            </div>
+          )}
+          <Figure
+            value={money(b.current, b.currency)}
+            label={`banca actual (${money(b.total_profit, b.currency, true)} desde el inicio)`}
+            tone={tone}
+          />
           <Figure value={int(b.pending_bets)} label={`pendientes de liquidar, ${money(b.pending_stake, b.currency)} en juego`} />
         </div>
         <LossMeter label="Hoy" profit={b.day_profit} limit={b.daily_loss_limit} currency={b.currency} />
@@ -190,6 +219,89 @@ function Banca({ b }: { b: Bankroll }) {
         </p>
       ))}
     </Section>
+  );
+}
+
+const CURRENCIES = [
+  ["PEN", "Soles (S/)"],
+  ["USD", "Dólares (US$)"],
+  ["EUR", "Euros (€)"],
+];
+
+function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => void }) {
+  const [amount, setAmount] = useState(String(b.bankroll));
+  const [currency, setCurrency] = useState(b.currency);
+  const [state, setState] = useState<{ busy: boolean; error?: string }>({ busy: false });
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    const value = Number(amount.replace(",", "."));
+    if (!Number.isFinite(value) || value <= 0) {
+      setState({ busy: false, error: "Escribe un monto mayor que 0." });
+      return;
+    }
+    setState({ busy: true });
+    try {
+      await put("/bankroll", { bankroll: value, currency });
+      onDone(true);
+    } catch (err) {
+      setState({ busy: false, error: (err as Error).message });
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="max-w-xs space-y-3" aria-label="Editar banca inicial">
+      <div>
+        <label htmlFor="banca-monto" className="mb-1 block text-[0.9rem] font-semibold">
+          Banca inicial
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="banca-monto"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            autoFocus
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              setState({ busy: false });
+            }}
+            aria-invalid={!!state.error}
+            aria-describedby={state.error ? "banca-error" : undefined}
+            className="num h-10 min-w-0 flex-1 rounded-[3px] border border-regla bg-hoja px-3 text-tinta focus:border-boli"
+          />
+          <label htmlFor="banca-moneda" className="sr-only">
+            Moneda
+          </label>
+          <select
+            id="banca-moneda"
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="h-10 rounded-[3px] border border-regla bg-hoja px-2 text-tinta focus:border-boli"
+          >
+            {CURRENCIES.map(([code, name]) => (
+              <option key={code} value={code}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {state.error && (
+          <p id="banca-error" role="alert" className="mt-1 text-[0.9rem] text-rojo">
+            {state.error}
+          </p>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Button type="submit" variant="primary" disabled={state.busy}>
+          {state.busy ? "Guardando…" : "Guardar"}
+        </Button>
+        <Button onClick={() => onDone(false)} disabled={state.busy}>
+          Cancelar
+        </Button>
+      </div>
+    </form>
   );
 }
 

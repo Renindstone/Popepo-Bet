@@ -89,6 +89,11 @@ class CaptureLinesIn(BaseModel):
     lines: list[captures.CaptureLine]
 
 
+class BankrollIn(BaseModel):
+    bankroll: float
+    currency: str = "PEN"
+
+
 class AbsenceIn(BaseModel):
     team: str
     player: str
@@ -167,6 +172,12 @@ def register_bet(b: BetIn, user: str = Depends(current_user)) -> dict:
 @app.get("/bets")
 def bets(pending_only: bool = False, user: str = Depends(current_user)) -> list[dict]:
     return queries.my_bets(user, pending_only)
+
+
+@app.put("/bankroll")
+def set_bankroll(body: BankrollIn, user: str = Depends(current_user)) -> dict:
+    """Cambia la banca inicial (y la moneda) del usuario."""
+    return _wrap(queries.set_bankroll, user, body.bankroll, body.currency)
 
 
 @app.get("/performance")

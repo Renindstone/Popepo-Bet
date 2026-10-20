@@ -296,7 +296,16 @@ def performance(username: str, days: int | None = None) -> dict:
         return tracker.performance(s, tracker.get_or_create_user(s, username), days)
 
 
+CURRENCIES = ("PEN", "USD", "EUR")
+
+
 def set_bankroll(username: str, bankroll: float, currency: str = "PEN") -> dict:
+    """Fija la banca inicial: base del stake sugerido y de los límites de pérdida."""
+    currency = currency.upper()
+    if not bankroll > 0:
+        raise ValueError("La banca debe ser mayor que 0.")
+    if currency not in CURRENCIES:
+        raise ValueError(f"Moneda no admitida: {currency}. Usa {', '.join(CURRENCIES)}.")
     with session_scope() as s:
         user = tracker.get_or_create_user(s, username)
         user.bankroll, user.currency = bankroll, currency
