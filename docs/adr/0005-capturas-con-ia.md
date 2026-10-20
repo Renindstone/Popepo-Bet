@@ -18,7 +18,7 @@ MCP funciona al revés de lo que parece: es la IA la que llama a las herramienta
   - sin `ANTHROPIC_API_KEY` en el entorno, para que se use la suscripción.
 
   El texto de la imagen se trata como datos, no como instrucciones. Coste: cero. Gasta del límite de uso del plan. Una captura tarda unos 10 a 15 segundos.
-- **Amigos**: la suscripción es personal, así que por defecto el motor automático solo procesa las capturas de `APUESTAS_DEFAULT_USER`. Las de los demás quedan pendientes, y su propio agente las procesa por MCP: `capturas_pendientes` → `ver_captura` → `evaluar_captura` → `guardar_veredicto_captura`.
+- **Otros usuarios**: la suscripción es personal, así que por defecto el motor automático solo procesa las capturas de `APUESTAS_DEFAULT_USER`. Las de los demás quedan pendientes, y su propio agente las procesa por MCP: `capturas_pendientes` → `ver_captura` → `evaluar_captura` → `guardar_veredicto_captura`.
 - **Motor `api` preparado** (`APUESTAS_CAPTURES_ENGINE=api` + `APUESTAS_ANTHROPIC_API_KEY` + `pip install -e ".[api]"`): mismo flujo con la API de Claude y un bucle de herramientas. Es más rápido y no depende de esta PC, pero cuesta dinero por captura. Cada ejecución con Claude Code guarda en `engine_info.api_equivalent_usd` lo que habría costado por API, para decidir con datos. **Sin probar con una clave real** (solo con un cliente simulado en los tests).
 
 ## Alternativas descartadas

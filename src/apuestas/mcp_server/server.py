@@ -2,8 +2,8 @@
 
 Modos:
 - stdio (local, un usuario):      apuestas mcp
-- HTTP (amigos, con clave):        apuestas mcp --http --port 8765
-  Cada amigo usa su clave como token: Authorization: Bearer apk_...
+- HTTP (varios usuarios, con clave): apuestas mcp --http --port 8765
+  Cada usuario usa su clave como token: Authorization: Bearer apk_...
 """
 
 from __future__ import annotations

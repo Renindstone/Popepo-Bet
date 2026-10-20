@@ -28,7 +28,7 @@ def get_or_create_user(s: Session, username: str) -> m.User:
 
 
 def create_api_key(s: Session, username: str) -> str:
-    """Genera una clave nueva (solo se muestra una vez) para que un amigo conecte su agente."""
+    """Genera una clave nueva (solo se muestra una vez) para que un usuario conecte su agente."""
     user = get_or_create_user(s, username)
     raw = "apk_" + secrets.token_urlsafe(32)
     user.api_key_hash = hash_key(raw)

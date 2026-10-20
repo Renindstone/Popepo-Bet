@@ -36,8 +36,6 @@ git clone https://github.com/Renindstone/app-apuestas.git
 cd app-apuestas && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ```
 
-El repositorio es privado: necesitas que el dueño te dé acceso en GitHub.
-
 ## 3. Base de datos
 
 ```bash
@@ -130,7 +128,7 @@ systemctl --user disable --now apuestas-web
 
 - **Claude Code**: abre Claude Code en la carpeta del proyecto. El archivo `.mcp.json` registra el servidor `apuestas`; acepta "Use this MCP server" la primera vez.
 - **Capturas en el panel**: necesitan el CLI `claude` con tu sesión iniciada. Para comprobarlo, ejecuta `claude` una vez en una terminal; si pide iniciar sesión, usa `/login`. Las capturas usan tu suscripción y solo se procesan automáticamente las de tu usuario (`APUESTAS_DEFAULT_USER` en `.env`).
-- **Amigos**: cada uno conecta su propio agente al MCP con su clave. Ver "Amigos" en el [README](../README.md).
+- **Otros usuarios en tu instalación**: cada uno conecta su propio agente al MCP con su clave. Ver "Varios usuarios" en el [README](../README.md).
 
 ## 7. Actualizar a una versión nueva
 

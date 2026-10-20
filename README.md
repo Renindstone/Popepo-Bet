@@ -52,14 +52,16 @@ scripts/install-services.sh --with-web   # BD + worker + API + panel en http://l
 
 El repo incluye [.mcp.json](.mcp.json): al abrir Claude Code en esta carpeta aparece el servidor `apuestas`. Para Claude Desktop, añade el mismo bloque en su configuración. Herramientas: `apuesta_del_dia`, `analizar_partido`, `evaluar_cuota`, `bajas_equipo`, `registrar_baja`, `perfil_arbitro`, `proyeccion_jugador`, `registrar_apuesta`, `mi_rendimiento`, `capturas_pendientes`, `ver_captura`, `evaluar_captura`, etc.
 
-### Amigos (cada uno con su agente)
+### Varios usuarios (cada uno con su agente)
+
+Cualquiera puede instalar su propia copia siguiendo [docs/instalacion.md](docs/instalacion.md). Si prefieres que otras personas usen **tu** instalación, cada una con su propio agente de IA, dale a cada una su propia clave:
 
 ```bash
-apuestas user create-key pedro          # genera su clave (se muestra una vez)
+apuestas user create-key pedro          # genera la clave de ese usuario (se muestra una vez)
 apuestas mcp --http --port 8765         # servidor MCP con autenticación por clave
 ```
 
-Tu amigo añade el servidor con su clave como `Authorization: Bearer apk_...`. Por ejemplo, en Claude Code:
+Cada usuario añade el servidor con su clave como `Authorization: Bearer apk_...`, y sus apuestas y su rendimiento quedan separados de los demás. Por ejemplo, en Claude Code:
 `claude mcp add --transport http apuestas https://TU_HOST/mcp --header "Authorization: Bearer apk_..."`.
 Para exponerlo fuera de tu red usa un túnel (Cloudflare Tunnel o Tailscale Funnel). Ver [docs/adr/0004-mcp-y-multiusuario.md](docs/adr/0004-mcp-y-multiusuario.md).
 
@@ -99,7 +101,7 @@ La página se actualiza sola. Tarda unos 10 a 15 segundos por captura. Si Claude
 
 - Usa **tu suscripción de Claude**: cuenta para tu límite de uso, sin coste extra. Necesita el CLI `claude` con la sesión iniciada en esta PC y la API corriendo.
 - La IA corre aislada: sin acceso a archivos ni a la terminal, solo con las tres herramientas de capturas.
-- Por defecto solo se procesan automáticamente **tus** capturas (`APUESTAS_DEFAULT_USER`), porque la suscripción es personal. Los amigos conectan su propio agente al MCP y le piden «procesa mis capturas pendientes».
+- Por defecto solo se procesan automáticamente **tus** capturas (`APUESTAS_DEFAULT_USER`), porque la suscripción es personal. Los demás usuarios conectan su propio agente al MCP y le piden «procesa mis capturas pendientes».
 - Para pasar a la API de Claude (de pago, por captura): `.venv/bin/pip install -e ".[api]"`, y en `.env` pon `APUESTAS_CAPTURES_ENGINE=api` y `APUESTAS_ANTHROPIC_API_KEY=...`. Ese motor está preparado pero **aún no se ha probado con una clave real**.
 - Desde la terminal: `apuestas capturas lista` y `apuestas capturas procesar <id>`.
 - Detalles y alternativas: [docs/adr/0005-capturas-con-ia.md](docs/adr/0005-capturas-con-ia.md).

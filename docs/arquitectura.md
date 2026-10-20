@@ -28,7 +28,7 @@ OddsPapi (opcional) ─┘        │
   mcp_server/    api/ (FastAPI)  bot/ (Telegram)  jobs/ (worker APScheduler)
   Claude y       /docs           alertas y         05:30 resultados + reentrenar
   agentes de                      consultas        09:00 apuesta del día
-  amigos                                           cada 20' alineaciones
+  otros usuarios                                   cada 20' alineaciones
 ```
 
 El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia.

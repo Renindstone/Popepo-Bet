@@ -168,7 +168,7 @@ def status() -> None:
 
 @app.command()
 def mcp(http: bool = False, host: str = "127.0.0.1", port: int = 8765, public_url: str = typer.Option(None)) -> None:
-    """Servidor MCP (stdio por defecto; --http para amigos con clave)."""
+    """Servidor MCP (stdio por defecto; --http para otros usuarios, cada uno con su clave)."""
     from apuestas.mcp_server.server import run
 
     logging.basicConfig(level=logging.WARNING)
@@ -230,7 +230,7 @@ def archive_query(sql: str) -> None:
     console.print(query_archive(sql).to_string())
 
 
-user_app = typer.Typer(help="Usuarios y claves para amigos", no_args_is_help=True)
+user_app = typer.Typer(help="Usuarios y sus claves de acceso", no_args_is_help=True)
 app.add_typer(user_app, name="user")
 
 
