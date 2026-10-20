@@ -10,7 +10,7 @@
 - **Cuotas de Betano y Pinnacle** con OddsPapi a las 08:30 (una petición por casa y día), descartando las que vienen con local y visitante invertidos.
 - **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota, mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y Claude Code la lee, incluidas combinadas y Bet Builders.
 - **Servidor MCP** para Claude, **API REST** y **bot de Telegram** (este último sin configurar).
-- Servicios systemd de usuario: `apuestas-db`, `apuestas-worker`, `apuestas-api` y `apuestas-web`.
+- Servicios systemd de usuario: `apuestas-db`, `apuestas-worker`, `apuestas-api` y `apuestas-web`. Si el equipo estuvo apagado a la hora de una tarea diaria, el worker la recupera al arrancar (desde el 2026-10-20).
 
 ## Decisiones del usuario (no las cambies sin preguntarle)
 

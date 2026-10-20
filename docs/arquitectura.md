@@ -46,6 +46,8 @@ El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: 
 7. **02:00**: descarga de detalles históricos pendientes (400 por noche).
 8. **Lunes 04:00**: niveles de almacenamiento (resumen y archivo de temporadas cerradas).
 
+**Si el equipo estaba apagado** a la hora de una tarea diaria (05:30, 08:30, 09:00, 02:00 o la del lunes), el worker la ejecuta al arrancar, en ese orden. La hora del último éxito de cada una se guarda en `var/worker_state.json`. La apuesta del día solo se recupera hasta 12 horas después de las 09:00; las demás, hasta 20 horas. **Si estaba suspendido**, la tarea atrasada corre al despertar si no pasó más de una hora.
+
 ## Principios
 
 - **Los números los calcula el modelo**; el agente de IA interpreta, explica y aporta información cualitativa (por ejemplo, registra bajas leídas en noticias con `registrar_baja`).
