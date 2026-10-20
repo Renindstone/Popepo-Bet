@@ -2,6 +2,9 @@
 
 Incluye cuotas de bet365 (previas y de cierre), Betfair Exchange y Pinnacle (referencias "afiladas"),
 y desde 2026-27 también xG. `fixtures.csv` trae las cuotas de los próximos partidos.
+
+Las ligas "extra" (new/XXX.csv: Austria, Dinamarca, Noruega...) usan otro formato: un archivo con todas
+las temporadas, solo resultado y 1X2 de cierre (Pinnacle hasta 2025, bet365, Betfair Exchange, media y máxima).
 """
 
 from __future__ import annotations
@@ -33,6 +36,12 @@ class FDOdds:
     kind: str  # opening | closing
 
 
+# Formato de las ligas extra -> nombres de columna del formato principal
+EXTRA_COLUMNS = {"Home": "HomeTeam", "Away": "AwayTeam", "HG": "FTHG", "AG": "FTAG"}
+# Un mismo club con dos grafías en el mismo archivo (cambian de una temporada a otra)
+RENAMES = {"Ham-Kam": "HamKam", "Din. Bucuresti": "Dinamo Bucuresti", "Gornik Z.": "Gornik Zabrze"}
+
+
 @dataclass
 class FDRow:
     div: str
@@ -40,6 +49,7 @@ class FDRow:
     home: str
     away: str
     referee: str | None
+    season: int | None = None  # año de inicio (solo en las ligas extra; "2025/2026" -> 2025, "2025" -> 2025)
     home_goals: int | None = None
     away_goals: int | None = None
     home_goals_ht: int | None = None
@@ -99,14 +109,20 @@ def parse_csv(text: str) -> list[FDRow]:
     reader = csv.DictReader(io.StringIO(text.lstrip("﻿")))
     rows: list[FDRow] = []
     for r in reader:
+        for extra, main in EXTRA_COLUMNS.items():
+            if extra in r and main not in r:
+                r[main] = r[extra]
         if not r.get("HomeTeam") or not r.get("Date"):
             continue
+        season = (r.get("Season") or "").strip()[:4]
+        home, away = r["HomeTeam"].strip(), r["AwayTeam"].strip()
         row = FDRow(
             div=r.get("Div", "").strip(),
             kickoff_utc=_kickoff(r),
-            home=r["HomeTeam"].strip(),
-            away=r["AwayTeam"].strip(),
+            home=RENAMES.get(home, home),
+            away=RENAMES.get(away, away),
             referee=(r.get("Referee") or "").strip() or None,
+            season=int(season) if season.isdigit() else None,
             home_goals=_i(r, "FTHG"),
             away_goals=_i(r, "FTAG"),
             home_goals_ht=_i(r, "HTHG"),
@@ -139,6 +155,11 @@ def _decode(raw: bytes) -> str:
 def season_rows(fd_code: str, start_year: int, ttl: float | None = 6 * 3600) -> list[FDRow]:
     url = f"{BASE}/mmz4281/{fd_season_code(start_year)}/{fd_code}.csv"
     return parse_csv(_decode(client().get_bytes(url, ttl=ttl)))
+
+
+def extra_league_rows(fd_extra: str, ttl: float | None = 6 * 3600) -> list[FDRow]:
+    """Liga extra: todas las temporadas en un solo archivo (se actualiza durante la temporada)."""
+    return parse_csv(_decode(client().get_bytes(f"{BASE}/new/{fd_extra}.csv", ttl=ttl)))
 
 
 def upcoming_rows(ttl: float = 3 * 3600) -> list[FDRow]:

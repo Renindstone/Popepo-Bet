@@ -5,7 +5,7 @@ import pytest
 
 from apuestas.backtest.engine import lineup_regression
 from apuestas.features import lineup as lu
-from apuestas.models import market, ratings
+from apuestas.models import fitting, market, ratings
 from apuestas.models.fitting import MatchRow, market_obs
 from apuestas.models.ratings import MatchObs
 
@@ -72,3 +72,13 @@ def test_lineup_regression_recovers_betas():
         assert reg[target]["beta_att"] == pytest.approx(0.25, abs=3 * reg[target]["se_att"])
         assert reg[target]["beta_def"] == pytest.approx(0.15, abs=3 * reg[target]["se_def"])
     assert reg["xg"]["se_att"] < reg["goles"]["se_att"]
+
+
+def test_extra_leagues_only_in_model_when_enabled(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(fitting, "get_settings", lambda: SimpleNamespace(extra_leagues_in_model=False))
+    codes = fitting.model_codes()
+    assert {"EPL", "SA", "UCL", "UECL"} <= set(codes) and not {"NOR", "AUT", "SUI"} & set(codes)
+    monkeypatch.setattr(fitting, "get_settings", lambda: SimpleNamespace(extra_leagues_in_model=True))
+    assert {"NOR", "AUT", "SUI", "EPL"} <= set(fitting.model_codes())

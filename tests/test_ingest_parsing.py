@@ -3,7 +3,7 @@ from datetime import UTC, date, datetime
 import pytest
 
 from apuestas.core import names
-from apuestas.core.competitions import fd_season_code, fotmob_season, season_start_year
+from apuestas.core.competitions import fd_season_code, fotmob_season, season_label, season_start_year
 from apuestas.ingest import football_data, fotmob
 from apuestas.models import ratings
 
@@ -29,6 +29,30 @@ def test_football_data_parse():
     assert odds[("bet365", "ah", "home", -2.0, "opening")] == 2.03
     assert odds[("bet365", "ah", "away", 2.0, "opening")] == 1.78
     assert odds[("betfair_ex", "1x2", "away", None, "opening")] == 18
+
+
+EXTRA_CSV = (
+    "Country,League,Season,Date,Time,Home,Away,HG,AG,Res,PSCH,PSCD,PSCA,MaxCH,MaxCD,MaxCA,AvgCH,AvgCD,AvgCA,"
+    "BFECH,BFECD,BFECA,B365CH,B365CD,B365CA\n"
+    "Norway,Eliteserien,2025,26/10/2025,17:00,Bodo/Glimt,Ham-Kam,4,0,H,1.14,8.5,17,1.18,9,19,1.15,8,15,"
+    "1.17,9.6,24,1.14,8,15\n"
+    "Austria,Bundesliga,2026/2027,11/10/2026,16:00,LASK,SK Rapid,0,2,A,,,,1.91,4,3.7,1.88,3.8,3.37,"
+    "1.99,4.1,3.75,1.86,3.75,3.7\n"
+)
+
+
+def test_football_data_extra_league_parse():
+    nor, aut = football_data.parse_csv(EXTRA_CSV)
+    assert (nor.season, aut.season) == (2025, 2026)  # año natural en Noruega, inicio de temporada en Austria
+    assert nor.away == "HamKam"  # misma grafía en todas las temporadas
+    assert (nor.home_goals, nor.away_goals) == (4, 0)
+    assert aut.kickoff_utc == datetime(2026, 10, 11, 15, 0, tzinfo=UTC)
+    odds = {(o.bookmaker, o.selection, o.kind): o.price for o in nor.odds if o.market == "1x2"}
+    assert odds[("pinnacle", "home", "closing")] == 1.14
+    assert odds[("bet365", "away", "closing")] == 15
+    assert odds[("avg", "draw", "closing")] == 8
+    assert all(o.kind == "closing" and o.market == "1x2" for o in nor.odds + aut.odds)
+    assert not any(o.bookmaker == "pinnacle" for o in aut.odds)  # sin Pinnacle desde 2025-26
 
 
 def test_fotmob_details_parse():
@@ -82,6 +106,14 @@ def test_fotmob_details_parse():
         ("Paris FC", "Paris Saint-Germain", False),
         ("Manchester City", "Manchester United", False),
         ("Real Madrid", "Real Sociedad", False),
+        # Ligas extra de football-data frente a FotMob
+        ("Bodo/Glimt", "Bodø/Glimt", True),
+        ("Nordsjaelland", "Nordsjælland", True),
+        ("Jagiellonia", "Jagiellonia Białystok", True),
+        ("SK Rapid", "Rapid Wien", True),
+        ("FC Copenhagen", "FC København", True),
+        ("Lausanne", "Lausanne Ouchy", False),
+        ("U Craiova 1948", "Universitatea Craiova", False),
     ],
 )
 def test_team_name_matching(a, b, same):
@@ -98,6 +130,8 @@ def test_season_helpers():
     assert season_start_year(date(2027, 3, 1)) == 2026
     assert fd_season_code(2026) == "2627"
     assert fotmob_season(2026) == "2026/2027"
+    assert season_label(2026) == "2026-27"
+    assert season_label(2026, calendar_year=True) == "2026"
 
 
 def test_ratings_recover_strengths():

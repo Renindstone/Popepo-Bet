@@ -3,6 +3,10 @@
 - Nivel "full": se analizan a fondo (estadísticas de partido, jugadores, alineaciones, árbitros, picks).
 - Nivel "light": solo resultados/xG para conectar la escala de fuerza entre ligas (rivales de
   Champions, equipos ascendidos, fichajes que llegan de otras ligas). No generan picks.
+
+Las ligas "extra" de football-data.co.uk (`fd_extra`, archivos new/XXX.csv) solo traen resultados y el 1X2
+de cierre. Sirven para dar ratings del mercado a los rivales de las copas europeas (Bodø/Glimt, Salzburg,
+Copenhague, Young Boys, Legia...). Algunas se juegan de marzo a noviembre (`calendar_year`).
 """
 
 from __future__ import annotations
@@ -22,6 +26,8 @@ class Competition:
     understat: str | None = None  # understat.com
     fotmob_id: int | None = None  # fotmob.com
     espn: str | None = None  # site.api.espn.com
+    fd_extra: str | None = None  # football-data.co.uk, liga "extra" (new/XXX.csv)
+    calendar_year: bool = False  # temporada de marzo a noviembre (se identifica por el año natural)
 
 
 COMPETITIONS: dict[str, Competition] = {
@@ -44,6 +50,15 @@ COMPETITIONS: dict[str, Competition] = {
         Competition("ENG2", "Championship", "England", "light", fd_code="E1"),
         Competition("GER2", "2. Bundesliga", "Germany", "light", fd_code="D2"),
         Competition("ESP2", "Segunda División", "Spain", "light", fd_code="SP2"),
+        Competition("AUT", "Bundesliga (Austria)", "Austria", "light", fd_extra="AUT"),
+        Competition("DEN", "Superliga (Dinamarca)", "Denmark", "light", fd_extra="DNK"),
+        Competition("NOR", "Eliteserien", "Norway", "light", fd_extra="NOR", calendar_year=True),
+        Competition("SUI", "Super League (Suiza)", "Switzerland", "light", fd_extra="SWZ"),
+        Competition("POL", "Ekstraklasa", "Poland", "light", fd_extra="POL"),
+        Competition("SWE", "Allsvenskan", "Sweden", "light", fd_extra="SWE", calendar_year=True),
+        Competition("ROU", "Superliga (Rumanía)", "Romania", "light", fd_extra="ROU"),
+        Competition("FIN", "Veikkausliiga", "Finland", "light", fd_extra="FIN", calendar_year=True),
+        Competition("IRL", "Premier Division", "Ireland", "light", fd_extra="IRL", calendar_year=True),
         Competition("UEL", "Europa League", "Europe", "light", is_cup=True, fotmob_id=73),
         Competition("UECL", "Conference League", "Europe", "light", is_cup=True, fotmob_id=10216),
     ]
@@ -58,8 +73,8 @@ def season_start_year(d: date) -> int:
     return d.year if d.month >= 7 else d.year - 1
 
 
-def season_label(start_year: int) -> str:
-    return f"{start_year}-{str(start_year + 1)[-2:]}"
+def season_label(start_year: int, calendar_year: bool = False) -> str:
+    return str(start_year) if calendar_year else f"{start_year}-{str(start_year + 1)[-2:]}"
 
 
 def fd_season_code(start_year: int) -> str:

@@ -123,6 +123,12 @@ class MatchRow:
     stats_a: dict[str, float | None]
 
 
+def model_codes() -> list[str]:
+    """Competiciones con las que se entrena. Las ligas extra solo si `extra_leagues_in_model` está activado."""
+    extra = get_settings().extra_leagues_in_model
+    return [code for code, c in COMPETITIONS.items() if c.fd_extra is None or extra]
+
+
 def load_matches(s: Session, before: datetime, since: datetime) -> list[MatchRow]:
     th, ta = aliased(m.TeamMatchStats), aliased(m.TeamMatchStats)
     q = (
@@ -137,7 +143,7 @@ def load_matches(s: Session, before: datetime, since: datetime) -> list[MatchRow
             m.Match.kickoff_utc >= since,
             # Solo las competiciones que conoce esta versión del código: la BD es compartida y otra rama puede
             # haber cargado ligas que aún no se han validado con el backtest
-            m.Competition.code.in_(list(COMPETITIONS)),
+            m.Competition.code.in_(model_codes()),
         )
     )
     rows = []
@@ -206,7 +212,7 @@ def load_market_goals(s: Session, before: datetime, since: datetime) -> dict[int
         .join(m.Match, m.Match.id == m.OddsSnapshot.match_id)
         .join(m.Competition, m.Competition.id == m.Match.competition_id)
         .where(
-            m.Competition.code.in_(list(COMPETITIONS)),
+            m.Competition.code.in_(model_codes()),
             m.OddsSnapshot.kind == "closing",
             m.OddsSnapshot.bookmaker.in_(MARKET_BOOKS),
             m.OddsSnapshot.market.in_(("1x2", "ou_goals")),
