@@ -234,3 +234,18 @@ def test_latest_1x2_is_the_last_capture(s):
     s.flush()
     assert store.latest_1x2(s, match, "pinnacle") == {"home": 1.3}  # la de cierre no cuenta
     assert store.latest_1x2(s, match, "betano") == {}
+
+
+def test_sensitive_responses_are_not_cached(tmp_path, monkeypatch):
+    """La respuesta de /account trae la clave de API: no debe quedar en la caché de disco."""
+    from types import SimpleNamespace
+
+    from apuestas.ingest.http import PoliteClient
+
+    pc = PoliteClient(min_interval=0, cache_dir=tmp_path)
+    monkeypatch.setattr(pc._client, "get", lambda url, params=None, headers=None: SimpleNamespace(
+        status_code=200, content=b'{"api_key": "secreta"}', text=""))
+    pc.get_bytes("https://api.oddspapi.io/v4/account", params={"apiKey": "x"}, ttl=0, store=False)
+    assert not list(tmp_path.rglob("*.gz"))
+    pc.get_bytes("https://api.oddspapi.io/v4/markets", params={"apiKey": "x"}, ttl=0)
+    assert len(list(tmp_path.rglob("*.gz"))) == 1  # lo demás sí se cachea

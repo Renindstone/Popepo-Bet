@@ -82,8 +82,12 @@ class PoliteClient:
         headers: dict | None = None,
         ttl: float | None = 3600,
         retries: int = 3,
+        store: bool = True,
     ) -> bytes:
-        """Descarga con caché. `ttl=None` = cachear para siempre; `ttl=0` = siempre descargar."""
+        """Descarga con caché. `ttl=None` = cachear para siempre; `ttl=0` = siempre descargar.
+
+        `store=False` no guarda la respuesta en disco (p.ej. si trae datos sensibles, como una clave de API).
+        """
         path = self._cache_path(url, params, headers)
         if ttl != 0:
             cached = self._read_cache(path, ttl)
@@ -112,7 +116,8 @@ class PoliteClient:
                 # Sin la URL completa: los parámetros pueden llevar claves de API (p.ej. OddsPapi usa ?apiKey=)
                 raise RuntimeError(f"{host} respondió {resp.status_code} para {urlparse(url).path}: "
                                    f"{resp.text[:300]}")
-            self._write_cache(path, resp.content)
+            if store:
+                self._write_cache(path, resp.content)
             return resp.content
         raise RuntimeError(f"No se pudo descargar {url}: {last_exc}")
 

@@ -69,11 +69,11 @@ class Price:
     kind: str = "live"
 
 
-def _get(path: str, ttl: float, **params) -> object:
+def _get(path: str, ttl: float, store: bool = True, **params) -> object:
     key = get_settings().oddspapi_key
     if not key:
         raise RuntimeError("Falta APUESTAS_ODDSPAPI_KEY en .env")
-    return client().get_json(f"{BASE}/{path}", params={**params, "apiKey": key}, ttl=ttl)
+    return client().get_json(f"{BASE}/{path}", params={**params, "apiKey": key}, ttl=ttl, store=store)
 
 
 def _items(data: object) -> list[dict]:
@@ -103,7 +103,7 @@ def our_name(slug: str) -> str:
 
 def account_status() -> dict:
     """Peticiones usadas y disponibles este mes (sin caché: es lo que se quiere ver)."""
-    data = _get("account", ttl=0)
+    data = _get("account", ttl=0, store=False)  # la respuesta incluye la clave: no se guarda en la caché
     subs = data.get("subscriptions", []) if isinstance(data, dict) else []
     active = next((x for x in subs if x.get("is_active")), subs[0] if subs else {})
     return {
