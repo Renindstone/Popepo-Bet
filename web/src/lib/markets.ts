@@ -26,7 +26,7 @@ const BASE: Record<string, string> = {
   dnb: "Empate no válido",
   btts: "Ambos marcan",
   ah: "Hándicap asiático",
-  eh: "Hándicap europeo",
+  eh: "Hándicap (3 vías)",
 };
 
 export interface Teams {
@@ -59,11 +59,13 @@ export function selectionText(market: string, selection: string, line: number | 
   const home = t.home ?? "Local";
   const away = t.away ?? "Visitante";
   const ln = lineText(market, line);
+  // Hándicap 3 vías: la línea se guarda como la del local; al visitante se le muestra la suya ("Coventry +2")
+  const awayLn = market === "eh" && line != null ? lineText(market, -line) : ln;
   switch (selection) {
     case "home":
       return ln ? `${home} ${ln}` : home;
     case "away":
-      return ln ? `${away} ${ln}` : away;
+      return awayLn ? `${away} ${awayLn}` : away;
     case "draw":
       return market === "eh" && ln ? `Empate (${home} ${ln})` : "Empate";
     case "over":
@@ -121,8 +123,8 @@ export const MARKET_OPTIONS: MarketOption[] = [
   { value: "dnb", label: "Empate no válido", group: "Resultado", sel: "ha" },
   { value: "ou_goals", label: "Goles: más/menos", group: "Goles", sel: "ou", line: 2.5, scope: true },
   { value: "btts", label: "Ambos marcan", group: "Goles", sel: "yn" },
+  { value: "eh", label: "Hándicap normal (3 vías)", group: "Hándicap", sel: "1x2", line: -1 },
   { value: "ah", label: "Hándicap asiático", group: "Hándicap", sel: "ha", line: -0.5 },
-  { value: "eh", label: "Hándicap europeo (línea del local)", group: "Hándicap", sel: "1x2", line: -1 },
   { value: "ou_corners", label: "Córners: más/menos", group: "Estadísticas", sel: "ou", line: 9.5, scope: true },
   { value: "ou_cards", label: "Tarjetas: más/menos", group: "Estadísticas", sel: "ou", line: 4.5, scope: true },
   { value: "ou_shots", label: "Remates: más/menos", group: "Estadísticas", sel: "ou", line: 24.5, scope: true },

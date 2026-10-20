@@ -4,6 +4,7 @@
 08:30  detalles de próximos partidos (alineación prevista, bajas, árbitro) + cuotas
 09:00  apuesta del día -> Telegram
 cada 20 min  partidos que empiezan en < 100 min: alineación confirmada -> recalcular y avisar si cambia
+cada 30 min  partidos terminados (3 h tras el inicio) o apuestas abiertas de partidos jugados -> resultado y liquidar
 cada 3 h     cuotas
 02:00  descarga de detalles atrasados (historial)
 lunes 04:00  niveles de almacenamiento (temporadas terminadas -> resumen y archivo)
@@ -16,7 +17,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from apscheduler.schedulers.blocking import BlockingScheduler
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 
 from apuestas.config import get_settings
 from apuestas.core.competitions import season_start_year
@@ -105,6 +106,35 @@ def job_lineups() -> None:
     _last_pod[day] = key
 
 
+POST_MATCH_HOURS = 3  # desde el inicio: el partido ya terminó y FotMob tiene el resultado y las estadísticas
+
+
+@_safe("liquidación tras el partido")
+def job_post_match() -> None:
+    """Liquida poco después de cada partido, sin esperar a las 05:30 (solo descarga si hay algo que liquidar)."""
+    from apuestas.services.picks import settle_all
+
+    now = datetime.now(UTC)
+    played = now - timedelta(hours=POST_MATCH_HOURS)
+    with session_scope() as s:
+        fresh = s.scalar(select(func.count()).select_from(m.Match).where(
+            m.Match.fotmob_id.is_not(None), m.Match.kickoff_utc <= played,
+            m.Match.kickoff_utc >= now - timedelta(hours=12),
+            or_(m.Match.status != "finished", m.Match.details_fetched_at.is_(None),
+                m.Match.details_fetched_at < m.Match.kickoff_utc + timedelta(hours=2))))
+        open_bets = s.scalar(select(func.count()).select_from(m.UserBet).join(m.Match).where(
+            m.UserBet.result.is_(None), m.Match.kickoff_utc <= played))
+        open_picks = s.scalar(select(func.count()).select_from(m.Pick).join(m.Match).where(
+            m.Pick.status == "open", m.Match.kickoff_utc <= played))
+    if not (fresh or open_bets or open_picks):
+        return
+    if fresh:
+        pipeline.sync_fotmob_details(hours_ahead=0, backfill_limit=fresh + 5)
+    out = settle_all()
+    if out["picks"] or out["bets"] or out["clv"]:
+        log.info("Liquidación tras el partido: %s", out)
+
+
 @_safe("cuotas")
 def job_odds() -> None:
     pipeline.sync_upcoming_odds()
@@ -129,6 +159,7 @@ def run() -> None:
     sched.add_job(job_preview, "cron", hour=8, minute=30, id="preview")
     sched.add_job(job_daily_pick, "cron", hour=9, minute=0, id="daily_pick")
     sched.add_job(job_lineups, "cron", minute="*/20", id="lineups")
+    sched.add_job(job_post_match, "cron", minute="15,45", id="post_match")
     sched.add_job(job_odds, "cron", hour="*/3", minute=10, id="odds")
     sched.add_job(job_backfill, "cron", hour=2, minute=0, id="backfill")
     sched.add_job(job_storage, "cron", day_of_week="mon", hour=4, minute=0, id="storage")

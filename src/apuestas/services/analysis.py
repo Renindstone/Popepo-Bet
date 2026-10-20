@@ -46,7 +46,7 @@ def _is_goal_market(market: str) -> bool:
     return market in GOAL_MARKETS or market.startswith("ou_goals")
 COUNT_LINE_STATS = ("shots", "shots_on_target", "corners", "cards", "fouls")
 MARKET_LABELS = {
-    "1x2": "Resultado", "ah": "Hándicap asiático", "eh": "Hándicap europeo", "ou_goals": "Goles",
+    "1x2": "Resultado", "ah": "Hándicap asiático", "eh": "Hándicap (3 vías)", "ou_goals": "Goles",
     "btts": "Ambos marcan", "dnb": "Empate no válido", "dc": "Doble oportunidad",
     "ou_shots": "Remates totales", "ou_shots_on_target": "Remates a puerta", "ou_corners": "Córners",
     "ou_cards": "Tarjetas", "ou_fouls": "Faltas", "player_shots": "Remates del jugador",
@@ -84,6 +84,13 @@ class BetEval:
             base += f" — {player_name}"
         if self.market.startswith("ah") and self.line is not None:
             return f"{base}: {sel} {self.line:+g}"
+        if self.market == "eh" and self.line is not None:
+            # La línea se guarda como hándicap del local; se muestra como en la casa: "Coventry +2"
+            if self.selection == "away":
+                return f"{base}: {away} {-self.line:+g}"
+            if self.selection == "draw":
+                return f"{base}: Empate ({home} {self.line:+g})"
+            return f"{base}: {home} {self.line:+g}"
         if self.line is not None:
             return f"{base}: {sel} {self.line:g}"
         return f"{base}: {sel}"

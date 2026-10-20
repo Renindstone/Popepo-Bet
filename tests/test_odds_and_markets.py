@@ -107,6 +107,10 @@ def _finished(hg: int, ag: int):
         ((1, 0), "btts", "yes", None, "loss"),
         ((2, 0), "eh", "home", -1, "win"),
         ((1, 0), "eh", "draw", -1, "win"),
+        # Tottenham 3-1 Coventry: "Coventry +2" normal (3 vías, línea del local -2) pierde; asiático +2 se devuelve
+        ((3, 1), "eh", "away", -2, "loss"),
+        ((3, 2), "eh", "away", -2, "win"),
+        ((3, 1), "ah", "away", 2, "push"),
         ((2, 1), "ou_goals_home", "over", 1.5, "win"),
     ],
 )
@@ -133,3 +137,14 @@ def test_bet_eval_is_json_serializable():
     assert type(qualifies(b)) is bool
     assert all(type(getattr(b, f)) is float for f in ("odds", "model_prob", "prob", "ev", "confidence"))
     json.dumps({**b.to_dict(), "qualifies": qualifies(b)})
+
+
+def test_three_way_handicap_label_shows_the_teams_own_line():
+    from apuestas.services.analysis import BetEval
+
+    def label(sel):
+        return BetEval("eh", sel, -2.0, "betano", 1.57, .5, None, .5, 2, 0, 0, .5, None, []).label("Tottenham", "Coventry")
+
+    assert label("away") == "Hándicap (3 vías): Coventry +2"
+    assert label("home") == "Hándicap (3 vías): Tottenham -2"
+    assert label("draw") == "Hándicap (3 vías): Empate (Tottenham -2)"

@@ -202,7 +202,23 @@ def settle_all() -> dict:
             if bet.closing_odds:
                 bet.clv = round(oddsmath.clv(bet.odds, bet.closing_odds), 4)
             out["bets"] += 1
+        out["clv"] = fill_missing_clv(s)
     return out
+
+
+def fill_missing_clv(s: Session, days: int = 21) -> int:
+    """CLV de lo ya liquidado sin cuota de cierre: football-data publica el cierre días después del partido."""
+    since = datetime.now(UTC) - timedelta(days=days)
+    n = 0
+    for model in (m.Pick, m.UserBet):
+        rows = s.scalars(select(model).join(m.Match, m.Match.id == model.match_id).where(
+            model.result.is_not(None), model.closing_odds.is_(None), m.Match.kickoff_utc >= since)).all()
+        for r in rows:
+            r.closing_odds = closing_price(s, r.match_id, r.bookmaker, r.market, r.selection, r.line)
+            if r.closing_odds:
+                r.clv = round(oddsmath.clv(r.odds, r.closing_odds), 4)
+                n += 1
+    return n
 
 
 def pick_history(days: int = 60, only_pick_of_day: bool = True) -> dict:

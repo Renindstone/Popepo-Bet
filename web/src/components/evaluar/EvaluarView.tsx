@@ -26,6 +26,14 @@ function parseMarket(raw: string | null): { base: MarketOption; scope: "" | "hom
 
 const GROUPS = [...new Set(MARKET_OPTIONS.map((o) => o.group))];
 
+function lineLabel(market: string, selection: string, t: { home?: string; away?: string }): string {
+  const home = t.home ?? "Local";
+  const away = t.away ?? "Visitante";
+  if (market === "eh") return selection === "away" ? `Hándicap de ${away}` : `Hándicap de ${home}`;
+  if (market.startsWith("ah")) return `Hándicap de ${selection === "away" ? away : home}`;
+  return "Línea";
+}
+
 const field = "h-11 w-full rounded-[3px] border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
 const labelCls = "mb-1 block text-[0.9rem] font-semibold";
 
@@ -36,7 +44,12 @@ export function EvaluarView() {
   const [market, setMarket] = useState<MarketOption>(initial.base);
   const [scope, setScope] = useState<"" | "home" | "away">(initial.scope);
   const [selection, setSelection] = useState(params.get("seleccion") ?? selectionsFor(initial.base.sel)[0].value);
-  const [line, setLine] = useState(params.get("linea") ?? (initial.base.line != null ? String(initial.base.line) : ""));
+  // En el hándicap 3 vías la API guarda la línea del local; aquí se escribe la del equipo elegido, como en la casa
+  const [line, setLine] = useState(() => {
+    const raw = params.get("linea");
+    if (raw == null) return initial.base.line != null ? String(initial.base.line) : "";
+    return initial.base.value === "eh" && params.get("seleccion") === "away" ? String(-Number(raw)) : raw;
+  });
   const [player, setPlayer] = useState(params.get("jugador") ?? "");
   const [price, setPrice] = useState(params.get("cuota") ?? "");
   const [bookmaker, setBookmaker] = useState(params.get("casa") === "bet365" ? "bet365" : "betano");
@@ -77,7 +90,7 @@ export function EvaluarView() {
         market: marketCode,
         selection,
         odds: priceNum,
-        line: needsLine ? lineNum : null,
+        line: needsLine ? (market.value === "eh" && selection === "away" ? -lineNum : lineNum) : null,
         bookmaker,
         player: who,
       });
@@ -202,7 +215,7 @@ export function EvaluarView() {
             {needsLine && (
               <div>
                 <label htmlFor="linea" className={labelCls}>
-                  Línea
+                  {lineLabel(market.value, selection, teams)}
                 </label>
                 <input
                   id="linea"
@@ -227,6 +240,14 @@ export function EvaluarView() {
               />
             </div>
           </div>
+
+          {(market.value === "eh" || market.value === "ah") && (
+            <p className="-mt-2 text-[0.88rem] text-grafito">
+              {market.value === "eh"
+                ? "Escribe el hándicap tal como sale junto al equipo (Coventry +2). Si con el hándicap queda empate, la apuesta al equipo pierde."
+                : "Hándicap asiático: si con una línea entera queda empate, se devuelve el dinero; las de cuarto (±0,25, ±0,75) se reparten en dos mitades."}
+            </p>
+          )}
 
           <Choice
             legend="Casa"
