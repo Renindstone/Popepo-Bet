@@ -88,6 +88,47 @@ class MatchModel:
         total = dist.pmf_to_dict(dist.convolve(ph, pa))
         return diff, total, dist.pmf_to_dict(ph), dist.pmf_to_dict(pa)
 
+    # ------------------------------------------------------------------ varias selecciones del mismo partido
+    def goal_mask(self, market: str, selection: str, line: float | None = None) -> np.ndarray | None:
+        """Marcadores (i goles del local, j del visitante) en los que gana una selección de goles.
+
+        None si la selección no depende solo del marcador (córners, jugadores…) o si puede devolverse (líneas
+        enteras o de cuarto, empate no válido): esas no se pueden combinar celda a celda.
+        """
+        market, selection = market.lower(), selection.lower()
+        i, j = np.indices(self.matrix.shape)
+        half = line is not None and abs(line * 2) % 2 == 1  # x.5
+        if market == "1x2":
+            return {"home": i > j, "draw": i == j, "away": i < j}.get(selection)
+        if market == "dc":
+            return {"1x": i >= j, "x2": i <= j, "12": i != j}.get(selection)
+        if market == "btts":
+            both = (i > 0) & (j > 0)
+            return {"yes": both, "no": ~both}.get(selection)
+        if market in ("ou_goals", "ou_goals_home", "ou_goals_away") and half:
+            goals = {"ou_goals": i + j, "ou_goals_home": i, "ou_goals_away": j}[market]
+            return {"over": goals > line, "under": goals < line}.get(selection)
+        if market == "eh" and line is not None:  # 3 vías: la línea es el hándicap del local
+            shifted = i - j + line
+            return {"home": shifted > 0, "draw": shifted == 0, "away": shifted < 0}.get(selection)
+        if market == "ah" and half:  # la línea es la del equipo elegido
+            return {"home": (i - j) + line > 0, "away": (j - i) + line > 0}.get(selection)
+        return None
+
+    def joint_goal_prob(self, legs: list[tuple[str, str, float | None]]) -> float | None:
+        """Probabilidad de que se cumplan a la vez varias selecciones de goles del mismo partido (Bet Builder).
+
+        Se suma la matriz de marcadores en las celdas donde ganan todas, así que tiene en cuenta que dependen
+        entre sí ("gana el City" y "más de 2,5 goles" no son independientes). None si alguna no es de goles.
+        """
+        mask = np.ones(self.matrix.shape, dtype=bool)
+        for market, selection, line in legs:
+            m = self.goal_mask(market, selection, line)
+            if m is None:
+                return None
+            mask &= m
+        return float(self.matrix[mask].sum() / self.matrix.sum())
+
     # ------------------------------------------------------------------ mercado genérico
     def outcome(self, market: str, selection: str, line: float | None = None, player_id: int | None = None) -> Outcome:
         market, selection = market.lower(), selection.lower()

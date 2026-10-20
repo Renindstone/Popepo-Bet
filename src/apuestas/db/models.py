@@ -367,7 +367,8 @@ class OddsCapture(Base, TimestampMixin):
     """Captura de cuotas subida por un usuario (imagen de bet365/Betano) y lo que una IA leyó en ella.
 
     `lines` guarda cada cuota leída y su evaluación con el modelo: la IA solo lee y resume, los números
-    los calcula el modelo. Estados: pendiente → procesando → evaluada → lista (o error).
+    los calcula el modelo. Estados: pendiente → procesando → evaluada → lista; o no_evaluable (la IA la leyó pero no
+    hay nada que el modelo pueda evaluar, con el motivo en `verdict`) o error (falló el motor).
     """
 
     __tablename__ = "odds_capture"
@@ -383,6 +384,7 @@ class OddsCapture(Base, TimestampMixin):
     note: Mapped[str | None] = mapped_column(Text)
     match_id: Mapped[int | None] = mapped_column(ForeignKey("match.id"))
     lines: Mapped[list | None] = mapped_column(JSONType)
+    combos: Mapped[dict | None] = mapped_column(JSONType)  # combinada o Bet Builder: bloques por partido y total
     ai_notes: Mapped[str | None] = mapped_column(Text)
     verdict: Mapped[str | None] = mapped_column(Text)
     edited: Mapped[bool] = mapped_column(Boolean, default=False)  # el usuario corrigió las cuotas a mano

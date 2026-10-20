@@ -8,7 +8,7 @@ import { Button, EdgeBar, Empty, ErrorNote, Loading, PageTitle, Tag } from "@/co
 import { type ApiError, blobUrl, del, post, put, useApi } from "@/lib/api";
 import { competitionName, odds, pct, signedPct } from "@/lib/format";
 import { betLabel, bookmakerName } from "@/lib/markets";
-import type { Capture, CaptureLine, MatchSummary } from "@/lib/types";
+import type { Capture, CaptureCombo, CaptureLine, MatchSummary } from "@/lib/types";
 
 const field = "h-11 w-full rounded-[3px] border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
 const labelCls = "mb-1 block text-[0.9rem] font-semibold";
@@ -162,10 +162,16 @@ const STATUS: Record<string, { text: string; tone: "neutral" | "boli" | "rojo" |
   procesando: { text: "Claude está leyendo", tone: "tarjeta" },
   evaluada: { text: "Resumiendo", tone: "tarjeta" },
   lista: { text: "Lista", tone: "boli" },
+  no_evaluable: { text: "No evaluable", tone: "tarjeta" },
   error: { text: "Error", tone: "rojo" },
 };
 
 function summaryText(c: Capture): string {
+  if (c.combos) {
+    const n = c.combos.blocks.length;
+    const ev = c.combos.ev != null ? ` (${signedPct(c.combos.ev)})` : "";
+    return `${n > 1 ? `Combinada de ${n}` : "Bet Builder"} · ${c.combos.verdict}${ev}`;
+  }
   const s = c.summary;
   if (!s.lines) return "";
   const parts = [`${s.lines} cuota${s.lines === 1 ? "" : "s"}`];
@@ -209,7 +215,12 @@ function CaptureCard({
 }) {
   const img = useImage(c.id);
   const st = c.status === "pendiente" && !c.auto_engine ? { text: "Pendiente", tone: "neutral" as const } : STATUS[c.status];
-  const title = c.match ? `${c.match.home} vs ${c.match.away}` : (c.match_hint ?? "Partido por identificar");
+  const blocks = c.combos?.blocks ?? [];
+  const title = c.match
+    ? `${c.match.home} vs ${c.match.away}`
+    : blocks.length > 1
+      ? `Combinada: ${blocks.map((b) => b.match).join(" · ")}`
+      : (blocks[0]?.match ?? c.match_hint ?? "Partido por identificar");
   const meta = [
     c.match && `${competitionName(c.match.competition)} · ${c.match.kickoff_local}`,
     c.bookmaker_hint && bookmakerName(c.bookmaker_hint),
@@ -226,7 +237,9 @@ function CaptureCard({
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{title}</p>
           <p className="truncate text-[0.88rem] text-grafito">{meta.join(" · ")}</p>
-          {c.status === "lista" && <p className="truncate text-[0.88rem]">{summaryText(c)}</p>}
+          {(c.status === "lista" || c.status === "no_evaluable") && (
+            <p className="truncate text-[0.88rem]">{c.status === "no_evaluable" ? "Leída, pero el modelo no puede evaluarla" : summaryText(c)}</p>
+          )}
         </div>
         <Tag tone={st.tone}>{st.text}</Tag>
       </button>
@@ -295,7 +308,13 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
             <p className="mt-0.5 text-[0.95rem]">{c.error}</p>
           </div>
         )}
-        {c.verdict && (
+        {c.status === "no_evaluable" && (
+          <div className="border-l-[3px] border-tarjeta bg-tarjeta-suave px-4 py-3">
+            <p className="font-semibold">Claude leyó la captura, pero el modelo no puede evaluarla</p>
+            {c.verdict && <p className="mt-1 max-w-[75ch] text-[0.95rem] whitespace-pre-line">{c.verdict}</p>}
+          </div>
+        )}
+        {c.verdict && c.status !== "no_evaluable" && (
           <div>
             <h3 className="semi text-[0.95rem] font-bold">Resumen de Claude</h3>
             <p className="mt-1 max-w-[75ch] whitespace-pre-line">{c.verdict}</p>
@@ -311,6 +330,7 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
             <span className="font-semibold text-tinta">Notas de lectura:</span> {c.ai_notes}
           </p>
         )}
+        {c.combos && <Combo combo={c.combos} />}
         {c.lines.length > 0 &&
           (editing ? (
             <EditLines
@@ -348,6 +368,71 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------- combinadas y Bet Builders
+
+const COMBO_TONE: Record<string, "boli" | "rojo" | "tarjeta" | "neutral"> = {
+  "con valor": "boli",
+  "sin valor": "rojo",
+  "no evaluable": "tarjeta",
+};
+
+function Combo({ combo }: { combo: CaptureCombo }) {
+  return (
+    <div className="space-y-3">
+      <p className="max-w-[75ch] text-[0.88rem] text-grafito">
+        Dentro de un mismo partido las selecciones dependen entre sí, así que su probabilidad conjunta sale de la matriz de
+        marcadores del modelo. Los partidos distintos se multiplican. Córners, tarjetas y jugadores solo se pueden evaluar
+        si van solos en su partido.
+      </p>
+      <ul className="space-y-2">
+        {combo.blocks.map((b, i) => (
+          <li key={i} className="rounded-[3px] border border-regla-suave px-3 py-2.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <p className="font-semibold">
+                {b.match}
+                {b.kickoff_local && <span className="ml-2 text-[0.85rem] font-normal text-grafito">{b.kickoff_local.slice(5)}</span>}
+              </p>
+              <p className="num text-[0.92rem]">
+                {b.odds != null && <span className="font-semibold">{odds(b.odds)}</span>}
+                {b.prob != null && (
+                  <span className="ml-3 text-grafito">
+                    modelo {pct(b.prob)} · justa {odds(b.fair_odds)}
+                    {b.ev != null && (
+                      <span className={`ml-2 font-semibold ${b.ev > 0 ? "text-boli" : "text-rojo"}`}>{signedPct(b.ev)}</span>
+                    )}
+                  </span>
+                )}
+              </p>
+            </div>
+            <ul className="mt-1 text-[0.9rem]">
+              {b.legs.map((lg, k) => (
+                <li key={k} className={lg.market === "otro" ? "text-rojo" : ""}>
+                  · {lg.label}
+                </li>
+              ))}
+            </ul>
+            {b.reason && <p className="mt-1 text-[0.88rem] text-rojo">No evaluable: {b.reason}</p>}
+            {b.notes.length > 0 && <p className="mt-1 text-[0.85rem] text-grafito">{b.notes.join(" · ")}</p>}
+          </li>
+        ))}
+      </ul>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-regla pt-3">
+        <span className="font-semibold">Total</span>
+        <span className="num">cuota {odds(combo.total_odds)}</span>
+        {combo.prob != null && (
+          <span className="num text-grafito">
+            modelo {pct(combo.prob, 1)} · justa {odds(combo.fair_odds)}
+          </span>
+        )}
+        {combo.ev != null && (
+          <span className={`num font-semibold ${combo.ev > 0 ? "text-boli" : "text-rojo"}`}>{signedPct(combo.ev)}</span>
+        )}
+        <Tag tone={COMBO_TONE[combo.verdict] ?? "neutral"}>{combo.verdict}</Tag>
       </div>
     </div>
   );

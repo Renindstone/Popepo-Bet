@@ -118,7 +118,8 @@ def test_api_engine_tool_loop(monkeypatch, tmp_path):
     assert calls == [("evaluar", [linea], "4808", "api"), ("veredicto", "Sin valor.")]
     first = sent[0]["messages"][0]["content"]
     assert first[0]["type"] == "image" and first[0]["source"]["media_type"] == "image/png"
-    assert {t["name"] for t in sent[0]["tools"]} == {"evaluar_captura", "guardar_veredicto_captura"}
+    assert {t["name"] for t in sent[0]["tools"]} == {"evaluar_captura", "evaluar_combinada", "marcar_no_evaluable",
+                                                    "guardar_veredicto_captura"}
     # La lista de mensajes es la misma en cada llamada: [usuario, asistente, resultados t1, asistente, ...]
     result = sent[0]["messages"][2]["content"][0]
     assert result["tool_use_id"] == "t1" and not result["is_error"]
@@ -129,4 +130,5 @@ def test_mcp_server_exposes_capture_tools():
     from apuestas.mcp_server.server import build
 
     names = {t.name for t in build()._tool_manager.list_tools()}
-    assert {"capturas_pendientes", "ver_captura", "evaluar_captura", "guardar_veredicto_captura"} <= names
+    assert {"capturas_pendientes", "ver_captura", "evaluar_captura", "evaluar_combinada", "marcar_no_evaluable",
+            "guardar_veredicto_captura"} <= names

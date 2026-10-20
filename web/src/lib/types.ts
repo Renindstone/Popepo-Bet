@@ -352,7 +352,40 @@ export interface DataStatus {
 
 // --------------------------------------------------------------------------- capturas de cuotas
 
-export type CaptureStatus = "pendiente" | "procesando" | "evaluada" | "lista" | "error";
+export type CaptureStatus = "pendiente" | "procesando" | "evaluada" | "lista" | "no_evaluable" | "error";
+
+export interface ComboLeg {
+  market: string;
+  selection: string;
+  line: number | null;
+  player: string | null;
+  text: string | null;
+  label: string;
+}
+
+export interface ComboBlock {
+  match: string;
+  match_id: number | null;
+  competition?: Competicion;
+  kickoff_local?: string;
+  odds: number | null;
+  legs: ComboLeg[];
+  prob: number | null;
+  fair_odds: number | null;
+  ev: number | null;
+  reason: string | null;
+  notes: string[];
+}
+
+export interface CaptureCombo {
+  total_odds: number | null;
+  prob: number | null;
+  fair_odds: number | null;
+  ev: number | null;
+  evaluable: boolean;
+  verdict: "con valor" | "sin valor" | "no evaluable" | "sin cuota para comparar" | string;
+  blocks: ComboBlock[];
+}
 
 export interface CaptureEval extends BetEval {
   verdict: Evaluation["verdict"];
@@ -382,6 +415,7 @@ export interface Capture {
   note: string | null;
   match: { match_id: number; home: string; away: string; competition: Competicion; kickoff_local: string } | null;
   lines: CaptureLine[];
+  combos: CaptureCombo | null;
   summary: {
     lines: number;
     evaluated: number;

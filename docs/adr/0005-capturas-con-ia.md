@@ -21,6 +21,14 @@ MCP funciona al revés de lo que parece: es la IA la que llama a las herramienta
 - **Otros usuarios**: la suscripción es personal, así que por defecto el motor automático solo procesa las capturas de `APUESTAS_DEFAULT_USER`. Las de los demás quedan pendientes, y su propio agente las procesa por MCP: `capturas_pendientes` → `ver_captura` → `evaluar_captura` → `guardar_veredicto_captura`.
 - **Motor `api` preparado** (`APUESTAS_CAPTURES_ENGINE=api` + `APUESTAS_ANTHROPIC_API_KEY` + `pip install -e ".[api]"`): mismo flujo con la API de Claude y un bucle de herramientas. Es más rápido y no depende de esta PC, pero cuesta dinero por captura. Cada ejecución con Claude Code guarda en `engine_info.api_equivalent_usd` lo que habría costado por API, para decidir con datos. **Sin probar con una clave real** (solo con un cliente simulado en los tests).
 
+## Ampliación (20-10-2026): combinadas, Bet Builders y "no evaluable"
+- **Herramientas nuevas:**
+  - `evaluar_combinada`: un bloque por partido con sus selecciones, la cuota del bloque y la total.
+  - `marcar_no_evaluable`: guarda el motivo cuando no hay nada evaluable.
+- **Cálculo** (`MatchModel.joint_goal_prob`): varias selecciones del mismo partido se combinan celda a celda en la matriz Dixon-Coles. Solo se admiten las que dependen únicamente del marcador y no se devuelven: 1X2, doble oportunidad, ambos marcan, más/menos de goles con línea .5 y hándicaps sin devolución. Una selección sola puede ser de cualquier mercado. Los partidos distintos se multiplican, porque son independientes.
+- **Si la IA termina sin evaluar nada,** la captura queda `no_evaluable` con su explicación, no `error`. `error` queda para fallos del motor (tiempo agotado, sesión de Claude caducada…).
+- **Caso real que lo motivó:** una combinada de 3 Bet Builders de Betano (cuota 11,03) salía como "No se pudo leer". Ahora City + más de 2,5 sale con 44 % (−41 %) y Roma + Roma más de 1,5 con 77 % (−5,6 %). PSG-Barça se marca no evaluable por las atajadas y por "anota o da asistencia".
+
 ## Alternativas descartadas
 - **OCR local (Tesseract)**: es gratis, pero frágil con los diseños de las casas y no sabe pasar "Total de córners Más de 9.5" a `ou_corners/over/9.5`.
 - **Mandar la imagen en el prompt de `claude -p`**: también funciona, pero entonces la IA no pasaría por MCP, y los agentes externos necesitan `ver_captura` igualmente.

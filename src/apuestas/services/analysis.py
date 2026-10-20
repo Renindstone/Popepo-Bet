@@ -88,11 +88,38 @@ COUNT_LINE_STATS = ("shots", "shots_on_target", "corners", "cards", "fouls")
 MARKET_LABELS = {
     "1x2": "Resultado", "ah": "Hándicap asiático", "eh": "Hándicap (3 vías)", "ou_goals": "Goles",
     "btts": "Ambos marcan", "dnb": "Empate no válido", "dc": "Doble oportunidad",
-    "ou_shots": "Remates totales", "ou_shots_on_target": "Remates a puerta", "ou_corners": "Córners",
+    "ou_shots": "Remates totales", "ou_shots_on_target": "Remates a puerta", "ou_sot": "Remates a puerta",
+    "ou_corners": "Córners",
     "ou_cards": "Tarjetas", "ou_fouls": "Faltas", "player_shots": "Remates del jugador",
     "player_sot": "Remates a puerta del jugador", "player_card": "Tarjeta al jugador",
     "player_goal": "Gol del jugador", "player_fouls": "Faltas del jugador",
 }
+
+
+def bet_label(market: str, selection: str, line: float | None, home: str, away: str,
+          player_name: str | None = None) -> str:
+    """Texto de una apuesta como lo vería el usuario: "Hándicap (3 vías): Coventry +2"."""
+    sel = {"home": home, "away": away, "draw": "Empate", "over": "Más de", "under": "Menos de",
+           "yes": "Sí", "no": "No"}.get(selection, selection)
+    base = MARKET_LABELS.get(market.replace("_home", "").replace("_away", ""), market)
+    if market.endswith("_home"):
+        base += f" ({home})"
+    elif market.endswith("_away"):
+        base += f" ({away})"
+    if player_name:
+        base += f" — {player_name}"
+    if market.startswith("ah") and line is not None:
+        return f"{base}: {sel} {line:+g}"
+    if market == "eh" and line is not None:
+        # La línea se guarda como hándicap del local; se muestra como en la casa: "Coventry +2"
+        if selection == "away":
+            return f"{base}: {away} {-line:+g}"
+        if selection == "draw":
+            return f"{base}: Empate ({home} {line:+g})"
+        return f"{base}: {home} {line:+g}"
+    if line is not None:
+        return f"{base}: {sel} {line:g}"
+    return f"{base}: {sel}"
 
 
 @dataclass
@@ -113,27 +140,7 @@ class BetEval:
     reasons: list[str] = field(default_factory=list)
 
     def label(self, home: str, away: str, player_name: str | None = None) -> str:
-        sel = {"home": home, "away": away, "draw": "Empate", "over": "Más de", "under": "Menos de",
-               "yes": "Sí", "no": "No"}.get(self.selection, self.selection)
-        base = MARKET_LABELS.get(self.market.replace("_home", "").replace("_away", ""), self.market)
-        if self.market.endswith("_home"):
-            base += f" ({home})"
-        elif self.market.endswith("_away"):
-            base += f" ({away})"
-        if player_name:
-            base += f" — {player_name}"
-        if self.market.startswith("ah") and self.line is not None:
-            return f"{base}: {sel} {self.line:+g}"
-        if self.market == "eh" and self.line is not None:
-            # La línea se guarda como hándicap del local; se muestra como en la casa: "Coventry +2"
-            if self.selection == "away":
-                return f"{base}: {away} {-self.line:+g}"
-            if self.selection == "draw":
-                return f"{base}: Empate ({home} {self.line:+g})"
-            return f"{base}: {home} {self.line:+g}"
-        if self.line is not None:
-            return f"{base}: {sel} {self.line:g}"
-        return f"{base}: {sel}"
+        return bet_label(self.market, self.selection, self.line, home, away, player_name)
 
     def to_dict(self) -> dict:
         return {

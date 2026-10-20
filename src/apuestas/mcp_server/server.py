@@ -43,7 +43,8 @@ Reglas: no recomiendes apostar si el veredicto no es "APOSTAR"; recuerda la gest
 "no apostar" es válido. Las bajas manuales sirven para noticias que FotMob aún no refleja.
 
 Capturas: el usuario sube imágenes de cuotas en el panel. capturas_pendientes → ver_captura (imagen + guía) →
-evaluar_captura (las cuotas que leíste; el modelo calcula el veredicto) → guardar_veredicto_captura (resumen).
+evaluar_captura (las cuotas que leíste; el modelo calcula el veredicto) o evaluar_combinada (combinadas y Bet
+Builders) → guardar_veredicto_captura (resumen). Si no hay nada evaluable: marcar_no_evaluable.
 """
 
 
@@ -188,6 +189,19 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
         """Envía las cuotas leídas en una captura. El modelo devuelve probabilidad, cuota justa, valor esperado,
         stake y veredicto de cada una (las guarda en la captura). partido: id o 'Local vs Visitante'."""
         return _safe(captures.evaluate_lines, _user(), captura_id, lineas, partido, notas)
+
+    @server.tool()
+    def evaluar_combinada(captura_id: int, bloques: list[captures.ComboBlock], cuota_total: float | None = None,
+                          notas: str | None = None) -> str:
+        """Combinada o Bet Builder de una captura: un bloque por partido con sus selecciones (y la cuota del bloque si
+        aparece) más la cuota total. El modelo calcula la probabilidad conjunta de cada bloque con la matriz de
+        marcadores y la del total; las selecciones fuera del modelo se marcan, sin inventar."""
+        return _safe(captures.evaluate_combo, _user(), captura_id, bloques, cuota_total, notas)
+
+    @server.tool()
+    def marcar_no_evaluable(captura_id: int, motivo: str) -> str:
+        """La captura no tiene nada que el modelo pueda evaluar: guarda el motivo para que el usuario lo vea."""
+        return _safe(captures.mark_not_evaluable, _user(), captura_id, motivo)
 
     @server.tool()
     def guardar_veredicto_captura(captura_id: int, veredicto: str) -> str:
