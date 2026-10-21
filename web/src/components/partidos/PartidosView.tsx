@@ -97,7 +97,7 @@ export function PartidosView() {
                   <li key={m.match_id}>
                     <Link
                       href={`/partidos/${m.match_id}`}
-                      className="grid grid-cols-[3.5rem_1fr] gap-x-4 gap-y-1 py-3 hover:bg-hoja sm:grid-cols-[4rem_minmax(0,1fr)_14rem_auto] sm:items-center"
+                      className="grid grid-cols-[3.5rem_1fr] gap-x-4 gap-y-1 py-3 hover:bg-hoja sm:grid-cols-[4rem_minmax(0,1fr)_14rem_11rem] sm:items-center"
                     >
                       <span className="cond num text-2xl font-bold">{m.kickoff_local.split(" ")[2]}</span>
                       <span className="min-w-0">
@@ -112,8 +112,10 @@ export function PartidosView() {
                       <span className="col-start-2 truncate text-[0.9rem] text-grafito sm:col-start-auto">
                         {m.referee ? `Árbitro: ${m.referee}` : "Árbitro sin designar"}
                       </span>
-                      <span className="col-start-2 sm:col-start-auto sm:justify-self-end">
-                        <Tag tone={m.lineups === "confirmed" ? "confirmada" : "neutral"}>{stageText(m.lineups)}</Tag>
+                      <span className="col-start-2 sm:col-start-auto">
+                        <Tag tone={m.lineups === "confirmed" ? "confirmada" : "neutral"} className="sm:w-full sm:justify-center">
+                          {stageText(m.lineups)}
+                        </Tag>
                       </span>
                     </Link>
                   </li>

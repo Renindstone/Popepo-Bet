@@ -540,7 +540,7 @@ function DayMatches({ rows }: { rows: DayMatch[] }) {
         <li key={m.match_id}>
           <Link
             href={`/partidos/${m.match_id}`}
-            className="grid grid-cols-[3.5rem_1fr] gap-x-4 gap-y-2 py-3.5 hover:bg-hoja sm:grid-cols-[4rem_minmax(0,1.3fr)_minmax(0,1fr)_auto] sm:items-center"
+            className="grid grid-cols-[3.5rem_1fr] gap-x-4 gap-y-2 py-3.5 hover:bg-hoja sm:grid-cols-[4rem_minmax(0,1.3fr)_minmax(0,1fr)_11rem] sm:items-center"
           >
             <span className="cond num text-2xl font-bold">{m.kickoff_local}</span>
             <span className="min-w-0">
@@ -560,8 +560,10 @@ function DayMatches({ rows }: { rows: DayMatch[] }) {
                 <span>{pct(m["1x2"].away)}</span>
               </span>
             </span>
-            <span className="col-start-2 flex flex-wrap gap-1.5 sm:col-start-auto sm:justify-end">
-              <Tag tone={m.stage === "confirmed" ? "confirmada" : "neutral"}>{stageText(m.stage)}</Tag>
+            <span className="col-start-2 flex flex-wrap gap-1.5 sm:col-start-auto">
+              <Tag tone={m.stage === "confirmed" ? "confirmada" : "neutral"} className="sm:w-full sm:justify-center">
+                {stageText(m.stage)}
+              </Tag>
             </span>
           </Link>
         </li>

@@ -136,9 +136,9 @@ const TONES: Record<Tone, string> = {
   confirmada: "border-[#93c5fd] bg-[#dbeafe] text-[#1e3a8a] font-semibold",
 };
 
-export function Tag({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
+export function Tag({ tone = "neutral", className = "", children }: { tone?: Tone; className?: string; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center rounded-sm border px-1.5 py-px text-[0.8rem] leading-5 font-medium whitespace-nowrap ${TONES[tone]}`}>
+    <span className={`inline-flex items-center rounded-sm border px-1.5 py-px text-[0.8rem] leading-5 font-medium whitespace-nowrap ${TONES[tone]} ${className}`}>
       {children}
     </span>
   );
