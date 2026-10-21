@@ -113,7 +113,7 @@ export function PartidosView() {
                         {m.referee ? `Árbitro: ${m.referee}` : "Árbitro sin designar"}
                       </span>
                       <span className="col-start-2 sm:col-start-auto sm:justify-self-end">
-                        <Tag tone={m.lineups === "confirmed" ? "boli" : "neutral"}>{stageText(m.lineups)}</Tag>
+                        <Tag tone={m.lineups === "confirmed" ? "confirmada" : "neutral"}>{stageText(m.lineups)}</Tag>
                       </span>
                     </Link>
                   </li>

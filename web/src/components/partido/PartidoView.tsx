@@ -56,7 +56,7 @@ export function PartidoView() {
           <span className="num">
             {shortDate(date)}, {time}
           </span>
-          <Tag tone={a.stage === "confirmed" ? "boli" : "neutral"}>{stageText(a.stage)}</Tag>
+          <Tag tone={a.stage === "confirmed" ? "confirmada" : "neutral"}>{stageText(a.stage)}</Tag>
         </p>
         <h1 className="cond mt-2 text-[2.6rem] leading-[1.02] font-extrabold tracking-[-0.01em] sm:text-6xl">
           <Crest id={a.home_id} size={52} className="mr-3 -mt-2" />

@@ -125,13 +125,15 @@ export function Empty({ children }: { children: ReactNode }) {
   return <div className="max-w-[68ch] py-2 text-grafito">{children}</div>;
 }
 
-type Tone = "neutral" | "boli" | "rojo" | "tarjeta";
+type Tone = "neutral" | "boli" | "rojo" | "tarjeta" | "confirmada";
 
 const TONES: Record<Tone, string> = {
   neutral: "border-regla text-grafito",
   boli: "border-boli/40 bg-boli-suave text-boli",
   rojo: "border-rojo/40 bg-rojo-suave text-rojo",
   tarjeta: "border-tarjeta/50 bg-tarjeta-suave text-tinta",
+  // Alineación confirmada: relleno azul claro que se distingue de un vistazo (igual en tema claro y oscuro)
+  confirmada: "border-[#93c5fd] bg-[#dbeafe] text-[#1e3a8a] font-semibold",
 };
 
 export function Tag({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {

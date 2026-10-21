@@ -41,7 +41,7 @@ export function Alineaciones({ matchId }: { matchId: number }) {
             ? `Confirmadas. Actualizado ${data.updated_local?.slice(11) ?? ""}.`
             : "Probables, según FotMob. La confirmada se busca 70, 50, 35, 20 y 10 minutos antes del inicio (suele salir una hora antes)."
       }
-      actions={data?.status ? <Tag tone={confirmed ? "boli" : "neutral"}>{confirmed ? "Confirmadas" : "Probables"}</Tag> : undefined}
+      actions={data?.status ? <Tag tone={confirmed ? "confirmada" : "neutral"}>{confirmed ? "Confirmadas" : "Probables"}</Tag> : undefined}
     >
       {error ? (
         <ErrorNote error={error} onRetry={() => mutate()} />

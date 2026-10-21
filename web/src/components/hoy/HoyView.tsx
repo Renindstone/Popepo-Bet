@@ -561,7 +561,7 @@ function DayMatches({ rows }: { rows: DayMatch[] }) {
               </span>
             </span>
             <span className="col-start-2 flex flex-wrap gap-1.5 sm:col-start-auto sm:justify-end">
-              <Tag>{stageText(m.stage)}</Tag>
+              <Tag tone={m.stage === "confirmed" ? "confirmada" : "neutral"}>{stageText(m.stage)}</Tag>
             </span>
           </Link>
         </li>
