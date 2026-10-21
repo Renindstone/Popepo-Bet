@@ -8,7 +8,7 @@
 - **Modelo** de goles con fuerza de ataque y defensa, xG promediado y ratings implícitos de las cuotas de cierre; estadísticas (remates, córners, tarjetas, faltas) y proyecciones de jugadores. Ajuste por alineación y bajas.
 - **Apuesta del día** a las 09:00 (solo mercados de goles), con un contador de aciertos desde el inicio en Hoy y en Mis apuestas (`GET /picks/record`; las retiradas al recalcular no cuentan) y **liquidación automática** de picks y apuestas después de cada partido (tarea `post_match`, a los :15 y :45).
 - **Cuotas de Betano y Pinnacle** con OddsPapi a las 08:30 (una petición por casa y día), descartando las que vienen con local y visitante invertidos.
-- **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota, mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y Claude Code la lee, incluidas combinadas y Bet Builders.
+- **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota (con las **cuotas de Betano ya descargadas** de cada partido, evaluadas y listas para el cupón), mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y la lee la **IA local** (Ollama, qwen2.5vl:7b) o, con el botón «Leer con Claude», Claude Code; incluidas combinadas y Bet Builders.
 - **Mercados de jugador**: gol (también 2 o más), asistencia y gol o asistencia, con xG y xA; en Bet Builders se calculan junto con el resultado. Córners y tarjetas en un Bet Builder salen "aproximados" (desde el 2026-10-20).
 - **Registrar desde una captura** (`POST /captures/{id}/bet`): una cuota o la combinada entera, con el importe que Claude leyó si se ve; la captura recuerda lo registrado (`engine_info.bets`) para no duplicarlo.
 - **Cupón en Evaluar cuota**: varias selecciones de uno o varios partidos (Bet Builders y combinada), evaluadas juntas (`POST /combos/evaluate`) y registradas como una apuesta `combo` con sus selecciones en `user_bet_leg` (`POST /combos`); se liquidan solas.
@@ -30,6 +30,7 @@
 | 2026-10-19 | Las capturas no evaluables se muestran con su motivo; las combinadas se evalúan con la matriz de marcadores. |
 | 2026-10-20 | El README y la documentación hablan de "cualquier persona" que use el código, no de "amigos": el repositorio es público. |
 | 2026-10-20 | La versión universitaria con microservicios vive en un repositorio privado aparte. |
+| 2026-10-21 | Las capturas las lee por defecto una IA local (Ollama) que solo transcribe; Claude queda como respaldo con un botón. En Evaluar cuota se muestran las cuotas de Betano guardadas para no necesitar captura. |
 
 ## Pendiente o por decidir
 

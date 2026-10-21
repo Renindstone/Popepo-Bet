@@ -46,3 +46,10 @@ MCP funciona al revés de lo que parece: es la IA la que llama a las herramienta
 - `POST /captures/{id}/bet` registra una cuota de la captura (`line`) o su combinada entera con lo ya guardado en ella, sin rehacer el formulario en Evaluar cuota. Las combinadas usan el mismo registro que el cupón (`queries.register_combo`).
 - Las herramientas `evaluar_captura` y `evaluar_combinada` aceptan `importe` (lo apostado, si se ve en la captura) para proponerlo al registrar.
 - Lo registrado se guarda en `engine_info.bets`, que no se borra al volver a leer la captura ni al corregir cuotas, así que la misma apuesta no se registra dos veces.
+
+## Ampliación (21-10-2026): motor local con Ollama, por defecto
+- **Motivo:** no depender de una cuenta de pago para leer capturas.
+- **Diseño** (`services/capture_reader.py`, motor `local`): el modelo de visión (qwen2.5vl:7b en Ollama) **solo transcribe** con un esquema JSON fijo (partido, título del mercado, selección, cuota, cuota del Bet Builder, total, importe). En una prueba pidiéndole los códigos de mercado directamente se equivocaba (doble oportunidad como 1X2, selecciones saltadas); transcribiendo, copió bien todas. Las reglas de `parse_selection` pasan el texto a mercados, `plan` decide entre cuotas sueltas y combinada (y corrige una cuota total imposible con el producto de los bloques), el modelo hace los números y `summary_*` escribe el resumen con plantilla.
+- **Resultado** con las dos capturas reales que había leído Claude: mismas selecciones, cuotas y totales (incluidos el gol o asistencia de Kane, el gol de Mbappé y el hándicap de 3 vías), importe leído, en 4 a 7 segundos con una RX 7700 XT.
+- **Respaldo:** `POST /captures/{id}/process?fallback=true` la relee con `captures_fallback_engine` (Claude Code); en el panel, el botón «Leer con Claude».
+- **Límite:** las reglas cubren los mercados habituales de Betano y bet365; un mercado raro sale como "otro" (no evaluable) y se corrige a mano o con Claude.

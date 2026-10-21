@@ -196,6 +196,7 @@ def to_dict(cap: m.OddsCapture, username: str, duplicated: bool = False) -> dict
         "stake_seen": (cap.engine_info or {}).get("stake_seen"),
         "engine": cap.engine,
         "auto_engine": st.captures_engine_for(username),
+        "fallback_engine": st.captures_fallback_for(username),
         "error": cap.error,
         "duration_s": duration,
         "duplicated": duplicated,

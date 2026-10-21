@@ -159,6 +159,12 @@ def matches(days: int = 3, competition: str | None = None, user: str = Depends(c
     return queries.upcoming(days, competition)
 
 
+@app.get("/matches/{ref}/odds")
+def match_book_odds(ref: str, bookmaker: str = "betano", user: str = Depends(current_user)) -> dict:
+    """Cuotas guardadas de una casa (Betano por defecto) para el partido, evaluadas con el modelo."""
+    return _wrap(queries.match_book_odds, ref, bookmaker)
+
+
 @app.get("/teams/{team_id}/logo")
 def team_logo(team_id: int) -> Response:
     """Escudo del equipo. Público (sin clave): es una imagen pública y un <img> no puede mandar X-API-Key."""
@@ -291,12 +297,19 @@ def capture_image(capture_id: int, user: str = Depends(current_user)) -> FileRes
 
 
 @app.post("/captures/{capture_id}/process")
-def reprocess_capture(capture_id: int, user: str = Depends(current_user)) -> dict:
-    """Vuelve a mandar la captura a la IA (p.ej. tras un error)."""
-    if get_settings().captures_engine_for(user) is None:
+def reprocess_capture(capture_id: int, fallback: bool = False, user: str = Depends(current_user)) -> dict:
+    """Vuelve a mandar la captura a la IA (p.ej. tras un error). `fallback` la lee con el motor alternativo
+    (Claude) en lugar del habitual (la IA local)."""
+    st = get_settings()
+    if st.captures_engine_for(user) is None:
         raise HTTPException(409, "Tus capturas las procesa tu propio agente por MCP (capturas_pendientes)")
+    engine = None
+    if fallback:
+        engine = st.captures_fallback_for(user)
+        if engine is None:
+            raise HTTPException(409, "No hay un motor alternativo configurado")
     _wrap(captures.reset_for_retry, user, capture_id)
-    capture_engines.submit(capture_id, user)
+    capture_engines.submit(capture_id, user, engine)
     return _wrap(captures.get, user, capture_id)
 
 

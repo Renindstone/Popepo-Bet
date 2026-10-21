@@ -132,6 +132,18 @@ systemctl --user disable --now apuestas-web
 - **Capturas en el panel**: necesitan el CLI `claude` con tu sesión iniciada. Para comprobarlo, ejecuta `claude` una vez en una terminal; si pide iniciar sesión, usa `/login`. Las capturas usan tu suscripción y solo se procesan automáticamente las de tu usuario (`APUESTAS_DEFAULT_USER` en `.env`).
 - **Otros usuarios en tu instalación**: cada uno conecta su propio agente al MCP con su clave. Ver "Varios usuarios" en el [README](../README.md).
 
+### IA local para las capturas (opcional)
+
+Las capturas las lee por defecto un modelo de visión en tu PC, con [Ollama](https://ollama.com). Hace falta una tarjeta gráfica con unos 8 GB de memoria o más (con menos funciona en el procesador, mucho más lento).
+
+```bash
+sudo pacman -S ollama-rocm        # AMD (en NVIDIA: ollama-cuda; sin tarjeta: ollama)
+sudo systemctl enable --now ollama
+ollama pull qwen2.5vl:7b          # unos 6 GB
+```
+
+Se puede cambiar en `.env`: `APUESTAS_CAPTURES_ENGINE` (`local`, `claude_code`, `api` o `none`), `APUESTAS_CAPTURES_LOCAL_MODEL`, `APUESTAS_OLLAMA_URL` y `APUESTAS_CAPTURES_FALLBACK_ENGINE` (el del botón «Leer con Claude»; vacío para quitarlo). Sin Ollama, pon `APUESTAS_CAPTURES_ENGINE=claude_code`.
+
 ## 7. Actualizar a una versión nueva
 
 ```bash

@@ -55,7 +55,7 @@ export function CapturasView() {
     <>
       <PageTitle
         title="Capturas"
-        sub="Sube una captura de cuotas de Betano o bet365. Claude la lee y el modelo te dice qué cuotas tienen valor."
+        sub="Sube una captura de cuotas de Betano o bet365. Una IA la lee y el modelo te dice qué cuotas tienen valor."
       />
       <div className="grid gap-x-12 gap-y-10 pb-10 lg:grid-cols-[320px_minmax(0,1fr)]">
         <div className="space-y-5">
@@ -140,9 +140,15 @@ function Explicacion({ engine }: { engine: Capture["auto_engine"] | undefined })
   return (
     <div className="border-l-2 border-regla pl-4 text-[0.92rem] text-grafito">
       <p>
-        Claude solo <strong className="text-tinta">lee</strong> la imagen. La probabilidad, el valor y el veredicto los calcula el
+        La IA solo <strong className="text-tinta">lee</strong> la imagen. La probabilidad, el valor y el veredicto los calcula el
         mismo modelo que en Evaluar cuota. Revisa que las cuotas leídas coincidan con tu captura: si alguna no, corrígela.
       </p>
+      {engine === "local" && (
+        <p className="mt-2">
+          La lee una IA en esta PC (Ollama), gratis y sin que la imagen salga de tu equipo. Tarda unos segundos. Si se
+          equivoca con un Bet Builder complicado, corrige las cuotas o pulsa «Leer con Claude».
+        </p>
+      )}
       {engine === "claude_code" && (
         <p className="mt-2">La lee Claude Code en esta PC con tu suscripción. Tarda unos segundos por captura.</p>
       )}
@@ -157,11 +163,17 @@ function Explicacion({ engine }: { engine: Capture["auto_engine"] | undefined })
   );
 }
 
+const ENGINE_NAME: Record<string, string> = { local: "la IA local", claude_code: "Claude", api: "Claude (API)", mcp: "tu agente" };
+
+function engineName(engine: string | null | undefined): string {
+  return ENGINE_NAME[engine ?? ""] ?? "la IA";
+}
+
 // --------------------------------------------------------------------------- tarjeta de una captura
 
 const STATUS: Record<string, { text: string; tone: "neutral" | "boli" | "rojo" | "tarjeta" }> = {
   pendiente: { text: "En cola", tone: "neutral" },
-  procesando: { text: "Claude está leyendo", tone: "tarjeta" },
+  procesando: { text: "Leyendo", tone: "tarjeta" },
   evaluada: { text: "Resumiendo", tone: "tarjeta" },
   lista: { text: "Lista", tone: "boli" },
   no_evaluable: { text: "No evaluable", tone: "tarjeta" },
@@ -287,14 +299,14 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
           <div className="rounded-[3px] border border-regla-suave p-4">
             <Loading
               lines={3}
-              label={c.status === "pendiente" ? "En cola" : c.status === "procesando" ? "Claude está leyendo la captura" : "Claude está resumiendo"}
+              label={c.status === "pendiente" ? "En cola" : c.status === "procesando" ? "Leyendo la captura" : "Resumiendo"}
             />
             <p className="mt-2 text-[0.9rem] text-grafito">
               {c.status === "pendiente"
                 ? "En cola: se procesa en cuanto termine la anterior."
                 : c.status === "procesando"
-                  ? "Claude está leyendo la captura…"
-                  : "El modelo ya evaluó las cuotas; Claude está escribiendo el resumen…"}
+                  ? `${engineName(c.engine)[0].toUpperCase()}${engineName(c.engine).slice(1)} está leyendo la captura…`
+                  : "El modelo ya evaluó las cuotas; falta el resumen…"}
             </p>
           </div>
         )}
@@ -318,7 +330,7 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
         )}
         {c.verdict && c.status !== "no_evaluable" && (
           <div>
-            <h3 className="semi text-[0.95rem] font-bold">Resumen de Claude</h3>
+            <h3 className="semi text-[0.95rem] font-bold">Resumen <span className="font-normal text-grafito">· leída por {engineName(c.engine)}</span></h3>
             <p className="mt-1 max-w-[75ch] whitespace-pre-line">{c.verdict}</p>
             {c.edited && (
               <p className="mt-2 border-l-[3px] border-tarjeta pl-3 text-[0.9rem]">
@@ -357,6 +369,11 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
             {c.auto_engine && (
               <Button onClick={() => run(() => post(`/captures/${c.id}/process`, {}))} disabled={busy}>
                 {c.status === "error" ? "Reintentar" : "Volver a leer"}
+              </Button>
+            )}
+            {c.fallback_engine && (
+              <Button onClick={() => run(() => post(`/captures/${c.id}/process?fallback=true`, {}))} disabled={busy}>
+                Leer con Claude
               </Button>
             )}
             {!confirmDelete ? (

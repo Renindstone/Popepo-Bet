@@ -166,7 +166,7 @@ function CaptureQuick() {
     <div>
       <h2 className="semi mb-1 text-base font-bold text-tinta">¿Viste una cuota?</h2>
       <p className="mb-3 text-[0.92rem] text-grafito">
-        Sube o pega la captura de Betano o bet365: Claude la lee y el modelo te dice si tiene valor.
+        Sube o pega la captura de Betano o bet365: una IA la lee y el modelo te dice si tiene valor.
       </p>
       <CaptureDrop onUploaded={onUploaded} compact />
     </div>

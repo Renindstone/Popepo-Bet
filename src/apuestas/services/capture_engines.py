@@ -20,13 +20,15 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 from apuestas.config import get_settings
-from apuestas.services import captures, queries
+from apuestas.db.session import session_scope
+from apuestas.services import capture_reader, captures, queries
 
 log = logging.getLogger(__name__)
 
@@ -59,21 +61,22 @@ _lock = threading.Lock()
 # --------------------------------------------------------------------------- cola
 
 
-def submit(capture_id: int, username: str) -> bool:
-    """Encola la captura si este usuario tiene motor automático. Devuelve si se encoló."""
+def submit(capture_id: int, username: str, engine: str | None = None) -> bool:
+    """Encola la captura si este usuario tiene motor automático. `engine` fuerza otro motor (p.ej. releerla con
+    Claude). Devuelve si se encoló."""
     if get_settings().captures_engine_for(username) is None:
         return False
     with _lock:
         if capture_id in _queued:
             return True
         _queued.add(capture_id)
-    _executor.submit(_run_safely, capture_id)
+    _executor.submit(_run_safely, capture_id, engine)
     return True
 
 
-def _run_safely(capture_id: int) -> None:
+def _run_safely(capture_id: int, engine: str | None = None) -> None:
     try:
-        process(capture_id)
+        process(capture_id, engine)
     except Exception:  # noqa: BLE001 - el hilo de la cola no puede morir
         log.exception("Fallo procesando la captura %s", capture_id)
     finally:
@@ -81,10 +84,11 @@ def _run_safely(capture_id: int) -> None:
             _queued.discard(capture_id)
 
 
-def process(capture_id: int) -> dict:
-    """Procesa una captura con el motor configurado (síncrono; la cola lo llama en segundo plano)."""
+def process(capture_id: int, engine: str | None = None) -> dict:
+    """Procesa una captura con el motor configurado u otro (síncrono; la cola lo llama en segundo plano)."""
     st = get_settings()
-    engine = st.captures_engine if st.captures_engine in ENGINES else None
+    engine = engine or st.captures_engine
+    engine = engine if engine in ENGINES else None
     if engine is None:
         return {"skipped": "sin motor automático"}
     owner = captures.owner(capture_id)
@@ -265,4 +269,48 @@ def run_api(capture_id: int, username: str, client: Any = None, max_rounds: int 
     return {"model": st.captures_api_model, **usage}
 
 
-ENGINES: dict[str, Callable[[int, str], dict]] = {"claude_code": run_claude_code, "api": run_api}
+# --------------------------------------------------------------------------- motor: IA local (Ollama, gratis)
+
+
+def _resolve_match(text: str) -> tuple[int, str, str] | None:
+    with session_scope() as s:
+        try:
+            mt = queries.find_match(s, text)
+        except queries.NotFound:
+            return None
+        return mt.id, mt.home_team.name, mt.away_team.name
+
+
+def run_local(capture_id: int, username: str) -> dict:
+    """La IA local transcribe la captura; las reglas, el modelo y la plantilla hacen el resto (capture_reader)."""
+    st = get_settings()
+    path, _mime, _ = captures.context_for_ai(username, capture_id)
+    start = time.monotonic()
+    transcript = capture_reader.transcribe(path.read_bytes(), st.captures_local_model, st.ollama_url,
+                                           st.captures_timeout_s)
+    read_ms = int((time.monotonic() - start) * 1000)
+    plan = capture_reader.plan(transcript, _resolve_match)
+    info: dict[str, Any] = {"models": [st.captures_local_model], "duration_ms": read_ms,
+                            "transcript": json.dumps(transcript, ensure_ascii=False)[:4000]}
+    try:
+        if plan["tipo"] == "cuotas":
+            result = captures.evaluate_lines(username, capture_id, plan["lineas"], plan["partido"],
+                                             engine="local", importe=plan.get("importe"))
+            summary = capture_reader.summary_lines(result)
+        elif plan["tipo"] == "combinada":
+            result = captures.evaluate_combo(username, capture_id, plan["bloques"], plan["cuota_total"],
+                                             engine="local", importe=plan.get("importe"))
+            summary = capture_reader.summary_combo(result)
+        else:
+            captures.mark_not_evaluable(username, capture_id, plan["motivo"])
+            return {**info, "result": plan["motivo"]}
+    except (captures.CaptureError, queries.NotFound) as exc:
+        reason = f"La IA local leyó la captura, pero no se pudo evaluar: {exc}"
+        captures.mark_not_evaluable(username, capture_id, reason)
+        return {**info, "result": reason}
+    captures.save_verdict(username, capture_id, summary)
+    return {**info, "result": summary[:1500]}
+
+
+ENGINES: dict[str, Callable[[int, str], dict]] = {"claude_code": run_claude_code, "api": run_api,
+                                                  "local": run_local}

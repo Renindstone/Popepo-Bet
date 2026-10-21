@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { Cupon } from "@/components/evaluar/Cupon";
+import { CuotasCasa } from "@/components/evaluar/CuotasCasa";
 import { PenMark } from "@/components/PenMark";
-import { Button, EdgeBar, ErrorNote, Figure, Loading, PageTitle } from "@/components/ui";
+import { Button, EdgeBar, ErrorNote, Figure, Loading, PageTitle, Section } from "@/components/ui";
 import { type ApiError, post, useApi } from "@/lib/api";
 import { competitionName, money, odds, pct, signedPct, splitMatch, stageText } from "@/lib/format";
 import { betLabel, bookmakerName, MARKET_OPTIONS, type MarketOption, selectionsFor } from "@/lib/markets";
 import { addLeg, updateSlip, useSlip } from "@/lib/slip";
-import type { Evaluation, MatchAnalysis, MatchSummary, Performance, RegisteredBet } from "@/lib/types";
+import type { BookOdd, Evaluation, MatchAnalysis, MatchSummary, Performance, RegisteredBet } from "@/lib/types";
 
 /** "ou_cards_home" → mercado base "ou_cards" y ámbito "home" */
 function parseMarket(raw: string | null): { base: MarketOption; scope: "" | "home" | "away" } {
@@ -107,29 +108,45 @@ export function EvaluarView() {
     setPrice("");
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!valid) return;
+  async function evaluate(body: { market: string; selection: string; odds: number; line: number | null; bookmaker: string; player: string | null }) {
     setBusy(true);
     setError(null);
-    const who = market.player ? player.trim() : null;
     try {
-      const r = await post<Evaluation>("/odds/evaluate", {
-        match: matchId,
-        market: marketCode,
-        selection,
-        odds: priceNum,
-        line: apiLine,
-        bookmaker,
-        player: who,
-      });
-      setResult({ r, matchId, player: who });
+      const r = await post<Evaluation>("/odds/evaluate", { match: matchId, ...body });
+      setResult({ r, matchId, player: body.player });
     } catch (err) {
       setResult(null);
       setError(err as ApiError);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!valid) return;
+    await evaluate({
+      market: marketCode,
+      selection,
+      odds: priceNum,
+      line: apiLine,
+      bookmaker,
+      player: market.player ? player.trim() : null,
+    });
+  }
+
+  /** Una cuota guardada de Betano: se copia al formulario y se evalúa */
+  function pickBookOdd(o: BookOdd) {
+    const parsed = parseMarket(o.market);
+    setMarket(parsed.base);
+    setScope(parsed.scope);
+    setSelection(o.selection);
+    setLine(o.line == null ? "" : String(parsed.base.value === "eh" && o.selection === "away" ? -o.line : o.line));
+    setPrice(String(o.odds));
+    setBookmaker("betano");
+    setPlayer("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    void evaluate({ market: o.market, selection: o.selection, odds: o.odds, line: o.line, bookmaker: "betano", player: null });
   }
 
   // Agrupar partidos por día para el desplegable
@@ -317,6 +334,14 @@ export function EvaluarView() {
           )}
         </div>
       </div>
+      {selected && (
+        <Section
+          title={`Cuotas de Betano · ${selected.home} vs ${selected.away}`}
+          intro="Las que se descargan cada mañana, ya evaluadas por el modelo: no hace falta captura. Pulsa Evaluar para ver el detalle o añádelas al cupón."
+        >
+          <CuotasCasa match={selected} onUse={pickBookOdd} />
+        </Section>
+      )}
     </>
   );
 }

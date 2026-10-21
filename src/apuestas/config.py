@@ -56,9 +56,13 @@ class Settings(BaseSettings):
     pick_allow_stat_markets: bool = False
 
     # Capturas de cuotas (imágenes de bet365/Betano que lee una IA vía MCP)
-    # Motor automático: claude_code (CLI con la suscripción del dueño), api (API de Claude, de pago) o none
-    # (solo agentes externos conectados por MCP).
-    captures_engine: str = "claude_code"
+    # Motor automático: local (modelo de visión en esta PC con Ollama, gratis), claude_code (CLI con la suscripción
+    # del dueño), api (API de Claude, de pago) o none (solo agentes externos conectados por MCP).
+    captures_engine: str = "local"
+    # Motor del botón "Leer con Claude" cuando la lectura local no basta (vacío = sin botón)
+    captures_fallback_engine: str = "claude_code"
+    captures_local_model: str = "qwen2.5vl:7b"
+    ollama_url: str = "http://127.0.0.1:11434"
     # Usuarios cuyas capturas procesa el motor automático, separados por comas (vacío = solo default_user).
     # Con claude_code deja solo al dueño: la suscripción es personal.
     captures_engine_users: str = ""
@@ -93,6 +97,13 @@ class Settings(BaseSettings):
             return None
         allowed = {u.strip() for u in self.captures_engine_users.split(",") if u.strip()} or {self.default_user}
         return self.captures_engine if username in allowed else None
+
+    def captures_fallback_for(self, username: str) -> str | None:
+        """Motor alternativo (p.ej. Claude) para releer una captura que el motor local no leyó bien."""
+        engine = self.captures_fallback_engine
+        if not engine or engine == self.captures_engine or self.captures_engine_for(username) is None:
+            return None
+        return engine
 
 
 @lru_cache

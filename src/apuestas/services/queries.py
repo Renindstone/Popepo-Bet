@@ -322,6 +322,25 @@ def match_lineups(match_ref: str | int) -> dict:
         }
 
 
+def match_book_odds(match_ref: str | int, bookmaker: str = "betano") -> dict:
+    """Las últimas cuotas guardadas de una casa para un partido, ya evaluadas por el modelo (sin captura)."""
+    bundle = load_bundle()
+    tz = get_settings().tz
+    with session_scope() as s:
+        match = find_match(s, match_ref)
+        rows = [r for r in analysis._latest_odds(s, match.id) if r.bookmaker == bookmaker]
+        home, away = match.home_team.name, match.away_team.name
+        out = []
+        if rows:
+            _, evs = analysis.evaluate_user_odds_many(
+                s, bundle, match, [(r.market, r.selection, r.line, r.price, bookmaker, None) for r in rows])
+            out = [{**verdict_fields(ev), "label": ev.label(home, away)} for ev in evs if not isinstance(ev, Exception)]
+        captured = max((r.captured_at for r in rows), default=None)
+        return {"match_id": match.id, "match": f"{home} vs {away}", "bookmaker": bookmaker,
+                "captured_local": captured.astimezone(tz).strftime("%Y-%m-%d %H:%M") if captured else None,
+                "odds": out}
+
+
 TEAM_LOGO_URL = "https://images.fotmob.com/image_resources/logo/teamlogo/{}.png"
 LOGO_TTL = 30 * 86400  # los escudos casi no cambian
 

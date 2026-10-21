@@ -70,7 +70,7 @@ Para exponerlo fuera de tu red usa un túnel (Cloudflare Tunnel o Tailscale Funn
 Interfaz visual en [web/](web/) (Next.js + ECharts). Necesita Node.js 20.9 o superior. Tiene seis páginas:
 - **Hoy**: apuesta del día arriba, partidos del día debajo, luego otras apuestas con valor y props con cuota mínima, más un acceso rápido para subir capturas y el **contador de aciertos** de la apuesta del día desde el inicio (aciertos, falladas, devueltas, por jugarse y beneficio con 1 unidad por apuesta).
 - **Partidos**: próximos partidos con filtros por competición y días, y un buscador (lupa) que filtra mientras escribes el nombre de cualquiera de los dos equipos; no distingue tildes y entiende iniciales como "psg". Al elegir uno, análisis completo del partido. En cada partido, **Alineaciones** las muestra en el campo como FotMob: las probables hasta que se confirman (se buscan 70, 50, 35, 20 y 10 minutos antes del inicio), con formación, entrenador, dorsales, suplentes y bajas.
-- **Evaluar cuota**: comprobar una cuota de Betano y registrar la apuesta. Con **Añadir al cupón** se juntan varias selecciones: varias de un mismo partido forman un Bet Builder (escribe la cuota que te da la casa) y las de partidos distintos, una combinada. **Evaluar cupón** calcula cada partido y el total con el modelo, y **Registrar cupón** la guarda como una sola apuesta que se liquida sola: basta una selección perdida para perderla, y si una se anula, la cuota total se ajusta.
+- **Evaluar cuota**: comprobar una cuota de Betano y registrar la apuesta. Al elegir un partido, debajo salen **las cuotas de Betano que ya se descargaron** esa mañana, evaluadas por el modelo (primero las que tienen valor): **Evaluar** las pasa al formulario y **+ Cupón** las añade al cupón, sin captura. Con **Añadir al cupón** se juntan varias selecciones: varias de un mismo partido forman un Bet Builder (escribe la cuota que te da la casa) y las de partidos distintos, una combinada. **Evaluar cupón** calcula cada partido y el total con el modelo, y **Registrar cupón** la guarda como una sola apuesta que se liquida sola: basta una selección perdida para perderla, y si una se anula, la cuota total se ajusta.
 - **Capturas**: subir o pegar una captura de cuotas. Claude la lee y el modelo da el veredicto de cada cuota (ver más abajo).
 - **Mis apuestas**: ROI, CLV, desglose y banca, y el historial de la apuesta del día (desde el inicio y en el último año). La **banca inicial** (y su moneda) se edita ahí mismo; de ella salen el stake sugerido y los límites de pérdida, y la banca actual es la inicial más lo ganado o perdido.
 - **Datos**: frescura de las fuentes y del modelo.
@@ -90,14 +90,14 @@ Para el uso diario, el servicio `apuestas-web` ya compila y sirve la versión de
 - Desde la misma máquina la API no pide clave. Si la API corre en otra máquina (por ejemplo, detrás de un túnel), copia `web/.env.example` a `web/.env.local`, pon su dirección en `NEXT_PUBLIC_API_URL` y escribe tu clave en *Datos → Conexión*.
 - Cargar **Hoy** recalcula las apuestas del día igual que `apuestas picks`, así que la primera carga puede tardar unos segundos.
 
-### Capturas de cuotas (Claude lee la imagen)
+### Capturas de cuotas (una IA lee la imagen)
 
-En **Capturas** (o en el recuadro de **Hoy**) arrastra, elige o pega con Ctrl+V una captura de Betano o bet365. La API guarda la imagen y lanza Claude Code en segundo plano (`claude -p`) con el servidor MCP del proyecto:
-1. Claude mira la imagen (`ver_captura`) y pasa cada cuota al formato del sistema.
-2. El modelo calcula la probabilidad, el valor esperado y el veredicto de cada una (`evaluar_captura`).
-3. Claude escribe un resumen (`guardar_veredicto_captura`).
+En **Capturas** (o en el recuadro de **Hoy**) arrastra, elige o pega con Ctrl+V una captura de Betano o bet365. La API guarda la imagen y la lee una IA en segundo plano. Por defecto es una **IA local** (gratis, sin que la imagen salga de tu PC):
+1. Un modelo de visión en tu PC (Ollama, `qwen2.5vl:7b`) **solo transcribe** la captura: partidos, títulos de mercado, selecciones, cuotas e importe.
+2. Unas reglas fijas pasan ese texto a los mercados del sistema ("Doble oportunidad: Como o Empate" → `dc 1x`, "Galatasaray +1" en Hándicap → hándicap de 3 vías, "Anotará o asistirá" → gol o asistencia…).
+3. El modelo calcula la probabilidad, el valor esperado y el veredicto, y el resumen sale de una plantilla con esos números (la IA no redacta, así no puede inventar cifras).
 
-La página se actualiza sola. Tarda unos 10 a 15 segundos por captura. Si Claude leyó mal una cuota, usa **Corregir cuotas**: se reevalúa con el modelo sin volver a Claude.
+Tarda unos 5 a 10 segundos por captura con la tarjeta gráfica. Si lee mal una cuota, usa **Corregir cuotas** (se reevalúa con el modelo sin volver a leerla) o **Leer con Claude** para que la lea Claude Code con tu suscripción. Para instalar la IA local, ver [docs/instalacion.md](docs/instalacion.md#ia-local-para-las-capturas-opcional); sin ella, configura `APUESTAS_CAPTURES_ENGINE=claude_code` en `.env`.
 
 **Registrar desde la captura.** Si ya hiciste la apuesta, pulsa **Registrar** junto a la cuota, o **Registrar esta combinada** debajo de una combinada, y escribe el importe (si Claude lo vio en la captura, ya viene puesto). Queda en **Mis apuestas** y se liquida sola, sin pasar por Evaluar cuota. Cada cuota o combinada se registra una sola vez, aunque vuelvas a leer o corrijas la captura. Una combinada con selecciones que el sistema no puede liquidar (atajadas, primer goleador…) hay que armarla sin ellas en Evaluar cuota.
 

@@ -477,7 +477,9 @@ export interface Capture {
   verdict: string | null;
   edited: boolean;
   engine: string | null;
-  auto_engine: "claude_code" | "api" | null;
+  auto_engine: "local" | "claude_code" | "api" | null;
+  /** Motor para releerla si la lectura no basta ("Leer con Claude"), si hay uno */
+  fallback_engine?: "claude_code" | "api" | null;
   error: string | null;
   duration_s: number | null;
   duplicated: boolean;
@@ -515,4 +517,19 @@ export interface MatchLineups {
   status: "predicted" | "confirmed" | null;
   updated_local: string | null;
   teams: LineupTeam[];
+}
+
+/** GET /matches/{id}/odds: cuotas guardadas de una casa para el partido, evaluadas */
+export interface BookOdd extends BetEval {
+  verdict: string;
+  min_odds_for_value: number | null;
+  label: string;
+}
+
+export interface BookOdds {
+  match_id: number;
+  match: string;
+  bookmaker: string;
+  captured_local: string | null;
+  odds: BookOdd[];
 }
