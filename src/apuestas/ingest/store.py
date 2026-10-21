@@ -382,9 +382,14 @@ def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails) -> None:
                     position=p.position,
                     market_value_eur=p.market_value,
                     season_rating=p.season_rating,
+                    shirt_number=p.shirt,
+                    pos_x=p.x,
+                    pos_y=p.y,
                 )
             )
         match.lineup_status = status
+        match.lineup_info = {str(team_by_fid[fid].id): info for fid, info in det.team_info.items()
+                             if fid in team_by_fid} or None
 
     # Bajas: solo tiene sentido actualizarlas con partidos que aún no se han jugado
     if not det.finished:

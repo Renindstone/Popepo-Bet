@@ -77,10 +77,12 @@ def sync_fotmob_details(
     codes: list[str] | None = None,
     force_upcoming: bool = False,
     hours_ahead: float | None = None,
+    match_ids: list[int] | None = None,
 ) -> int:
     """Detalles de partidos: próximos (alineación prevista/confirmada, bajas, árbitro) y jugados sin detalle.
 
     `hours_ahead` (si se da) sustituye a `days_ahead`: p.ej. 1.7 h para buscar alineaciones confirmadas.
+    `match_ids` limita la descarga a esos partidos (sin historial atrasado).
     """
     codes = codes or [c.code for c in FULL]
     now = datetime.now(UTC)
@@ -94,6 +96,7 @@ def sync_fotmob_details(
                 m.Match.status == "scheduled",
                 m.Match.kickoff_utc >= now - timedelta(hours=3),
                 m.Match.kickoff_utc <= now + horizon,
+                *([m.Match.id.in_(match_ids)] if match_ids is not None else []),
             )
         ).all()
         # Jugados sin detalle (o con detalle tomado antes de terminar): más recientes primero
@@ -107,7 +110,7 @@ def sync_fotmob_details(
                 or_(m.Match.details_fetched_at.is_(None), m.Match.details_fetched_at < m.Match.kickoff_utc + timedelta(hours=2)),
             )
             .order_by(m.Match.kickoff_utc.desc())
-            .limit(backfill_limit)
+            .limit(0 if match_ids is not None else backfill_limit)
         ).all()
 
     def fetch(match_id: int, ttl: float | None) -> None:

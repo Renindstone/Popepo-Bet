@@ -136,6 +136,7 @@ class Match(Base, TimestampMixin):
     espn_id: Mapped[int | None] = mapped_column(BigInteger, unique=True)
     details_fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     lineup_status: Mapped[str | None] = mapped_column(String(10))  # predicted | confirmed
+    lineup_info: Mapped[dict | None] = mapped_column(JSONType)  # team_id -> {formation, coach}
 
     competition: Mapped[Competition] = relationship()
     season: Mapped[Season] = relationship()
@@ -195,6 +196,10 @@ class Lineup(Base):
     position: Mapped[str | None] = mapped_column(String(4))
     market_value_eur: Mapped[float | None] = mapped_column(Float)
     season_rating: Mapped[float | None] = mapped_column(Float)
+    shirt_number: Mapped[int | None] = mapped_column(Integer)
+    # Posición en el campo según FotMob (0-1): x a lo ancho, y desde la portería propia. Solo titulares.
+    pos_x: Mapped[float | None] = mapped_column(Float)
+    pos_y: Mapped[float | None] = mapped_column(Float)
 
 
 class PlayerMatchStats(Base):

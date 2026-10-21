@@ -53,3 +53,12 @@ def test_safe_records_only_successes(state):
 
     assert ok() == 1 and scheduler.last_done("prueba") is not None
     assert boom() is None and scheduler.last_done("falla") is None
+
+
+def test_lineup_checks_fire_once_at_each_point():
+    # la tarea corre cada 5 minutos; con un partido a las 14:00 se mira a las 12:50, 13:10, 13:25, 13:40 y 13:50
+    fired = [m for m in range(0, 121, 5) if scheduler.lineup_due(m)]
+    assert fired == [10, 20, 35, 50, 70]
+    # con un inicio que no cae en múltiplo de 5 (14:02) también se mira una vez cerca de cada punto
+    fired = [m + 2 for m in range(0, 121, 5) if scheduler.lineup_due(m + 2)]
+    assert len(fired) == 5 and 50 <= fired[3] <= 52

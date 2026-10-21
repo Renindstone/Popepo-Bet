@@ -281,6 +281,46 @@ def register_bet(username: str, match_ref: str | int, market: str, selection: st
                 "bankroll": status}
 
 
+def match_lineups(match_ref: str | int) -> dict:
+    """Alineaciones de un partido como las muestra FotMob: probables hasta que se confirman, con formación,
+    dorsales y posición en el campo, más suplentes (solo confirmadas) y bajas de cada equipo."""
+    tz = get_settings().tz
+    with session_scope() as s:
+        match = find_match(s, match_ref)
+        rows = s.execute(select(m.Lineup, m.Player).join(m.Player, m.Player.id == m.Lineup.player_id)
+                         .where(m.Lineup.match_id == match.id)).all()
+        info = match.lineup_info or {}
+        teams = []
+        for side, team in (("home", match.home_team), ("away", match.away_team)):
+            mine = [(lu, p) for lu, p in rows if lu.team_id == team.id]
+
+            def player(lu: m.Lineup, p: m.Player) -> dict:
+                return {"player_id": p.id, "name": p.name, "shirt": lu.shirt_number, "position": lu.position,
+                        "x": lu.pos_x, "y": lu.pos_y, "rating": lu.season_rating}
+
+            starters = sorted((player(lu, p) for lu, p in mine if lu.is_starter),
+                              key=lambda d: (d["y"] if d["y"] is not None else 9, d["x"] or 0))
+            subs = [player(lu, p) for lu, p in mine if not lu.is_starter]
+            out_rows = s.scalars(select(m.Availability).where(
+                m.Availability.team_id == team.id, m.Availability.active.is_(True))).all()
+            teams.append({
+                "side": side, "team_id": team.id, "team": team.name,
+                "formation": (info.get(str(team.id)) or {}).get("formation"),
+                "coach": (info.get(str(team.id)) or {}).get("coach"),
+                "starters": starters, "subs": subs,
+                "unavailable": [{"name": a.player.name, "kind": a.kind, "reason": a.reason,
+                                 "expected_return": a.expected_return, "source": a.source} for a in out_rows],
+            })
+        fetched = match.details_fetched_at
+        return {
+            "match_id": match.id, "match": f"{match.home_team.name} vs {match.away_team.name}",
+            "kickoff_local": match.kickoff_utc.astimezone(tz).strftime("%Y-%m-%d %H:%M"),
+            "status": match.lineup_status if rows else None,
+            "updated_local": fetched.astimezone(tz).strftime("%Y-%m-%d %H:%M") if fetched else None,
+            "teams": teams,
+        }
+
+
 MAX_SLIP_LEGS = 20
 
 

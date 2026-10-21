@@ -44,7 +44,7 @@ El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: 
 1. **05:30**: resultados de ayer (FotMob, football-data, Understat), detalles de partidos jugados, fusión de equipos duplicados, liquidación de picks y apuestas, reentrenamiento (`var/models/latest.json`).
 2. **08:30**: detalles de los próximos 4 días (alineación prevista, bajas, árbitro), cuotas y, si hay clave, Betano y Pinnacle por OddsPapi.
 3. **09:00**: apuesta del día (solo mercados de goles) → Telegram.
-4. **Cada 20 min**: si un partido empieza en menos de 100 min y aún no tiene alineación confirmada, se descarga, se recalcula y se avisa si cambia la apuesta del día.
+4. **70, 50, 35, 20 y 10 minutos antes de cada partido** (la tarea corre cada 5 min): si aún no tiene alineación confirmada, se descarga de FotMob, se recalcula y se avisa si cambia la apuesta del día. FotMob suele publicarla una hora antes; la búsqueda de los 50 minutos deja margen si se retrasa.
 5. **A los :15 y :45**: si un partido empezó hace más de 3 horas y hay algo pendiente, se descarga su resultado y se liquidan los picks y las apuestas (con su CLV).
 6. **Cada 3 horas (:10)**: cuotas de bet365 y Betfair de los próximos partidos (`fixtures.csv` de football-data).
 7. **02:00**: descarga de detalles históricos pendientes (400 por noche).

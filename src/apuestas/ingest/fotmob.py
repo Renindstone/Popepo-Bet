@@ -72,6 +72,10 @@ class FMPlayer:
     is_starter: bool
     market_value: float | None
     season_rating: float | None
+    shirt: int | None = None
+    # Posición en el campo (vista vertical de FotMob, 0-1): x a lo ancho, y desde la portería propia
+    x: float | None = None
+    y: float | None = None
 
 
 @dataclass
@@ -106,6 +110,7 @@ class FMDetails:
     team_stats: dict[int, dict[str, float]] = field(default_factory=dict)  # team_fotmob_id -> stats
     player_stats: dict[int, dict[str, Any]] = field(default_factory=dict)  # player_fotmob_id -> stats
     cards: dict[int, dict[str, int]] = field(default_factory=dict)  # player_fotmob_id -> {yellow, red}
+    team_info: dict[int, dict[str, Any]] = field(default_factory=dict)  # team_fotmob_id -> {formation, coach}
 
 
 def _parse_dt(value: str) -> datetime:
@@ -218,9 +223,12 @@ def parse_match_details(data: dict) -> FMDetails:
     for side_key in ("homeTeam", "awayTeam"):
         side = lineup.get(side_key) or {}
         team_fid = int(side.get("id") or (home_id if side_key == "homeTeam" else away_id))
+        coach = side.get("coach") or {}
+        det.team_info[team_fid] = {"formation": side.get("formation"), "coach": coach.get("name")}
         for group, starter in (("starters", True), ("subs", False)):
             for p in side.get(group, []) or []:
                 perf = p.get("performance") or {}
+                layout = p.get("verticalLayout") or {}
                 det.players.append(
                     FMPlayer(
                         fotmob_id=int(p["id"]),
@@ -230,6 +238,9 @@ def parse_match_details(data: dict) -> FMDetails:
                         is_starter=starter,
                         market_value=_num(p.get("marketValue")),
                         season_rating=_num(perf.get("seasonRating")),
+                        shirt=int(p["shirtNumber"]) if str(p.get("shirtNumber") or "").isdigit() else None,
+                        x=_num(layout.get("x")) if starter else None,
+                        y=_num(layout.get("y")) if starter else None,
                     )
                 )
         for p in side.get("unavailable", []) or []:

@@ -68,9 +68,12 @@ def test_fotmob_details_parse():
                     {"type": "Half", "halfStrShort": "HT", "homeScore": 1, "awayScore": 0},
                 ]},
             },
-            "lineup": {"lineupType": "standard", "homeTeam": {"id": 10, "starters": [
+            "lineup": {"lineupType": "standard", "homeTeam": {
+                "id": 10, "formation": "4-3-3", "coach": {"name": "Entrenador A"}, "starters": [
                 {"id": 5, "name": "Jugador A", "positionId": 32, "usualPlayingPositionId": 1, "marketValue": 30000000,
-                 "performance": {"seasonRating": 7.1}}], "subs": [], "unavailable": [
+                 "shirtNumber": "27", "verticalLayout": {"x": 0.125, "y": 0.292},
+                 "performance": {"seasonRating": 7.1}}], "subs": [
+                {"id": 7, "name": "Suplente", "usualPlayingPositionId": 3, "shirtNumber": "19"}], "unavailable": [
                 {"id": 6, "name": "Lesionado", "unavailability": {"type": "injury", "expectedReturn": "Late October"}}]},
                        "awayTeam": {"id": 20, "starters": [], "subs": []}},
             "stats": {"Periods": {"All": {"stats": [{"stats": [
@@ -88,6 +91,10 @@ def test_fotmob_details_parse():
     assert det.referee == "Michael Oliver"
     assert det.lineup_type == "confirmed"
     assert det.players[0].position == "DF" and det.players[0].market_value == 30000000
+    # lo necesario para dibujar la alineación como en FotMob
+    assert (det.players[0].shirt, det.players[0].x, det.players[0].y) == (27, 0.125, 0.292)
+    assert det.players[1].shirt == 19 and det.players[1].x is None  # suplente: sin posición en el campo
+    assert det.team_info[10] == {"formation": "4-3-3", "coach": "Entrenador A"}
     assert det.unavailable[0].kind == "injury"
     assert det.team_stats[10]["shots"] == 14 and det.team_stats[20]["xg"] == pytest.approx(1.14)
     assert det.player_stats[5]["shots"] == 3 and det.player_stats[5]["yellow_cards"] == 1

@@ -3,7 +3,8 @@
 05:30  resultados de ayer + liquidación + reentrenar modelos
 08:30  detalles de próximos partidos (alineación prevista, bajas, árbitro) + cuotas
 09:00  apuesta del día -> Telegram
-cada 20 min  partidos que empiezan en < 100 min: alineación confirmada -> recalcular y avisar si cambia
+70, 50, 35, 20 y 10 min antes de cada partido (si aún no hay alineación confirmada): descargarla, recalcular
+             y avisar si cambia la apuesta del día. FotMob suele publicarla una hora antes.
 cada 30 min  partidos terminados (3 h tras el inicio) o apuestas abiertas de partidos jugados -> resultado y liquidar
 cada 3 h     cuotas
 02:00  descarga de detalles atrasados (historial)
@@ -116,21 +117,36 @@ def job_daily_pick() -> None:
 _last_pod: dict[str, tuple] = {}
 
 
+# Minutos antes del inicio en que se busca la alineación confirmada (mientras no esté). FotMob suele publicarla
+# una hora antes; la de 50 deja margen si se retrasa, y las siguientes la recogen si llega tarde.
+LINEUP_CHECKS_MIN = (70, 50, 35, 20, 10)
+LINEUP_EVERY_MIN = 5  # la tarea corre cada 5 minutos y solo descarga los partidos que tocan
+
+
+def lineup_due(minutes_to_kickoff: float) -> bool:
+    """Si a esta distancia del inicio toca buscar la alineación (una vez por cada punto de LINEUP_CHECKS_MIN)."""
+    half = LINEUP_EVERY_MIN / 2
+    return any(t - half < minutes_to_kickoff <= t + half for t in LINEUP_CHECKS_MIN)
+
+
 @_safe("alineaciones")
 def job_lineups() -> None:
-    """Refresca partidos que empiezan pronto; si cambia la apuesta del día, avisa."""
+    """Busca la alineación confirmada de los partidos que empiezan pronto; si cambia la apuesta del día, avisa."""
     from apuestas.bot import telegram
     from apuestas.services import picks
 
     now = datetime.now(UTC)
+    horizon = timedelta(minutes=max(LINEUP_CHECKS_MIN) + LINEUP_EVERY_MIN)
     with session_scope() as s:
-        soon = s.scalars(select(m.Match.id).where(
+        soon = s.execute(select(m.Match.id, m.Match.kickoff_utc).where(
             m.Match.status == "scheduled", m.Match.fotmob_id.is_not(None),
-            m.Match.kickoff_utc >= now, m.Match.kickoff_utc <= now + timedelta(minutes=100),
+            m.Match.kickoff_utc >= now, m.Match.kickoff_utc <= now + horizon,
             (m.Match.lineup_status.is_(None)) | (m.Match.lineup_status != "confirmed"))).all()
-    if not soon:
+    due = [mid for mid, ko in soon if lineup_due((ko - now).total_seconds() / 60)]
+    if not due:
         return
-    pipeline.sync_fotmob_details(hours_ahead=1.7, backfill_limit=0, force_upcoming=True)
+    log.info("Buscando alineaciones confirmadas de %s partidos", len(due))
+    pipeline.sync_fotmob_details(match_ids=due, backfill_limit=0, force_upcoming=True, hours_ahead=2)
     report = picks.generate()
     pod = report.get("pick_of_day")
     key = (pod["match_id"], pod["market"], pod["selection"], pod["line"]) if pod else None
@@ -239,7 +255,7 @@ def run() -> None:
     for key, (fn, hour, minute, weekday, _grace) in DAILY_JOBS.items():
         sched.add_job(fn, "cron", hour=hour, minute=minute, id=key,
                       **({"day_of_week": weekday} if weekday is not None else {}))
-    sched.add_job(job_lineups, "cron", minute="*/20", id="lineups")
+    sched.add_job(job_lineups, "cron", minute=f"*/{LINEUP_EVERY_MIN}", id="lineups")
     sched.add_job(job_post_match, "cron", minute="15,45", id="post_match")
     sched.add_job(job_odds, "cron", hour="*/3", minute=10, id="odds")
     sched.add_job(catch_up, "date", run_date=datetime.now(tz) + timedelta(seconds=10), id="catch_up")

@@ -160,6 +160,12 @@ def matches(days: int = 3, competition: str | None = None, user: str = Depends(c
     return queries.upcoming(days, competition)
 
 
+@app.get("/matches/{ref}/lineups")
+def match_lineups(ref: str, user: str = Depends(current_user)) -> dict:
+    """Alineaciones probables o confirmadas, con formación y posición en el campo, suplentes y bajas."""
+    return _wrap(queries.match_lineups, ref)
+
+
 @app.get("/matches/{ref}/analysis")
 def match_analysis(ref: str, user: str = Depends(current_user)) -> dict:
     return _wrap(queries.match_analysis, ref)

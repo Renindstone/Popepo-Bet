@@ -17,6 +17,7 @@ import type {
   TeamContext,
 } from "@/lib/types";
 import { STAT_NAMES, handicapOption, overGoalsOption, scoresOption, statsShareOption } from "./charts";
+import { Alineaciones } from "./Alineaciones";
 import { Jugadores } from "./Jugadores";
 
 export function PartidoView() {
@@ -66,12 +67,16 @@ export function PartidoView() {
           >
             Evaluar una cuota de este partido
           </Link>
+          <a href="#alineaciones" className="font-semibold text-grafito underline underline-offset-4 hover:text-tinta">
+            Ver alineaciones
+          </a>
           <a href="#jugadores" className="font-semibold text-grafito underline underline-offset-4 hover:text-tinta">
             Ir a jugadores
           </a>
         </p>
       </div>
 
+      <Alineaciones matchId={a.match_id} />
       <Probabilidades a={a} />
       <Dificultad a={a} />
       <Bajas a={a} />

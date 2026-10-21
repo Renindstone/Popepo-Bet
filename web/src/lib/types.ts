@@ -476,3 +476,35 @@ export interface Capture {
   /** Importe apostado que Claude vio en la captura (se propone al registrar) */
   stake_seen?: number | null;
 }
+
+/** GET /matches/{id}/lineups: alineaciones como en FotMob */
+export interface LineupPlayer {
+  player_id: number;
+  name: string;
+  shirt: number | null;
+  position: string | null;
+  /** Posición en el campo (0-1), vista vertical de FotMob: x a lo ancho, y desde la portería propia */
+  x: number | null;
+  y: number | null;
+  rating: number | null;
+}
+
+export interface LineupTeam {
+  side: "home" | "away";
+  team_id: number;
+  team: string;
+  formation: string | null;
+  coach: string | null;
+  starters: LineupPlayer[];
+  subs: LineupPlayer[];
+  unavailable: { name: string; kind: string; reason: string | null; expected_return: string | null; source: string }[];
+}
+
+export interface MatchLineups {
+  match_id: number;
+  match: string;
+  kickoff_local: string;
+  status: "predicted" | "confirmed" | null;
+  updated_local: string | null;
+  teams: LineupTeam[];
+}
