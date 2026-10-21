@@ -1,0 +1,147 @@
+---
+name: disenio-panel
+description: Mejorar o revisar el diseño del panel web de App Apuestas (web/) - paleta de colores, tipografía y fuentes, formas, animaciones, UI/UX, usabilidad, accesibilidad, versión celular y tema oscuro. Úsala al pedir "mejora el diseño", "rediseña", "cambia colores o fuentes", "añade una animación", "revisa la usabilidad", "audita el diseño" o al crear una pantalla o componente nuevo.
+---
+
+# Diseño del panel
+
+Cómo cambiar el aspecto del panel sin perder su identidad, y cómo **comprobar** cada cambio con capturas y una
+auditoría automática. Rutas relativas a la raíz del repositorio. Antes de tocar `web/` lee `web/AGENTS.md`
+(Next.js 16) y la skill `run-app-apuestas` (arranque y driver).
+
+## Flujo de trabajo (siempre)
+
+1. **Antes:** capturas y auditoría de las páginas que vas a tocar, para comparar después.
+   ```bash
+   node .claude/skills/run-app-apuestas/driver.mjs audit --pages hoy,evaluar --schemes light,dark
+   node .claude/skills/disenio-panel/paleta.mjs --fallos
+   ```
+   Mira las capturas de `/tmp/apuestas-shots/` (escritorio y celular, claro y oscuro).
+2. **Decide contra el sistema de abajo:** usa los tokens, la escala de texto y los componentes que existen. Si
+   algo no encaja, amplía el sistema (un token nuevo en `globals.css`, una variante en `ui.tsx`), no lo esquives
+   con valores sueltos.
+3. **Implementa** en `web/src/`. Colores y medidas, con clases de Tailwind sobre los tokens (`text-tinta`,
+   `bg-hoja`, `border-regla`…).
+4. **Después:** `systemctl --user restart apuestas-web`, espera a `driver.mjs check`, repite el paso 1 y compara:
+   ninguna cifra de la auditoría puede empeorar (desborde, texto < 12 px, contraste, toques < 24 px, errores de
+   consola). Mira las cuatro variantes de cada página tocada; el tema oscuro y el celular son donde más se rompe.
+5. `cd web && npm run lint && npx tsc --noEmit`, commit en español con el porqué.
+
+## Identidad: "hoja de análisis marcada a bolígrafo"
+
+Papel gris verdoso, tinta oscura y **un único azul de bolígrafo** para lo que el modelo señala. Es una herramienta
+de análisis honesta, no un casino: nada de neón, dorados, degradados llamativos, confeti ni "¡ganancia segura!".
+La jerarquía la dan el ancho de la letra, el peso y el espacio, no el color.
+
+## Paleta (`web/src/app/globals.css`)
+
+| Token | Claro | Oscuro | Para qué |
+|---|---|---|---|
+| `papel` | `#eef1ec` | `#131816` | Fondo de la página |
+| `hoja` | `#fafbf8` | `#1b2220` | Tarjetas, tablas, campos |
+| `tinta` | `#1c2624` | `#e3e9e5` | Texto principal |
+| `grafito` | `#5a6764` | `#97a39f` | Texto secundario, metadatos |
+| `regla` / `regla-suave` | `#d3dad4` / `#e3e8e3` | `#2f3936` / `#252e2b` | Bordes y separadores |
+| `boli` / `boli-suave` | `#2643c4` / `#dfe4f8` | `#93a6ff` / `#232c4f` | Lo que el modelo señala: valor positivo, enlaces, foco, selección, botón principal |
+| `rojo` / `rojo-suave` | `#b3412b` / `#f4e0da` | `#f08a72` / `#3d2621` | Pérdida, valor negativo, error |
+| `tarjeta` / `tarjeta-suave` | `#c9950f` / `#f7ecca` | `#f0c552` / `#3a321c` | Avisos y precaución (como una tarjeta amarilla) |
+
+Reglas:
+- **Nunca hex sueltos en componentes.** Excepciones que hoy existen y conviene pasar a tokens: el césped del campo
+  de alineaciones (`#2e5d45`) y la etiqueta de alineación confirmada (azul claro `#dbeafe`/`#1e3a8a`).
+- **Un solo acento por pantalla:** si todo es azul, nada destaca. Botón principal (`bg-boli`) uno por vista.
+- **El color nunca va solo:** valor esperado con signo (`+20.4 %`), veredicto con palabra («Apostar»), resultado
+  con etiqueta («Ganada»). Pensado también para daltónicos (rojo/verde no se usan como par).
+- Al cambiar un color: `paleta.mjs` debe decir "Todas las combinaciones usadas cumplen" en los dos temas (texto
+  4,5:1; texto grande y gráficos 3:1).
+
+## Tipografía
+
+**Archivo** (Google Fonts con eje de ancho, `next/font` en `layout.tsx`). El **ancho** marca la jerarquía:
+- `.cond` (72 %): cifras grandes, cuotas, títulos de página y nombres de equipo en cabeceras.
+- `.semi` (86 %): títulos de sección y de tarjeta.
+- normal: todo lo que se lee de corrido.
+- `.num`: **toda cifra en columnas** (cuotas, porcentajes, importes), para que se alineen.
+
+Escala a usar (consolidar hacia esta; hoy hay 7 tamaños pequeños casi iguales, de 0,82 a 0,95 rem):
+
+| Uso | Tamaño | Peso |
+|---|---|---|
+| Etiquetas (`Tag`), pie | 0,8 rem (12,8 px), **mínimo absoluto 12 px** | 500 |
+| Metadatos, notas, celdas densas | 0,875 rem | 400 |
+| Texto de interfaz | 0,95 rem | 400 |
+| Lectura | 1 rem | 400 |
+| Títulos de tarjeta (`.semi`) | 1,125 rem | 700 |
+| Títulos de sección (`.semi`) | 1,25 rem | 700 |
+| Cifras destacadas (`.cond`) | 1,75 / 2,25 rem | 700 |
+| Título de página (`.cond`) | 2,5 rem (3 rem desde `sm`) | 800 |
+
+Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el logotipo.
+
+## Formas
+
+- **Radios pequeños, de papel:** 3 px en botones, campos y etiquetas; 4 px en tarjetas; 6 px máximo (campo de
+  alineaciones). `rounded-full` solo para puntos, escudos y fichas de jugador.
+- **Bordes, no sombras:** las superficies se separan con `border-regla` y fondo `hoja`. Sombra solo en las fichas
+  de jugador sobre el césped.
+- **Separadores:** `border-t border-regla` entre secciones (`Section`), `divide-regla-suave` en listas.
+- **Iconos:** SVG en línea, trazo 2, `currentColor`, `aria-hidden`. El trazo de bolígrafo (`PenMark`) es la marca
+  de la casa: solo para la apuesta del día y el veredicto «Apostar».
+
+## Movimiento
+
+- Con propósito: confirmar una acción, mostrar que algo carga o guiar la vista. Nada decorativo en bucle.
+- **Duraciones:** 150 ms para color en hover y foco (`transition-colors`); 200-250 ms para abrir y cerrar;
+  900 ms para el trazo de bolígrafo (`.trazo`). Curva estándar `cubic-bezier(0.4, 0, 0.2, 1)`.
+- **Carga:** `.esqueleto` (brillo de 1,4 s) mientras llegan los datos, con la forma de lo que va a aparecer.
+- **Siempre** con su regla `@media (prefers-reduced-motion: reduce)` en `globals.css` (hoy la tienen `.trazo` y
+  `.esqueleto`). La auditoría comprueba que exista.
+- Nada de rebotes, números que cuentan solos con dinero ni animaciones al hacer scroll.
+
+## UI/UX y usabilidad
+
+- **Estructura de página:** `PageTitle` → contenido principal → `Section`s con `border-t`. Ancho máximo 1180 px,
+  márgenes `px-4 sm:px-6`. Lo más importante arriba (la apuesta del día en Hoy, el veredicto en Evaluar).
+- **Celular primero:** cero desborde horizontal de la página (las tablas anchas van dentro de
+  `overflow-x-auto`); objetivos táctiles de 44 px para acciones principales y nunca menos de 24 px.
+- **Estados completos:** cargando (`Loading`), vacío con el siguiente paso (`Empty`), error con «Reintentar»
+  (`ErrorNote`), éxito con el resultado y un enlace a dónde verlo.
+- **Acciones con dinero o que borran:** paso de confirmación con el importe («Sí, registrar S/ 10 a 2.27»), como
+  en el registro de apuestas.
+- **Formularios:** etiqueta visible siempre, ejemplo en el placeholder, error junto al campo.
+- **Cifras:** cuotas con 2 decimales, porcentajes y valor esperado con signo, dinero en soles (`es-PE`), horas en
+  Lima.
+- **Textos:** español sencillo y los nombres de mercado de Betano. Honestidad: «el modelo no le gana a bet365»
+  donde corresponda; nunca «segura».
+- **Accesibilidad:** contraste AA, anillo de foco `boli` (ya global), `aria-label` en botones de solo icono, `alt`
+  en imágenes (`alt=""` si es decorativa, como los escudos junto al nombre), `role="img"` con descripción para
+  gráficos y el campo.
+
+## Componentes que ya existen (reutilizar antes de crear)
+
+`web/src/components/ui.tsx`: `PageTitle`, `Section`, `Loading`, `ErrorNote` (pide la clave si falta), `Empty`,
+`Tag` (tonos `neutral`, `boli`, `rojo`, `tarjeta`, `confirmada`), `Figure`, `Button`, `EdgeBar`, `TriBar`,
+`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo), `ComboResult` (combinadas), `PickRecord` (aciertos).
+
+## Pendientes conocidos (auditoría del 21-10-2026)
+
+- **Evaluar en celular desborda 91 px:** la tabla de «Cuotas de Betano» (`CuotasCasa.tsx`) no cabe.
+- **Nombres en el campo de alineaciones a 11,5 px** (`Alineaciones.tsx`, `text-[0.72rem]`): por debajo del mínimo.
+- **Etiqueta roja en claro a 4,46:1** (`rojo` sobre `rojo-suave`): oscurecer un poco `--rojo`.
+- **Borde amarillo de aviso a 2,37:1** en claro (`tarjeta` sobre `papel`): oscurecer `--tarjeta` para bordes.
+- **Toques de 22-23 px en celular:** «Mostrar las 551», «Comprobar la cuota de Betano», «Editar banca inicial».
+- **Página de un partido en celular: 28.000 px de alto.** Pide pestañas o secciones plegables.
+- **Menú del celular cortado** («Mis apuest…») sin señal de que se desplaza.
+- **Etiquetas crudas en las cuotas de Betano:** `ah_cards`/`ah_corners` sin nombre en `MARKET_LABELS`
+  (`services/analysis.py`).
+- **Escala de texto fragmentada:** consolidar los tamaños de 0,82 a 0,95 rem en la escala de arriba.
+
+Al resolver uno, bórralo de esta lista y añade los nuevos que encuentre la auditoría.
+
+## Antes de dar un cambio por terminado
+
+- [ ] `driver.mjs audit` sin empeorar ninguna cifra, en claro y oscuro y en escritorio y celular.
+- [ ] `paleta.mjs --fallos` sin combinaciones nuevas que no lleguen.
+- [ ] Capturas revisadas a ojo en las cuatro variantes de las páginas tocadas.
+- [ ] Sin hex ni tamaños sueltos nuevos; animaciones con su `prefers-reduced-motion`.
+- [ ] `npm run lint` y `npx tsc --noEmit` limpios; servicio `apuestas-web` reiniciado.

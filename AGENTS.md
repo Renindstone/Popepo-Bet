@@ -51,6 +51,8 @@ Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga 
 - BD: `scripts/db.sh start|stop|status|psql` (cluster propio en 127.0.0.1:5433, datos en `~/.local/share/apuestas/pgdata`)
 - CLI: `.venv/bin/apuestas --help` (ingest, train, picks, analyze, evaluate, backtest, mcp, api, bot, worker, archive, user, capturas, equipos)
 - Servicios (systemd de usuario): `scripts/install-services.sh --with-web` instala apuestas-db, -worker, -api (:8000) y -web (:3000). Estado: `systemctl --user status 'apuestas-*'`; registros: `journalctl --user -u apuestas-worker -f`
+- **Ver el panel sin ventana:** `node .claude/skills/run-app-apuestas/driver.mjs shots|shot|audit` (Brave sin ventana con `playwright-core`; capturas en `/tmp/apuestas-shots/`). Instrucciones en la skill `run-app-apuestas`.
+- **Diseño:** antes de tocar el aspecto del panel, sigue la skill `disenio-panel` (paleta, tipografía, formas, movimiento, UX, auditoría y pendientes conocidos).
 - Panel en desarrollo: `.claude/launch.json` (api y panel) usa los mismos puertos que los servicios; antes detén `apuestas-web` y `apuestas-api` con `systemctl --user stop`, y vuelve a arrancarlos al terminar.
 
 ## Estructura
