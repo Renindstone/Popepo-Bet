@@ -29,6 +29,11 @@ MCP funciona al revés de lo que parece: es la IA la que llama a las herramienta
 - **Si la IA termina sin evaluar nada,** la captura queda `no_evaluable` con su explicación, no `error`. `error` queda para fallos del motor (tiempo agotado, sesión de Claude caducada…).
 - **Caso real que lo motivó:** una combinada de 3 Bet Builders de Betano (cuota 11,03) salía como "No se pudo leer". Ahora City + más de 2,5 sale con 44 % (−41 %) y Roma + Roma más de 1,5 con 77 % (−5,6 %). PSG-Barça se marca no evaluable por las atajadas y por "anota o da asistencia".
 
+## Ampliación (20-10-2026, noche): jugadores en los Bet Builders
+- **Mercados nuevos:** `player_assist` (da una asistencia) y `player_goal_assist` (marca o asiste), con xA de FotMob. `player_goal` admite línea (`over 1.5` = 2 o más goles). Se liquidan con los goles y asistencias del jugador.
+- **Cálculo:** los goles y asistencias de jugadores se combinan con el marcador repartiendo cada gol del equipo entre sus jugadores (`MatchModel.joint_prob`, detalle en `docs/modelos.md`). Córners, tarjetas, remates y faltas dentro de un Bet Builder se multiplican como independientes y el bloque se marca "aproximado"; antes dejaban el bloque sin evaluar.
+- **Caso real:** la combinada de bet365 de 4 partidos (cuota 12,62) tenía dos bloques no evaluables, "Kane anotará o asistirá" y "Real Madrid + gol de Mbappé". Ahora salen con 17 % (cuota justa 5,81 frente a 4,30) y 53 % (1,89 frente a 1,43), y la combinada completa con 2,6 % (justa 37,8): sin valor.
+
 ## Alternativas descartadas
 - **OCR local (Tesseract)**: es gratis, pero frágil con los diseños de las casas y no sabe pasar "Total de córners Más de 9.5" a `ou_corners/over/9.5`.
 - **Mandar la imagen en el prompt de `claude -p`**: también funciona, pero entonces la IA no pasaría por MCP, y los agentes externos necesitan `ver_captura` igualmente.

@@ -37,7 +37,8 @@ Mercados (parámetro `mercado`) y selecciones:
 - ou_goals, ou_goals_home, ou_goals_away (over/under + linea)
 - ou_shots, ou_sot, ou_corners, ou_cards, ou_fouls (+ _home / _away para un equipo) (over/under + linea)
 - ah_corners, ah_cards, 1x2_corners ... (hándicap / ganador de una estadística)
-- player_shots, player_sot, player_fouls (over/under + linea + jugador), player_goal, player_card (yes/no + jugador)
+- player_shots, player_sot, player_fouls (over/under + linea + jugador), player_goal, player_assist,
+  player_goal_assist (gol o asistencia), player_card (yes/no + jugador; player_goal over 1.5 = 2 o más goles)
 
 Reglas: no recomiendes apostar si el veredicto no es "APOSTAR"; recuerda la gestión de banca y que
 "no apostar" es válido. Las bajas manuales sirven para noticias que FotMob aún no refleja.

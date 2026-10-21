@@ -44,7 +44,9 @@ Cómo pasar lo que muestra la casa de apuestas a mercado / seleccion / linea:
   Faltas → ou_fouls. De un solo equipo: añade _home o _away (ou_corners_home). Hándicap de córners → ah_corners;
   quién saca más córners → 1x2_corners (igual con cards)
 - Jugador: remates → player_shots, remates a puerta → player_sot, faltas cometidas → player_fouls
-  (over/under + linea + jugador); marca en cualquier momento → player_goal yes; recibe tarjeta → player_card yes
+  (over/under + linea + jugador); marca en cualquier momento → player_goal yes; da una asistencia →
+  player_assist yes; "marcará o asistirá" / "gol o asistencia" → player_goal_assist yes; marca 2 o más →
+  player_goal over 1.5; recibe tarjeta → player_card yes
 - Cuotas fraccionarias (5/4) pásalas a decimal (2.25). "Más de 9.5" es over 9.5 y "Menos de 9.5" es under 9.5.
 Si un mercado no encaja (puntos de tarjeta, primer goleador, resultado exacto), no lo fuerces: menciónalo en
 `notas`. No adivines cifras que no se lean bien.
@@ -54,8 +56,10 @@ Combinadas y Bet Builders (varias selecciones con UNA sola cuota): no uses evalu
   cuota total de la combinada.
 - Las selecciones se escriben igual que arriba, sin cuota. "1+ tiros al arco de X" es player_sot over 0.5 con jugador
   X; "Más de 10.5 tiros al arco" del partido es ou_sot over 10.5.
-- Lo que no encaje en ningún mercado (atajadas, asistencias, "anota o da asistencia", resultado exacto…) inclúyelo
-  igualmente con mercado "otro" y su texto: el sistema dirá que ese bloque no se puede evaluar, sin inventar.
+- Los goles y asistencias de jugadores se calculan junto con el resultado del partido. Córners, tarjetas, remates y
+  faltas se combinan de forma aproximada (como si no dependieran del resultado) y el sistema lo avisa.
+- Lo que no encaje en ningún mercado (atajadas, primer goleador, resultado exacto…) inclúyelo igualmente con
+  mercado "otro" y su texto: el sistema dirá que ese bloque no se puede evaluar, sin inventar.
 Si en la captura no hay nada evaluable (no son cuotas de fútbol, o no se lee), llama a marcar_no_evaluable con el
 motivo en una o dos frases.
 """
@@ -93,7 +97,8 @@ class CaptureLine(BaseModel):
 
     mercado: str = Field(description="Código del mercado: 1x2, dc, dnb, btts, ah, eh, ou_goals, ou_corners, "
                                      "ou_cards, ou_shots, ou_sot, ou_fouls (+_home/_away), ah_corners, "
-                                     "1x2_corners, player_shots, player_sot, player_fouls, player_goal, player_card")
+                                     "1x2_corners, player_shots, player_sot, player_fouls, player_goal, player_assist, "
+                                     "player_goal_assist, player_card")
     seleccion: str = Field(description="home/draw/away, over/under, yes/no o 1x/x2/12")
     cuota: float = Field(description="Cuota decimal tal como aparece, p.ej. 1.83")
     linea: float | None = Field(default=None, description="Línea si la hay: 2.5, 9.5, -0.75...")
@@ -410,24 +415,48 @@ def _leg(leg: ComboLeg) -> dict:
             "line": leg.linea, "player": _clean(leg.jugador, 80), "text": _clean(leg.texto, 120)}
 
 
-def block_probability(model, legs: list[dict], player_id: int | None = None) -> tuple[float | None, str | None]:
-    """(probabilidad, motivo si no se puede). Una selección: su probabilidad. Varias: solo si todas son de goles,
-    juntas con la matriz de marcadores (dependen entre sí, no se multiplican)."""
+def block_probability(model, legs: list[dict]) -> tuple[float | None, str | None, list[str]]:
+    """(probabilidad, motivo si no se puede, selecciones aproximadas) de las selecciones de un mismo partido.
+
+    Una selección: su probabilidad. Varias: las de goles y las de goles o asistencias de jugadores se calculan
+    juntas con la matriz de marcadores (dependen entre sí, no se multiplican). Córners, tarjetas, remates y faltas
+    no dependen solo del marcador: se multiplican como si fueran independientes y se devuelven como aproximadas.
+    Cada selección de jugador lleva su `player_id`.
+    """
     unsupported = [lg for lg in legs if lg["market"] == "otro"]
     if unsupported:
-        return None, "fuera del modelo: " + ", ".join(lg["label"] for lg in unsupported)
+        return None, "fuera del modelo: " + ", ".join(lg["label"] for lg in unsupported), []
+    missing = [lg["label"] for lg in legs
+               if lg["market"].startswith("player_") and lg.get("player_id") not in model.players]
+    if missing:
+        return None, "sin proyección del jugador (no figura en la alineación o está de baja): " + ", ".join(missing), []
     if len(legs) == 1:
         lg = legs[0]
         try:
-            return float(model.outcome(lg["market"], lg["selection"], lg["line"], player_id).effective_prob()), None
+            return float(model.outcome(lg["market"], lg["selection"], lg["line"], lg.get("player_id"))
+                         .effective_prob()), None, []
         except (ValueError, KeyError) as exc:
-            return None, f"no se pudo calcular «{lg['label']}»: {exc}"
-    joint = model.joint_goal_prob([(lg["market"], lg["selection"], lg["line"]) for lg in legs])
-    if joint is None:
-        apart = [lg["label"] for lg in legs if model.goal_mask(lg["market"], lg["selection"], lg["line"]) is None]
-        return None, ("el modelo no puede calcular estas selecciones junto con las demás (dependen entre sí y no "
-                      "solo del marcador): " + ", ".join(apart))
-    return joint, None
+            return None, f"no se pudo calcular «{lg['label']}»: {exc}", []
+    exact = [lg for lg in legs if model.combinable(lg["market"], lg["selection"], lg["line"])]
+    approx = [lg for lg in legs if lg not in exact]
+    # Las de goles que no se pueden combinar (líneas enteras, empate no válido) dependen del marcador: no se aproximan
+    goals_apart = [lg["label"] for lg in approx if analysis.is_goal_market(lg["market"]) or lg["market"] == "dnb"]
+    if goals_apart:
+        return None, ("el modelo no puede calcular estas selecciones junto con las demás (pueden devolverse): "
+                      + ", ".join(goals_apart)), []
+    prob = 1.0
+    if exact:
+        joint = model.joint_prob([(lg["market"], lg["selection"], lg["line"], lg.get("player_id")) for lg in exact])
+        if joint is None:
+            return None, ("el modelo no puede calcular estas selecciones juntas: "
+                          + ", ".join(lg["label"] for lg in exact)), []
+        prob = joint
+    for lg in approx:
+        try:
+            prob *= model.outcome(lg["market"], lg["selection"], lg["line"], lg.get("player_id")).effective_prob()
+        except (ValueError, KeyError) as exc:
+            return None, f"no se pudo calcular «{lg['label']}»: {exc}", []
+    return prob, None, [lg["label"] for lg in approx]
 
 
 def combo_summary(blocks: list[dict], total_odds: float | None) -> dict:
@@ -446,7 +475,7 @@ def combo_summary(blocks: list[dict], total_odds: float | None) -> dict:
         verdict = "con valor" if ev >= COMBO_VALUE_EV else "sin valor"
     return {"total_odds": odds, "prob": round(prob, 4) if prob else None,
             "fair_odds": round(1 / prob, 2) if prob else None, "ev": round(ev, 4) if ev is not None else None,
-            "evaluable": evaluable, "verdict": verdict}
+            "evaluable": evaluable, "verdict": verdict, "approximate": any(b.get("approx") for b in blocks)}
 
 
 def evaluate_combo(username: str, capture_id: int, bloques: list[ComboBlock | dict], cuota_total: float | None = None,
@@ -464,7 +493,7 @@ def evaluate_combo(username: str, capture_id: int, bloques: list[ComboBlock | di
         for bl in blocks_in:
             legs = [_leg(lg) for lg in bl.selecciones]
             block = {"partido": bl.partido, "match_id": None, "match": bl.partido, "odds": bl.cuota, "legs": legs,
-                     "prob": None, "fair_odds": None, "ev": None, "reason": None, "notes": []}
+                     "prob": None, "fair_odds": None, "ev": None, "reason": None, "notes": [], "approx": []}
             out.append(block)
             try:
                 match = queries.find_match(s, bl.partido)
@@ -480,15 +509,18 @@ def evaluate_combo(username: str, capture_id: int, bloques: list[ComboBlock | di
             for lg in legs:
                 lg["label"] = (lg["text"] or "selección sin mercado") if lg["market"] == "otro" else \
                     analysis.bet_label(lg["market"], lg["selection"], lg["line"], home, away, lg["player"])
-            player_id = None
-            if len(legs) == 1 and legs[0]["player"]:
-                try:
-                    player_id = _find_player(s, legs[0]["player"], match).id
-                except queries.NotFound as exc:
-                    block["reason"] = str(exc)
-                    continue
+            try:
+                for lg in legs:
+                    if lg["player"] and lg["market"].startswith("player_"):
+                        lg["player_id"] = _find_player(s, lg["player"], match).id
+            except queries.NotFound as exc:
+                block["reason"] = str(exc)
+                continue
             an = analysis.analyze(s, bundle, match)
-            block["prob"], block["reason"] = block_probability(an.model, legs, player_id)
+            block["prob"], block["reason"], block["approx"] = block_probability(an.model, legs)
+            if block["approx"]:
+                block["notes"].append("aproximado: " + ", ".join(block["approx"])
+                                      + " se combina como si no dependiera del resultado")
             if block["prob"] is not None:
                 block["prob"] = round(block["prob"], 4)
                 block["fair_odds"] = round(1 / block["prob"], 2) if block["prob"] > 0 else None
@@ -518,7 +550,9 @@ def evaluate_combo(username: str, capture_id: int, bloques: list[ComboBlock | di
                     for b in out],
         "total": {"cuota": summary["total_odds"], "prob_modelo": pct(summary["prob"]),
                   "cuota_justa": summary["fair_odds"], "valor_esperado": pct(summary["ev"], True),
-                  "veredicto": summary["verdict"]},
+                  "veredicto": summary["verdict"],
+                  **({"aproximado": "incluye selecciones combinadas como si no dependieran del resultado; "
+                                    "dilo en el resumen"} if summary["approximate"] else {})},
         "siguiente_paso": "Llama a guardar_veredicto_captura con un resumen breve basado solo en estos números.",
     }
 

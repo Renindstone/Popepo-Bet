@@ -165,6 +165,8 @@ export interface PlayerProjection {
     shots: number;
     shots_on_target: number;
     goals: number;
+    /** Asistencias esperadas (de partidos con xA); puede faltar en modelos entrenados antes de añadirlas */
+    assists?: number;
     fouls_committed: number;
     yellow_cards: number;
   };
@@ -255,6 +257,8 @@ export interface PlayerDetail {
         p_sot_over_0_5: number;
         p_sot_over_1_5: number;
         p_goal: number;
+        p_assist: number;
+        p_goal_assist: number;
         p_card: number;
       })
     | null;
@@ -401,6 +405,8 @@ export interface CaptureCombo {
   ev: number | null;
   evaluable: boolean;
   verdict: "con valor" | "sin valor" | "no evaluable" | "sin cuota para comparar" | string;
+  /** Alguna selección (córners, tarjetas, remates…) se combinó como si no dependiera del resultado */
+  approximate?: boolean;
   blocks: ComboBlock[];
 }
 

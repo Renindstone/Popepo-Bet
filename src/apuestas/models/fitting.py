@@ -37,7 +37,9 @@ log = logging.getLogger(__name__)
 MODEL_VERSION = "v1"
 GOALS_XG_WEIGHT = 0.85  # elegido por backtest 2024-26 (mejor log-loss que 0, 0.3 y 0.6)
 COUNT_STATS = ("shots", "shots_on_target", "corners", "fouls", "cards")
-PLAYER_STATS = ("shots", "shots_on_target", "goals", "xg", "fouls_committed", "yellow_cards")
+PLAYER_STATS = ("shots", "shots_on_target", "goals", "xg", "assists", "xa", "fouls_committed", "yellow_cards")
+# Goles y asistencias también como parte de los goles de su equipo en los minutos que jugó (para repartirlos)
+SHARE_STATS = ("goals", "xg", "assists", "xa")
 
 
 @dataclass
@@ -354,7 +356,8 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
     """Tasas por 90' ponderadas por antigüedad y medias por posición."""
     since = before - timedelta(days=500)
     q = (
-        select(m.PlayerMatchStats, m.Match.kickoff_utc, m.Player.position, m.Player.name)
+        select(m.PlayerMatchStats, m.Match.kickoff_utc, m.Player.position, m.Player.name,
+               m.Match.home_team_id, m.Match.home_goals, m.Match.away_goals)
         .join(m.Match, m.Match.id == m.PlayerMatchStats.match_id)
         .join(m.Player, m.Player.id == m.PlayerMatchStats.player_id)
         .where(m.Match.kickoff_utc < before, m.Match.kickoff_utc >= since, m.PlayerMatchStats.minutes > 0)
@@ -362,30 +365,44 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
     acc: dict[int, dict] = {}
     pos_acc: dict[str, dict[str, float]] = {}
     as_of = before.date()
-    for pms, ko, pos, name in s.execute(q):
+    for pms, ko, pos, name, home_id, home_goals, away_goals in s.execute(q):
         w = 0.5 ** ((as_of - ko.date()).days / half_life_days)
         a = acc.setdefault(
             pms.player_id,
             {"name": name, "position": pos, "team_id": pms.team_id, "w_minutes": 0.0, "starts": 0, "apps": 0,
-             "starter_minutes": 0.0, "last": None, **{st: 0.0 for st in PLAYER_STATS}},
+             "starter_minutes": 0.0, "last": None, "team_goals90": 0.0, "share_obs": {st: 0.0 for st in SHARE_STATS},
+             **{st: 0.0 for st in PLAYER_STATS}},
         )
         mins = pms.minutes or 0
         a["w_minutes"] += w * mins
+        team_goals = home_goals if pms.team_id == home_id else away_goals
+        if team_goals is not None:
+            # exposición: goles de su equipo, en proporción a los minutos que jugó
+            a["team_goals90"] += w * team_goals * mins / 90
         a["apps"] += 1
         if pms.is_starter:
             a["starts"] += 1
             a["starter_minutes"] += mins
         if a["last"] is None or ko.date() > a["last"]:
             a["last"], a["team_id"] = ko.date(), pms.team_id
-        p = pos_acc.setdefault(pos or "MF", {"minutes": 0.0, **{st: 0.0 for st in PLAYER_STATS}})
+        p = pos_acc.setdefault(pos or "MF", {"minutes": 0.0, "team_goals90": 0.0,
+                                             "share_obs": {st: 0.0 for st in SHARE_STATS},
+                                             **{st: 0.0 for st in PLAYER_STATS}})
         p["minutes"] += mins
+        if team_goals is not None:
+            p["team_goals90"] += team_goals * mins / 90
         for st in PLAYER_STATS:
             v = getattr(pms, st)
             if v is not None:
                 a[st] += w * float(v)
                 p[st] += float(v)
+                if st in SHARE_STATS and team_goals is not None:
+                    a["share_obs"][st] += w * float(v)
+                    p["share_obs"][st] += float(v)
     priors = {
-        pos: {st: (v[st] / v["minutes"] * 90 if v["minutes"] else 0.0) for st in PLAYER_STATS}
+        pos: {**{st: (v[st] / v["minutes"] * 90 if v["minutes"] else 0.0) for st in PLAYER_STATS},
+              **{f"{st}_share": (v["share_obs"][st] / v["team_goals90"] if v["team_goals90"] else 0.0)
+                 for st in SHARE_STATS}}
         for pos, v in pos_acc.items()
     }
     players = {}
@@ -398,6 +415,10 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
             "team_id": a["team_id"],
             "minutes90": round(a["w_minutes"] / 90, 3),
             "per90": {st: round(a[st] / a["w_minutes"] * 90, 4) for st in PLAYER_STATS},
+            # parte de los goles de su equipo que marca/asiste (y su xG/xA), y cuántos goles de equipo la respaldan
+            "share": {st: round(a["share_obs"][st] / a["team_goals90"], 4) for st in SHARE_STATS}
+            if a["team_goals90"] > 0 else None,
+            "team_goals90": round(a["team_goals90"], 3),
             "starts": a["starts"],
             "apps": a["apps"],
             "avg_starter_minutes": round(a["starter_minutes"] / a["starts"], 1) if a["starts"] else None,

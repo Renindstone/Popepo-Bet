@@ -17,6 +17,8 @@ const PLAYER: Record<string, string> = {
   player_sot: "Remates a puerta de",
   player_fouls: "Faltas de",
   player_goal: "Gol de",
+  player_assist: "Asistencia de",
+  player_goal_assist: "Gol o asistencia de",
   player_card: "Tarjeta para",
 };
 
@@ -137,6 +139,8 @@ export const MARKET_OPTIONS: MarketOption[] = [
   { value: "player_sot", label: "Remates a puerta del jugador", group: "Jugador", sel: "ou", line: 0.5, player: true },
   { value: "player_fouls", label: "Faltas del jugador", group: "Jugador", sel: "ou", line: 0.5, player: true },
   { value: "player_goal", label: "Gol del jugador", group: "Jugador", sel: "yn", player: true },
+  { value: "player_assist", label: "Asistencia del jugador", group: "Jugador", sel: "yn", player: true },
+  { value: "player_goal_assist", label: "Gol o asistencia del jugador", group: "Jugador", sel: "yn", player: true },
   { value: "player_card", label: "Tarjeta al jugador", group: "Jugador", sel: "yn", player: true },
 ];
 

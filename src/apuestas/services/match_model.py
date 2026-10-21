@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from itertools import combinations
 
 import numpy as np
 
@@ -15,6 +16,11 @@ STAT_ALIASES = {"sot": "shots_on_target", "remates": "shots", "corners": "corner
                 "tarjetas": "cards", "fouls": "fouls", "faltas": "fouls", "shots": "shots",
                 "shots_on_target": "shots_on_target"}
 PLAYER_MARKETS = {"player_shots": "shots", "player_sot": "shots_on_target", "player_fouls": "fouls_committed"}
+# Mercados que dependen de los goles del equipo del jugador: qué parte de esos goles marca o asiste
+PLAYER_INVOLVEMENT = {"player_goal": ("goals",), "player_assist": ("assists",),
+                      "player_goal_assist": ("goals", "assists")}
+MAX_SHARE = 0.95  # ningún jugador participa en todos los goles de su equipo
+YES = ("yes", "si", "sí", "over")
 
 
 @dataclass
@@ -116,18 +122,103 @@ class MatchModel:
         return None
 
     def joint_goal_prob(self, legs: list[tuple[str, str, float | None]]) -> float | None:
-        """Probabilidad de que se cumplan a la vez varias selecciones de goles del mismo partido (Bet Builder).
+        """Probabilidad de que se cumplan a la vez varias selecciones de goles del mismo partido (Bet Builder)."""
+        return self.joint_prob([(market, selection, line, None) for market, selection, line in legs])
+
+    def combinable(self, market: str, selection: str, line: float | None = None) -> bool:
+        """Si la selección se puede calcular celda a celda con la matriz de marcadores (junto con otras)."""
+        market = market.lower()
+        if market in PLAYER_INVOLVEMENT:
+            return line is None or abs(line * 2) % 2 == 1
+        return self.goal_mask(market, selection, line) is not None
+
+    def joint_prob(self, legs: list[tuple[str, str, float | None, int | None]]) -> float | None:
+        """Probabilidad de que se cumplan a la vez varias selecciones del mismo partido (Bet Builder).
 
         Se suma la matriz de marcadores en las celdas donde ganan todas, así que tiene en cuenta que dependen
-        entre sí ("gana el City" y "más de 2,5 goles" no son independientes). None si alguna no es de goles.
+        entre sí ("gana el City" y "más de 2,5 goles" no son independientes). Los goles y asistencias de un
+        jugador se reparten sobre los goles de su equipo: si el equipo marca k goles, cada uno lo marca (o lo
+        asiste) ese jugador con la probabilidad de su parte de los goles del equipo. Así "gana el Bayern y Kane
+        marca" es más probable que el producto de las dos. None si alguna selección no se puede combinar.
         """
         mask = np.ones(self.matrix.shape, dtype=bool)
-        for market, selection, line in legs:
+        sides: dict[str, list[tuple[str, str, float | None, PlayerProjection]]] = {"home": [], "away": []}
+        for market, selection, line, player_id in legs:
+            market, selection = market.lower(), selection.lower()
+            if market in PLAYER_INVOLVEMENT:
+                pp = self.players.get(player_id) if player_id is not None else None
+                side = None if pp is None else "home" if pp.team_id == self.home_id else \
+                    "away" if pp.team_id == self.away_id else None
+                if side is None or not self.combinable(market, selection, line):
+                    return None
+                sides[side].append((market, selection, line, pp))
+                continue
             m = self.goal_mask(market, selection, line)
             if m is None:
                 return None
             mask &= m
-        return float(self.matrix[mask].sum() / self.matrix.sum())
+        rows, cols = self.matrix.shape
+        wh = self._team_weights(sides["home"], self.lam_home, rows)
+        wa = self._team_weights(sides["away"], self.lam_away, cols)
+        if wh is None or wa is None:
+            return None
+        weighted = self.matrix * mask * wh[:, None] * wa[None, :]
+        return float(weighted.sum() / self.matrix.sum())
+
+    @staticmethod
+    def _team_weights(legs: list[tuple[str, str, float | None, PlayerProjection]], team_lam: float,
+                      size: int) -> np.ndarray | None:
+        """P(se cumplen las selecciones de jugadores de un equipo | el equipo marca k goles), para k = 0..size-1.
+
+        Cada gol del equipo lo marca el jugador x con probabilidad s_x = goles esperados de x / goles esperados del
+        equipo, y lo asiste con probabilidad a_x (igual con asistencias). Una selección "marca o asiste" se cumple
+        si al menos un gol la toca; varias a la vez se calculan por inclusión-exclusión.
+        """
+        k = np.arange(size)
+        if not legs:
+            return np.ones(size)
+        team_lam = max(team_lam, 1e-6)
+
+        def shares(pp: PlayerProjection, kinds: tuple[str, ...]) -> tuple[float, float]:
+            g = min(MAX_SHARE, pp.lam.get("goals", 0.0) / team_lam) if "goals" in kinds else 0.0
+            a = min(MAX_SHARE, pp.lam.get("assists", 0.0) / team_lam) if "assists" in kinds else 0.0
+            return g, a
+
+        if len(legs) == 1 and legs[0][2] is not None and legs[0][2] > 0.5:
+            # Una sola selección con línea (2 o más goles): binomial sobre los goles del equipo
+            market, selection, line, pp = legs[0]
+            q = min(MAX_SHARE, sum(shares(pp, PLAYER_INVOLVEMENT[market])))
+            over = np.array([sum(math.comb(n, x) * q**x * (1 - q) ** (n - x) for x in range(math.floor(line) + 1, n + 1))
+                             for n in k])
+            return over if selection in YES else 1 - over
+        if any(ln is not None and ln > 0.5 for _market, _sel, ln, _pp in legs):
+            return None  # varias selecciones con línea de un mismo equipo: no se combinan
+
+        # Cada selección es "participa al menos una vez" (sí) o "no participa" (no)
+        events = []
+        for market, selection, _line, pp in legs:
+            g, a = shares(pp, PLAYER_INVOLVEMENT[market])
+            events.append(({pp.player_id: g} if g else {}, {pp.player_id: a} if a else {}, selection in YES))
+
+        def untouched(evts: list) -> float:
+            """Probabilidad de que un gol no lo marque ni lo asista ninguno de estos jugadores."""
+            scorers: dict[int, float] = {}
+            assisters: dict[int, float] = {}
+            for sc, asst, _ in evts:
+                scorers.update(sc)
+                assisters.update(asst)
+            s_sum, a_sum = sum(scorers.values()), sum(assisters.values())
+            # nadie se asiste a sí mismo: se quitan esos pares del término cruzado
+            both = s_sum * a_sum - sum(scorers[x] * assisters[x] for x in scorers.keys() & assisters.keys())
+            return min(1.0, max(0.0, 1 - s_sum - a_sum + both))
+
+        yes = [e for e in events if e[2]]
+        no = [e for e in events if not e[2]]
+        w = np.zeros(size)
+        for r in range(len(yes) + 1):
+            for subset in combinations(yes, r):
+                w += (-1) ** r * untouched(list(subset) + no) ** k
+        return np.clip(w, 0.0, 1.0)
 
     # ------------------------------------------------------------------ mercado genérico
     def outcome(self, market: str, selection: str, line: float | None = None, player_id: int | None = None) -> Outcome:
@@ -197,9 +288,13 @@ class MatchModel:
             pmf = dist.pmf_to_dict(dist.count_pmf(lam, 0.15))
             ln = 0.5 if line is None else line
             return dist.over(pmf, ln) if selection == "over" else dist.under(pmf, ln)
-        if market == "player_goal":
-            p = 1 - math.exp(-pp.lam["goals"])
-        elif market == "player_card":
+        if market in PLAYER_INVOLVEMENT:
+            # Goles, asistencias o la suma de ambas: Poisson con la tasa esperada en el partido
+            lam = sum(pp.lam.get(kind, 0.0) for kind in PLAYER_INVOLVEMENT[market])
+            pmf = dist.pmf_to_dict(dist.count_pmf(lam, 0.0))
+            ln = 0.5 if line is None else line
+            return dist.over(pmf, ln) if selection in YES else dist.under(pmf, ln)
+        if market == "player_card":
             p = 1 - math.exp(-pp.lam["yellow_cards"])
         else:
             raise ValueError(f"Mercado de jugador no soportado: {market}")

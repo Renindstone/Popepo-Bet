@@ -11,7 +11,7 @@ CITY = MatchModel(1, 2, 2.4, 0.6, -0.05, {"corners": (8.0, 3.0)}, {"corners": 0.
 
 def _leg(market, selection, line=None, label=None):
     return {"market": market, "selection": selection, "line": line, "player": None, "text": label,
-            "label": label or f"{market} {selection} {line}"}
+            "player_id": None, "label": label or f"{market} {selection} {line}"}
 
 
 def test_joint_probability_accounts_for_correlation():
@@ -28,20 +28,23 @@ def test_joint_probability_accounts_for_correlation():
 
 
 def test_joint_probability_refuses_what_it_cannot_combine():
-    assert CITY.joint_goal_prob([("1x2", "home", None), ("ou_corners", "over", 6.5)]) is None
+    assert CITY.joint_goal_prob([("1x2", "home", None), ("ou_corners", "over", 6.5)]) is None  # no es del marcador
     assert CITY.joint_goal_prob([("ou_goals", "over", 2.0)]) is None  # línea entera: puede devolverse
     assert CITY.joint_goal_prob([("ah", "home", -1.0)]) is None
     assert CITY.joint_goal_prob([("ah", "home", -1.5), ("btts", "no", None)]) is not None
 
 
 def test_block_probability():
-    p, why = captures.block_probability(CITY, [_leg("1x2", "home"), _leg("ou_goals", "over", 2.5)])
-    assert why is None and 0 < p < 1
-    p, why = captures.block_probability(CITY, [_leg("ou_corners", "over", 6.5)])  # sola: su propia probabilidad
+    p, why, approx = captures.block_probability(CITY, [_leg("1x2", "home"), _leg("ou_goals", "over", 2.5)])
+    assert why is None and approx == [] and 0 < p < 1
+    p, why, _ = captures.block_probability(CITY, [_leg("ou_corners", "over", 6.5)])  # sola: su propia probabilidad
     assert why is None and p == pytest.approx(CITY.outcome("ou_corners", "over", 6.5).effective_prob())
-    p, why = captures.block_probability(CITY, [_leg("1x2", "home"), _leg("ou_corners", "over", 6.5, "Más de 6.5 córners")])
-    assert p is None and "Más de 6.5 córners" in why
-    p, why = captures.block_probability(CITY, [_leg("1x2", "away"), _leg("otro", "", None, "Safonov 3+ atajadas")])
+    # Córners con el resultado: se combinan de forma aproximada (como si fueran independientes) y se avisa
+    p, why, approx = captures.block_probability(
+        CITY, [_leg("1x2", "home"), _leg("ou_corners", "over", 6.5, "Más de 6.5 córners")])
+    assert why is None and approx == ["Más de 6.5 córners"]
+    assert p == pytest.approx(CITY.probs_1x2()["home"] * CITY.outcome("ou_corners", "over", 6.5).effective_prob())
+    p, why, _ = captures.block_probability(CITY, [_leg("1x2", "away"), _leg("otro", "", None, "Safonov 3+ atajadas")])
     assert p is None and why == "fuera del modelo: Safonov 3+ atajadas"
 
 

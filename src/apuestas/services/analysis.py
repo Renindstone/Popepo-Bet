@@ -93,6 +93,7 @@ MARKET_LABELS = {
     "ou_cards": "Tarjetas", "ou_fouls": "Faltas", "player_shots": "Remates del jugador",
     "player_sot": "Remates a puerta del jugador", "player_card": "Tarjeta al jugador",
     "player_goal": "Gol del jugador", "player_fouls": "Faltas del jugador",
+    "player_assist": "Asistencia del jugador", "player_goal_assist": "Gol o asistencia del jugador",
 }
 
 
@@ -241,7 +242,7 @@ def _player_projections(
         prior = bundle.priors.get(pos or "MF") or bundle.priors.get("MF") or {}
         k = 4.0  # equivale a 4 partidos completos de la media de su posición
         rates = {}
-        for st in ("shots", "shots_on_target", "goals", "xg", "fouls_committed", "yellow_cards"):
+        for st in ("shots", "shots_on_target", "goals", "xg", "assists", "xa", "fouls_committed", "yellow_cards"):
             obs90, mins90 = (pr["per90"].get(st, 0.0), pr["minutes90"]) if pr else (0.0, 0.0)
             rates[st] = (obs90 * mins90 + prior.get(st, 0.0) * k) / (mins90 + k)
         avg_start_min = (pr or {}).get("avg_starter_minutes") or 78.0
@@ -249,11 +250,25 @@ def _player_projections(
         if exp_min < 5:
             continue
         f = exp_min / 90
-        goal_rate = 0.5 * rates["goals"] + 0.5 * rates["xg"]
+        if "goals_share" in prior:
+            # Parte de los goles de su equipo que marca (y asiste) en los minutos que juega, contraída hacia la de su
+            # posición, por los goles que se esperan de su equipo en ESTE partido. No se escala contra un "rival
+            # promedio": ese rival incluye ligas más débiles e infla la media del equipo (docs/modelos.md, sección 4).
+            exposure = (pr or {}).get("team_goals90") or 0.0
+            obs = (pr or {}).get("share") or {}
+            k_goals = 6.0  # unos 4 partidos de goles de un equipo medio
+            sh = {st: (obs.get(st, 0.0) * exposure + prior.get(f"{st}_share", 0.0) * k_goals) / (exposure + k_goals)
+                  for st in ("goals", "xg", "assists", "xa")}
+            goals_lam = (0.5 * sh["goals"] + 0.5 * sh["xg"]) * f * goal_lam
+            assists_lam = (0.5 * sh["assists"] + 0.5 * sh["xa"]) * f * goal_lam
+        else:  # paquete de modelos anterior: tasas por 90' escaladas contra el rival promedio
+            goals_lam = (0.5 * rates["goals"] + 0.5 * rates["xg"]) * f * goals_ratio
+            assists_lam = (0.5 * rates["assists"] + 0.5 * rates["xa"]) * f * goals_ratio
         lam = {
             "shots": rates["shots"] * f * team_shots_ratio,
             "shots_on_target": rates["shots_on_target"] * f * team_shots_ratio,
-            "goals": goal_rate * f * goals_ratio,
+            "goals": goals_lam,
+            "assists": assists_lam,
             "fouls_committed": rates["fouls_committed"] * f,
             "yellow_cards": rates["yellow_cards"] * f * cards_ratio,
         }
@@ -461,9 +476,10 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         if pp.start_prob < 0.8:
             continue
         for market, sel, ln in (("player_shots", "over", 0.5), ("player_shots", "over", 1.5),
-                                ("player_sot", "over", 0.5), ("player_card", "yes", None)):
+                                ("player_sot", "over", 0.5), ("player_goal_assist", "yes", None),
+                                ("player_card", "yes", None)):
             p = mm.outcome(market, sel, ln, pp.player_id).effective_prob()
-            if 0.5 <= p <= 0.85 or (market == "player_card" and p >= 0.3):
+            if 0.5 <= p <= 0.85 or (market in ("player_card", "player_goal_assist") and p >= 0.35):
                 min_odds.append({"market": market, "selection": sel, "line": ln, "player_id": pp.player_id,
                                  "player": pp.name, "prob": round(p, 3), "fair_odds": round(1 / p, 2),
                                  "min_odds": round(1.05 / p, 2)})

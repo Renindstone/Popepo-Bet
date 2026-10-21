@@ -386,8 +386,9 @@ function Combo({ combo }: { combo: CaptureCombo }) {
     <div className="space-y-3">
       <p className="max-w-[75ch] text-[0.88rem] text-grafito">
         Dentro de un mismo partido las selecciones dependen entre sí, así que su probabilidad conjunta sale de la matriz de
-        marcadores del modelo. Los partidos distintos se multiplican. Córners, tarjetas y jugadores solo se pueden evaluar
-        si van solos en su partido.
+        marcadores del modelo, incluidos los goles y asistencias de jugadores (cada gol del equipo se reparte entre sus
+        jugadores). Los partidos distintos se multiplican. Córners, tarjetas, remates y faltas se combinan como si no
+        dependieran del resultado: el total sale aproximado.
       </p>
       <ul className="space-y-2">
         {combo.blocks.map((b, i) => (
@@ -433,6 +434,7 @@ function Combo({ combo }: { combo: CaptureCombo }) {
           <span className={`num font-semibold ${combo.ev > 0 ? "text-boli" : "text-rojo"}`}>{signedPct(combo.ev)}</span>
         )}
         <Tag tone={COMBO_TONE[combo.verdict] ?? "neutral"}>{combo.verdict}</Tag>
+        {combo.approximate && combo.evaluable && <Tag tone="tarjeta">aproximado</Tag>}
       </div>
     </div>
   );

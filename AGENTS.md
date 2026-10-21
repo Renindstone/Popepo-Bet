@@ -67,12 +67,12 @@ Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga 
 
 - Fechas en UTC en la BD; se muestran en hora de Lima (America/Lima).
 - Cuotas decimales. Valor esperado = probabilidad × cuota − 1. Stake con Kelly fraccional.
-- Mercados: `1x2`, `dc`, `dnb`, `btts`, `ah`, `eh`, `ou_<stat>[_home|_away]`, `ah_<stat>`, `1x2_<stat>`, `player_shots|player_sot|player_fouls|player_goal|player_card`. Stats: goals, shots, sot, corners, cards, fouls.
+- Mercados: `1x2`, `dc`, `dnb`, `btts`, `ah`, `eh`, `ou_<stat>[_home|_away]`, `ah_<stat>`, `1x2_<stat>`, `player_shots|player_sot|player_fouls|player_goal|player_assist|player_goal_assist|player_card`. Stats: goals, shots, sot, corners, cards, fouls.
 
 ## Conceptos que se confunden
 
 - **Hándicap europeo (`eh`, "Hándicap" o "3 vías" en Betano) ≠ hándicap asiático (`ah`).** En el europeo hay tres resultados y, si con el hándicap queda empate, la apuesta al equipo **pierde**. En el asiático de línea entera ese empate **se devuelve**. Ejemplo real: Coventry +2 europeo con 3-1 en contra quedó 3-3 con el hándicap y se perdió. En la BD la línea `eh` se guarda como hándicap del local; el panel pide la línea del equipo elegido y la convierte. La línea `ah` es relativa al equipo elegido.
 - **Apuesta del día:** solo usa mercados de goles. Córners, tarjetas y otras estadísticas no entran hasta validarlos con cuotas reales (`pick_allow_stat_markets=False`), y bajan de confianza cuando el modelo y la cuota de la casa discrepan mucho.
 - **Equipos con pocos partidos con cuotas de cierre** (por ejemplo, rivales europeos de ligas pequeñas): menos confianza y probabilidad mezclada con la de la casa. Detalle en `docs/modelos.md`.
-- **Combinadas y Bet Builders:** las patas de goles de un mismo partido se evalúan juntas con la matriz de marcadores (están correlacionadas); las de partidos distintos se multiplican. Las patas fuera del modelo hacen la combinada no evaluable.
+- **Combinadas y Bet Builders:** las patas de goles de un mismo partido, y los goles y asistencias de jugadores, se evalúan juntas con la matriz de marcadores (están correlacionadas; cada gol del equipo se reparte entre sus jugadores); las de partidos distintos se multiplican. Córners, tarjetas, remates y faltas dentro de un Bet Builder se multiplican como independientes y el bloque sale "aproximado". Las patas fuera del modelo hacen la combinada no evaluable.
 - **Capturas:** el panel guarda la imagen y la API lanza `claude -p` con la suscripción del usuario y un servidor MCP aislado. Los números los calcula el modelo; la IA solo lee las cuotas y resume.

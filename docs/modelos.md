@@ -29,7 +29,23 @@ Mismo modelo de fuerza aplicado a cada estadística (cuánto genera cada equipo 
 
 ## 4. Jugadores (`services/analysis.py::_player_projections`)
 
-Tasas por 90' ponderadas por antigüedad (remates, a puerta, goles, xG, faltas, amarillas), **contraídas hacia la media de su posición** (equivalente a 4 partidos). Minutos esperados según la alineación: confirmado titular, previsto (85 %), suplente o sin alineación (frecuencia de titularidad). La tasa se escala por el volumen esperado del equipo en ese partido.
+Tasas por 90' ponderadas por antigüedad (remates, a puerta, goles, xG, asistencias, xA, faltas, amarillas), **contraídas hacia la media de su posición** (equivalente a 4 partidos). Minutos esperados según la alineación: confirmado titular, previsto (85 %), suplente o sin alineación (frecuencia de titularidad). Remates, faltas y tarjetas se escalan por el volumen esperado del equipo en ese partido.
+
+**Goles y asistencias: parte de los goles del equipo** (desde el 20-10-2026). Para cada jugador se calcula qué parte de los goles de su equipo marca, asiste, y su xG y xA, **en los minutos que jugó** (goles del equipo × minutos/90 como exposición), contraída hacia la de su posición con unos 6 goles de equipo de peso. Goles esperados del jugador = (½ parte de goles + ½ parte de xG) × minutos esperados/90 × goles esperados de su equipo en ese partido; igual con asistencias y xA. "Gol o asistencia" suma las dos (un jugador no se asiste a sí mismo).
+
+Antes se usaban las tasas por 90' escaladas contra la media del equipo "frente a un rival promedio". Ese rival promedio sale de todas las ligas de la BD, incluidas las de segunda y las ligas ligeras, y por eso infla la media de los equipos de las ligas grandes: sus goles reales fueron el 78 % (Premier), 91 % (Bundesliga) y 90 % (LaLiga) de esa media. Los goles de jugador salían bajos en todos los equipos. Comprobación fuera de muestra (modelo entrenado antes del periodo, Premier, Bundesliga, LaLiga y Champions):
+
+| Periodo | Mercado | Esperado antes | Esperado ahora | Real | Log-loss antes → ahora |
+|---|---|---|---|---|---|
+| 90 días (10.969 jugadores-partido) | Gol | 578 | 712 | 731 | 0,2012 → 0,1981 |
+| | Asistencia | 427 | 531 | 550 | 0,1759 → 0,1732 |
+| | Gol o asistencia | 957 | 1.170 | 1.190 | 0,2840 → 0,2788 |
+| 45 días (7.618) | Gol | 390 | 482 | 530 | 0,2098 → 0,2062 |
+| | Gol o asistencia | 647 | 793 | 869 | 0,2996 → 0,2929 |
+
+En los últimos 45 días aún se queda un 9 % corto (en 90 días, un 2-3 %). **Ningún mercado de jugador tiene backtest contra cuotas**: esta comprobación mide que las probabilidades estén bien calibradas, no que ganen a las casas.
+
+**Bet Builders con jugadores** (`MatchModel.joint_prob`): si el equipo marca k goles, cada uno lo marca el jugador con su parte de los goles esperados del equipo (y lo asiste con su parte de asistencias). Así "gana el Real Madrid y marca Mbappé" se calcula sobre la matriz de marcadores, con su correlación positiva, y "Arsenal o empate y Kane marca o asiste" con su correlación negativa. Varias selecciones de jugadores del mismo equipo se combinan por inclusión-exclusión. Con un solo jugador sale la misma probabilidad que el mercado suelto. Córners, tarjetas, remates y faltas no dependen solo del marcador: en un Bet Builder se multiplican como si fueran independientes y el resultado se marca **aproximado**.
 
 ## 5. Alineaciones y bajas (`features/lineup.py`)
 

@@ -9,6 +9,7 @@
 - **Apuesta del día** a las 09:00 (solo mercados de goles), con un contador de aciertos desde el inicio en Hoy y en Mis apuestas (`GET /picks/record`; las retiradas al recalcular no cuentan) y **liquidación automática** de picks y apuestas después de cada partido (tarea `post_match`, a los :15 y :45).
 - **Cuotas de Betano y Pinnacle** con OddsPapi a las 08:30 (una petición por casa y día), descartando las que vienen con local y visitante invertidos.
 - **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota, mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y Claude Code la lee, incluidas combinadas y Bet Builders.
+- **Mercados de jugador**: gol (también 2 o más), asistencia y gol o asistencia, con xG y xA; en Bet Builders se calculan junto con el resultado. Córners y tarjetas en un Bet Builder salen "aproximados" (desde el 2026-10-20).
 - **Compartir el panel por un enlace** con un túnel rápido de Cloudflare (README, "Compartir el panel con un enlace"): por el túnel la API siempre pide clave. Usuario `invitado` creado el 2026-10-20.
 - **Banca inicial editable** en Mis apuestas (`PUT /bankroll`), con la banca actual al lado.
 - **Servidor MCP** para Claude, **API REST** y **bot de Telegram** (este último sin configurar).
@@ -42,6 +43,6 @@
 ## Limitaciones conocidas
 
 - El modelo no le gana a bet365 en 1X2, goles ni hándicap asiático (ver el backtest en `docs/modelos.md`).
-- Los mercados de estadísticas y jugadores no tienen backtest con cuotas reales.
+- Los mercados de estadísticas y jugadores no tienen backtest con cuotas reales. Los goles y asistencias de jugadores sí se comprobaron fuera de muestra (bien calibrados en 90 días; en los últimos 45, un 9 % cortos).
 - OddsPapi: 250 peticiones al mes en el plan gratis.
 - Los rivales europeos de ligas que football-data no cubre (Chequia, Croacia, Serbia…) no tienen ratings del mercado.

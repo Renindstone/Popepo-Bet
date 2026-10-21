@@ -83,6 +83,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
               <th className={th}>Remates</th>
               <th className={th}>A puerta</th>
               <th className={th}>Goles</th>
+              <th className={th}>Asist.</th>
               <th className={th}>Titular</th>
               <th className={th}>Minutos</th>
               <th className={th}>Faltas</th>
@@ -112,6 +113,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
                     <td className={`${td} font-semibold`}>{num(p.expected.shots, 2)}</td>
                     <td className={td}>{num(p.expected.shots_on_target, 2)}</td>
                     <td className={td}>{num(p.expected.goals, 2)}</td>
+                    <td className={td}>{num(p.expected.assists, 2)}</td>
                     <td className={td}>{pct(p.start_prob)}</td>
                     <td className={td}>{num(p.expected_minutes, 0)}</td>
                     <td className={td}>{num(p.expected.fouls_committed, 2)}</td>
@@ -119,7 +121,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
                   </tr>
                   {isOpen && (
                     <tr className="border-b border-regla bg-hoja">
-                      <td colSpan={8} className="px-3 pt-1 pb-5">
+                      <td colSpan={9} className="px-3 pt-1 pb-5">
                         <PlayerPanel name={p.name} matchId={a.match_id} />
                       </td>
                     </tr>
@@ -151,6 +153,8 @@ const PER90: [string, string][] = [
   ["shots_on_target", "A puerta"],
   ["goals", "Goles"],
   ["xg", "xG"],
+  ["assists", "Asistencias"],
+  ["xa", "xA"],
   ["fouls_committed", "Faltas"],
   ["yellow_cards", "Amarillas"],
 ];
@@ -172,6 +176,8 @@ function PlayerPanel({ name, matchId }: { name: string; matchId: number }) {
             <Meter label="Al menos 1 a puerta" p={pr.p_sot_over_0_5} />
             <Meter label="Al menos 2 a puerta" p={pr.p_sot_over_1_5} />
             <Meter label="Marca gol" p={pr.p_goal} />
+            <Meter label="Da una asistencia" p={pr.p_assist} />
+            <Meter label="Marca o asiste" p={pr.p_goal_assist} />
             <Meter label="Ve tarjeta" p={pr.p_card} />
           </div>
         ) : (

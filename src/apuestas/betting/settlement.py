@@ -11,8 +11,10 @@ from apuestas.models import distributions as dist
 RESULT_PROFIT = {"win": 1.0, "half_win": 0.5, "push": 0.0, "void": 0.0, "half_loss": -0.5, "loss": -1.0}
 STAT_COLUMNS = {"goals": "goals", "shots": "shots", "sot": "shots_on_target", "shots_on_target": "shots_on_target",
                 "corners": "corners", "fouls": "fouls", "cards": "cards"}
-PLAYER_COLUMNS = {"player_shots": "shots", "player_sot": "shots_on_target", "player_fouls": "fouls_committed",
-                  "player_goal": "goals", "player_card": "yellow_cards"}
+PLAYER_COLUMNS = {"player_shots": ("shots",), "player_sot": ("shots_on_target",), "player_fouls": ("fouls_committed",),
+                  "player_goal": ("goals",), "player_assist": ("assists",), "player_goal_assist": ("goals", "assists"),
+                  "player_card": ("yellow_cards",)}
+YES = ("yes", "si", "sí")
 
 
 def _team_value(st: m.TeamMatchStats | None, stat: str) -> int | None:
@@ -45,11 +47,14 @@ def settle(s: Session, match: m.Match, market: str, selection: str, line: float 
         if pms is None:
             # No jugó: las casas suelen anular (void) las props de jugadores que no participan
             return "void" if match.details_fetched_at else None
-        value = getattr(pms, PLAYER_COLUMNS[market]) or 0
-        if market in ("player_goal", "player_card"):
-            hit = value > 0 or (market == "player_card" and (pms.red_cards or 0) > 0)
-            return "win" if hit == (selection in ("yes", "si", "sí")) else "loss"
-        o = dist.over({value: 1.0}, line) if selection == "over" else dist.under({value: 1.0}, line)
+        value = sum(getattr(pms, col) or 0 for col in PLAYER_COLUMNS[market])
+        if market == "player_card":
+            hit = value > 0 or (pms.red_cards or 0) > 0
+            return "win" if hit == (selection in YES) else "loss"
+        if selection in YES + ("no",):  # marca / asiste / gol o asistencia: sí = al menos una
+            return "win" if (value > 0) == (selection in YES) else "loss"
+        ln = 0.5 if line is None else line
+        o = dist.over({value: 1.0}, ln) if selection == "over" else dist.under({value: 1.0}, ln)
         return _from_outcome(o)
 
     parts = market.split("_", 1)

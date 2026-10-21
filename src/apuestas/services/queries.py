@@ -248,6 +248,8 @@ def player_projection(player: str, match_ref: str | int | None = None) -> dict:
                     "p_sot_over_0_5": round(mm.outcome("player_sot", "over", 0.5, p.id).effective_prob(), 3),
                     "p_sot_over_1_5": round(mm.outcome("player_sot", "over", 1.5, p.id).effective_prob(), 3),
                     "p_goal": round(mm.outcome("player_goal", "yes", None, p.id).effective_prob(), 3),
+                    "p_assist": round(mm.outcome("player_assist", "yes", None, p.id).effective_prob(), 3),
+                    "p_goal_assist": round(mm.outcome("player_goal_assist", "yes", None, p.id).effective_prob(), 3),
                     "p_card": round(mm.outcome("player_card", "yes", None, p.id).effective_prob(), 3),
                 }
             else:

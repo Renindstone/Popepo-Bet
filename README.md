@@ -101,10 +101,11 @@ La página se actualiza sola. Tarda unos 10 a 15 segundos por captura. Si Claude
 
 **Combinadas y Bet Builders.** Si la captura es una combinada (una sola cuota para varias selecciones):
 - Claude la separa por partidos.
-- Dentro de un partido, la probabilidad conjunta sale de la matriz de marcadores, porque "gana el City" y "más de 2,5 goles" dependen entre sí.
+- Dentro de un partido, la probabilidad conjunta sale de la matriz de marcadores, porque "gana el City" y "más de 2,5 goles" dependen entre sí. Los **goles y asistencias de jugadores** ("Kane anotará o asistirá", "gol de Mbappé", "2 o más goles") entran en ese mismo cálculo: cada gol del equipo se reparte entre sus jugadores según su parte de goles, xG, asistencias y xA.
+- Córners, tarjetas, remates y faltas dentro de un Bet Builder se combinan como si no dependieran del resultado: el bloque sale marcado como **aproximado**.
 - Los partidos distintos se multiplican, y el resultado se compara con la cuota de cada bloque y con la total.
 
-Lo que el modelo no puede calcular aparece marcado con su motivo, sin inventar: atajadas, asistencias, o córners y jugadores mezclados con otras selecciones del mismo partido. Si en la captura no hay nada evaluable, queda como **No evaluable**, con la explicación de Claude.
+Lo que el modelo no puede calcular aparece marcado con su motivo, sin inventar: atajadas, primer goleador, resultado exacto, o jugadores que no figuran en la alineación prevista. Si en la captura no hay nada evaluable, queda como **No evaluable**, con la explicación de Claude.
 
 - Usa **tu suscripción de Claude**: cuenta para tu límite de uso, sin coste extra. Necesita el CLI `claude` con la sesión iniciada en esta PC y la API corriendo.
 - La IA corre aislada: sin acceso a archivos ni a la terminal, solo con las tres herramientas de capturas.
