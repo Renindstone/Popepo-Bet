@@ -23,6 +23,7 @@ const PLAYER: Record<string, string> = {
 };
 
 const BASE: Record<string, string> = {
+  combo: "Combinada",
   "1x2": "Resultado",
   dc: "Doble oportunidad",
   dnb: "Empate no válido",

@@ -82,6 +82,7 @@ class ComboLeg(BaseModel):
     linea: float | None = Field(default=None, description="Línea si la hay")
     jugador: str | None = Field(default=None, description="Jugador, solo en mercados de jugador")
     texto: str | None = Field(default=None, description="Texto tal como aparece, p.ej. 'Raphinha 1+ tiros al arco'")
+    cuota: float | None = Field(default=None, description="Cuota de esta selección sola, si se ve (opcional)")
 
 
 class ComboBlock(BaseModel):
@@ -412,7 +413,8 @@ COMBO_VALUE_EV = 0.03  # mismo corte de valor que la apuesta del día
 
 def _leg(leg: ComboLeg) -> dict:
     return {"market": leg.mercado.strip().lower(), "selection": normalize_selection(leg.seleccion or ""),
-            "line": leg.linea, "player": _clean(leg.jugador, 80), "text": _clean(leg.texto, 120)}
+            "line": leg.linea, "player": _clean(leg.jugador, 80), "text": _clean(leg.texto, 120),
+            "odds": leg.cuota if leg.cuota and leg.cuota > 1 else None, "player_id": None, "prob": None}
 
 
 def block_probability(model, legs: list[dict]) -> tuple[float | None, str | None, list[str]]:
@@ -478,6 +480,68 @@ def combo_summary(blocks: list[dict], total_odds: float | None) -> dict:
             "evaluable": evaluable, "verdict": verdict, "approximate": any(b.get("approx") for b in blocks)}
 
 
+def evaluate_blocks(s: Session, bundle, blocks_in: list[ComboBlock]) -> tuple[list[dict], list[m.Match]]:
+    """Probabilidad de cada bloque (las selecciones de un partido) según el modelo. La usan las capturas y el cupón.
+
+    La cuota de un bloque es la del Bet Builder si se conoce; si no, la de su única selección o el producto de las
+    cuotas de sus selecciones (lo que pagaría como combinada simple).
+    """
+    tz = get_settings().tz
+    out: list[dict] = []
+    matches: list[m.Match] = []
+    for bl in blocks_in:
+        legs = [_leg(lg) for lg in bl.selecciones]
+        block_odds = bl.cuota
+        if block_odds is None and legs and all(lg["odds"] for lg in legs):
+            block_odds = round(math.prod(lg["odds"] for lg in legs), 2)
+        block = {"partido": bl.partido, "match_id": None, "match": bl.partido, "odds": block_odds, "legs": legs,
+                 "prob": None, "fair_odds": None, "ev": None, "reason": None, "notes": [], "approx": []}
+        out.append(block)
+        try:
+            match = queries.find_match(s, bl.partido)
+        except queries.NotFound as exc:
+            for lg in legs:
+                lg["label"] = lg["text"] or lg["market"]
+            block["reason"] = str(exc)
+            continue
+        matches.append(match)
+        home, away = match.home_team.name, match.away_team.name
+        block.update(match_id=match.id, match=f"{home} vs {away}", competition=match.competition.code,
+                     kickoff_local=match.kickoff_utc.astimezone(tz).strftime("%Y-%m-%d %H:%M"))
+        for lg in legs:
+            lg["label"] = (lg["text"] or "selección sin mercado") if lg["market"] == "otro" else \
+                analysis.bet_label(lg["market"], lg["selection"], lg["line"], home, away, lg["player"])
+        try:
+            for lg in legs:
+                if lg["player"] and lg["market"].startswith("player_"):
+                    lg["player_id"] = _find_player(s, lg["player"], match).id
+        except queries.NotFound as exc:
+            block["reason"] = str(exc)
+            continue
+        an = analysis.analyze(s, bundle, match)
+        for lg in legs:  # probabilidad de cada selección sola, como referencia
+            if lg["market"] != "otro":
+                try:
+                    lg["prob"] = round(an.model.outcome(lg["market"], lg["selection"], lg["line"], lg["player_id"])
+                                       .effective_prob(), 4)
+                except (ValueError, KeyError):
+                    lg["prob"] = None
+        block["prob"], block["reason"], block["approx"] = block_probability(an.model, legs)
+        if block["approx"]:
+            block["notes"].append("aproximado: " + ", ".join(block["approx"])
+                                  + " se combina como si no dependiera del resultado")
+        if block["prob"] is not None:
+            block["prob"] = round(block["prob"], 4)
+            block["fair_odds"] = round(1 / block["prob"], 2) if block["prob"] > 0 else None
+            if block_odds:
+                block["ev"] = round(block["prob"] * block_odds - 1, 4)
+        if an.stage != "confirmed":
+            block["notes"].append("alineaciones previstas")
+        if an.data_quality.get("no_market_note"):
+            block["notes"].append(an.data_quality["no_market_note"])
+    return out, matches
+
+
 def evaluate_combo(username: str, capture_id: int, bloques: list[ComboBlock | dict], cuota_total: float | None = None,
                    notas: str | None = None, engine: str = "mcp") -> dict:
     """Lo que llama la IA con una combinada o Bet Builder: probabilidad de cada bloque y del total según el modelo."""
@@ -485,51 +549,9 @@ def evaluate_combo(username: str, capture_id: int, bloques: list[ComboBlock | di
     if not blocks_in or not any(b.selecciones for b in blocks_in):
         raise CaptureError("No hay selecciones que evaluar")
     bundle = load_bundle()
-    tz = get_settings().tz
-    out: list[dict] = []
     with session_scope() as s:
         cap = _owned(s, username, capture_id)
-        matches = []
-        for bl in blocks_in:
-            legs = [_leg(lg) for lg in bl.selecciones]
-            block = {"partido": bl.partido, "match_id": None, "match": bl.partido, "odds": bl.cuota, "legs": legs,
-                     "prob": None, "fair_odds": None, "ev": None, "reason": None, "notes": [], "approx": []}
-            out.append(block)
-            try:
-                match = queries.find_match(s, bl.partido)
-            except queries.NotFound as exc:
-                for lg in legs:
-                    lg["label"] = lg["text"] or lg["market"]
-                block["reason"] = str(exc)
-                continue
-            matches.append(match)
-            home, away = match.home_team.name, match.away_team.name
-            block.update(match_id=match.id, match=f"{home} vs {away}", competition=match.competition.code,
-                         kickoff_local=match.kickoff_utc.astimezone(tz).strftime("%Y-%m-%d %H:%M"))
-            for lg in legs:
-                lg["label"] = (lg["text"] or "selección sin mercado") if lg["market"] == "otro" else \
-                    analysis.bet_label(lg["market"], lg["selection"], lg["line"], home, away, lg["player"])
-            try:
-                for lg in legs:
-                    if lg["player"] and lg["market"].startswith("player_"):
-                        lg["player_id"] = _find_player(s, lg["player"], match).id
-            except queries.NotFound as exc:
-                block["reason"] = str(exc)
-                continue
-            an = analysis.analyze(s, bundle, match)
-            block["prob"], block["reason"], block["approx"] = block_probability(an.model, legs)
-            if block["approx"]:
-                block["notes"].append("aproximado: " + ", ".join(block["approx"])
-                                      + " se combina como si no dependiera del resultado")
-            if block["prob"] is not None:
-                block["prob"] = round(block["prob"], 4)
-                block["fair_odds"] = round(1 / block["prob"], 2) if block["prob"] > 0 else None
-                if bl.cuota:
-                    block["ev"] = round(block["prob"] * bl.cuota - 1, 4)
-            if an.stage != "confirmed":
-                block["notes"].append("alineaciones previstas")
-            if an.data_quality.get("no_market_note"):
-                block["notes"].append(an.data_quality["no_market_note"])
+        out, matches = evaluate_blocks(s, bundle, blocks_in)
         summary = combo_summary(out, cuota_total)
         cap.combos = {**summary, "blocks": out}
         cap.lines = None

@@ -105,3 +105,29 @@ def settle(s: Session, match: m.Match, market: str, selection: str, line: float 
 def profit(result: str, stake: float, odds: float) -> float:
     k = RESULT_PROFIT[result]
     return round(stake * k * (odds - 1) if k > 0 else stake * k, 2)
+
+
+def combo_profit(stake: float, total_odds: float, legs: list[tuple[str | None, float | None]]) -> tuple[str, float] | None:
+    """Resultado y beneficio de una combinada a partir del resultado de cada selección y su cuota.
+
+    Basta una selección perdida para perderla, aunque falten partidos. Si alguna se devuelve (push/void) o sale a
+    medias (hándicap de cuarto), la cuota total se ajusta en proporción a la cuota de esa selección, como hacen las
+    casas; si no se conoce su cuota, se deja la total. None si aún faltan selecciones por resolver.
+    """
+    if any(res == "loss" for res, _ in legs):
+        return "loss", round(-stake, 2)
+    if any(res is None for res, _ in legs):
+        return None
+    factor = 1.0
+    for res, odds in legs:
+        if res == "win" or odds is None or odds <= 1:
+            continue
+        factor *= {"push": 1 / odds, "void": 1 / odds, "half_win": (1 + odds) / (2 * odds),
+                   "half_loss": 0.5 / odds}[res]
+    payout = stake * total_odds * factor
+    profit_ = round(payout - stake, 2)
+    if all(res in ("push", "void") for res, _ in legs):
+        return "void", 0.0
+    if profit_ > 0:
+        return "win", profit_
+    return ("push", 0.0) if profit_ == 0 else ("half_loss", profit_)

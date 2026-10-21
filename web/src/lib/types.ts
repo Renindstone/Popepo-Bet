@@ -301,6 +301,18 @@ export interface Performance {
   bankroll: Bankroll;
 }
 
+export interface UserBetLeg {
+  match: string;
+  match_id: number;
+  market: string;
+  selection: string;
+  line: number | null;
+  odds: number | null;
+  block_odds: number | null;
+  player: string | null;
+  result: string | null;
+}
+
 export interface UserBet {
   bet_id: number;
   match: string;
@@ -313,6 +325,8 @@ export interface UserBet {
   result: string | null;
   profit: number | null;
   clv: number | null;
+  /** Solo en combinadas y Bet Builders (market = "combo") */
+  legs?: UserBetLeg[];
 }
 
 export interface RegisteredBet {

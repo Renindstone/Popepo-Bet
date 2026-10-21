@@ -225,7 +225,7 @@ def _merge_matches(s: Session, a: m.Match, b: m.Match, drop_team: int, keep_team
             else:
                 r.match_id = keep.id
     s.execute(delete(m.TeamMatchStats).where(m.TeamMatchStats.match_id == gone.id))  # se recalcula
-    for model in (m.OddsSnapshot, m.Prediction, m.Pick, m.UserBet, m.OddsCapture):
+    for model in (m.OddsSnapshot, m.Prediction, m.Pick, m.UserBet, m.UserBetLeg, m.OddsCapture):
         s.execute(update(model).where(model.match_id == gone.id).values(match_id=keep.id))
     s.execute(update(m.EntityAlias).where(m.EntityAlias.entity_type == "match", m.EntityAlias.entity_id == gone.id)
               .values(entity_id=keep.id))

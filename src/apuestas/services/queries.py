@@ -281,6 +281,92 @@ def register_bet(username: str, match_ref: str | int, market: str, selection: st
                 "bankroll": status}
 
 
+MAX_SLIP_LEGS = 20
+
+
+def _slip_blocks(blocks: list[dict]) -> list:
+    """Cupón del panel → bloques de combinada (un bloque por partido, con sus selecciones)."""
+    from apuestas.services.captures import ComboBlock, ComboLeg
+
+    out = []
+    for b in blocks:
+        legs = [ComboLeg(mercado=lg["market"], seleccion=lg["selection"], linea=lg.get("line"),
+                         jugador=lg.get("player"), cuota=lg.get("odds")) for lg in b.get("legs", [])]
+        if legs:
+            out.append(ComboBlock(partido=str(b["match"]), selecciones=legs, cuota=b.get("odds")))
+    if not out:
+        raise ValueError("El cupón está vacío.")
+    if sum(len(b.selecciones) for b in out) > MAX_SLIP_LEGS:
+        raise ValueError(f"Como máximo {MAX_SLIP_LEGS} selecciones por cupón.")
+    return out
+
+
+def evaluate_slip(blocks: list[dict], total_odds: float | None = None) -> dict:
+    """Probabilidad de un cupón armado en el panel: Bet Builders por partido y combinada entre partidos."""
+    from apuestas.services.captures import combo_summary, evaluate_blocks
+
+    bundle = load_bundle()
+    with session_scope() as s:
+        out, _ = evaluate_blocks(s, bundle, _slip_blocks(blocks))
+    return {**combo_summary(out, total_odds), "blocks": out}
+
+
+def register_combo(username: str, blocks: list[dict], total_odds: float, stake: float, bookmaker: str = "betano",
+                   notes: str | None = None) -> dict:
+    """Registra un cupón como una sola apuesta (market "combo") con sus selecciones; se liquida sola."""
+    from apuestas.services.captures import combo_summary, evaluate_blocks
+
+    if not total_odds or total_odds <= 1:
+        raise ValueError("Falta la cuota total del cupón (mayor que 1).")
+    if not stake or stake <= 0:
+        raise ValueError("El importe debe ser mayor que 0.")
+    slip = _slip_blocks(blocks)
+    if sum(len(b.selecciones) for b in slip) < 2:
+        raise ValueError("Un cupón necesita al menos 2 selecciones; para una sola, registra la apuesta normal.")
+    bundle = load_bundle()
+    with session_scope() as s:
+        out, _ = evaluate_blocks(s, bundle, slip)
+        unknown = [b["partido"] for b in out if b["match_id"] is None]
+        if unknown:
+            raise NotFound(f"No se encontró el partido: {', '.join(unknown)}")
+        missing_player = [lg["player"] for b in out for lg in b["legs"]
+                          if lg["market"].startswith("player_") and lg["player_id"] is None]
+        if missing_player:
+            raise NotFound(f"No se encontró el jugador: {', '.join(p or '¿?' for p in missing_player)}")
+        summary = combo_summary(out, total_odds)
+        user = tracker.get_or_create_user(s, username)
+        matches = {mt.id: mt for mt in s.scalars(select(m.Match).where(m.Match.id.in_([b["match_id"] for b in out])))}
+        last = max(matches.values(), key=lambda mt: mt.kickoff_utc)  # se liquida cuando termina el último
+        n_legs = sum(len(b["legs"]) for b in out)
+        bet = tracker.register_bet(s, user, last, bookmaker, "combo", f"{n_legs} selecciones", None, total_odds, stake,
+                                   model_prob=summary["prob"], notes=notes)
+        pos = 0
+        for b in out:
+            for lg in b["legs"]:
+                bet.legs.append(m.UserBetLeg(position=pos, match_id=b["match_id"], market=lg["market"],
+                                             selection=lg["selection"], line=lg["line"], player_id=lg["player_id"],
+                                             odds=lg["odds"], block_odds=b["odds"] if len(b["legs"]) > 1 else None,
+                                             model_prob=lg["prob"]))
+                pos += 1
+        s.flush()
+        return {"bet_id": bet.id, "match": f"Combinada de {n_legs} selecciones", "market": "combo",
+                "selection": bet.selection, "line": None, "odds": total_odds, "stake": stake,
+                "model_prob": summary["prob"], "ev": summary["ev"], "bankroll": tracker.bankroll_status(s, user)}
+
+
+def _bet_dict(b: m.UserBet) -> dict:
+    out = {"bet_id": b.id, "match": f"{b.match.home_team.name} vs {b.match.away_team.name}",
+           "market": b.market, "selection": b.selection, "line": b.line, "odds": b.odds, "stake": b.stake,
+           "bookmaker": b.bookmaker, "result": b.result, "profit": b.profit, "clv": b.clv}
+    if b.market == "combo":
+        out["match"] = f"Combinada de {len(b.legs)} selecciones"
+        out["legs"] = [{"match": f"{lg.match.home_team.name} vs {lg.match.away_team.name}", "match_id": lg.match_id,
+                        "market": lg.market, "selection": lg.selection, "line": lg.line, "odds": lg.odds,
+                        "block_odds": lg.block_odds, "player": lg.player.name if lg.player else None,
+                        "result": lg.result} for lg in b.legs]
+    return out
+
+
 def my_bets(username: str, pending_only: bool = False, limit: int = 30) -> list[dict]:
     with session_scope() as s:
         user = tracker.get_or_create_user(s, username)
@@ -288,9 +374,7 @@ def my_bets(username: str, pending_only: bool = False, limit: int = 30) -> list[
         if pending_only:
             q = q.where(m.UserBet.result.is_(None))
         rows = s.scalars(q.order_by(m.UserBet.placed_at.desc()).limit(limit)).all()
-        return [{"bet_id": b.id, "match": f"{b.match.home_team.name} vs {b.match.away_team.name}",
-                 "market": b.market, "selection": b.selection, "line": b.line, "odds": b.odds, "stake": b.stake,
-                 "bookmaker": b.bookmaker, "result": b.result, "profit": b.profit, "clv": b.clv} for b in rows]
+        return [_bet_dict(b) for b in rows]
 
 
 def performance(username: str, days: int | None = None) -> dict:

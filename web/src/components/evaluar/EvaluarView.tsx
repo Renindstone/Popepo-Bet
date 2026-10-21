@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, type ReactNode, useState } from "react";
+import { Cupon } from "@/components/evaluar/Cupon";
 import { PenMark } from "@/components/PenMark";
 import { Button, EdgeBar, ErrorNote, Figure, Loading, PageTitle } from "@/components/ui";
 import { type ApiError, post, useApi } from "@/lib/api";
 import { competitionName, money, odds, pct, signedPct, splitMatch, stageText } from "@/lib/format";
 import { betLabel, bookmakerName, MARKET_OPTIONS, type MarketOption, selectionsFor } from "@/lib/markets";
+import { addLeg, updateSlip, useSlip } from "@/lib/slip";
 import type { Evaluation, MatchAnalysis, MatchSummary, Performance, RegisteredBet } from "@/lib/types";
 
 /** "ou_cards_home" → mercado base "ou_cards" y ámbito "home" */
@@ -56,6 +58,8 @@ export function EvaluarView() {
   const [result, setResult] = useState<{ r: Evaluation; matchId: string; player: string | null } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [added, setAdded] = useState<string | null>(null);
+  const slip = useSlip();
 
   const matches = useApi<MatchSummary[]>("/matches?days=7");
   const selected = matches.data?.find((m) => String(m.match_id) === matchId);
@@ -78,6 +82,31 @@ export function EvaluarView() {
   const valid =
     !!matchId && priceNum > 1 && (!needsLine || (line !== "" && Number.isFinite(lineNum))) && (!market.player || player.trim() !== "");
 
+  // Línea como la guarda la API: en el hándicap 3 vías, la del local
+  const apiLine = needsLine ? (market.value === "eh" && selection === "away" ? -lineNum : lineNum) : null;
+
+  function addToSlip() {
+    if (!valid || !selected) return;
+    const who = market.player ? player.trim() : null;
+    const label = betLabel(marketCode, selection, apiLine, { home: selected.home, away: selected.away, player: who });
+    if (slip.legs.length === 0) updateSlip((s) => ({ ...s, bookmaker }));
+    addLeg({
+      matchId,
+      match: `${selected.home} vs ${selected.away}`,
+      home: selected.home,
+      away: selected.away,
+      kickoff: selected.kickoff_local,
+      market: marketCode,
+      selection,
+      line: apiLine,
+      player: who,
+      odds: priceNum,
+      label,
+    });
+    setAdded(`${label} a ${odds(priceNum)}`);
+    setPrice("");
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!valid) return;
@@ -90,7 +119,7 @@ export function EvaluarView() {
         market: marketCode,
         selection,
         odds: priceNum,
-        line: needsLine ? (market.value === "eh" && selection === "away" ? -lineNum : lineNum) : null,
+        line: apiLine,
         bookmaker,
         player: who,
       });
@@ -260,19 +289,30 @@ export function EvaluarView() {
             ]}
           />
 
-          <Button type="submit" variant="primary" disabled={!valid || busy}>
-            {busy ? "Evaluando…" : "Evaluar cuota"}
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" variant="primary" disabled={!valid || busy}>
+              {busy ? "Evaluando…" : "Evaluar cuota"}
+            </Button>
+            <Button onClick={addToSlip} disabled={!valid || !selected}>
+              Añadir al cupón
+            </Button>
+          </div>
+          <p className="-mt-2 text-[0.88rem] text-grafito" aria-live="polite">
+            {added
+              ? `Añadida: ${added}. Sigue con otra selección de este partido (Bet Builder) o elige otro partido.`
+              : "Con «Añadir al cupón» puedes juntar varias selecciones, del mismo partido o de otros, y evaluarlas juntas."}
+          </p>
         </form>
 
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-8">
+          <Cupon />
           {error ? (
             <ErrorNote error={error} />
           ) : busy ? (
             <Loading lines={5} label="Evaluando la cuota" />
           ) : result ? (
             <Resultado r={result.r} matchId={result.matchId} player={result.player} />
-          ) : (
+          ) : slip.legs.length ? null : (
             <Explicacion />
           )}
         </div>

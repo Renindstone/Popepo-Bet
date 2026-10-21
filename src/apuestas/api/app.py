@@ -100,6 +100,32 @@ class CaptureLinesIn(BaseModel):
     lines: list[captures.CaptureLine]
 
 
+class SlipLegIn(BaseModel):
+    market: str
+    selection: str
+    line: float | None = None
+    player: str | None = None
+    odds: float | None = None
+
+
+class SlipBlockIn(BaseModel):
+    match: str
+    odds: float | None = None  # cuota del Bet Builder de este partido, si se conoce
+    legs: list[SlipLegIn]
+
+
+class SlipIn(BaseModel):
+    blocks: list[SlipBlockIn]
+    total_odds: float | None = None
+
+
+class ComboBetIn(SlipIn):
+    total_odds: float
+    stake: float
+    bookmaker: str = "betano"
+    notes: str | None = None
+
+
 class BankrollIn(BaseModel):
     bankroll: float
     currency: str = "PEN"
@@ -183,6 +209,19 @@ def register_bet(b: BetIn, user: str = Depends(current_user)) -> dict:
 @app.get("/bets")
 def bets(pending_only: bool = False, user: str = Depends(current_user)) -> list[dict]:
     return queries.my_bets(user, pending_only)
+
+
+@app.post("/combos/evaluate")
+def evaluate_slip(body: SlipIn, user: str = Depends(current_user)) -> dict:
+    """Evalúa un cupón: Bet Builders (varias selecciones de un partido) y combinada entre partidos."""
+    return _wrap(queries.evaluate_slip, [b.model_dump() for b in body.blocks], body.total_odds)
+
+
+@app.post("/combos")
+def register_combo(body: ComboBetIn, user: str = Depends(current_user)) -> dict:
+    """Registra un cupón como una sola apuesta; se liquida sola cuando terminan sus partidos."""
+    return _wrap(queries.register_combo, user, [b.model_dump() for b in body.blocks], body.total_odds, body.stake,
+                 body.bookmaker, body.notes)
 
 
 @app.put("/bankroll")

@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from apuestas.betting import odds as oddsmath
-from apuestas.betting.settlement import profit, settle
+from apuestas.betting.settlement import combo_profit, profit, settle
 from apuestas.config import get_settings
 from apuestas.core.competitions import FULL
 from apuestas.db import models as m
@@ -194,6 +194,15 @@ def settle_all() -> dict:
                 pick.clv = round(oddsmath.clv(pick.odds, pick.closing_odds), 4)
             out["picks"] += 1
         for bet in s.scalars(select(m.UserBet).where(m.UserBet.result.is_(None))):
+            if bet.market == "combo":
+                for leg in bet.legs:
+                    if leg.result is None:
+                        leg.result = settle(s, leg.match, leg.market, leg.selection, leg.line, leg.player_id)
+                done = combo_profit(bet.stake, bet.odds, [(leg.result, leg.odds) for leg in bet.legs])
+                if done is not None:
+                    bet.result, bet.profit = done
+                    out["bets"] += 1
+                continue
             res = settle(s, bet.match, bet.market, bet.selection, bet.line, bet.player_id)
             if res is None:
                 continue

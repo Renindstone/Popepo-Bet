@@ -361,6 +361,30 @@ class UserBet(Base, TimestampMixin):
     clv: Mapped[float | None] = mapped_column(Float)
     notes: Mapped[str | None] = mapped_column(Text)
     match: Mapped[Match] = relationship()
+    # Combinadas y Bet Builders (market = "combo"): sus selecciones; `match` es el partido que termina último
+    legs: Mapped[list[UserBetLeg]] = relationship(back_populates="bet", order_by="UserBetLeg.position",
+                                                  cascade="all, delete-orphan")
+
+
+class UserBetLeg(Base):
+    """Una selección de una combinada o Bet Builder registrada (UserBet con market = "combo")."""
+
+    __tablename__ = "user_bet_leg"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bet_id: Mapped[int] = mapped_column(ForeignKey("user_bet.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    match_id: Mapped[int] = mapped_column(ForeignKey("match.id"), index=True)
+    market: Mapped[str] = mapped_column(String(24))
+    selection: Mapped[str] = mapped_column(String(40))
+    line: Mapped[float | None] = mapped_column(Float)
+    player_id: Mapped[int | None] = mapped_column(ForeignKey("player.id"))
+    odds: Mapped[float | None] = mapped_column(Float)  # cuota de la selección sola, si se conoce
+    block_odds: Mapped[float | None] = mapped_column(Float)  # cuota del Bet Builder de su partido, si se conoce
+    model_prob: Mapped[float | None] = mapped_column(Float)
+    result: Mapped[str | None] = mapped_column(String(10))
+    bet: Mapped[UserBet] = relationship(back_populates="legs")
+    match: Mapped[Match] = relationship()
+    player: Mapped[Player | None] = relationship()
 
 
 class OddsCapture(Base, TimestampMixin):

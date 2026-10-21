@@ -11,6 +11,7 @@
 - **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota, mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y Claude Code la lee, incluidas combinadas y Bet Builders.
 - **Mercados de jugador**: gol (también 2 o más), asistencia y gol o asistencia, con xG y xA; en Bet Builders se calculan junto con el resultado. Córners y tarjetas en un Bet Builder salen "aproximados" (desde el 2026-10-20).
 - **Compartir el panel por un enlace** con un túnel rápido de Cloudflare (README, "Compartir el panel con un enlace"): por el túnel la API siempre pide clave. Usuario `invitado` creado el 2026-10-20.
+- **Cupón en Evaluar cuota**: varias selecciones de uno o varios partidos (Bet Builders y combinada), evaluadas juntas (`POST /combos/evaluate`) y registradas como una apuesta `combo` con sus selecciones en `user_bet_leg` (`POST /combos`); se liquidan solas.
 - **Banca inicial editable** en Mis apuestas (`PUT /bankroll`), con la banca actual al lado.
 - **Servidor MCP** para Claude, **API REST** y **bot de Telegram** (este último sin configurar).
 - Servicios systemd de usuario: `apuestas-db`, `apuestas-worker`, `apuestas-api` y `apuestas-web`. Si el equipo estuvo apagado a la hora de una tarea diaria, el worker la recupera al arrancar (desde el 2026-10-20).

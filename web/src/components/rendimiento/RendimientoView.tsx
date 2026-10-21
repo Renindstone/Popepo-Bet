@@ -503,16 +503,44 @@ function profitClass(x: number | null | undefined): string {
   return x != null && x > 0 ? "text-boli" : x != null && x < 0 ? "text-rojo" : "";
 }
 
+/** Lo apostado: una selección, o las de una combinada con el resultado de cada una */
+function BetText({ b }: { b: UserBet }) {
+  if (b.market !== "combo" || !b.legs) {
+    const [home, away] = splitMatch(b.match);
+    return <>{betLabel(b.market, b.selection, b.line, { home, away })}</>;
+  }
+  return (
+    <ul className="space-y-0.5">
+      {b.legs.map((lg, i) => {
+        const [home, away] = splitMatch(lg.match);
+        return (
+          <li key={i} className="text-[0.92rem]">
+            <span className="text-grafito">{lg.match}: </span>
+            {betLabel(lg.market, lg.selection, lg.line, { home, away, player: lg.player })}
+            {lg.odds != null && <span className="num ml-1 text-grafito">({odds(lg.odds)})</span>}
+            {lg.result && (
+              <span className="ml-2">
+                <Tag tone={RESULT_TONE[lg.result] ?? "neutral"}>{resultText(lg.result)}</Tag>
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function BetsTable({ rows, currency }: { rows: UserBet[]; currency: string }) {
   return (
     <>
       <ul className="divide-y divide-regla-suave border-y border-regla-suave md:hidden">
         {rows.map((b) => {
-          const [home, away] = splitMatch(b.match);
           return (
             <li key={b.bet_id} className="py-3">
               <div className="flex items-start justify-between gap-4">
-                <span className="font-semibold">{betLabel(b.market, b.selection, b.line, { home, away })}</span>
+                <span className="font-semibold">
+                  <BetText b={b} />
+                </span>
                 <span className="cond num text-2xl leading-none font-bold">{odds(b.odds)}</span>
               </div>
               <p className="mt-0.5 text-[0.88rem] text-grafito">
@@ -550,12 +578,11 @@ function BetsWide({ rows, currency }: { rows: UserBet[]; currency: string }) {
         </thead>
         <tbody>
           {rows.map((b) => {
-            const [home, away] = splitMatch(b.match);
             return (
-              <tr key={b.bet_id} className="border-b border-regla-suave">
+              <tr key={b.bet_id} className="border-b border-regla-suave align-top">
                 <td className="py-2 pr-4">{b.match}</td>
                 <td className="py-2 pr-4">
-                  {betLabel(b.market, b.selection, b.line, { home, away })}
+                  <BetText b={b} />
                   <span className="block text-[0.85rem] text-grafito">{bookmakerName(b.bookmaker)}</span>
                 </td>
                 <td className="cond num py-2 pr-4 text-right text-lg font-bold">{odds(b.odds)}</td>
