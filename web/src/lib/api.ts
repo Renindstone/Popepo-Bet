@@ -2,19 +2,12 @@
 
 import useSWR, { type SWRConfiguration } from "swr";
 
-// Desde la propia máquina la API no pide clave. Con clave (otra máquina, túnel) se envía X-API-Key.
+// Desde la propia máquina la API no pide clave. Con clave (otra máquina) se envía X-API-Key.
 export const DIRECT_API_URL = "http://127.0.0.1:8000";
-const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 
-/**
- * Dirección de la API. En esta máquina el navegador la llama directamente; si el panel se abre por un túnel
- * (cloudflared, ngrok) o desde otro equipo, la pide al propio panel en /api, que la reenvía (src/proxy.ts).
- */
+/** Dirección de la API: la de NEXT_PUBLIC_API_URL si se configura, si no la de esta máquina. */
 export function apiUrl(): string {
-  const fixed = process.env.NEXT_PUBLIC_API_URL;
-  if (fixed) return fixed.replace(/\/$/, "");
-  if (typeof window !== "undefined" && !LOCAL_HOSTS.includes(window.location.hostname)) return "/api";
-  return DIRECT_API_URL;
+  return (process.env.NEXT_PUBLIC_API_URL ?? DIRECT_API_URL).replace(/\/$/, "");
 }
 
 const KEY_STORAGE = "apuestas.apiKey";

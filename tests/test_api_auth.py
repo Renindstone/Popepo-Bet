@@ -21,7 +21,6 @@ def test_local_request_without_key_is_the_owner():
 @pytest.mark.parametrize("headers", [
     {"x_forwarded_for": "190.12.3.4"},       # ngrok, cloudflared
     {"cf_connecting_ip": "190.12.3.4"},      # túnel de Cloudflare
-    {"x_apuestas_proxy": "1"},               # proxy /api del panel
     {"forwarded": "for=190.12.3.4"},
 ])
 def test_tunneled_request_needs_a_key(headers):

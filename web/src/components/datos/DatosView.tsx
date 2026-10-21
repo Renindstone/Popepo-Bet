@@ -134,11 +134,11 @@ function Conexion() {
   return (
     <Section
       title="Conexión"
-      intro="Desde esta misma máquina la API no pide clave. Si abres el panel desde otro equipo o por un enlace compartido, escribe tu clave (apuestas user create-key). Se guarda solo en este navegador."
+      intro="Desde esta misma máquina la API no pide clave. Si abres el panel desde otro equipo, escribe tu clave (apuestas user create-key). Se guarda solo en este navegador."
     >
       <dl className="mb-5 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-[0.95rem]">
         <dt className="text-grafito">API</dt>
-        <dd className="num font-semibold break-all">{url === "/api" ? "a través de este panel (/api)" : url}</dd>
+        <dd className="num font-semibold break-all">{url}</dd>
         <dt className="text-grafito">Estado</dt>
         <dd>
           {health.error ? (

@@ -10,7 +10,6 @@
 - **Cuotas de Betano y Pinnacle** con OddsPapi a las 08:30 (una petición por casa y día), descartando las que vienen con local y visitante invertidos.
 - **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota, mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y Claude Code la lee, incluidas combinadas y Bet Builders.
 - **Mercados de jugador**: gol (también 2 o más), asistencia y gol o asistencia, con xG y xA; en Bet Builders se calculan junto con el resultado. Córners y tarjetas en un Bet Builder salen "aproximados" (desde el 2026-10-20).
-- **Compartir el panel por un enlace** con un túnel rápido de Cloudflare (README, "Compartir el panel con un enlace"): por el túnel la API siempre pide clave. Usuario `invitado` creado el 2026-10-20.
 - **Registrar desde una captura** (`POST /captures/{id}/bet`): una cuota o la combinada entera, con el importe que Claude leyó si se ve; la captura recuerda lo registrado (`engine_info.bets`) para no duplicarlo.
 - **Cupón en Evaluar cuota**: varias selecciones de uno o varios partidos (Bet Builders y combinada), evaluadas juntas (`POST /combos/evaluate`) y registradas como una apuesta `combo` con sus selecciones en `user_bet_leg` (`POST /combos`); se liquidan solas.
 - **Alineaciones en el campo** en cada partido (`GET /matches/{id}/lineups`): probables y luego confirmadas, con formación, entrenador, dorsales, posición (de FotMob), suplentes y bajas. La confirmada se busca 70, 50, 35, 20 y 10 minutos antes del inicio (desde el 2026-10-21).

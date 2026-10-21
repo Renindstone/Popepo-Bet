@@ -80,7 +80,7 @@ export function ErrorNote({ error, onRetry }: { error: ApiError | Error; onRetry
 
 const noop = () => () => {};
 
-/** Clave de acceso a la API, guardada en este navegador (para usar el panel desde otro equipo o por un túnel). */
+/** Clave de acceso a la API, guardada en este navegador (para usar el panel desde otro equipo). */
 export function ApiKeyForm({ label = "Clave de acceso", onSaved }: { label?: string; onSaved?: (key: string) => void }) {
   const stored = useSyncExternalStore(noop, getApiKey, () => "");
   const [key, setKey] = useState<string | null>(null);

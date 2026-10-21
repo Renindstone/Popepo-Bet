@@ -46,10 +46,9 @@ app.add_middleware(
 
 
 LOCAL_CLIENTS = ("127.0.0.1", "::1", "localhost", "testclient")
-# Cabeceras que añaden los proxies y túneles (cloudflared, ngrok, el proxy /api del panel): la petición viene
-# de fuera aunque llegue desde 127.0.0.1, así que no se trata como local.
-FORWARD_HEADERS = ("x-forwarded-for", "x-forwarded-host", "forwarded", "x-real-ip", "cf-connecting-ip",
-                   "x-apuestas-proxy")
+# Cabeceras que añaden los proxies y túneles (nginx, cloudflared, ngrok…): la petición viene de fuera aunque
+# llegue desde 127.0.0.1, así que no se trata como local y necesita clave.
+FORWARD_HEADERS = ("x-forwarded-for", "x-forwarded-host", "forwarded", "x-real-ip", "cf-connecting-ip")
 
 
 def is_local(request: Request) -> bool:
