@@ -115,6 +115,7 @@ def upcoming(days: int = 3, competition: str | None = None) -> list[dict]:
         return [{"match_id": r.id, "competition": r.competition.code,
                  "kickoff_local": local(r.kickoff_utc),
                  "home": r.home_team.name, "away": r.away_team.name,
+                 "home_id": r.home_team_id, "away_id": r.away_team_id,
                  "referee": r.referee.name if r.referee else None, "lineups": r.lineup_status} for r in rows]
 
 
@@ -319,6 +320,40 @@ def match_lineups(match_ref: str | int) -> dict:
             "updated_local": fetched.astimezone(tz).strftime("%Y-%m-%d %H:%M") if fetched else None,
             "teams": teams,
         }
+
+
+TEAM_LOGO_URL = "https://images.fotmob.com/image_resources/logo/teamlogo/{}.png"
+LOGO_TTL = 30 * 86400  # los escudos casi no cambian
+
+
+def team_logo(team_id: int) -> bytes:
+    """Escudo del equipo (PNG de FotMob), descargado una vez con el cliente educado y guardado en la caché."""
+    from apuestas.ingest.http import client
+
+    with session_scope() as s:
+        fid = s.scalar(select(m.EntityAlias.source_key).where(
+            m.EntityAlias.entity_type == "team", m.EntityAlias.source == "fotmob",
+            m.EntityAlias.entity_id == team_id).limit(1))
+    if not fid or not str(fid).isdigit():
+        raise NotFound(f"Sin escudo para el equipo {team_id}")
+    return client().get_bytes(TEAM_LOGO_URL.format(fid), ttl=LOGO_TTL)
+
+
+def warm_team_logos(days: int = 10) -> int:
+    """Descarga de antemano los escudos de los equipos con partido en los próximos días (los ya guardados no
+    vuelven a pedirse), para que el panel no espere al abrirlo."""
+    now = datetime.now(UTC)
+    with session_scope() as s:
+        rows = s.execute(select(m.Match.home_team_id, m.Match.away_team_id).where(
+            m.Match.kickoff_utc >= now - timedelta(days=1), m.Match.kickoff_utc <= now + timedelta(days=days))).all()
+    done = 0
+    for team_id in sorted({t for row in rows for t in row}):
+        try:
+            team_logo(team_id)
+            done += 1
+        except (NotFound, FileNotFoundError, RuntimeError):
+            continue
+    return done
 
 
 MAX_SLIP_LEGS = 20

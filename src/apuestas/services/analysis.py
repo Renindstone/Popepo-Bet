@@ -176,6 +176,8 @@ class MatchAnalysis:
             "kickoff_local": mt.kickoff_utc.astimezone(get_settings().tz).strftime("%Y-%m-%d %H:%M"),
             "home": mt.home_team.name,
             "away": mt.away_team.name,
+            "home_id": mt.home_team_id,
+            "away_id": mt.away_team_id,
             "stage": self.stage,
             "model": self.model.summary(),
             "difficulty": self.difficulty,

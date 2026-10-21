@@ -99,6 +99,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                 "match_id": mt.id, "competition": mt.competition.code,
                 "kickoff_local": mt.kickoff_utc.astimezone(get_settings().tz).strftime("%H:%M"),
                 "home": mt.home_team.name, "away": mt.away_team.name, "stage": an.stage,
+                "home_id": mt.home_team_id, "away_id": mt.away_team_id,
                 "difficulty": {"home": an.difficulty["home"]["ajustada"], "away": an.difficulty["away"]["ajustada"]},
                 "1x2": an.model.summary()["1x2"],
             })
@@ -153,6 +154,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
             mt = chosen.match
             report["pick_of_day"] = {
                 "pick_id": chosen.id, "match_id": mt.id, "match": f"{mt.home_team.name} vs {mt.away_team.name}",
+                "home_id": mt.home_team_id, "away_id": mt.away_team_id,
                 "competition": mt.competition.name,
                 "kickoff_local": mt.kickoff_utc.astimezone(get_settings().tz).strftime("%Y-%m-%d %H:%M"),
                 "market": chosen.market, "selection": chosen.selection, "line": chosen.line,

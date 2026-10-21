@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { CaptureDrop } from "@/components/capturas/CaptureDrop";
+import { Crest } from "@/components/Crest";
 import { PenMark } from "@/components/PenMark";
 import { PickRecord } from "@/components/PickRecord";
 import { Button, EdgeBar, Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag, TriBar } from "@/components/ui";
@@ -196,7 +197,10 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
       <p className="cond px-5 pt-1 pb-4 text-[1.9rem] leading-tight font-bold sm:px-6 sm:text-[2.2rem]">
         {pick.match_id ? (
           <Link href={`/partidos/${pick.match_id}`} className="hover:underline hover:decoration-regla hover:underline-offset-4">
-            {pick.match}
+            <Crest id={pick.home_id} size={30} className="mr-2 -mt-1" />
+            {home} <span className="font-medium text-grafito">vs</span>{" "}
+            <Crest id={pick.away_id} size={30} className="mr-2 -mt-1" />
+            {away}
           </Link>
         ) : (
           pick.match
@@ -541,7 +545,10 @@ function DayMatches({ rows }: { rows: DayMatch[] }) {
             <span className="cond num text-2xl font-bold">{m.kickoff_local}</span>
             <span className="min-w-0">
               <span className="semi block truncate text-[1.05rem] font-semibold">
-                {m.home} <span className="font-normal text-grafito">vs</span> {m.away}
+                <Crest id={m.home_id} size={18} className="mr-1.5 -mt-0.5" />
+                {m.home} <span className="font-normal text-grafito">vs</span>{" "}
+                <Crest id={m.away_id} size={18} className="mr-1.5 -mt-0.5" />
+                {m.away}
               </span>
               <span className="block text-[0.85rem] text-grafito">{competitionName(m.competition)}</span>
             </span>

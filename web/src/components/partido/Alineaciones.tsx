@@ -1,5 +1,6 @@
 "use client";
 
+import { Crest } from "@/components/Crest";
 import { Empty, ErrorNote, Loading, Section, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import type { LineupPlayer, LineupTeam, MatchLineups } from "@/lib/types";
@@ -76,8 +77,13 @@ function TeamHeader({ t }: { t: LineupTeam }) {
   return (
     <div className={t.side === "away" ? "text-right" : ""}>
       <p className="semi font-bold">
-        <span className={`mr-2 inline-block size-3 rounded-full align-middle ${t.side === "home" ? "bg-hoja ring-1 ring-tinta" : "bg-boli"}`} aria-hidden="true" />
+        <Crest id={t.team_id} size={24} className="mr-2 -mt-0.5" />
         {t.team}
+        <span
+          className={`ml-2 inline-block size-3 rounded-full align-middle ${t.side === "home" ? "bg-hoja ring-1 ring-tinta" : "bg-boli"}`}
+          title={t.side === "home" ? "Blanco en el campo" : "Azul en el campo"}
+          aria-hidden="true"
+        />
       </p>
       <p className="text-[0.88rem] text-grafito">
         {[t.formation, t.coach && `Entrenador: ${t.coach}`].filter(Boolean).join(" · ")}

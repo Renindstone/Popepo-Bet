@@ -8,6 +8,8 @@ export interface MatchSummary {
   kickoff_local: string; // "lun 19/10 14:00" (hora de Lima)
   home: string;
   away: string;
+  home_id?: number;
+  away_id?: number;
   referee: string | null;
   lineups: "predicted" | "confirmed" | null;
 }
@@ -55,6 +57,8 @@ export interface PickOfDay {
   pick_id?: number;
   match_id?: number;
   match: string;
+  home_id?: number;
+  away_id?: number;
   competition?: string;
   kickoff_local?: string;
   market: string;
@@ -80,6 +84,8 @@ export interface DayMatch {
   kickoff_local: string; // "14:00"
   home: string;
   away: string;
+  home_id?: number;
+  away_id?: number;
   stage: string;
   difficulty: { home: string; away: string };
   "1x2": Probs1x2;
@@ -179,6 +185,8 @@ export interface MatchAnalysis {
   kickoff_local: string; // "2026-10-20 14:00"
   home: string;
   away: string;
+  home_id?: number;
+  away_id?: number;
   stage: string;
   model: {
     expected_goals: { home: number; away: number };

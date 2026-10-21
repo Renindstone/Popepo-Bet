@@ -8,6 +8,8 @@
 | **Understat** | Segundo modelo de xG por partido (se promedia con el de Opta) | EPL, BUN, LAL | JSON público |
 | **OddsPapi** *(opcional)* | Cuotas de **Betano** (la de Perú es espejo de la global) y Pinnacle | Todas | API con clave gratuita (experimental) |
 
+**Escudos de los equipos:** las imágenes públicas de FotMob (`images.fotmob.com`, por el id de FotMob del equipo). Se descargan con el cliente educado y se guardan 30 días en la caché; la previa de las 08:30 baja de antemano las de los equipos que juegan en los próximos 10 días. La API los sirve en `GET /teams/{id}/logo`, sin clave (son públicas y un `<img>` no puede mandar `X-API-Key`).
+
 ## Descartadas
 
 - **SofaScore**: responde 403 a peticiones automáticas. No se intenta saltar la protección.

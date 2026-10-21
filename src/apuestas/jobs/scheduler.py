@@ -103,6 +103,9 @@ def job_preview() -> None:
         from apuestas.ingest import oddspapi
 
         pipeline._run("oddspapi", "upcoming odds", oddspapi.sync_upcoming)
+    from apuestas.services.queries import warm_team_logos
+
+    warm_team_logos()
 
 
 @_safe("apuesta del día", key="daily_pick")

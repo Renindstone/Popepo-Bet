@@ -13,7 +13,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from apuestas import __version__
@@ -158,6 +158,16 @@ def status(user: str = Depends(current_user)) -> dict:
 @app.get("/matches")
 def matches(days: int = 3, competition: str | None = None, user: str = Depends(current_user)) -> list[dict]:
     return queries.upcoming(days, competition)
+
+
+@app.get("/teams/{team_id}/logo")
+def team_logo(team_id: int) -> Response:
+    """Escudo del equipo. Público (sin clave): es una imagen pública y un <img> no puede mandar X-API-Key."""
+    try:
+        data = queries.team_logo(team_id)
+    except (queries.NotFound, FileNotFoundError, RuntimeError) as exc:
+        raise HTTPException(404, "Sin escudo") from exc
+    return Response(content=data, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
 
 
 @app.get("/matches/{ref}/lineups")

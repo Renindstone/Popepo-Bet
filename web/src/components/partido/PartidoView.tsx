@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo } from "react";
 import { Chart, useChartTheme } from "@/components/Chart";
+import { Crest } from "@/components/Crest";
 import { Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag, TriBar } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { int, num, odds, pct, shortDate, signedPct, stageText } from "@/lib/format";
@@ -58,7 +59,10 @@ export function PartidoView() {
           <Tag tone={a.stage === "confirmed" ? "boli" : "neutral"}>{stageText(a.stage)}</Tag>
         </p>
         <h1 className="cond mt-2 text-[2.6rem] leading-[1.02] font-extrabold tracking-[-0.01em] sm:text-6xl">
-          {a.home} <span className="font-medium text-grafito">vs</span> {a.away}
+          <Crest id={a.home_id} size={52} className="mr-3 -mt-2" />
+          {a.home} <span className="font-medium text-grafito">vs</span>{" "}
+          <Crest id={a.away_id} size={52} className="mr-3 -mt-2" />
+          {a.away}
         </h1>
         <p className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
           <Link

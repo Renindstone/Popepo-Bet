@@ -14,6 +14,7 @@
 - **Registrar desde una captura** (`POST /captures/{id}/bet`): una cuota o la combinada entera, con el importe que Claude leyó si se ve; la captura recuerda lo registrado (`engine_info.bets`) para no duplicarlo.
 - **Cupón en Evaluar cuota**: varias selecciones de uno o varios partidos (Bet Builders y combinada), evaluadas juntas (`POST /combos/evaluate`) y registradas como una apuesta `combo` con sus selecciones en `user_bet_leg` (`POST /combos`); se liquidan solas.
 - **Alineaciones en el campo** en cada partido (`GET /matches/{id}/lineups`): probables y luego confirmadas, con formación, entrenador, dorsales, posición (de FotMob), suplentes y bajas. La confirmada se busca 70, 50, 35, 20 y 10 minutos antes del inicio (desde el 2026-10-21).
+- **Escudos de los equipos** junto a sus nombres en Hoy, Partidos, el partido y las alineaciones (de FotMob, en caché).
 - **Banca inicial editable** en Mis apuestas (`PUT /bankroll`), con la banca actual al lado.
 - **Servidor MCP** para Claude, **API REST** y **bot de Telegram** (este último sin configurar).
 - Servicios systemd de usuario: `apuestas-db`, `apuestas-worker`, `apuestas-api` y `apuestas-web`. Si el equipo estuvo apagado a la hora de una tarea diaria, el worker la recupera al arrancar (desde el 2026-10-20).
