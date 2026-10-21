@@ -421,6 +421,8 @@ export interface CaptureCombo {
   verdict: "con valor" | "sin valor" | "no evaluable" | "sin cuota para comparar" | string;
   /** Alguna selección (córners, tarjetas, remates…) se combinó como si no dependiera del resultado */
   approximate?: boolean;
+  /** Apuesta registrada desde esta combinada, si la hay */
+  bet_id?: number | null;
   blocks: ComboBlock[];
 }
 
@@ -440,6 +442,8 @@ export interface CaptureLine {
   label?: string;
   eval?: CaptureEval;
   error?: string;
+  /** Apuesta registrada desde esta cuota, si la hay */
+  bet_id?: number | null;
 }
 
 export interface Capture {
@@ -469,4 +473,6 @@ export interface Capture {
   error: string | null;
   duration_s: number | null;
   duplicated: boolean;
+  /** Importe apostado que Claude vio en la captura (se propone al registrar) */
+  stake_seen?: number | null;
 }

@@ -37,6 +37,7 @@ _STEPS = """\
    borrosas ni mercados que no encajen: menciónalos en `notas`.
    Si es una combinada o un Bet Builder (varias selecciones con una sola cuota), usa en su lugar evaluar_combinada:
    un bloque por partido con todas sus selecciones (las que no encajen, con mercado "otro") y las cuotas que se vean.
+   Si en la captura se ve el importe apostado ("Importe", "Apuesta", "Stake"), pásalo en `importe` (solo el número).
    Si no hay nada evaluable, llama a marcar_no_evaluable con el motivo y termina.
 3. Con lo que devuelva, llama a guardar_veredicto_captura con un resumen en español de 2 a 5 frases: qué tiene
    valor según el modelo y qué no, citando la probabilidad y el valor esperado que devolvió el modelo (en una
@@ -185,7 +186,8 @@ def _api_tools() -> list[dict]:
          "input_schema": {"type": "object", "properties": {
              "partido": {"type": "string", "description": "id del partido de la lista o 'Local vs Visitante'"},
              "lineas": {"type": "array", "items": line_schema},
-             "notas": {"type": "string", "description": "Dudas de lectura o mercados que no encajan"}},
+             "notas": {"type": "string", "description": "Dudas de lectura o mercados que no encajan"},
+             "importe": {"type": "number", "description": "Importe apostado si se ve en la captura"}},
              "required": ["lineas"]}},
         {"name": "evaluar_combinada",
          "description": "Combinada o Bet Builder: un bloque por partido con sus selecciones; el modelo devuelve la "
@@ -193,7 +195,8 @@ def _api_tools() -> list[dict]:
          "input_schema": {"type": "object", "properties": {
              "bloques": {"type": "array", "items": captures.ComboBlock.model_json_schema()},
              "cuota_total": {"type": "number", "description": "Cuota total de la combinada"},
-             "notas": {"type": "string"}},
+             "notas": {"type": "string"},
+             "importe": {"type": "number", "description": "Importe apostado si se ve en la captura"}},
              "required": ["bloques"]}},
         {"name": "marcar_no_evaluable",
          "description": "La captura no tiene nada que el modelo pueda evaluar: guarda el motivo.",
@@ -227,9 +230,11 @@ def run_api(capture_id: int, username: str, client: Any = None, max_rounds: int 
         image, {"type": "text", "text": context + "\n\n" + INSTRUCTIONS_API}]}]
     handlers: dict[str, Callable[[dict], dict]] = {
         "evaluar_captura": lambda a: captures.evaluate_lines(username, capture_id, a.get("lineas") or [],
-                                                             a.get("partido"), a.get("notas"), engine="api"),
+                                                             a.get("partido"), a.get("notas"), engine="api",
+                                                             importe=a.get("importe")),
         "evaluar_combinada": lambda a: captures.evaluate_combo(username, capture_id, a.get("bloques") or [],
-                                                               a.get("cuota_total"), a.get("notas"), engine="api"),
+                                                               a.get("cuota_total"), a.get("notas"), engine="api",
+                                                               importe=a.get("importe")),
         "marcar_no_evaluable": lambda a: captures.mark_not_evaluable(username, capture_id, a.get("motivo", "")),
         "guardar_veredicto_captura": lambda a: captures.save_verdict(username, capture_id, a.get("veredicto", "")),
     }

@@ -41,3 +41,8 @@ MCP funciona al revés de lo que parece: es la IA la que llama a las herramienta
 ## Consecuencias
 - El panel necesita que la API esté corriendo para procesar capturas. Si la API se reinicia, al arrancar vuelve a encolar las que quedaron a medias.
 - Si el 1X2 del modelo está mal calibrado en un partido, por ejemplo en Champions, donde no hay mercado afilado con el que mezclar, la captura lo refleja. Claude lo avisa en su resumen, pero el número sale del modelo.
+
+## Ampliación (20-10-2026, noche): registrar la apuesta desde la captura
+- `POST /captures/{id}/bet` registra una cuota de la captura (`line`) o su combinada entera con lo ya guardado en ella, sin rehacer el formulario en Evaluar cuota. Las combinadas usan el mismo registro que el cupón (`queries.register_combo`).
+- Las herramientas `evaluar_captura` y `evaluar_combinada` aceptan `importe` (lo apostado, si se ve en la captura) para proponerlo al registrar.
+- Lo registrado se guarda en `engine_info.bets`, que no se borra al volver a leer la captura ni al corregir cuotas, así que la misma apuesta no se registra dos veces.

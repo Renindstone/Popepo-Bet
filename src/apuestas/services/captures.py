@@ -155,11 +155,23 @@ def summarize(lines: list[dict]) -> dict:
     }
 
 
+def _line_key(row: dict) -> str:
+    return f"{row.get('market')}|{row.get('selection')}|{row.get('line')}|{row.get('player') or ''}"
+
+
+def _registered(cap: m.OddsCapture) -> dict:
+    """Apuestas ya registradas desde esta captura. Se guardan aparte para que sobrevivan a releerla o corregirla."""
+    bets = (cap.engine_info or {}).get("bets") or {}
+    return {"combo": bets.get("combo"), "lines": dict(bets.get("lines") or {})}
+
+
 def to_dict(cap: m.OddsCapture, username: str, duplicated: bool = False) -> dict:
     st = get_settings()
     tz = st.tz
     mt = cap.match
-    lines = cap.lines or []
+    done = _registered(cap)
+    lines = [{**r, "bet_id": done["lines"].get(_line_key(r))} for r in (cap.lines or [])]
+    combos = {**cap.combos, "bet_id": done["combo"]} if cap.combos else cap.combos
     duration = None
     if cap.started_at and cap.finished_at:
         duration = round((cap.finished_at - cap.started_at).total_seconds(), 1)
@@ -176,11 +188,12 @@ def to_dict(cap: m.OddsCapture, username: str, duplicated: bool = False) -> dict
             "competition": mt.competition.code,
             "kickoff_local": mt.kickoff_utc.astimezone(tz).strftime("%Y-%m-%d %H:%M")},
         "lines": lines,
-        "combos": cap.combos,
+        "combos": combos,
         "summary": summarize(lines),
         "ai_notes": cap.ai_notes,
         "verdict": cap.verdict,
         "edited": cap.edited,
+        "stake_seen": (cap.engine_info or {}).get("stake_seen"),
         "engine": cap.engine,
         "auto_engine": st.captures_engine_for(username),
         "error": cap.error,
@@ -349,13 +362,21 @@ def _evaluate(s: Session, cap: m.OddsCapture, items: list[CaptureLine], partido:
     return rows
 
 
+def _stake_seen(cap: m.OddsCapture, importe: float | None) -> None:
+    """Importe apostado que se ve en la captura (para proponerlo al registrar la apuesta)."""
+    if importe is not None and 0 < importe < 1e7:
+        cap.engine_info = {**(cap.engine_info or {}), "stake_seen": round(float(importe), 2)}
+
+
 def evaluate_lines(username: str, capture_id: int, lineas: list[CaptureLine | dict],
-                   partido: str | int | None = None, notas: str | None = None, engine: str = "mcp") -> dict:
+                   partido: str | int | None = None, notas: str | None = None, engine: str = "mcp",
+                   importe: float | None = None) -> dict:
     """Lo que llama la IA tras leer la imagen: devuelve el veredicto del modelo para cada cuota."""
     items = _prepare_lines(lineas)
     with session_scope() as s:
         cap = _owned(s, username, capture_id)
         rows = _evaluate(s, cap, items, partido)
+        _stake_seen(cap, importe)
         cap.ai_notes = _clean(notas, 1000)
         cap.status = "evaluada"
         cap.engine = cap.engine or engine
@@ -543,7 +564,7 @@ def evaluate_blocks(s: Session, bundle, blocks_in: list[ComboBlock]) -> tuple[li
 
 
 def evaluate_combo(username: str, capture_id: int, bloques: list[ComboBlock | dict], cuota_total: float | None = None,
-                   notas: str | None = None, engine: str = "mcp") -> dict:
+                   notas: str | None = None, engine: str = "mcp", importe: float | None = None) -> dict:
     """Lo que llama la IA con una combinada o Bet Builder: probabilidad de cada bloque y del total según el modelo."""
     blocks_in = [b if isinstance(b, ComboBlock) else ComboBlock.model_validate(b) for b in bloques][:MAX_BLOCKS]
     if not blocks_in or not any(b.selecciones for b in blocks_in):
@@ -552,6 +573,7 @@ def evaluate_combo(username: str, capture_id: int, bloques: list[ComboBlock | di
     with session_scope() as s:
         cap = _owned(s, username, capture_id)
         out, matches = evaluate_blocks(s, bundle, blocks_in)
+        _stake_seen(cap, importe)
         summary = combo_summary(out, cuota_total)
         cap.combos = {**summary, "blocks": out}
         cap.lines = None
@@ -658,3 +680,79 @@ def stuck_and_pending() -> tuple[list[int], list[tuple[int, str]]]:
         rows = s.execute(select(m.OddsCapture.id, m.User.username).join(m.User, m.User.id == m.OddsCapture.user_id)
                          .where(m.OddsCapture.status == "pendiente").order_by(m.OddsCapture.created_at)).all()
         return [c.id for c in stuck], [(cid, user) for cid, user in rows]
+
+
+# --------------------------------------------------------------------------- registrar la apuesta desde la captura
+
+
+def register_bet(username: str, capture_id: int, stake: float, line: int | None = None,
+                 notes: str | None = None) -> dict:
+    """Registra como apuesta una cuota de la captura (`line`) o, sin `line`, su combinada entera.
+
+    Usa lo que ya está guardado en la captura (lo que leyó la IA y corrigió el usuario). Cada cuota o combinada
+    se registra una sola vez: la captura recuerda el número de apuesta.
+    """
+    if not stake or stake <= 0:
+        raise CaptureError("El importe debe ser mayor que 0")
+    with session_scope() as s:
+        cap = _owned(s, username, capture_id)
+        default_note = f"Captura n.º {cap.id}"
+        if line is not None:
+            rows = cap.lines or []
+            if not 0 <= line < len(rows):
+                raise CaptureError("Esa cuota no está en la captura")
+            row = rows[line]
+            already = _registered(cap)["lines"].get(_line_key(row))
+            if already:
+                raise CaptureError(f"Esa cuota ya está registrada (apuesta n.º {already})")
+            if "eval" not in row or cap.match_id is None:
+                raise CaptureError("Esa cuota no se pudo evaluar: corrígela antes de registrarla")
+            single = {"match": cap.match_id, "market": row["market"], "selection": row["selection"],
+                      "line": row["line"], "odds": row["odds"], "bookmaker": row["bookmaker"], "player": row["player"]}
+            combo = None
+        else:
+            combos = cap.combos or {}
+            already = _registered(cap)["combo"]
+            if already:
+                raise CaptureError(f"Esta combinada ya está registrada (apuesta n.º {already})")
+            blocks = combos.get("blocks") or []
+            if not blocks:
+                raise CaptureError("La captura no tiene una combinada que registrar")
+            apart = [lg.get("label") or lg.get("text") or "selección" for b in blocks for lg in b["legs"]
+                     if lg["market"] == "otro"] + [b["match"] for b in blocks if b.get("match_id") is None]
+            if apart:
+                raise CaptureError("Tiene selecciones que el sistema no puede liquidar solo: " + ", ".join(apart)
+                                   + ". Regístrala sin ellas desde Evaluar cuota.")
+            total = combos.get("total_odds")
+            if not total or total <= 1:
+                raise CaptureError("Falta la cuota total de la combinada")
+            book = cap.bookmaker_hint or "betano"
+            legs = [(b, lg) for b in blocks for lg in b["legs"]]
+            if len(legs) == 1:  # una sola selección: apuesta normal
+                b, lg = legs[0]
+                single = {"match": b["match_id"], "market": lg["market"], "selection": lg["selection"],
+                          "line": lg["line"], "odds": total, "bookmaker": book, "player": lg.get("player")}
+                combo = None
+            else:
+                single = None
+                combo = {"blocks": [{"match": str(b["match_id"]), "odds": b["odds"] if len(b["legs"]) > 1 else None,
+                                     "legs": [{"market": lg["market"], "selection": lg["selection"], "line": lg["line"],
+                                               "player": lg.get("player"),
+                                               "odds": lg.get("odds") or (b["odds"] if len(b["legs"]) == 1 else None)}
+                                              for lg in b["legs"]]} for b in blocks],
+                         "total_odds": total, "bookmaker": book}
+    note = notes or default_note
+    if single:
+        res = queries.register_bet(username, single["match"], single["market"], single["selection"], single["odds"],
+                                   stake, single["line"], single["bookmaker"], single["player"], note)
+    else:
+        res = queries.register_combo(username, combo["blocks"], combo["total_odds"], stake, combo["bookmaker"], note)
+    with session_scope() as s:  # recordar que ya se registró, para no duplicarla
+        cap = _owned(s, username, capture_id)
+        done = _registered(cap)
+        if line is not None:
+            done["lines"][_line_key((cap.lines or [])[line])] = res["bet_id"]
+        else:
+            done["combo"] = res["bet_id"]
+        cap.engine_info = {**(cap.engine_info or {}), "bets": done}
+    return res

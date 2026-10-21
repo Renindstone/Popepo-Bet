@@ -131,6 +131,12 @@ class BankrollIn(BaseModel):
     currency: str = "PEN"
 
 
+class CaptureBetIn(BaseModel):
+    stake: float
+    line: int | None = None  # índice de la cuota en la captura; sin él, la combinada entera
+    notes: str | None = None
+
+
 class AbsenceIn(BaseModel):
     team: str
     player: str
@@ -277,6 +283,12 @@ def reprocess_capture(capture_id: int, user: str = Depends(current_user)) -> dic
     _wrap(captures.reset_for_retry, user, capture_id)
     capture_engines.submit(capture_id, user)
     return _wrap(captures.get, user, capture_id)
+
+
+@app.post("/captures/{capture_id}/bet")
+def register_capture_bet(capture_id: int, body: CaptureBetIn, user: str = Depends(current_user)) -> dict:
+    """Registra como apuesta una cuota de la captura o su combinada, sin pasar por Evaluar cuota."""
+    return _wrap(captures.register_bet, user, capture_id, body.stake, body.line, body.notes)
 
 
 @app.put("/captures/{capture_id}/lines")

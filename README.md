@@ -99,6 +99,8 @@ En **Capturas** (o en el recuadro de **Hoy**) arrastra, elige o pega con Ctrl+V 
 
 La página se actualiza sola. Tarda unos 10 a 15 segundos por captura. Si Claude leyó mal una cuota, usa **Corregir cuotas**: se reevalúa con el modelo sin volver a Claude.
 
+**Registrar desde la captura.** Si ya hiciste la apuesta, pulsa **Registrar** junto a la cuota, o **Registrar esta combinada** debajo de una combinada, y escribe el importe (si Claude lo vio en la captura, ya viene puesto). Queda en **Mis apuestas** y se liquida sola, sin pasar por Evaluar cuota. Cada cuota o combinada se registra una sola vez, aunque vuelvas a leer o corrijas la captura. Una combinada con selecciones que el sistema no puede liquidar (atajadas, primer goleador…) hay que armarla sin ellas en Evaluar cuota.
+
 **Combinadas y Bet Builders.** Si la captura es una combinada (una sola cuota para varias selecciones):
 - Claude la separa por partidos.
 - Dentro de un partido, la probabilidad conjunta sale de la matriz de marcadores, porque "gana el City" y "más de 2,5 goles" dependen entre sí. Los **goles y asistencias de jugadores** ("Kane anotará o asistirá", "gol de Mbappé", "2 o más goles") entran en ese mismo cálculo: cada gol del equipo se reparte entre sus jugadores según su parte de goles, xG, asistencias y xA.

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { CaptureBet } from "@/components/capturas/CaptureBet";
 import { CaptureDrop } from "@/components/capturas/CaptureDrop";
 import { ComboResult as Combo } from "@/components/ComboResult";
 import { Button, EdgeBar, Empty, ErrorNote, Loading, PageTitle, Tag } from "@/components/ui";
@@ -332,6 +333,7 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
           </p>
         )}
         {c.combos && <Combo combo={c.combos} />}
+        {c.combos && !active && <ComboBet c={c} onDone={onChanged} />}
         {c.lines.length > 0 &&
           (editing ? (
             <EditLines
@@ -346,7 +348,7 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
               busy={busy}
             />
           ) : (
-            <Lines c={c} />
+            <Lines c={c} onChanged={onChanged} />
           ))}
         {error && <ErrorNote error={error} />}
         {!editing && !active && (
@@ -376,6 +378,39 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
 
 // --------------------------------------------------------------------------- combinadas y Bet Builders
 
+/** Registrar la combinada entera, si todas sus selecciones se pueden liquidar solas */
+function ComboBet({ c, onDone }: { c: Capture; onDone: () => void }) {
+  const combo = c.combos!;
+  const apart = combo.blocks.flatMap((b) =>
+    b.match_id == null ? [b.match] : b.legs.filter((lg) => lg.market === "otro").map((lg) => lg.label),
+  );
+  if (combo.bet_id) {
+    return <CaptureBet captureId={c.id} price={combo.total_odds} betId={combo.bet_id} title="" onDone={onDone} />;
+  }
+  if (apart.length > 0) {
+    return (
+      <p className="max-w-[75ch] text-[0.88rem] text-grafito">
+        Para registrarla aquí, todas las selecciones tienen que poder liquidarse solas, y estas no: {apart.join(", ")}.
+        Si quieres seguirla igual, ármala sin ellas en{" "}
+        <Link href="/evaluar" className="font-semibold text-boli underline underline-offset-4">
+          Evaluar cuota
+        </Link>
+        .
+      </p>
+    );
+  }
+  if (!combo.total_odds) return null;
+  return (
+    <CaptureBet
+      captureId={c.id}
+      price={combo.total_odds}
+      defaultStake={c.stake_seen}
+      title={`Registrar esta combinada (cuota ${odds(combo.total_odds)})`}
+      onDone={onDone}
+    />
+  );
+}
+
 // --------------------------------------------------------------------------- cuotas leídas
 
 const VERDICTS: Record<string, { text: string; tone: "boli" | "tarjeta" | "rojo" }> = {
@@ -388,22 +423,10 @@ function lineLabel(c: Capture, ln: CaptureLine): string {
   return ln.label ?? betLabel(ln.market, ln.selection, ln.line, { home: c.match?.home, away: c.match?.away, player: ln.player });
 }
 
-function evaluarHref(c: Capture, ln: CaptureLine): string {
-  const q = new URLSearchParams({
-    partido: String(c.match?.match_id ?? ""),
-    mercado: ln.market,
-    seleccion: ln.selection,
-    cuota: String(ln.odds),
-    casa: ln.bookmaker,
-  });
-  if (ln.line != null) q.set("linea", String(ln.line));
-  if (ln.player) q.set("jugador", ln.player);
-  return `/evaluar?${q.toString()}`;
-}
-
-function Lines({ c }: { c: Capture }) {
-  // Primero las de más valor; las que no se pudieron evaluar, al final
-  const rows = [...c.lines].sort((a, b) => (b.eval?.ev ?? -9) - (a.eval?.ev ?? -9));
+function Lines({ c, onChanged }: { c: Capture; onChanged: () => void }) {
+  const [registering, setRegistering] = useState<number | null>(null);
+  // Primero las de más valor; las que no se pudieron evaluar, al final. Se recuerda su posición en la captura.
+  const rows = c.lines.map((ln, idx) => ({ ...ln, idx })).sort((a, b) => (b.eval?.ev ?? -9) - (a.eval?.ev ?? -9));
   return (
     <div className="relative overflow-x-auto">
       <table className="w-full min-w-[500px] text-[0.93rem]">
@@ -426,7 +449,8 @@ function Lines({ c }: { c: Capture }) {
             const e = ln.eval;
             const v = e ? VERDICTS[e.verdict] : null;
             return (
-              <tr key={i} className="border-b border-regla-suave align-middle">
+              <Fragment key={i}>
+              <tr className="border-b border-regla-suave align-middle">
                 <td className="py-2 pr-3">
                   <span className="font-medium">{lineLabel(c, ln)}</span>
                   {ln.text && <span className="block text-[0.82rem] text-grafito">«{ln.text}»</span>}
@@ -444,11 +468,19 @@ function Lines({ c }: { c: Capture }) {
                     </td>
                     <td className="py-2 pr-3">{v ? <Tag tone={v.tone}>{v.text}</Tag> : e.verdict}</td>
                     <td className="py-2 text-right">
-                      {c.match && (
-                        <Link href={evaluarHref(c, ln)} className="text-[0.88rem] font-semibold whitespace-nowrap text-boli underline underline-offset-4">
-                          Registrar
-                        </Link>
-                      )}
+                      {c.match &&
+                        (ln.bet_id ? (
+                          <span className="text-[0.85rem] font-semibold whitespace-nowrap text-boli">Registrada</span>
+                        ) : (
+                          <button
+                            type="button"
+                            aria-expanded={registering === ln.idx}
+                            onClick={() => setRegistering(registering === ln.idx ? null : ln.idx)}
+                            className="text-[0.88rem] font-semibold whitespace-nowrap text-boli underline underline-offset-4"
+                          >
+                            Registrar
+                          </button>
+                        ))}
                     </td>
                   </>
                 ) : (
@@ -457,6 +489,25 @@ function Lines({ c }: { c: Capture }) {
                   </td>
                 )}
               </tr>
+              {registering === ln.idx && (
+                <tr className="border-b border-regla-suave">
+                  <td colSpan={7} className="py-3">
+                    <p className="mb-2 text-[0.92rem] font-semibold">{lineLabel(c, ln)} a {odds(ln.odds)}</p>
+                    <CaptureBet
+                      captureId={c.id}
+                      line={ln.idx}
+                      price={ln.odds}
+                      defaultStake={c.stake_seen}
+                      title="Registrar"
+                      onDone={() => {
+                        setRegistering(null);
+                        onChanged();
+                      }}
+                    />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
         </tbody>

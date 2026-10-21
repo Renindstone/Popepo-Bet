@@ -187,18 +187,20 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
 
     @server.tool()
     def evaluar_captura(captura_id: int, lineas: list[captures.CaptureLine], partido: str | None = None,
-                        notas: str | None = None) -> str:
+                        notas: str | None = None, importe: float | None = None) -> str:
         """Envía las cuotas leídas en una captura. El modelo devuelve probabilidad, cuota justa, valor esperado,
-        stake y veredicto de cada una (las guarda en la captura). partido: id o 'Local vs Visitante'."""
-        return _safe(captures.evaluate_lines, _user(), captura_id, lineas, partido, notas)
+        stake y veredicto de cada una (las guarda en la captura). partido: id o 'Local vs Visitante'. importe: lo
+        apostado si se ve en la captura (para proponerlo al registrar la apuesta)."""
+        return _safe(captures.evaluate_lines, _user(), captura_id, lineas, partido, notas, importe=importe)
 
     @server.tool()
     def evaluar_combinada(captura_id: int, bloques: list[captures.ComboBlock], cuota_total: float | None = None,
-                          notas: str | None = None) -> str:
+                          notas: str | None = None, importe: float | None = None) -> str:
         """Combinada o Bet Builder de una captura: un bloque por partido con sus selecciones (y la cuota del bloque si
         aparece) más la cuota total. El modelo calcula la probabilidad conjunta de cada bloque con la matriz de
-        marcadores y la del total; las selecciones fuera del modelo se marcan, sin inventar."""
-        return _safe(captures.evaluate_combo, _user(), captura_id, bloques, cuota_total, notas)
+        marcadores y la del total; las selecciones fuera del modelo se marcan, sin inventar. importe: lo apostado si
+        se ve en la captura."""
+        return _safe(captures.evaluate_combo, _user(), captura_id, bloques, cuota_total, notas, importe=importe)
 
     @server.tool()
     def marcar_no_evaluable(captura_id: int, motivo: str) -> str:

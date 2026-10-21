@@ -93,7 +93,7 @@ def test_api_engine_tool_loop(monkeypatch, tmp_path):
     calls = []
     monkeypatch.setattr(captures, "context_for_ai", lambda user, cid: (img, "image/png", "contexto"))
     monkeypatch.setattr(captures, "evaluate_lines",
-                        lambda user, cid, lineas, partido, notas, engine: calls.append(("evaluar", lineas, partido, engine))
+                        lambda user, cid, lineas, partido, notas, engine, importe=None: calls.append(("evaluar", lineas, partido, engine))
                         or {"lineas": [{"veredicto": "NO apostar"}]})
     monkeypatch.setattr(captures, "save_verdict",
                         lambda user, cid, text: calls.append(("veredicto", text)) or {"estado": "lista"})
