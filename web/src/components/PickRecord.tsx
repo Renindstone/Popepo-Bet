@@ -38,9 +38,9 @@ export function PickRecord({ variant = "card" }: { variant?: "card" | "row" }) {
       <h2 id="record-titulo" className="semi text-base font-bold text-tinta">
         Aciertos de la apuesta del día
       </h2>
-      <p className="mb-4 text-[0.85rem] text-grafito">Todas las que eligió el sistema, {since}.</p>
+      <p className="mb-4 text-nota text-grafito">Todas las que eligió el sistema, {since}.</p>
       {r.settled === 0 ? (
-        <p className="text-[0.92rem] text-grafito">
+        <p className="text-nota text-grafito">
           Aún no terminó ninguna. {r.pending === 1 ? "Hay 1 por jugarse." : `Hay ${int(r.pending)} por jugarse.`}
         </p>
       ) : (
@@ -49,7 +49,7 @@ export function PickRecord({ variant = "card" }: { variant?: "card" | "row" }) {
             <Figure size="lg" value={`${int(r.hits)} de ${int(decided)}`} label="aciertos" tone={r.hits > 0 ? "boli" : undefined} />
             <Figure value={pct(r.hit_rate)} label="de acierto" />
           </div>
-          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-[0.9rem]">
+          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-nota">
             <dt className="text-grafito">Falladas</dt>
             <dd className="num text-right">{int(r.misses)}</dd>
             {r.pushes > 0 && (

@@ -94,15 +94,15 @@ export function CaptureDrop({
         <p className={`semi font-bold ${compact ? "text-base" : "text-lg"}`}>
           {busy > 0 ? "Subiendo…" : "Arrastra aquí la captura"}
         </p>
-        <p className="mt-1 text-[0.92rem] text-grafito">
-          o pégala con <kbd className="rounded-sm border border-regla px-1 text-[0.85rem]">Ctrl</kbd>+
-          <kbd className="rounded-sm border border-regla px-1 text-[0.85rem]">V</kbd> en esta página
+        <p className="mt-1 text-nota text-grafito">
+          o pégala con <kbd className="rounded-sm border border-regla px-1 text-nota">Ctrl</kbd>+
+          <kbd className="rounded-sm border border-regla px-1 text-nota">V</kbd> en esta página
         </p>
         <button
           type="button"
           onClick={() => input.current?.click()}
           disabled={busy > 0}
-          className="mt-3 inline-flex h-10 items-center rounded-[3px] border border-regla bg-papel px-4 text-[0.95rem] font-semibold hover:border-grafito disabled:opacity-50"
+          className="mt-3 inline-flex h-10 items-center rounded-[3px] border border-regla bg-papel px-4 text-interfaz font-semibold hover:border-grafito disabled:opacity-50"
         >
           Elegir imagen
         </button>
@@ -119,7 +119,7 @@ export function CaptureDrop({
             e.target.value = "";
           }}
         />
-        {!compact && <p className="mt-3 text-[0.85rem] text-grafito">PNG, JPG o WEBP de hasta 10 MB. Puedes subir varias.</p>}
+        {!compact && <p className="mt-3 text-nota text-grafito">PNG, JPG o WEBP de hasta 10 MB. Puedes subir varias.</p>}
       </div>
       {error && (
         <div className="mt-3">

@@ -24,7 +24,7 @@ export function Nav() {
               <Link
                 href={l.href}
                 aria-current={active ? "page" : undefined}
-                className={`semi relative block py-3 text-[0.98rem] font-semibold transition-colors ${
+                className={`semi relative block py-3 text-interfaz font-semibold transition-colors ${
                   active ? "text-tinta" : "text-grafito hover:text-tinta"
                 }`}
               >

@@ -52,9 +52,9 @@ export function DatosView() {
         <>
           <Section title="Fuentes" intro="Última tarea registrada de cada fuente. Ninguna fuente puede tumbar la ingesta: si una falla, las demás siguen.">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] border-collapse text-[0.95rem]">
+              <table className="w-full min-w-[680px] border-collapse text-interfaz">
                 <thead>
-                  <tr className="border-b border-regla text-left text-[0.85rem] text-grafito">
+                  <tr className="border-b border-regla text-left text-nota text-grafito">
                     <th className="py-2 pr-4 font-medium">Fuente</th>
                     <th className="py-2 pr-4 font-medium">Última tarea</th>
                     <th className="py-2 pr-4 font-medium">Estado</th>
@@ -66,7 +66,7 @@ export function DatosView() {
                     <tr key={key} className="border-b border-regla-suave align-top">
                       <td className="py-2.5 pr-4">
                         <span className="font-semibold">{SOURCES[key]?.name ?? key}</span>
-                        {SOURCES[key] && <span className="block text-[0.85rem] text-grafito">{SOURCES[key].what}</span>}
+                        {SOURCES[key] && <span className="block text-nota text-grafito">{SOURCES[key].what}</span>}
                       </td>
                       <td className="py-2.5 pr-4 text-grafito">{src.task}</td>
                       <td className="py-2.5 pr-4">{statusTag(src.status, src.finished_at)}</td>
@@ -74,7 +74,7 @@ export function DatosView() {
                         {src.finished_at ? (
                           <>
                             {dateTimeLima(src.finished_at)}
-                            <span className="block text-[0.85rem] text-grafito">{ago(src.finished_at)}</span>
+                            <span className="block text-nota text-grafito">{ago(src.finished_at)}</span>
                           </>
                         ) : (
                           <span className="text-grafito">Aún no termina</span>
@@ -86,7 +86,7 @@ export function DatosView() {
               </table>
             </div>
             {!s.sources.oddspapi && (
-              <p className="mt-3 max-w-[68ch] text-[0.9rem] text-grafito">
+              <p className="mt-3 max-w-[68ch] text-nota text-grafito">
                 Sin cuotas de Betano automáticas: OddsPapi no está configurado. Usa Evaluar cuota con la cuota que ves en la
                 app de Betano.
               </p>
@@ -136,7 +136,7 @@ function Conexion() {
       title="Conexión"
       intro="Desde esta misma máquina la API no pide clave. Si abres el panel desde otro equipo, escribe tu clave (apuestas user create-key). Se guarda solo en este navegador."
     >
-      <dl className="mb-5 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-[0.95rem]">
+      <dl className="mb-5 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-interfaz">
         <dt className="text-grafito">API</dt>
         <dd className="num font-semibold break-all">{url}</dd>
         <dt className="text-grafito">Estado</dt>

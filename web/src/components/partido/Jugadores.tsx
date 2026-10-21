@@ -36,7 +36,7 @@ function useTeamSides(a: MatchAnalysis): Record<number, "home" | "away"> {
   return data ?? {};
 }
 
-const th = "py-2 pr-3 text-right text-[0.85rem] font-medium text-grafito";
+const th = "py-2 pr-3 text-right text-nota font-medium text-grafito";
 const td = "num py-2 pr-3 text-right";
 
 export function Jugadores({ a }: { a: MatchAnalysis }) {
@@ -66,7 +66,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
               type="button"
               aria-pressed={filter === v}
               onClick={() => setFilter(v)}
-              className={`h-9 rounded-[3px] border px-3 text-[0.9rem] font-semibold ${
+              className={`h-9 rounded-[3px] border px-3 text-interfaz font-semibold ${
                 filter === v ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
               }`}
             >
@@ -76,10 +76,10 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse text-[0.95rem]">
+        <table className="w-full min-w-[760px] border-collapse text-interfaz">
           <thead className="border-b border-regla">
             <tr>
-              <th className="py-2 pr-3 text-left text-[0.85rem] font-medium text-grafito">Jugador</th>
+              <th className="py-2 pr-3 text-left text-nota font-medium text-grafito">Jugador</th>
               <th className={th}>Remates</th>
               <th className={th}>A puerta</th>
               <th className={th}>Goles</th>
@@ -106,7 +106,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
                       >
                         {p.name}
                       </button>
-                      <span className="block text-[0.85rem] text-grafito">
+                      <span className="block text-nota text-grafito">
                         {[p.position, side === "home" ? a.home : side === "away" ? a.away : null].filter(Boolean).join(", ")}
                       </span>
                     </td>
@@ -138,7 +138,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
 
 function Meter({ label, p }: { label: string; p: number }) {
   return (
-    <div className="grid grid-cols-[1fr_3rem] items-center gap-x-3 text-[0.92rem]">
+    <div className="grid grid-cols-[1fr_3rem] items-center gap-x-3 text-nota">
       <span>{label}</span>
       <span className="num text-right font-semibold">{pct(p)}</span>
       <span className="col-span-2 mt-1 block h-1.5 rounded-full bg-regla-suave">
@@ -198,7 +198,7 @@ function PlayerPanel({ name, matchId }: { name: string; matchId: number }) {
           <dl className="grid grid-cols-3 gap-x-4 gap-y-3">
             {PER90.map(([k, label]) => (
               <div key={k}>
-                <dt className="text-[0.85rem] text-grafito">{label}</dt>
+                <dt className="text-nota text-grafito">{label}</dt>
                 <dd className="cond num text-xl font-bold">{num(data.per90?.[k], 2)}</dd>
               </div>
             ))}
@@ -206,7 +206,7 @@ function PlayerPanel({ name, matchId }: { name: string; matchId: number }) {
         ) : (
           <p className="text-grafito">Sin minutos registrados.</p>
         )}
-        <p className="mt-3 text-[0.88rem] text-grafito">
+        <p className="mt-3 text-nota text-grafito">
           {data.minutes90 != null && `Muestra de ${num(data.minutes90, 1)} partidos completos`}
           {data.starts != null && `, ${data.starts} titularidades`}
           {data.season_rating != null && `. Rating ${num(data.season_rating, 2)}`}

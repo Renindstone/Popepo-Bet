@@ -35,7 +35,7 @@ export function Section({
         <h2 className="semi text-xl font-bold">{title}</h2>
         {actions}
       </div>
-      {intro && <p className="-mt-2 mb-4 max-w-[68ch] text-[0.95rem] text-grafito">{intro}</p>}
+      {intro && <p className="-mt-2 mb-4 max-w-[68ch] text-interfaz text-grafito">{intro}</p>}
       {children}
     </section>
   );
@@ -60,7 +60,7 @@ export function ErrorNote({ error, onRetry }: { error: ApiError | Error; onRetry
     return (
       <div role="alert" className="max-w-[68ch] border-l-[3px] border-boli bg-boli-suave/60 px-4 py-3">
         <p className="font-semibold">{error.message}</p>
-        <p className="mt-0.5 mb-3 text-[0.95rem]">Escribe la clave que te pasaron. Se guarda solo en este navegador.</p>
+        <p className="mt-0.5 mb-3 text-interfaz">Escribe la clave que te pasaron. Se guarda solo en este navegador.</p>
         <ApiKeyForm onSaved={() => window.location.reload()} />
       </div>
     );
@@ -68,9 +68,9 @@ export function ErrorNote({ error, onRetry }: { error: ApiError | Error; onRetry
   return (
     <div role="alert" className="max-w-[68ch] border-l-[3px] border-rojo bg-rojo-suave/60 px-4 py-3">
       <p className="font-semibold">No se pudo cargar</p>
-      <p className="mt-0.5 text-[0.95rem]">{error.message}</p>
+      <p className="mt-0.5 text-interfaz">{error.message}</p>
       {onRetry && retryable && (
-        <button type="button" onClick={onRetry} className="mt-2 text-[0.95rem] font-semibold text-boli underline underline-offset-4">
+        <button type="button" onClick={onRetry} className="mt-1 inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4">
           Reintentar
         </button>
       )}
@@ -98,7 +98,7 @@ export function ApiKeyForm({ label = "Clave de acceso", onSaved }: { label?: str
     <>
       <form onSubmit={save} className="flex max-w-xl flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1">
-          <label htmlFor="clave" className="mb-1 block text-[0.9rem] font-semibold">
+          <label htmlFor="clave" className="mb-1 block text-nota font-semibold">
             {label}
           </label>
           <input
@@ -116,7 +116,7 @@ export function ApiKeyForm({ label = "Clave de acceso", onSaved }: { label?: str
         </div>
         <Button type="submit">Guardar clave</Button>
       </form>
-      {saved && <p className="mt-2 text-[0.9rem] text-grafito">{value.trim() ? "Clave guardada." : "Clave borrada."}</p>}
+      {saved && <p className="mt-2 text-nota text-grafito">{value.trim() ? "Clave guardada." : "Clave borrada."}</p>}
     </>
   );
 }
@@ -138,7 +138,7 @@ const TONES: Record<Tone, string> = {
 
 export function Tag({ tone = "neutral", className = "", children }: { tone?: Tone; className?: string; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center rounded-sm border px-1.5 py-px text-[0.8rem] leading-5 font-medium whitespace-nowrap ${TONES[tone]} ${className}`}>
+    <span className={`inline-flex items-center rounded-sm border px-1.5 py-px text-etiqueta leading-5 font-medium whitespace-nowrap ${TONES[tone]} ${className}`}>
       {children}
     </span>
   );
@@ -160,7 +160,7 @@ export function Figure({
   return (
     <div className="min-w-0">
       <div className={`cond num leading-none font-bold ${size === "lg" ? "text-4xl" : "text-[1.75rem]"} ${color}`}>{value}</div>
-      <div className="mt-1 text-[0.85rem] leading-snug text-grafito">{label}</div>
+      <div className="mt-1 text-nota leading-snug text-grafito">{label}</div>
     </div>
   );
 }
@@ -187,7 +187,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex h-10 items-center justify-center gap-2 rounded-[3px] border px-4 text-[0.95rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles}`}
+      className={`inline-flex h-10 items-center justify-center gap-2 rounded-[3px] border px-4 text-interfaz font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles}`}
     >
       {children}
     </button>
@@ -224,7 +224,7 @@ export function EdgeBar({ prob, odds, compact = false }: { prob: number; odds: n
       {compact ? (
         <span className="sr-only">{text}</span>
       ) : (
-        <div className="mt-1.5 flex justify-between gap-4 text-[0.85rem] text-grafito">
+        <div className="mt-1.5 flex justify-between gap-4 text-nota text-grafito">
           <span>
             La cuota implica <strong className="num font-semibold text-tinta">{pct(implied)}</strong>
           </span>

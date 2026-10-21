@@ -14,7 +14,7 @@ const COMBO_TONE: Record<string, "boli" | "rojo" | "tarjeta" | "neutral"> = {
 export function ComboResult({ combo }: { combo: CaptureCombo }) {
   return (
     <div className="space-y-3">
-      <p className="max-w-[75ch] text-[0.88rem] text-grafito">
+      <p className="max-w-[75ch] text-nota text-grafito">
         Dentro de un mismo partido las selecciones dependen entre sí, así que su probabilidad conjunta sale de la matriz de
         marcadores del modelo, incluidos los goles y asistencias de jugadores (cada gol del equipo se reparte entre sus
         jugadores). Los partidos distintos se multiplican. Córners, tarjetas, remates y faltas se combinan como si no
@@ -26,9 +26,9 @@ export function ComboResult({ combo }: { combo: CaptureCombo }) {
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <p className="font-semibold">
                 {b.match}
-                {b.kickoff_local && <span className="ml-2 text-[0.85rem] font-normal text-grafito">{b.kickoff_local.slice(5)}</span>}
+                {b.kickoff_local && <span className="ml-2 text-nota font-normal text-grafito">{b.kickoff_local.slice(5)}</span>}
               </p>
-              <p className="num text-[0.92rem]">
+              <p className="num text-nota">
                 {b.odds != null && <span className="font-semibold">{odds(b.odds)}</span>}
                 {b.prob != null && (
                   <span className="ml-3 text-grafito">
@@ -40,15 +40,15 @@ export function ComboResult({ combo }: { combo: CaptureCombo }) {
                 )}
               </p>
             </div>
-            <ul className="mt-1 text-[0.9rem]">
+            <ul className="mt-1 text-nota">
               {b.legs.map((lg, k) => (
                 <li key={k} className={lg.market === "otro" ? "text-rojo" : ""}>
                   · {lg.label}
                 </li>
               ))}
             </ul>
-            {b.reason && <p className="mt-1 text-[0.88rem] text-rojo">No evaluable: {b.reason}</p>}
-            {b.notes.length > 0 && <p className="mt-1 text-[0.85rem] text-grafito">{b.notes.join(" · ")}</p>}
+            {b.reason && <p className="mt-1 text-nota text-rojo">No evaluable: {b.reason}</p>}
+            {b.notes.length > 0 && <p className="mt-1 text-nota text-grafito">{b.notes.join(" · ")}</p>}
           </li>
         ))}
       </ul>

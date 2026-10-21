@@ -13,7 +13,7 @@ import { betLabel, bookmakerName } from "@/lib/markets";
 import type { Capture, CaptureLine, MatchSummary } from "@/lib/types";
 
 const field = "h-11 w-full rounded-[3px] border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
-const labelCls = "mb-1 block text-[0.9rem] font-semibold";
+const labelCls = "mb-1 block text-nota font-semibold";
 
 const ACTIVE = ["pendiente", "procesando", "evaluada"];
 
@@ -83,7 +83,7 @@ export function CapturasView() {
               {["betano", "bet365"].map((b) => (
                 <label
                   key={b}
-                  className={`flex h-10 flex-1 cursor-pointer items-center justify-center rounded-[3px] border text-[0.95rem] font-semibold ${
+                  className={`flex h-10 flex-1 cursor-pointer items-center justify-center rounded-[3px] border text-interfaz font-semibold ${
                     bookmaker === b ? "border-boli bg-boli-suave text-boli" : "border-regla bg-hoja"
                   }`}
                 >
@@ -138,7 +138,7 @@ export function CapturasView() {
 
 function Explicacion({ engine }: { engine: Capture["auto_engine"] | undefined }) {
   return (
-    <div className="border-l-2 border-regla pl-4 text-[0.92rem] text-grafito">
+    <div className="border-l-2 border-regla pl-4 text-nota text-grafito">
       <p>
         La IA solo <strong className="text-tinta">lee</strong> la imagen. La probabilidad, el valor y el veredicto los calcula el
         mismo modelo que en Evaluar cuota. Revisa que las cuotas leídas coincidan con tu captura: si alguna no, corrígela.
@@ -250,9 +250,9 @@ function CaptureCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{title}</p>
-          <p className="truncate text-[0.88rem] text-grafito">{meta.join(" · ")}</p>
+          <p className="truncate text-nota text-grafito">{meta.join(" · ")}</p>
           {(c.status === "lista" || c.status === "no_evaluable") && (
-            <p className="truncate text-[0.88rem]">{c.status === "no_evaluable" ? "Leída, pero el modelo no puede evaluarla" : summaryText(c)}</p>
+            <p className="truncate text-nota">{c.status === "no_evaluable" ? "Leída, pero el modelo no puede evaluarla" : summaryText(c)}</p>
           )}
         </div>
         <Tag tone={st.tone}>{st.text}</Tag>
@@ -301,7 +301,7 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
               lines={3}
               label={c.status === "pendiente" ? "En cola" : c.status === "procesando" ? "Leyendo la captura" : "Resumiendo"}
             />
-            <p className="mt-2 text-[0.9rem] text-grafito">
+            <p className="mt-2 text-nota text-grafito">
               {c.status === "pendiente"
                 ? "En cola: se procesa en cuanto termine la anterior."
                 : c.status === "procesando"
@@ -319,28 +319,28 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
         {c.status === "error" && (
           <div role="alert" className="border-l-[3px] border-rojo bg-rojo-suave/60 px-4 py-3">
             <p className="font-semibold">No se pudo leer la captura</p>
-            <p className="mt-0.5 text-[0.95rem]">{c.error}</p>
+            <p className="mt-0.5 text-interfaz">{c.error}</p>
           </div>
         )}
         {c.status === "no_evaluable" && (
           <div className="border-l-[3px] border-tarjeta bg-tarjeta-suave px-4 py-3">
             <p className="font-semibold">Claude leyó la captura, pero el modelo no puede evaluarla</p>
-            {c.verdict && <p className="mt-1 max-w-[75ch] text-[0.95rem] whitespace-pre-line">{c.verdict}</p>}
+            {c.verdict && <p className="mt-1 max-w-[75ch] text-interfaz whitespace-pre-line">{c.verdict}</p>}
           </div>
         )}
         {c.verdict && c.status !== "no_evaluable" && (
           <div>
-            <h3 className="semi text-[0.95rem] font-bold">Resumen <span className="font-normal text-grafito">· leída por {engineName(c.engine)}</span></h3>
+            <h3 className="semi text-interfaz font-bold">Resumen <span className="font-normal text-grafito">· leída por {engineName(c.engine)}</span></h3>
             <p className="mt-1 max-w-[75ch] whitespace-pre-line">{c.verdict}</p>
             {c.edited && (
-              <p className="mt-2 border-l-[3px] border-tarjeta pl-3 text-[0.9rem]">
+              <p className="mt-2 border-l-[3px] border-tarjeta pl-3 text-nota">
                 Corregiste cuotas a mano: este resumen es anterior a la corrección. Los números de la tabla sí están al día.
               </p>
             )}
           </div>
         )}
         {c.ai_notes && (
-          <p className="text-[0.9rem] text-grafito">
+          <p className="text-nota text-grafito">
             <span className="font-semibold text-tinta">Notas de lectura:</span> {c.ai_notes}
           </p>
         )}
@@ -406,7 +406,7 @@ function ComboBet({ c, onDone }: { c: Capture; onDone: () => void }) {
   }
   if (apart.length > 0) {
     return (
-      <p className="max-w-[75ch] text-[0.88rem] text-grafito">
+      <p className="max-w-[75ch] text-nota text-grafito">
         Para registrarla aquí, todas las selecciones tienen que poder liquidarse solas, y estas no: {apart.join(", ")}.
         Si quieres seguirla igual, ármala sin ellas en{" "}
         <Link href="/evaluar" className="font-semibold text-boli underline underline-offset-4">
@@ -446,10 +446,10 @@ function Lines({ c, onChanged }: { c: Capture; onChanged: () => void }) {
   const rows = c.lines.map((ln, idx) => ({ ...ln, idx })).sort((a, b) => (b.eval?.ev ?? -9) - (a.eval?.ev ?? -9));
   return (
     <div className="relative overflow-x-auto">
-      <table className="w-full min-w-[500px] text-[0.93rem]">
+      <table className="w-full min-w-[500px] text-interfaz">
         <caption className="sr-only">Cuotas leídas y su evaluación</caption>
         <thead>
-          <tr className="border-b border-regla text-left text-[0.82rem] text-grafito">
+          <tr className="border-b border-regla text-left text-nota text-grafito">
             <th className="py-2 pr-3 font-semibold">Apuesta</th>
             <th className="py-2 pr-3 text-right font-semibold">Cuota</th>
             <th className="py-2 pr-3 font-semibold">Estimamos</th>
@@ -470,7 +470,7 @@ function Lines({ c, onChanged }: { c: Capture; onChanged: () => void }) {
               <tr className="border-b border-regla-suave align-middle">
                 <td className="py-2 pr-3">
                   <span className="font-medium">{lineLabel(c, ln)}</span>
-                  {ln.text && <span className="block text-[0.82rem] text-grafito">«{ln.text}»</span>}
+                  {ln.text && <span className="block text-nota text-grafito">«{ln.text}»</span>}
                 </td>
                 <td className="num py-2 pr-3 text-right font-semibold">{odds(ln.odds)}</td>
                 {e ? (
@@ -487,13 +487,13 @@ function Lines({ c, onChanged }: { c: Capture; onChanged: () => void }) {
                     <td className="py-2 text-right">
                       {c.match &&
                         (ln.bet_id ? (
-                          <span className="text-[0.85rem] font-semibold whitespace-nowrap text-boli">Registrada</span>
+                          <span className="text-nota font-semibold whitespace-nowrap text-boli">Registrada</span>
                         ) : (
                           <button
                             type="button"
                             aria-expanded={registering === ln.idx}
                             onClick={() => setRegistering(registering === ln.idx ? null : ln.idx)}
-                            className="text-[0.88rem] font-semibold whitespace-nowrap text-boli underline underline-offset-4"
+                            className="text-nota font-semibold whitespace-nowrap text-boli underline underline-offset-4"
                           >
                             Registrar
                           </button>
@@ -501,7 +501,7 @@ function Lines({ c, onChanged }: { c: Capture; onChanged: () => void }) {
                     </td>
                   </>
                 ) : (
-                  <td colSpan={5} className="py-2 text-[0.88rem] text-grafito">
+                  <td colSpan={5} className="py-2 text-nota text-grafito">
                     {ln.error}
                   </td>
                 )}
@@ -509,7 +509,7 @@ function Lines({ c, onChanged }: { c: Capture; onChanged: () => void }) {
               {registering === ln.idx && (
                 <tr className="border-b border-regla-suave">
                   <td colSpan={7} className="py-3">
-                    <p className="mb-2 text-[0.92rem] font-semibold">{lineLabel(c, ln)} a {odds(ln.odds)}</p>
+                    <p className="mb-2 text-nota font-semibold">{lineLabel(c, ln)} a {odds(ln.odds)}</p>
                     <CaptureBet
                       captureId={c.id}
                       line={ln.idx}
@@ -563,7 +563,7 @@ function EditLines({
 
   return (
     <div>
-      <p className="mb-3 text-[0.92rem] text-grafito">
+      <p className="mb-3 text-nota text-grafito">
         Corrige lo que Claude leyó mal. Al guardar, el modelo vuelve a evaluar las cuotas (sin pasar por Claude).
       </p>
       <ul className="space-y-2">
@@ -571,7 +571,7 @@ function EditLines({
           <li key={i} className={`flex flex-wrap items-end gap-3 rounded-[3px] border border-regla-suave px-3 py-2 ${r.keep ? "" : "opacity-50"}`}>
             <span className="min-w-48 flex-1 font-medium">{lineLabel(c, r.ln)}</span>
             {r.ln.line != null && (
-              <label className="text-[0.82rem] text-grafito">
+              <label className="text-nota text-grafito">
                 Línea
                 <input
                   className={`${field} num mt-0.5 h-9 w-20`}
@@ -582,7 +582,7 @@ function EditLines({
                 />
               </label>
             )}
-            <label className="text-[0.82rem] text-grafito">
+            <label className="text-nota text-grafito">
               Cuota
               <input
                 className={`${field} num mt-0.5 h-9 w-24`}
@@ -592,7 +592,7 @@ function EditLines({
                 disabled={!r.keep}
               />
             </label>
-            <label className="flex h-9 items-center gap-1.5 text-[0.88rem]">
+            <label className="flex h-9 items-center gap-1.5 text-nota">
               <input type="checkbox" checked={!r.keep} onChange={(e) => set(i, { keep: !e.target.checked })} />
               Quitar
             </label>

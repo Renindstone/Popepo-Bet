@@ -31,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         <main className="mx-auto w-full max-w-[1180px] flex-1 px-4 pt-8 sm:px-6">{children}</main>
-        <footer className="mx-auto w-full max-w-[1180px] px-4 pt-4 pb-10 text-[0.85rem] text-grafito sm:px-6">
+        <footer className="mx-auto w-full max-w-[1180px] px-4 pt-4 pb-10 text-nota text-grafito sm:px-6">
           <p className="max-w-[72ch] border-t border-regla pt-4">
             Herramienta de análisis para uso personal. Ningún modelo garantiza ganancias: apuesta solo lo que puedas
             permitirte perder. Todas las horas están en hora de Lima.

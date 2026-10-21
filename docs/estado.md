@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 20 de octubre de 2026. Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
+Última actualización: 21 de octubre de 2026. Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
 
 ## Qué funciona hoy
 
@@ -9,6 +9,7 @@
 - **Apuesta del día** a las 09:00 (solo mercados de goles), con un contador de aciertos desde el inicio en Hoy y en Mis apuestas (`GET /picks/record`; las retiradas al recalcular no cuentan) y **liquidación automática** de picks y apuestas después de cada partido (tarea `post_match`, a los :15 y :45).
 - **Cuotas de Betano y Pinnacle** con OddsPapi a las 08:30 (una petición por casa y día), descartando las que vienen con local y visitante invertidos.
 - **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota (con las **cuotas de Betano ya descargadas** de cada partido, evaluadas y listas para el cupón), mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y la lee la **IA local** (Ollama, qwen2.5vl:7b) o, con el botón «Leer con Claude», Claude Code; incluidas combinadas y Bet Builders.
+- **Diseño del panel** con un sistema propio (skill `disenio-panel`: paleta, escala de texto con tokens `text-etiqueta`/`text-nota`/`text-interfaz`, formas, movimiento) y una auditoría automática (skill `run-app-apuestas`) que sale limpia en escritorio y celular, claro y oscuro: sin desborde, sin texto de menos de 12 px, contraste AA y toques de al menos 24 px (desde el 2026-10-21). Las cuotas de Betano de hándicap de córners y tarjetas ya salen con nombre.
 - **Mercados de jugador**: gol (también 2 o más), asistencia y gol o asistencia, con xG y xA; en Bet Builders se calculan junto con el resultado. Córners y tarjetas en un Bet Builder salen "aproximados" (desde el 2026-10-20).
 - **Registrar desde una captura** (`POST /captures/{id}/bet`): una cuota o la combinada entera, con el importe que Claude leyó si se ve; la captura recuerda lo registrado (`engine_info.bets`) para no duplicarlo.
 - **Cupón en Evaluar cuota**: varias selecciones de uno o varios partidos (Bet Builders y combinada), evaluadas juntas (`POST /combos/evaluate`) y registradas como una apuesta `combo` con sus selecciones en `user_bet_leg` (`POST /combos`); se liquidan solas.
@@ -41,6 +42,7 @@
   - `claude/eloquent-murdock-250aed`: calidad de jugador con el rating de FotMob y `backtest --lineups`.
 - **Validar córners, tarjetas y props** con las cuotas de Betano que ya se guardan, antes de dejarlos entrar en la apuesta del día.
 - **Telegram**: falta crear el bot y poner el token en `.env`.
+- **Diseño en el celular** (consultar al usuario): la página de un partido mide unos 28.000 px de alto (pestañas o secciones plegables) y el menú superior se corta («Mis apuest…») sin señal de que se desplaza. El resto de pendientes de diseño está en la skill `disenio-panel`.
 - `loginctl enable-linger` para que los servicios sigan corriendo sin sesión iniciada (lo ejecuta el usuario).
 - Más ideas del modelo en `docs/modelos.md`, "Próximas mejoras previstas".
 

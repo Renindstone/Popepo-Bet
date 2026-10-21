@@ -57,18 +57,18 @@ export function HoyView() {
     <>
       <Link
         href={`/?dia=${shiftDay(day, -1)}`}
-        className="inline-flex h-10 items-center rounded-[3px] border border-regla bg-hoja px-3 text-[0.95rem] font-semibold hover:border-grafito"
+        className="inline-flex h-10 items-center rounded-[3px] border border-regla bg-hoja px-3 text-interfaz font-semibold hover:border-grafito"
       >
         Día anterior
       </Link>
       <Link
         href={`/?dia=${shiftDay(day, 1)}`}
-        className="inline-flex h-10 items-center rounded-[3px] border border-regla bg-hoja px-3 text-[0.95rem] font-semibold hover:border-grafito"
+        className="inline-flex h-10 items-center rounded-[3px] border border-regla bg-hoja px-3 text-interfaz font-semibold hover:border-grafito"
       >
         Día siguiente
       </Link>
       {day !== today && (
-        <Link href="/" className="px-2 text-[0.95rem] font-semibold text-boli underline underline-offset-4">
+        <Link href="/" className="inline-flex h-10 items-center px-2 text-interfaz font-semibold text-boli underline underline-offset-4">
           Volver a hoy
         </Link>
       )}
@@ -110,7 +110,7 @@ export function HoyView() {
           {data?.notes
             ?.filter((n) => !n.startsWith("Hoy no hay"))
             .map((n) => (
-              <p key={n} className="mt-3 border-l-[3px] border-tarjeta bg-tarjeta-suave px-3 py-2 text-[0.95rem]">
+              <p key={n} className="mt-3 border-l-[3px] border-tarjeta bg-tarjeta-suave px-3 py-2 text-interfaz">
                 {n}
               </p>
             ))}
@@ -165,7 +165,7 @@ function CaptureQuick() {
   return (
     <div>
       <h2 className="semi mb-1 text-base font-bold text-tinta">¿Viste una cuota?</h2>
-      <p className="mb-3 text-[0.92rem] text-grafito">
+      <p className="mb-3 text-nota text-grafito">
         Sube o pega la captura de Betano o bet365: una IA la lee y el modelo te dice si tiene valor.
       </p>
       <CaptureDrop onUploaded={onUploaded} compact />
@@ -186,10 +186,10 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
   return (
     <article aria-labelledby="apuesta-del-dia" className="relative rounded-[4px] border border-regla bg-hoja">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 pt-4 sm:px-6">
-        <h2 id="apuesta-del-dia" className="semi text-[0.95rem] font-bold text-boli">
+        <h2 id="apuesta-del-dia" className="semi text-interfaz font-bold text-boli">
           Apuesta del día
         </h2>
-        <p className="text-[0.9rem] text-grafito">
+        <p className="text-nota text-grafito">
           {pick.competition && <span>{pick.competition}</span>}
           {pick.kickoff_local && <span className="num">, {pick.kickoff_local.slice(11)}</span>}
         </p>
@@ -225,7 +225,7 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
         <div className="relative justify-self-start px-4 py-2 sm:justify-self-end">
           <PenMark kind="circle" className="-inset-x-3 -inset-y-2 h-[calc(100%+1rem)] w-[calc(100%+1.5rem)]" />
           <p className="cond num text-[3.4rem] leading-none font-extrabold">{odds(pick.odds)}</p>
-          <p className="text-center text-[0.85rem] text-grafito">cuota</p>
+          <p className="text-center text-nota text-grafito">cuota</p>
         </div>
       </div>
 
@@ -253,13 +253,13 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
 
       {(reasons.length > 0 || evaluarHref) && (
         <div className="flex flex-wrap items-end justify-between gap-4 border-t border-regla-suave px-5 py-4 sm:px-6">
-          <ul className="space-y-0.5 text-[0.9rem] text-grafito">
+          <ul className="space-y-0.5 text-nota text-grafito">
             {reasons.map((r) => (
               <li key={r}>{r}</li>
             ))}
           </ul>
           {evaluarHref && !past && (
-            <Link href={evaluarHref} className="text-[0.95rem] font-semibold text-boli underline underline-offset-4">
+            <Link href={evaluarHref} className="inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4">
               Comprobar la cuota de Betano
             </Link>
           )}
@@ -272,7 +272,7 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
 function NoPick({ note, past }: { note: string | null; past: boolean }) {
   return (
     <article aria-labelledby="apuesta-del-dia" className="rounded-[4px] border border-regla bg-hoja px-5 py-5 sm:px-6">
-      <h2 id="apuesta-del-dia" className="semi text-[0.95rem] font-bold text-grafito">
+      <h2 id="apuesta-del-dia" className="semi text-interfaz font-bold text-grafito">
         Apuesta del día
       </h2>
       <div className="mt-2 flex flex-col items-start gap-x-6 gap-y-2 sm:flex-row sm:items-center">
@@ -314,7 +314,7 @@ function DayCount({ report }: { report: PicksReport }) {
       {items.map((x) => (
         <li key={x.l}>
           <span className="cond num block text-[1.75rem] leading-none font-bold">{x.v}</span>
-          <span className="mt-1 block text-[0.85rem] text-grafito">{x.l}</span>
+          <span className="mt-1 block text-nota text-grafito">{x.l}</span>
         </li>
       ))}
     </ul>
@@ -323,7 +323,7 @@ function DayCount({ report }: { report: PicksReport }) {
 
 function MarginNote() {
   return (
-    <aside className="border-l-2 border-boli/50 pl-5 text-[0.93rem] leading-relaxed text-grafito lg:self-start">
+    <aside className="border-l-2 border-boli/50 pl-5 text-interfaz leading-relaxed text-grafito lg:self-start">
       <h2 className="semi mb-2 text-base font-bold text-tinta">Antes de apostar</h2>
       <p>
         El backtest de 2024-25 y 2025-26 muestra que el modelo <strong className="text-tinta">no le gana a bet365</strong>{" "}
@@ -342,7 +342,7 @@ function MarginNote() {
 
 // --------------------------------------------------------------------------- tablas
 
-const th = "py-2 pr-4 text-left text-[0.85rem] font-medium text-grafito";
+const th = "py-2 pr-4 text-left text-nota font-medium text-grafito";
 const td = "py-2.5 pr-4 align-middle";
 
 function isLive(row: ValueBet | PastValueBet): row is ValueBet {
@@ -365,7 +365,7 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
                 <span className="font-semibold">{betLabel(r.market, r.selection, r.line, { home, away })}</span>
                 <span className="cond num text-2xl leading-none font-bold">{odds(r.odds)}</span>
               </div>
-              <p className="mt-0.5 text-[0.88rem] text-grafito">
+              <p className="mt-0.5 text-nota text-grafito">
                 {isLive(r) ? (
                   <Link href={`/partidos/${r.match_id}`} className="underline decoration-regla underline-offset-2">
                     {r.match}
@@ -380,7 +380,7 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
                   <EdgeBar prob={r.prob} odds={r.odds} compact />
                 </div>
               )}
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.9rem]">
+              <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-nota">
                 <span>
                   Valor <strong className={`num ${r.ev > 0 ? "text-boli" : "text-rojo"}`}>{signedPct(r.ev)}</strong>
                 </span>
@@ -400,7 +400,7 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
         })}
       </ul>
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[720px] border-collapse text-[0.95rem]">
+        <table className="w-full min-w-[720px] border-collapse text-interfaz">
           <thead className="border-b border-regla">
             <tr>
               <th className={th}>Partido</th>
@@ -428,7 +428,7 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
                   </td>
                   <td className={td}>
                     {betLabel(r.market, r.selection, r.line, { home, away })}
-                    {isLive(r) && <span className="block text-[0.85rem] text-grafito">{bookmakerName(r.bookmaker)}</span>}
+                    {isLive(r) && <span className="block text-nota text-grafito">{bookmakerName(r.bookmaker)}</span>}
                   </td>
                   <td className={`${td} num cond text-right text-lg font-bold`}>{odds(r.odds)}</td>
                   {isLive(r) && (
@@ -454,7 +454,7 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
         </table>
       </div>
       {rows.length > 12 && (
-        <button type="button" onClick={() => setAll(!all)} className="mt-3 text-[0.95rem] font-semibold text-boli underline underline-offset-4">
+        <button type="button" onClick={() => setAll(!all)} className="mt-1 inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4">
           {all ? "Mostrar menos" : `Mostrar las ${rows.length}`}
         </button>
       )}
@@ -476,20 +476,20 @@ function Props({ rows }: { rows: PropMinOdds[] }) {
             <li key={i} className="flex items-start justify-between gap-4 py-3">
               <div className="min-w-0">
                 <p className="font-semibold">{betLabel(r.market, r.selection, r.line, { home, away, player: r.player })}</p>
-                <p className="mt-0.5 text-[0.88rem] text-grafito">
+                <p className="mt-0.5 text-nota text-grafito">
                   {r.match}. Probabilidad {pct(r.prob)}, cuota justa {odds(r.fair_odds)}
                 </p>
               </div>
               <div className="shrink-0 text-right">
                 <p className="cond num text-2xl leading-none font-bold text-boli">{odds(r.min_odds)}</p>
-                <p className="text-[0.8rem] text-grafito">mínima</p>
+                <p className="text-etiqueta text-grafito">mínima</p>
               </div>
             </li>
           );
         })}
       </ul>
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[640px] border-collapse text-[0.95rem]">
+        <table className="w-full min-w-[640px] border-collapse text-interfaz">
           <thead className="border-b border-regla">
             <tr>
               <th className={th}>Partido</th>
@@ -524,7 +524,7 @@ function Props({ rows }: { rows: PropMinOdds[] }) {
         </table>
       </div>
       {rows.length > 12 && (
-        <button type="button" onClick={() => setAll(!all)} className="mt-3 text-[0.95rem] font-semibold text-boli underline underline-offset-4">
+        <button type="button" onClick={() => setAll(!all)} className="mt-1 inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4">
           {all ? "Mostrar menos" : `Mostrar las ${rows.length}`}
         </button>
       )}
@@ -550,11 +550,11 @@ function DayMatches({ rows }: { rows: DayMatch[] }) {
                 <Crest id={m.away_id} size={18} className="mr-1.5 -mt-0.5" />
                 {m.away}
               </span>
-              <span className="block text-[0.85rem] text-grafito">{competitionName(m.competition)}</span>
+              <span className="block text-nota text-grafito">{competitionName(m.competition)}</span>
             </span>
             <span className="col-start-2 sm:col-start-auto">
               <TriBar probs={m["1x2"]} home={m.home} away={m.away} />
-              <span className="num mt-1 flex justify-between text-[0.85rem] text-grafito">
+              <span className="num mt-1 flex justify-between text-nota text-grafito">
                 <span>{pct(m["1x2"].home)}</span>
                 <span>{pct(m["1x2"].draw)}</span>
                 <span>{pct(m["1x2"].away)}</span>

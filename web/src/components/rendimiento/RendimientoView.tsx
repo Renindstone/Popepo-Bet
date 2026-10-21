@@ -52,7 +52,7 @@ export function RendimientoView() {
                 type="button"
                 aria-pressed={days === o.value}
                 onClick={() => setDays(o.value)}
-                className={`h-9 rounded-[3px] border px-3 text-[0.9rem] font-semibold ${
+                className={`h-9 rounded-[3px] border px-3 text-interfaz font-semibold ${
                   days === o.value ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
                 }`}
               >
@@ -164,7 +164,7 @@ function LossMeter({ label, profit, limit, currency }: { label: string; profit: 
       >
         <div className={`h-2 rounded-full ${tone}`} style={{ width: `${used * 100}%` }} />
       </div>
-      <p className="mt-1 text-[0.88rem] text-grafito">
+      <p className="mt-1 text-nota text-grafito">
         {profit >= 0
           ? `Sin pérdidas. Límite de pérdida: ${money(-limit, currency)}`
           : `Usado el ${pct(used)} del límite de pérdida de ${money(-limit, currency)}`}
@@ -197,7 +197,7 @@ function Banca({ b, onSaved }: { b: Bankroll; onSaved: () => void }) {
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="mt-1 text-[0.9rem] font-semibold text-boli underline underline-offset-4"
+                className="inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4"
               >
                 Editar banca inicial
               </button>
@@ -252,7 +252,7 @@ function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => voi
   return (
     <form onSubmit={save} className="max-w-xs space-y-3" aria-label="Editar banca inicial">
       <div>
-        <label htmlFor="banca-monto" className="mb-1 block text-[0.9rem] font-semibold">
+        <label htmlFor="banca-monto" className="mb-1 block text-nota font-semibold">
           Banca inicial
         </label>
         <div className="flex gap-2">
@@ -288,7 +288,7 @@ function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => voi
           </select>
         </div>
         {state.error && (
-          <p id="banca-error" role="alert" className="mt-1 text-[0.9rem] text-rojo">
+          <p id="banca-error" role="alert" className="mt-1 text-nota text-rojo">
             {state.error}
           </p>
         )}
@@ -459,9 +459,9 @@ function Grupo({
       <h3 className="semi mb-2 font-bold">{title}</h3>
       {chart && rows.length > 0 && <Chart option={option} height={Math.max(80, rows.length * 34)} label={`ROI ${title.toLowerCase()}`} />}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[460px] border-collapse text-[0.92rem]">
+        <table className="w-full min-w-[460px] border-collapse text-nota">
           <thead>
-            <tr className="border-b border-regla text-right text-[0.85rem] text-grafito">
+            <tr className="border-b border-regla text-right text-nota text-grafito">
               <th className="py-1.5 pr-3 text-left font-medium">Grupo</th>
               <th className="py-1.5 pr-3 font-medium">Apuestas</th>
               <th className="py-1.5 pr-3 font-medium">Beneficio</th>
@@ -514,7 +514,7 @@ function BetText({ b }: { b: UserBet }) {
       {b.legs.map((lg, i) => {
         const [home, away] = splitMatch(lg.match);
         return (
-          <li key={i} className="text-[0.92rem]">
+          <li key={i} className="text-nota">
             <span className="text-grafito">{lg.match}: </span>
             {betLabel(lg.market, lg.selection, lg.line, { home, away, player: lg.player })}
             {lg.odds != null && <span className="num ml-1 text-grafito">({odds(lg.odds)})</span>}
@@ -543,10 +543,10 @@ function BetsTable({ rows, currency }: { rows: UserBet[]; currency: string }) {
                 </span>
                 <span className="cond num text-2xl leading-none font-bold">{odds(b.odds)}</span>
               </div>
-              <p className="mt-0.5 text-[0.88rem] text-grafito">
+              <p className="mt-0.5 text-nota text-grafito">
                 {b.match}, en {bookmakerName(b.bookmaker)}
               </p>
-              <p className="num mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.9rem]">
+              <p className="num mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-nota">
                 <Tag tone={b.result ? RESULT_TONE[b.result] ?? "neutral" : "tarjeta"}>{resultText(b.result)}</Tag>
                 <span>{money(b.stake, currency)}</span>
                 {b.profit != null && <strong className={profitClass(b.profit)}>{money(b.profit, currency, true)}</strong>}
@@ -564,9 +564,9 @@ function BetsTable({ rows, currency }: { rows: UserBet[]; currency: string }) {
 function BetsWide({ rows, currency }: { rows: UserBet[]; currency: string }) {
   return (
     <div className="hidden overflow-x-auto md:block">
-      <table className="w-full min-w-[760px] border-collapse text-[0.95rem]">
+      <table className="w-full min-w-[760px] border-collapse text-interfaz">
         <thead>
-          <tr className="border-b border-regla text-left text-[0.85rem] text-grafito">
+          <tr className="border-b border-regla text-left text-nota text-grafito">
             <th className="py-2 pr-4 font-medium">Partido</th>
             <th className="py-2 pr-4 font-medium">Apuesta</th>
             <th className="py-2 pr-4 text-right font-medium">Cuota</th>
@@ -583,7 +583,7 @@ function BetsWide({ rows, currency }: { rows: UserBet[]; currency: string }) {
                 <td className="py-2 pr-4">{b.match}</td>
                 <td className="py-2 pr-4">
                   <BetText b={b} />
-                  <span className="block text-[0.85rem] text-grafito">{bookmakerName(b.bookmaker)}</span>
+                  <span className="block text-nota text-grafito">{bookmakerName(b.bookmaker)}</span>
                 </td>
                 <td className="cond num py-2 pr-4 text-right text-lg font-bold">{odds(b.odds)}</td>
                 <td className="num py-2 pr-4 text-right">{money(b.stake, currency)}</td>
@@ -634,10 +634,10 @@ function Historial({ h }: { h: PickHistory }) {
                 <span className="font-semibold">{betLabel(r.market, r.selection, r.line, { home, away })}</span>
                 <span className="cond num text-2xl leading-none font-bold">{odds(r.odds)}</span>
               </div>
-              <p className="mt-0.5 text-[0.88rem] text-grafito">
+              <p className="mt-0.5 text-nota text-grafito">
                 {shortDate(r.date)}, {r.match}
               </p>
-              <p className="num mt-1.5 flex flex-wrap items-center gap-x-4 text-[0.9rem]">
+              <p className="num mt-1.5 flex flex-wrap items-center gap-x-4 text-nota">
                 <Tag tone={r.result ? RESULT_TONE[r.result] ?? "neutral" : "tarjeta"}>{resultText(r.result)}</Tag>
                 {r.clv != null && <span className="text-grafito">CLV {signedPct(r.clv)}</span>}
               </p>
@@ -646,9 +646,9 @@ function Historial({ h }: { h: PickHistory }) {
         })}
       </ul>
       <div className="mt-6 hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[640px] border-collapse text-[0.95rem]">
+        <table className="w-full min-w-[640px] border-collapse text-interfaz">
           <thead>
-            <tr className="border-b border-regla text-left text-[0.85rem] text-grafito">
+            <tr className="border-b border-regla text-left text-nota text-grafito">
               <th className="py-2 pr-4 font-medium">Fecha</th>
               <th className="py-2 pr-4 font-medium">Partido</th>
               <th className="py-2 pr-4 font-medium">Apuesta</th>

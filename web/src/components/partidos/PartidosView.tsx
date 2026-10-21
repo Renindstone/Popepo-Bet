@@ -85,7 +85,7 @@ export function PartidosView() {
       ) : (
         <div className="space-y-8 pb-10">
           {searching && (
-            <p className="-mt-2 text-[0.9rem] text-grafito" aria-live="polite">
+            <p className="-mt-2 text-nota text-grafito" aria-live="polite">
               {rows.length === 1 ? "1 partido" : `${rows.length} partidos`} con «{query.trim()}»
             </p>
           )}
@@ -107,9 +107,9 @@ export function PartidosView() {
                           <Crest id={m.away_id} size={18} className="mr-1.5 -mt-0.5" />
                           {m.away}
                         </span>
-                        <span className="block text-[0.85rem] text-grafito">{competitionName(m.competition)}</span>
+                        <span className="block text-nota text-grafito">{competitionName(m.competition)}</span>
                       </span>
-                      <span className="col-start-2 truncate text-[0.9rem] text-grafito sm:col-start-auto">
+                      <span className="col-start-2 truncate text-nota text-grafito sm:col-start-auto">
                         {m.referee ? `Árbitro: ${m.referee}` : "Árbitro sin designar"}
                       </span>
                       <span className="col-start-2 sm:col-start-auto">
@@ -159,7 +159,7 @@ function TeamSearch({ value, onChange }: { value: string; onChange: (value: stri
           if (e.key === "Escape") onChange("");
         }}
         placeholder="Buscar equipo"
-        className="h-9 w-full rounded-[3px] border border-regla bg-hoja pr-9 pl-9 text-[0.95rem] text-tinta placeholder:text-grafito focus:border-boli"
+        className="h-9 w-full rounded-[3px] border border-regla bg-hoja pr-9 pl-9 text-interfaz text-tinta placeholder:text-grafito focus:border-boli"
       />
       {value && (
         <button
@@ -183,7 +183,7 @@ function FilterButton({ active, onClick, children }: { active: boolean; onClick:
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`h-9 rounded-[3px] border px-3 text-[0.9rem] font-semibold whitespace-nowrap transition-colors ${
+      className={`h-9 rounded-[3px] border px-3 text-interfaz font-semibold whitespace-nowrap transition-colors ${
         active ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
       }`}
     >

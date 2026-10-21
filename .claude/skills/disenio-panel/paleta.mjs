@@ -33,6 +33,7 @@ const USED = [
   ["boli", "papel", 4.5], ["boli", "hoja", 4.5], ["boli", "boli-suave", 4.5], ["rojo", "papel", 4.5],
   ["rojo", "hoja", 4.5], ["rojo", "rojo-suave", 4.5], ["tinta", "tarjeta-suave", 4.5],
   ["tarjeta", "papel", 3], // borde de aviso: elemento gráfico con significado (WCAG 1.4.11, 3:1)
+  ["tarjeta", "hoja", 3],
   ["regla", "papel", 1.2], // separadores decorativos: solo tienen que notarse
 ];
 

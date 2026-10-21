@@ -51,7 +51,7 @@ export function Alineaciones({ matchId }: { matchId: number }) {
         <Empty>FotMob aún no publica las alineaciones probables de este partido.</Empty>
       ) : (
         <>
-          <div className="mb-4 grid grid-cols-2 gap-4 text-[0.95rem]">
+          <div className="mb-4 grid grid-cols-2 gap-4 text-interfaz">
             {data.teams.map((t) => (
               <TeamHeader key={t.side} t={t} />
             ))}
@@ -85,7 +85,7 @@ function TeamHeader({ t }: { t: LineupTeam }) {
           aria-hidden="true"
         />
       </p>
-      <p className="text-[0.88rem] text-grafito">
+      <p className="text-nota text-grafito">
         {[t.formation, t.coach && `Entrenador: ${t.coach}`].filter(Boolean).join(" · ")}
       </p>
     </div>
@@ -123,18 +123,18 @@ function Pitch({ teams, orientation }: { teams: LineupTeam[]; orientation: "hori
               style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
             >
               <span
-                className={`relative flex size-8 items-center justify-center rounded-full text-[0.85rem] font-bold shadow ${
+                className={`relative flex size-8 items-center justify-center rounded-full text-nota font-bold shadow ${
                   t.side === "home" ? "bg-[#f4f6f2] text-[#1c2624]" : "bg-[#2643c4] text-white"
                 }`}
               >
                 {p.shirt ?? ""}
                 {p.rating != null && (
-                  <span className="absolute -top-2 -right-4 rounded-[3px] bg-[#1c2624]/85 px-1 text-[0.62rem] leading-4 font-semibold text-white">
+                  <span className="absolute -top-2 -right-4 rounded-[3px] bg-[#1c2624]/85 px-1 text-xs leading-4 font-semibold text-white">
                     {p.rating.toFixed(1)}
                   </span>
                 )}
               </span>
-              <span className="mt-0.5 max-w-full truncate rounded-[3px] bg-[#1c2624]/55 px-1 text-center text-[0.72rem] leading-4 font-medium text-white">
+              <span className="mt-0.5 max-w-full truncate rounded-[3px] bg-[#1c2624]/55 px-1 text-center text-xs leading-4 md:text-etiqueta font-medium text-white">
                 {shortName(p.name)}
               </span>
             </div>
@@ -177,13 +177,13 @@ function Bench({ t, confirmed }: { t: LineupTeam; confirmed: boolean }) {
   return (
     <div className="min-w-0">
       <h3 className="semi font-bold">{t.team}</h3>
-      <h4 className="mt-2 text-[0.9rem] font-semibold">Suplentes</h4>
+      <h4 className="mt-2 text-nota font-semibold">Suplentes</h4>
       {t.subs.length === 0 ? (
-        <p className="text-[0.9rem] text-grafito">
+        <p className="text-nota text-grafito">
           {confirmed ? "Sin suplentes publicados." : "Se conocen cuando se confirma la alineación."}
         </p>
       ) : (
-        <ul className="mt-1 grid grid-cols-1 gap-x-4 text-[0.92rem] sm:grid-cols-2">
+        <ul className="mt-1 grid grid-cols-1 gap-x-4 text-nota sm:grid-cols-2">
           {t.subs.map((p) => (
             <li key={p.player_id} className="truncate py-0.5">
               <span className="num inline-block w-6 text-grafito">{p.shirt ?? ""}</span>
@@ -193,11 +193,11 @@ function Bench({ t, confirmed }: { t: LineupTeam; confirmed: boolean }) {
           ))}
         </ul>
       )}
-      <h4 className="mt-3 text-[0.9rem] font-semibold">Bajas</h4>
+      <h4 className="mt-3 text-nota font-semibold">Bajas</h4>
       {t.unavailable.length === 0 ? (
-        <p className="text-[0.9rem] text-grafito">Ninguna registrada.</p>
+        <p className="text-nota text-grafito">Ninguna registrada.</p>
       ) : (
-        <ul className="mt-1 text-[0.92rem]">
+        <ul className="mt-1 text-nota">
           {t.unavailable.map((u) => (
             <li key={u.name} className="py-0.5">
               {u.name}

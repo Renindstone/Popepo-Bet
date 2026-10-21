@@ -38,7 +38,7 @@ function lineLabel(market: string, selection: string, t: { home?: string; away?:
 }
 
 const field = "h-11 w-full rounded-[3px] border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
-const labelCls = "mb-1 block text-[0.9rem] font-semibold";
+const labelCls = "mb-1 block text-nota font-semibold";
 
 export function EvaluarView() {
   const params = useSearchParams();
@@ -288,7 +288,7 @@ export function EvaluarView() {
           </div>
 
           {(market.value === "eh" || market.value === "ah") && (
-            <p className="-mt-2 text-[0.88rem] text-grafito">
+            <p className="-mt-2 text-nota text-grafito">
               {market.value === "eh"
                 ? "Escribe el hándicap tal como sale junto al equipo (Coventry +2). Si con el hándicap queda empate, la apuesta al equipo pierde."
                 : "Hándicap asiático: si con una línea entera queda empate, se devuelve el dinero; las de cuarto (±0,25, ±0,75) se reparten en dos mitades."}
@@ -314,7 +314,7 @@ export function EvaluarView() {
               Añadir al cupón
             </Button>
           </div>
-          <p className="-mt-2 text-[0.88rem] text-grafito" aria-live="polite">
+          <p className="-mt-2 text-nota text-grafito" aria-live="polite">
             {added
               ? `Añadida: ${added}. Sigue con otra selección de este partido (Bet Builder) o elige otro partido.`
               : "Con «Añadir al cupón» puedes juntar varias selecciones, del mismo partido o de otros, y evaluarlas juntas."}
@@ -366,7 +366,7 @@ function Choice({
         {options.map((o) => (
           <label
             key={o.value}
-            className={`flex h-10 cursor-pointer items-center rounded-[3px] border px-3 text-[0.95rem] font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-boli ${
+            className={`flex h-10 cursor-pointer items-center rounded-[3px] border px-3 text-interfaz font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-boli ${
               value === o.value ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
             }`}
           >
@@ -417,7 +417,7 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
   return (
     <article aria-live="polite" className="rounded-[4px] border border-regla bg-hoja">
       <div className="px-5 pt-5 sm:px-6">
-        <p className="text-[0.95rem] text-grafito">
+        <p className="text-interfaz text-grafito">
           <Link href={`/partidos/${matchId}`} className="hover:text-boli hover:underline">
             {r.match}
           </Link>
@@ -430,7 +430,7 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
           <p className={`cond text-[2.6rem] leading-none font-extrabold ${v.tone}`}>{v.text}</p>
         </div>
         {r.verdict === "valor pequeño o poca confianza" && (
-          <p className="mt-2 max-w-[60ch] border-l-[3px] border-tarjeta pl-3 text-[0.95rem]">
+          <p className="mt-2 max-w-[60ch] border-l-[3px] border-tarjeta pl-3 text-interfaz">
             Tiene valor positivo, pero no pasa el corte que se exige a una apuesta del día (rango de cuota, probabilidad,
             valor y confianza).
           </p>
@@ -447,7 +447,7 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
         <Figure value={pct(r.stake_pct, 1)} label="stake sugerido de la banca" />
         <Figure value={pct(r.model_prob)} label={r.sharp_prob != null ? `modelo (mercado afilado ${pct(r.sharp_prob)})` : "solo modelo"} />
       </div>
-      <div className="border-t border-regla-suave px-5 py-4 text-[0.9rem] text-grafito sm:px-6">
+      <div className="border-t border-regla-suave px-5 py-4 text-nota text-grafito sm:px-6">
         {reasons.map((x) => (
           <p key={x}>{x}</p>
         ))}
@@ -503,7 +503,7 @@ function Registrar({ r, matchId, player }: { r: Evaluation; matchId: string; pla
           Apuesta registrada (n.º {done.bet_id}): {money(done.stake, done.bankroll.currency)} a {odds(done.odds)}.
         </p>
         <Banca b={done.bankroll} />
-        <Link href="/rendimiento" className="mt-3 inline-block font-semibold text-boli underline underline-offset-4">
+        <Link href="/rendimiento" className="mt-2 inline-flex min-h-10 items-center font-semibold text-boli underline underline-offset-4">
           Ver mis apuestas
         </Link>
       </div>
@@ -513,7 +513,7 @@ function Registrar({ r, matchId, player }: { r: Evaluation; matchId: string; pla
   return (
     <div className="border-t border-regla px-5 py-5 sm:px-6">
       <h3 className="semi text-lg font-bold">Registrar esta apuesta</h3>
-      <p className="mt-0.5 max-w-[60ch] text-[0.92rem] text-grafito">
+      <p className="mt-0.5 max-w-[60ch] text-nota text-grafito">
         Solo si ya la hiciste en tu casa de apuestas. Se liquida sola al terminar el partido y cuenta para tu ROI y tu CLV.
         {r.verdict !== "APOSTAR" && " El modelo no la recomienda; registrarla sirve igual para seguir tu rendimiento."}
       </p>
@@ -542,7 +542,7 @@ function Registrar({ r, matchId, player }: { r: Evaluation; matchId: string; pla
         </div>
       </div>
       {suggested != null && (
-        <p className="mt-2 text-[0.88rem] text-grafito">
+        <p className="mt-2 text-nota text-grafito">
           Stake sugerido: {money(suggested, currency)} ({pct(r.stake_pct, 1)} de una banca de {money(bankroll, currency)}).
         </p>
       )}
@@ -573,7 +573,7 @@ function Registrar({ r, matchId, player }: { r: Evaluation; matchId: string; pla
 
 function Banca({ b, children }: { b: Performance["bankroll"]; children?: ReactNode }) {
   return (
-    <div className="mt-3 text-[0.95rem]">
+    <div className="mt-3 text-interfaz">
       <p className="text-grafito">
         Hoy {money(b.day_profit, b.currency, true)}, esta semana {money(b.week_profit, b.currency, true)}. Pendientes:{" "}
         {b.pending_bets} ({money(b.pending_stake, b.currency)}).

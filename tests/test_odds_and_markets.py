@@ -148,3 +148,11 @@ def test_three_way_handicap_label_shows_the_teams_own_line():
     assert label("away") == "Hándicap (3 vías): Coventry +2"
     assert label("home") == "Hándicap (3 vías): Tottenham -2"
     assert label("draw") == "Hándicap (3 vías): Empate (Tottenham -2)"
+
+
+def test_stat_handicap_labels_have_names():
+    """Las cuotas de Betano de hándicap de córners y tarjetas se muestran con nombre, no con el código."""
+    from apuestas.services.analysis import bet_label
+
+    assert bet_label("ah_corners", "home", -1.5, "Galatasaray", "Bodø/Glimt") == "Hándicap de córners: Galatasaray -1.5"
+    assert bet_label("ah_cards", "away", 0.5, "Galatasaray", "Bodø/Glimt") == "Hándicap de tarjetas: Bodø/Glimt +0.5"

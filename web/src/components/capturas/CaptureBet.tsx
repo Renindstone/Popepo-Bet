@@ -7,7 +7,7 @@ import { type ApiError, post, useApi } from "@/lib/api";
 import { money, odds } from "@/lib/format";
 import type { Performance, RegisteredBet } from "@/lib/types";
 
-const field = "h-10 w-full rounded-[3px] border border-regla bg-papel px-3 text-[0.95rem] text-tinta focus:border-boli";
+const field = "h-10 w-full rounded-[3px] border border-regla bg-papel px-3 text-interfaz text-tinta focus:border-boli";
 
 /**
  * Registrar como apuesta una cuota de la captura (`line`) o su combinada entera, sin ir a Evaluar cuota.
@@ -42,7 +42,7 @@ export function CaptureBet({
 
   if (betId) {
     return (
-      <p className="text-[0.92rem]">
+      <p className="text-nota">
         <span className="font-semibold text-boli">Registrada</span> (apuesta n.º {betId}).{" "}
         <Link href="/rendimiento" className="font-semibold text-boli underline underline-offset-4">
           Ver mis apuestas
@@ -73,12 +73,12 @@ export function CaptureBet({
 
   return (
     <div className="max-w-md space-y-3 rounded-[3px] border border-regla-suave p-3">
-      <p className="text-[0.9rem] text-grafito">
+      <p className="text-nota text-grafito">
         Solo si ya la apostaste{price ? ` a ${odds(price)}` : ""}. Se liquida sola cuando termine y cuenta para tu ROI.
       </p>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-36">
-          <label htmlFor={inputId} className="mb-1 block text-[0.85rem] font-semibold">
+          <label htmlFor={inputId} className="mb-1 block text-nota font-semibold">
             Importe ({currency === "PEN" ? "S/" : currency})
           </label>
           <input
@@ -108,7 +108,7 @@ export function CaptureBet({
         </Button>
       </div>
       {defaultStake != null && stake === String(defaultStake) && (
-        <p className="text-[0.82rem] text-grafito">Importe leído en la captura; cámbialo si no es el que apostaste.</p>
+        <p className="text-nota text-grafito">Importe leído en la captura; cámbialo si no es el que apostaste.</p>
       )}
       {error && <ErrorNote error={error} />}
     </div>

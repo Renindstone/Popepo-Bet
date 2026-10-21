@@ -19,8 +19,8 @@ import {
   useSlip,
 } from "@/lib/slip";
 
-const field = "h-10 w-full rounded-[3px] border border-regla bg-papel px-3 text-[0.95rem] text-tinta focus:border-boli";
-const labelCls = "mb-1 block text-[0.85rem] font-semibold";
+const field = "h-10 w-full rounded-[3px] border border-regla bg-papel px-3 text-interfaz text-tinta focus:border-boli";
+const labelCls = "mb-1 block text-nota font-semibold";
 
 function blockOdds(slip: Slip, legs: SlipLeg[]): number {
   if (legs.length === 1) return legs[0].odds;
@@ -59,7 +59,7 @@ export function Cupon() {
         <h2 id="cupon-titulo" className="semi text-lg font-bold">
           Combinada registrada (n.º {registered.bet_id})
         </h2>
-        <p className="mt-1 text-[0.95rem]">
+        <p className="mt-1 text-interfaz">
           {money(registered.stake, registered.bankroll.currency)} a {odds(registered.odds)}. Se liquida sola cuando
           terminen sus partidos.
         </p>
@@ -98,7 +98,7 @@ export function Cupon() {
         <h2 id="cupon-titulo" className="semi text-lg font-bold">
           Tu cupón
         </h2>
-        <p className="text-[0.9rem] text-grafito">
+        <p className="text-nota text-grafito">
           {slip.legs.length} {slip.legs.length === 1 ? "selección" : "selecciones"} · {nMatches}{" "}
           {nMatches === 1 ? "partido" : "partidos"}
           <button type="button" onClick={clearSlip} className="ml-4 font-semibold text-grafito underline underline-offset-4 hover:text-rojo">
@@ -116,13 +116,13 @@ export function Cupon() {
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                 <p className="font-semibold">
                   {first.match}
-                  <span className="ml-2 text-[0.85rem] font-normal text-grafito">{first.kickoff}</span>
+                  <span className="ml-2 text-nota font-normal text-grafito">{first.kickoff}</span>
                 </p>
                 {builder && <Tag tone="boli">Bet Builder</Tag>}
               </div>
               <ul className="mt-1.5 space-y-1">
                 {b.legs.map((l) => (
-                  <li key={l.id} className="flex items-center justify-between gap-3 text-[0.93rem]">
+                  <li key={l.id} className="flex items-center justify-between gap-3 text-interfaz">
                     <span className="min-w-0">{l.label}</span>
                     <span className="flex shrink-0 items-center gap-2">
                       <span className="num font-semibold">{odds(l.odds)}</span>
@@ -155,7 +155,7 @@ export function Cupon() {
                       onChange={(e) => updateSlip((s) => ({ ...s, blockOdds: { ...s.blockOdds, [b.matchId]: e.target.value } }))}
                     />
                   </div>
-                  <p className="pb-2 text-[0.82rem] text-grafito">
+                  <p className="pb-2 text-nota text-grafito">
                     La casa suele pagar menos que el producto de las cuotas: escribe la que te muestra.
                   </p>
                 </div>
@@ -191,7 +191,7 @@ export function Cupon() {
                 type="button"
                 aria-pressed={slip.bookmaker === value}
                 onClick={() => updateSlip((s) => ({ ...s, bookmaker: value }))}
-                className={`h-10 rounded-[3px] border px-3 text-[0.92rem] font-semibold ${
+                className={`h-10 rounded-[3px] border px-3 text-interfaz font-semibold ${
                   slip.bookmaker === value ? "border-tinta bg-tinta text-papel" : "border-regla bg-papel text-grafito hover:text-tinta"
                 }`}
               >
@@ -217,7 +217,7 @@ export function Cupon() {
           </div>
         )}
         {!busy && evaluation && !fresh && (
-          <p className="mt-3 text-[0.9rem] text-grafito">Cambiaste el cupón: vuelve a evaluarlo para ver los números al día.</p>
+          <p className="mt-3 text-nota text-grafito">Cambiaste el cupón: vuelve a evaluarlo para ver los números al día.</p>
         )}
         {!busy && fresh && (
           <div className="mt-4">
@@ -270,7 +270,7 @@ function RegistrarCupon({
   return (
     <div className="border-t border-regla px-5 py-5 sm:px-6">
       <h3 className="semi text-base font-bold">Registrar el cupón</h3>
-      <p className="mt-0.5 max-w-[60ch] text-[0.9rem] text-grafito">
+      <p className="mt-0.5 max-w-[60ch] text-nota text-grafito">
         Solo si ya lo apostaste. Cuenta como una sola apuesta a cuota {odds(total)} y se liquida sola cuando terminen sus
         partidos: basta una selección perdida para perderlo.
       </p>

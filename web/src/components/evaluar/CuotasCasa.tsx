@@ -59,7 +59,7 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[0.92rem] text-grafito">
+        <p className="text-nota text-grafito">
           Guardadas el {data.captured_local?.slice(8, 10)}/{data.captured_local?.slice(5, 7)} a las{" "}
           {data.captured_local?.slice(11)}: la cuota en Betano puede haber cambiado. {data.odds.length} cuotas,{" "}
           {data.odds.filter((o) => o.ev > 0).length} con valor positivo.
@@ -74,7 +74,7 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
               type="button"
               aria-pressed={all === value}
               onClick={() => setAll(value as boolean)}
-              className={`h-9 rounded-[3px] border px-3 text-[0.9rem] font-semibold ${
+              className={`h-9 rounded-[3px] border px-3 text-interfaz font-semibold ${
                 all === value ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
               }`}
             >
@@ -92,10 +92,10 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
               <summary className="cursor-pointer px-3 py-2 font-semibold">
                 {marketName(market, teams)} <span className="font-normal text-grafito">({items.length})</span>
                 {STAT_MARKETS.test(market) && (
-                  <span className="ml-2 text-[0.82rem] font-normal text-grafito">sin validar con cuotas reales: con cautela</span>
+                  <span className="ml-2 text-nota font-normal text-grafito">sin validar con cuotas reales: con cautela</span>
                 )}
               </summary>
-              <table className="w-full text-[0.92rem]">
+              <table className="w-full text-nota">
                 <tbody>
                   {[...items]
                     .sort((a, b) => (a.line ?? 0) - (b.line ?? 0) || a.selection.localeCompare(b.selection))
@@ -103,31 +103,39 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
                       const v = VERDICT[o.verdict] ?? { text: o.verdict, tone: "neutral" as const };
                       return (
                         <tr key={`${o.selection}-${o.line}`} className="border-t border-regla-suave">
-                          <td className="py-1.5 pr-3 pl-3">{o.label}</td>
+                          {/* En el celular el veredicto va debajo del nombre y las acciones, una sobre otra */}
+                          <td className="py-1.5 pr-3 pl-3">
+                            {o.label}
+                            <span className="mt-1 block sm:hidden">
+                              <Tag tone={v.tone}>{v.text}</Tag>
+                            </span>
+                          </td>
                           <td className="num py-1.5 pr-3 text-right font-semibold">{odds(o.odds)}</td>
                           <td className="num hidden py-1.5 pr-3 text-right text-grafito sm:table-cell">{pct(o.prob)}</td>
                           <td className={`num py-1.5 pr-3 text-right font-semibold ${o.ev > 0 ? "text-boli" : "text-rojo"}`}>
                             {signedPct(o.ev)}
                           </td>
-                          <td className="py-1.5 pr-3">
+                          <td className="hidden py-1.5 pr-3 sm:table-cell">
                             <Tag tone={v.tone}>{v.text}</Tag>
                           </td>
-                          <td className="py-1.5 pr-3 text-right whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => onUse(o)}
-                              className="mr-3 text-[0.88rem] font-semibold text-boli underline underline-offset-4"
-                            >
-                              Evaluar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toSlip(o)}
-                              aria-label={`Añadir ${o.label} al cupón`}
-                              className="text-[0.88rem] font-semibold text-grafito underline underline-offset-4 hover:text-tinta"
-                            >
-                              + Cupón
-                            </button>
+                          <td className="py-1 pr-3">
+                            <div className="flex flex-col items-end whitespace-nowrap sm:flex-row sm:justify-end sm:gap-3">
+                              <button
+                                type="button"
+                                onClick={() => onUse(o)}
+                                className="min-h-7 font-semibold text-boli underline underline-offset-4"
+                              >
+                                Evaluar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toSlip(o)}
+                                aria-label={`Añadir ${o.label} al cupón`}
+                                className="min-h-7 font-semibold text-grafito underline underline-offset-4 hover:text-tinta"
+                              >
+                                + Cupón
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );

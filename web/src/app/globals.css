@@ -14,9 +14,9 @@
   --regla-suave: #e3e8e3;
   --boli: #2643c4;
   --boli-suave: #dfe4f8;
-  --rojo: #b3412b;
+  --rojo: #ad3e29;
   --rojo-suave: #f4e0da;
-  --tarjeta: #c9950f;
+  --tarjeta: #ad800d;
   --tarjeta-suave: #f7ecca;
 }
 
@@ -51,6 +51,11 @@
   --color-tarjeta: var(--tarjeta);
   --color-tarjeta-suave: var(--tarjeta-suave);
   --font-sans: var(--font-archivo), system-ui, sans-serif;
+
+  /* Escala de texto pequeño (text-etiqueta, text-nota, text-interfaz); 12 px es el mínimo absoluto */
+  --text-etiqueta: 0.8rem;
+  --text-nota: 0.875rem;
+  --text-interfaz: 0.95rem;
 }
 
 html {

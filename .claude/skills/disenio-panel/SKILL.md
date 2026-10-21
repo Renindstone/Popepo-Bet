@@ -43,8 +43,8 @@ La jerarquía la dan el ancho de la letra, el peso y el espacio, no el color.
 | `grafito` | `#5a6764` | `#97a39f` | Texto secundario, metadatos |
 | `regla` / `regla-suave` | `#d3dad4` / `#e3e8e3` | `#2f3936` / `#252e2b` | Bordes y separadores |
 | `boli` / `boli-suave` | `#2643c4` / `#dfe4f8` | `#93a6ff` / `#232c4f` | Lo que el modelo señala: valor positivo, enlaces, foco, selección, botón principal |
-| `rojo` / `rojo-suave` | `#b3412b` / `#f4e0da` | `#f08a72` / `#3d2621` | Pérdida, valor negativo, error |
-| `tarjeta` / `tarjeta-suave` | `#c9950f` / `#f7ecca` | `#f0c552` / `#3a321c` | Avisos y precaución (como una tarjeta amarilla) |
+| `rojo` / `rojo-suave` | `#ad3e29` / `#f4e0da` | `#f08a72` / `#3d2621` | Pérdida, valor negativo, error |
+| `tarjeta` / `tarjeta-suave` | `#ad800d` / `#f7ecca` | `#f0c552` / `#3a321c` | Avisos y precaución (como una tarjeta amarilla) |
 
 Reglas:
 - **Nunca hex sueltos en componentes.** Excepciones que hoy existen y conviene pasar a tokens: el césped del campo
@@ -53,7 +53,8 @@ Reglas:
 - **El color nunca va solo:** valor esperado con signo (`+20.4 %`), veredicto con palabra («Apostar»), resultado
   con etiqueta («Ganada»). Pensado también para daltónicos (rojo/verde no se usan como par).
 - Al cambiar un color: `paleta.mjs` debe decir "Todas las combinaciones usadas cumplen" en los dos temas (texto
-  4,5:1; texto grande y gráficos 3:1).
+  4,5:1; texto grande y gráficos 3:1). `tarjeta` en claro es un ocre oscuro para que el borde de aviso llegue a 3:1
+  sobre `papel` y `hoja`; el amarillo de verdad lo pone `tarjeta-suave` de fondo.
 
 ## Tipografía
 
@@ -63,18 +64,20 @@ Reglas:
 - normal: todo lo que se lee de corrido.
 - `.num`: **toda cifra en columnas** (cuotas, porcentajes, importes), para que se alineen.
 
-Escala a usar (consolidar hacia esta; hoy hay 7 tamaños pequeños casi iguales, de 0,82 a 0,95 rem):
+Escala a usar. Los tamaños pequeños son tokens de `globals.css` (`--text-*` en `@theme`): úsalos por su nombre y
+no escribas `text-[0.9rem]` ni parecidos.
 
-| Uso | Tamaño | Peso |
-|---|---|---|
-| Etiquetas (`Tag`), pie | 0,8 rem (12,8 px), **mínimo absoluto 12 px** | 500 |
-| Metadatos, notas, celdas densas | 0,875 rem | 400 |
-| Texto de interfaz | 0,95 rem | 400 |
-| Lectura | 1 rem | 400 |
-| Títulos de tarjeta (`.semi`) | 1,125 rem | 700 |
-| Títulos de sección (`.semi`) | 1,25 rem | 700 |
-| Cifras destacadas (`.cond`) | 1,75 / 2,25 rem | 700 |
-| Título de página (`.cond`) | 2,5 rem (3 rem desde `sm`) | 800 |
+| Uso | Clase | Tamaño | Peso |
+|---|---|---|---|
+| Solo nombres y notas sobre el campo de alineaciones | `text-xs` | 0,75 rem (12 px), **mínimo absoluto** | 500 |
+| Etiquetas (`Tag`), leyendas bajo barras | `text-etiqueta` | 0,8 rem (12,8 px) | 500 |
+| Metadatos, notas en `grafito`, etiquetas de formulario, celdas densas, cabeceras de tabla | `text-nota` | 0,875 rem (14 px) | 400 (600 en etiquetas) |
+| Texto de interfaz: botones, filtros, campos, tablas principales, menú | `text-interfaz` | 0,95 rem (15,2 px) | 400 |
+| Lectura | (sin clase) | 1 rem | 400 |
+| Títulos de tarjeta (`.semi`) | `text-lg` | 1,125 rem | 700 |
+| Títulos de sección (`.semi`) | `text-xl` | 1,25 rem | 700 |
+| Cifras destacadas (`.cond`) | | 1,75 / 2,25 rem | 700 |
+| Título de página (`.cond`) | | 2,5 rem (3 rem desde `sm`) | 800 |
 
 Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el logotipo.
 
@@ -102,8 +105,12 @@ Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el 
 
 - **Estructura de página:** `PageTitle` → contenido principal → `Section`s con `border-t`. Ancho máximo 1180 px,
   márgenes `px-4 sm:px-6`. Lo más importante arriba (la apuesta del día en Hoy, el veredicto en Evaluar).
-- **Celular primero:** cero desborde horizontal de la página (las tablas anchas van dentro de
-  `overflow-x-auto`); objetivos táctiles de 44 px para acciones principales y nunca menos de 24 px.
+- **Celular primero:** cero desborde horizontal de la página. Las tablas de consulta anchas van dentro de
+  `overflow-x-auto`; si la fila lleva acciones (como «Cuotas de Betano»), mejor recolocar en el celular que esconder
+  las acciones a la derecha: columnas secundarias con `hidden sm:table-cell` y su contenido bajo el nombre.
+- **Objetivos táctiles:** 40 px (`h-10`, como `Button`) para acciones principales y nunca menos de 24 px. Un enlace o
+  botón de texto suelto («Mostrar las 551», «Reintentar») lleva `inline-flex min-h-10 items-center`; dentro de un
+  párrafo o de una celda basta su línea (la auditoría no los cuenta).
 - **Estados completos:** cargando (`Loading`), vacío con el siguiente paso (`Empty`), error con «Reintentar»
   (`ErrorNote`), éxito con el resultado y un enlace a dónde verlo.
 - **Acciones con dinero o que borran:** paso de confirmación con el importe («Sí, registrar S/ 10 a 2.27»), como
@@ -123,18 +130,20 @@ Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el 
 `Tag` (tonos `neutral`, `boli`, `rojo`, `tarjeta`, `confirmada`), `Figure`, `Button`, `EdgeBar`, `TriBar`,
 `ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo), `ComboResult` (combinadas), `PickRecord` (aciertos).
 
-## Pendientes conocidos (auditoría del 21-10-2026)
+## Pendientes conocidos (auditoría del 21-10-2026, revisada el mismo día)
 
-- **Evaluar en celular desborda 91 px:** la tabla de «Cuotas de Betano» (`CuotasCasa.tsx`) no cabe.
-- **Nombres en el campo de alineaciones a 11,5 px** (`Alineaciones.tsx`, `text-[0.72rem]`): por debajo del mínimo.
-- **Etiqueta roja en claro a 4,46:1** (`rojo` sobre `rojo-suave`): oscurecer un poco `--rojo`.
-- **Borde amarillo de aviso a 2,37:1** en claro (`tarjeta` sobre `papel`): oscurecer `--tarjeta` para bordes.
-- **Toques de 22-23 px en celular:** «Mostrar las 551», «Comprobar la cuota de Betano», «Editar banca inicial».
-- **Página de un partido en celular: 28.000 px de alto.** Pide pestañas o secciones plegables.
-- **Menú del celular cortado** («Mis apuest…») sin señal de que se desplaza.
-- **Etiquetas crudas en las cuotas de Betano:** `ah_cards`/`ah_corners` sin nombre en `MARKET_LABELS`
-  (`services/analysis.py`).
-- **Escala de texto fragmentada:** consolidar los tamaños de 0,82 a 0,95 rem en la escala de arriba.
+La auditoría `--schemes light,dark` sale limpia en las 28 variantes (sin desborde, texto < 12 px, contraste bajo
+ni toques < 24 px) y `paleta.mjs --fallos` no da fallos. Queda lo que la auditoría no mide:
+
+- **Página de un partido en celular: 28.000 px de alto.** Pide pestañas o secciones plegables (consultar antes al
+  usuario: cambia cómo se recorre el análisis).
+- **Menú del celular cortado** («Mis apuest…») sin señal de que se desplaza (consultar antes al usuario).
+- **Tamaños grandes sueltos:** `text-[1.05rem]`, `[1.3rem]`, `[1.35rem]`, `[1.6rem]`, `[1.9rem]`, `[2.2rem]`,
+  `[2.6rem]`, `[3.4rem]` junto a `text-lg`/`xl`/`2xl`/`4xl`: llevarlos a la escala (cifras 1,75 / 2,25 rem, título
+  2,5 / 3 rem) con tokens como los pequeños.
+- **Cuotas de Betano en escritorio:** cada mercado es su propia tabla y las columnas no se alinean entre grupos; y el
+  nombre de cada fila repite el del grupo («Hándicap (3 vías): Galatasaray +1» bajo «Hándicap (3 vías)»).
+- **Hex sueltos** en el campo de alineaciones y en la etiqueta «Confirmadas» (ver Reglas de la paleta).
 
 Al resolver uno, bórralo de esta lista y añade los nuevos que encuentre la auditoría.
 

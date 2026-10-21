@@ -117,7 +117,7 @@ function Probabilidades({ a }: { a: MatchAnalysis }) {
           <div key={o.key} className={i === 1 ? "text-center" : i === 2 ? "text-right" : ""}>
             <div className="cond num text-[2.6rem] leading-none font-bold">{pct(m["1x2"][o.key])}</div>
             <div className="mt-1 truncate font-semibold">{o.label}</div>
-            <div className="num text-[0.9rem] text-grafito">cuota justa {odds(m.fair_odds_1x2[o.key])}</div>
+            <div className="num text-nota text-grafito">cuota justa {odds(m.fair_odds_1x2[o.key])}</div>
           </div>
         ))}
       </div>
@@ -177,7 +177,7 @@ function Dificultad({ a }: { a: MatchAnalysis }) {
                       }`}
                     />
                     <span
-                      className={`mt-1.5 hidden text-[0.78rem] leading-tight sm:block ${isAdj ? "font-semibold text-tinta" : "text-grafito"}`}
+                      className={`mt-1.5 hidden text-etiqueta leading-tight sm:block ${isAdj ? "font-semibold text-tinta" : "text-grafito"}`}
                     >
                       {l}
                     </span>
@@ -185,7 +185,7 @@ function Dificultad({ a }: { a: MatchAnalysis }) {
                 );
               })}
             </ol>
-            <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[0.95rem]">
+            <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-interfaz">
               <dt className="text-grafito">Base</dt>
               <dd className="font-semibold">{d.base}</dd>
               <dt className="text-grafito">Ajustada</dt>
@@ -227,10 +227,10 @@ function Bajas({ a }: { a: MatchAnalysis }) {
         {sides.map(({ team, adj, abs }) => (
           <div key={team} className="min-w-0">
             <h3 className="semi text-lg font-bold">{team}</h3>
-            <p className="mt-0.5 text-[0.9rem] text-grafito">{stageText(adj.source)}</p>
+            <p className="mt-0.5 text-nota text-grafito">{stageText(adj.source)}</p>
             <Ajuste adj={adj} />
             {adj.notes.length > 0 && (
-              <ul className="mt-3 space-y-1 text-[0.95rem]">
+              <ul className="mt-3 space-y-1 text-interfaz">
                 {adj.notes.map((n) => (
                   <li key={n} className="border-l-[3px] border-tarjeta pl-3">
                     {n}
@@ -241,16 +241,16 @@ function Bajas({ a }: { a: MatchAnalysis }) {
 
             <h4 className="mt-5 font-semibold">Titulares habituales que faltan</h4>
             {adj.missing_regulars.length === 0 ? (
-              <p className="text-[0.95rem] text-grafito">Ninguno.</p>
+              <p className="text-interfaz text-grafito">Ninguno.</p>
             ) : (
               <ul className="mt-1 divide-y divide-regla-suave">
                 {adj.missing_regulars.map((p) => (
-                  <li key={p.player_id} className="flex flex-wrap items-baseline justify-between gap-x-4 py-1.5 text-[0.95rem]">
+                  <li key={p.player_id} className="flex flex-wrap items-baseline justify-between gap-x-4 py-1.5 text-interfaz">
                     <span>
                       <span className="font-semibold">{p.name}</span>
                       <span className="text-grafito"> {p.position ?? ""}</span>
                     </span>
-                    <span className="text-[0.9rem] text-grafito">
+                    <span className="text-nota text-grafito">
                       {KINDS[p.kind] ?? p.kind}, titular en el {pct(p.start_rate)}
                       {p.expected_return ? `. Vuelve: ${p.expected_return}` : ""}
                     </span>
@@ -265,9 +265,9 @@ function Bajas({ a }: { a: MatchAnalysis }) {
             ) : !abs.data ? (
               <Loading lines={2} />
             ) : abs.data.absences.length === 0 ? (
-              <p className="text-[0.95rem] text-grafito">Sin bajas registradas.</p>
+              <p className="text-interfaz text-grafito">Sin bajas registradas.</p>
             ) : (
-              <table className="mt-1 w-full border-collapse text-[0.9rem]">
+              <table className="mt-1 w-full border-collapse text-nota">
                 <thead>
                   <tr className="border-b border-regla text-left text-grafito">
                     <th className="py-1.5 pr-3 font-medium">Jugador</th>
@@ -308,13 +308,13 @@ function Ajuste({ adj }: { adj: LineupAdjustment }) {
   return (
     <dl className="mt-3 grid grid-cols-2 gap-4">
       <div>
-        <dt className="text-[0.85rem] text-grafito">Ataque frente a su once habitual</dt>
+        <dt className="text-nota text-grafito">Ataque frente a su once habitual</dt>
         <dd className={`cond num text-[1.75rem] leading-tight font-bold ${att < -0.02 ? "text-rojo" : att > 0.02 ? "text-boli" : ""}`}>
           {changeText(adj.attack_mult)}
         </dd>
       </div>
       <div>
-        <dt className="text-[0.85rem] text-grafito">Goles que concedería</dt>
+        <dt className="text-nota text-grafito">Goles que concedería</dt>
         <dd className={`cond num text-[1.75rem] leading-tight font-bold ${def > 0.02 ? "text-rojo" : def < -0.02 ? "text-boli" : ""}`}>
           {changeText(adj.defence_mult)}
         </dd>
@@ -365,7 +365,7 @@ function Arbitro({ referee }: { referee: RefereeInMatch | null }) {
         {p && <Tag tone={PROFILE_TONE[p.profile] ?? "neutral"}>{p.profile}</Tag>}
       </p>
       {referee.cards_per_match == null ? (
-        <p className="mt-2 text-[0.95rem] text-grafito">{referee.note ?? "Sin historial suficiente."}</p>
+        <p className="mt-2 text-interfaz text-grafito">{referee.note ?? "Sin historial suficiente."}</p>
       ) : (
         <>
           <div className="mt-4 grid grid-cols-2 gap-4">
@@ -378,7 +378,7 @@ function Arbitro({ referee }: { referee: RefereeInMatch | null }) {
             />
             <Figure value={`×${num(referee.fouls_factor, 2)}`} label="factor de faltas" />
           </div>
-          <p className="mt-3 text-[0.9rem] text-grafito">
+          <p className="mt-3 text-nota text-grafito">
             {int(referee.matches)} {referee.matches === 1 ? "partido" : "partidos"} en la muestra
             {referee.last_match ? `, el último el ${shortDate(referee.last_match)}` : ""}.
             {referee.matches < 5 && " Con tan pocos partidos el factor pesa poco."}
@@ -395,7 +395,7 @@ function Contexto({ team, c }: { team: string; c: TeamContext }) {
   return (
     <div>
       <h3 className="semi text-lg font-bold">{team}</h3>
-      <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-[0.95rem]">
+      <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-interfaz">
         <dt className="text-grafito">Días de descanso</dt>
         <dd className="num text-right font-semibold">{c.rest_days != null ? num(c.rest_days, 1) : "—"}</dd>
         <dt className="text-grafito">Partidos en 14 días</dt>
@@ -411,7 +411,7 @@ function Contexto({ team, c }: { team: string; c: TeamContext }) {
         </dd>
       </dl>
       {c.notes.length > 0 && (
-        <ul className="mt-3 space-y-1 text-[0.9rem] text-grafito">
+        <ul className="mt-3 space-y-1 text-nota text-grafito">
           {c.notes.map((n) => (
             <li key={n}>{n}</li>
           ))}
@@ -434,7 +434,7 @@ function Estadisticas({ a }: { a: MatchAnalysis }) {
       title="Estadísticas esperadas"
       intro="Cada barra reparte la estadística entre los dos equipos; las cifras son el valor esperado. Las tarjetas y faltas ya incluyen el factor del árbitro."
     >
-      <div className="flex flex-wrap gap-x-5 gap-y-1 pb-2 text-[0.9rem]">
+      <div className="flex flex-wrap gap-x-5 gap-y-1 pb-2 text-nota">
         <span className="flex items-center gap-1.5">
           <span className="size-3 rounded-[2px] bg-tinta" /> {a.home}
         </span>
@@ -446,9 +446,9 @@ function Estadisticas({ a }: { a: MatchAnalysis }) {
 
       <h3 className="semi mt-6 mb-2 font-bold">Probabilidad de superar cada línea (total del partido)</h3>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] border-collapse text-[0.95rem]">
+        <table className="w-full min-w-[560px] border-collapse text-interfaz">
           <thead>
-            <tr className="border-b border-regla text-left text-[0.85rem] text-grafito">
+            <tr className="border-b border-regla text-left text-nota text-grafito">
               <th className="py-2 pr-4 font-medium">Estadística</th>
               <th className="py-2 pr-4 text-right font-medium">Esperado</th>
               <th className="py-2 font-medium">Más de…</th>
@@ -490,9 +490,9 @@ function ValorDelPartido({ a }: { a: MatchAnalysis }) {
           {a.value_bets.length === 0 ? (
             <Empty>Ninguna cuota disponible tiene valor positivo.</Empty>
           ) : (
-            <table className="w-full border-collapse text-[0.95rem]">
+            <table className="w-full border-collapse text-interfaz">
               <thead>
-                <tr className="border-b border-regla text-left text-[0.85rem] text-grafito">
+                <tr className="border-b border-regla text-left text-nota text-grafito">
                   <th className="py-2 pr-3 font-medium">Apuesta</th>
                   <th className="py-2 pr-3 text-right font-medium">Cuota</th>
                   <th className="py-2 pr-3 text-right font-medium">Estimamos</th>
@@ -504,7 +504,7 @@ function ValorDelPartido({ a }: { a: MatchAnalysis }) {
                   <tr key={i} className="border-b border-regla-suave">
                     <td className="py-2 pr-3">
                       {b.label}
-                      <span className="block text-[0.85rem] text-grafito">{bookmakerName(b.bookmaker)}</span>
+                      <span className="block text-nota text-grafito">{bookmakerName(b.bookmaker)}</span>
                     </td>
                     <td className="cond num py-2 pr-3 text-right text-lg font-bold">{odds(b.odds)}</td>
                     <td className="num py-2 pr-3 text-right">{pct(b.prob)}</td>
@@ -520,9 +520,9 @@ function ValorDelPartido({ a }: { a: MatchAnalysis }) {
           {a.props_min_odds.length === 0 ? (
             <Empty>Sin props destacados.</Empty>
           ) : (
-            <table className="w-full border-collapse text-[0.95rem]">
+            <table className="w-full border-collapse text-interfaz">
               <thead>
-                <tr className="border-b border-regla text-left text-[0.85rem] text-grafito">
+                <tr className="border-b border-regla text-left text-nota text-grafito">
                   <th className="py-2 pr-3 font-medium">Apuesta</th>
                   <th className="py-2 pr-3 text-right font-medium">Prob.</th>
                   <th className="py-2 text-right font-medium">Cuota mínima</th>
@@ -550,7 +550,7 @@ function ValorDelPartido({ a }: { a: MatchAnalysis }) {
 function Calidad({ a }: { a: MatchAnalysis }) {
   const q = a.data_quality;
   return (
-    <section className="border-t border-regla pt-4 pb-6 text-[0.9rem] text-grafito">
+    <section className="border-t border-regla pt-4 pb-6 text-nota text-grafito">
       <h2 className="sr-only">Calidad de los datos</h2>
       <p className="max-w-[80ch]">
         Calidad de los datos: {stageText(q.lineup_status).toLowerCase()} (factor {num(q.lineup_factor, 2)}), muestra
