@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     # Córners, tarjetas y demás estadísticas (y props de jugador) no se han validado contra cuotas reales: no
     # pueden ser apuesta del día salvo que se active esto (se siguen mostrando como apuestas con valor)
     pick_allow_stat_markets: bool = False
+    # Las cuotas más bajas no salen en la lista «Con valor» de Hoy (a 1.01-1.19 casi no hay margen que ganar)
+    value_list_min_odds: float = 1.20
 
     # Capturas de cuotas (imágenes de bet365/Betano que lee una IA vía MCP)
     # Motor automático: local (modelo de visión en esta PC con Ollama, gratis), claude_code (CLI con la suscripción

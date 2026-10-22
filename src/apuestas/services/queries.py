@@ -96,9 +96,18 @@ def find_player(s: Session, text: str, team_id: int | None = None) -> m.Player:
 # --------------------------------------------------------------------------- consultas
 
 
+def competition_code(text: str) -> str:
+    """Código de una competición completa a partir del código o del nombre: "sa", "Serie A" -> "SA"."""
+    key = names.strip_accents(text).lower().replace(" ", "")
+    for c in FULL:
+        if key in (c.code.lower(), names.strip_accents(c.name).lower().replace(" ", "")):
+            return c.code
+    return text.upper()
+
+
 def upcoming(days: int = 3, competition: str | None = None) -> list[dict]:
     now = datetime.now(UTC)
-    codes = [competition.upper()] if competition else [c.code for c in FULL]
+    codes = [competition_code(competition)] if competition else [c.code for c in FULL]
     with session_scope() as s:
         rows = s.scalars(
             select(m.Match).join(m.Competition).where(
@@ -156,7 +165,10 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
     if refresh or d >= picks.today_local():
         return picks.generate(d)
     with session_scope() as s:
-        rows = list(s.scalars(select(m.Pick).where(m.Pick.pick_date == d).order_by(m.Pick.ev.desc())))
+        # Primero las que pasaron el corte (y no se retiraron), luego el resto por valor esperado
+        rows = sorted(s.scalars(select(m.Pick).where(m.Pick.pick_date == d,
+                                                     m.Pick.odds >= get_settings().value_list_min_odds)),
+                      key=lambda p: (not (p.qualifies and p.status != "withdrawn"), -p.ev))
         pod = next((p for p in rows if p.is_pick_of_day), None)
         return {
             "date": d.isoformat(),
@@ -166,7 +178,9 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
                 "result": pod.result, "clv": pod.clv},
             "value_bets": [{"match": f"{p.match.home_team.name} vs {p.match.away_team.name}", "market": p.market,
                             "selection": p.selection, "line": p.line, "odds": p.odds, "ev": round(p.ev, 3),
-                            "status": p.status, "result": p.result} for p in rows],
+                            "prob": round(p.model_prob, 3), "confidence": round(p.confidence, 2),
+                            "status": p.status, "result": p.result, "qualifies": p.qualifies,
+                            "is_pick_of_day": p.is_pick_of_day} for p in rows],
         }
 
 
@@ -492,13 +506,30 @@ def set_bankroll(username: str, bankroll: float, currency: str = "PEN") -> dict:
         return tracker.bankroll_status(s, user)
 
 
+def failure_reason(error: str | None) -> str | None:
+    """Motivo de un fallo de ingesta en una línea, sin el traceback."""
+    if not error:
+        return None
+    first = error.strip().splitlines()[0]
+    if "no responde" in first or "timed out" in first or "No se pudo descargar" in first:
+        return "El sitio no responde"
+    return first[:160]
+
+
 def data_status() -> dict:
     with session_scope() as s:
         last = {}
-        for src, task, fin, status in s.execute(
-                select(m.IngestionRun.source, m.IngestionRun.task, m.IngestionRun.finished_at, m.IngestionRun.status)
+        for src, task, fin, status, error in s.execute(
+                select(m.IngestionRun.source, m.IngestionRun.task, m.IngestionRun.finished_at, m.IngestionRun.status,
+                       m.IngestionRun.error)
                 .order_by(m.IngestionRun.id.desc()).limit(200)):
-            last.setdefault(src, {"task": task, "finished_at": fin.isoformat() if fin else None, "status": status})
+            last.setdefault(src, {"task": task, "finished_at": fin.isoformat() if fin else None, "status": status,
+                                  "reason": failure_reason(error) if status == "error" else None})
+        # Cuándo dio datos por última vez cada fuente (para ver desde cuándo falla)
+        for src, fin in s.execute(select(m.IngestionRun.source, func.max(m.IngestionRun.finished_at))
+                                  .where(m.IngestionRun.status == "ok").group_by(m.IngestionRun.source)):
+            if src in last:
+                last[src]["last_ok"] = fin.isoformat() if fin else None
         counts = {
             "matches": s.scalar(select(func.count(m.Match.id))),
             "matches_with_details": s.scalar(select(func.count(m.Match.id)).where(m.Match.details_fetched_at.is_not(None))),

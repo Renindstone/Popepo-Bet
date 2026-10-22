@@ -1,6 +1,7 @@
 """Competiciones que maneja el sistema y sus códigos en cada fuente.
 
-- Nivel "full": se analizan a fondo (estadísticas de partido, jugadores, alineaciones, árbitros, picks).
+- Nivel "full": se analizan a fondo (estadísticas de partido, jugadores, alineaciones, árbitros, picks). La Serie A y
+  la Ligue 1 lo son desde el 21-10-2026; antes eran "light" y ya daban sus resultados y cuotas de cierre al modelo.
 - Nivel "light": solo resultados/xG para conectar la escala de fuerza entre ligas (rivales de
   Champions, equipos ascendidos, fichajes que llegan de otras ligas). No generan picks.
 
@@ -42,10 +43,10 @@ COMPETITIONS: dict[str, Competition] = {
         Competition("EPL", "Premier League", "England", "full", fd_code="E0", understat="EPL", fotmob_id=47, espn="eng.1"),
         Competition("BUN", "Bundesliga", "Germany", "full", fd_code="D1", understat="Bundesliga", fotmob_id=54, espn="ger.1"),
         Competition("LAL", "LaLiga", "Spain", "full", fd_code="SP1", understat="La_liga", fotmob_id=87, espn="esp.1"),
+        Competition("SA", "Serie A", "Italy", "full", fd_code="I1", understat="Serie_A", fotmob_id=55, espn="ita.1"),
+        Competition("L1", "Ligue 1", "France", "full", fd_code="F1", understat="Ligue_1", fotmob_id=53, espn="fra.1"),
         Competition("UCL", "Champions League", "Europe", "full", is_cup=True, fotmob_id=42, espn="uefa.champions"),
         # --- Solo para la escala de fuerza ---
-        Competition("SA", "Serie A", "Italy", "light", fd_code="I1", fotmob_id=55),
-        Competition("L1", "Ligue 1", "France", "light", fd_code="F1", fotmob_id=53),
         Competition("POR", "Primeira Liga", "Portugal", "light", fd_code="P1"),
         Competition("NED", "Eredivisie", "Netherlands", "light", fd_code="N1"),
         Competition("BEL", "Pro League", "Belgium", "light", fd_code="B1"),

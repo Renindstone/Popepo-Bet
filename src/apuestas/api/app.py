@@ -34,7 +34,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Apuestas fútbol", version=__version__, lifespan=lifespan,
-              description="Análisis de apuestas: Premier League, Bundesliga, LaLiga y Champions League")
+              description="Análisis de apuestas: Premier League, Bundesliga, LaLiga, Serie A, Ligue 1 y Champions League")
 
 # Panel web (web/, Next.js) en desarrollo local
 app.add_middleware(
@@ -200,6 +200,12 @@ def pick_history(days: int = 60, user: str = Depends(current_user)) -> dict:
 def pick_record(user: str = Depends(current_user)) -> dict:
     """Contador de aciertos de la apuesta del día desde el inicio."""
     return picks.pick_record()
+
+
+@app.get("/picks/qualified")
+def qualified_picks(days: int = 60, user: str = Depends(current_user)) -> dict:
+    """Las que pasaron el corte (no solo la apuesta del día): aciertos desde el inicio y las de los últimos días."""
+    return picks.qualified_picks(days)
 
 
 @app.post("/odds/evaluate")

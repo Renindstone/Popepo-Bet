@@ -1,6 +1,6 @@
 // Formas de las respuestas de la API FastAPI (src/apuestas/api/app.py y services/queries.py)
 
-export type Competicion = "EPL" | "BUN" | "LAL" | "UCL" | string;
+export type Competicion = "EPL" | "BUN" | "LAL" | "SA" | "L1" | "UCL" | string;
 
 export interface MatchSummary {
   match_id: number;
@@ -108,8 +108,12 @@ export interface PastValueBet {
   line: number | null;
   odds: number;
   ev: number;
+  prob?: number;
+  confidence?: number;
   status: string;
   result: string | null;
+  qualifies?: boolean;
+  is_pick_of_day?: boolean;
 }
 
 export interface StatSummary {
@@ -363,6 +367,33 @@ export interface PickRecord {
   roi: number | null;
 }
 
+/** Una de las que pasaron el corte de valor, probabilidad y confianza (incluye la apuesta del día) */
+export interface QualifiedPick {
+  pick_id: number;
+  date: string;
+  match_id: number;
+  kickoff_local: string;
+  match: string;
+  market: string;
+  selection: string;
+  line: number | null;
+  bookmaker: string;
+  odds: number;
+  prob: number;
+  ev: number;
+  confidence: number;
+  is_pick_of_day: boolean;
+  status: string;
+  result: string | null;
+  clv: number | null;
+  profit_units: number | null;
+}
+
+export interface QualifiedPicks {
+  record: PickRecord;
+  picks: QualifiedPick[];
+}
+
 export interface PickHistory {
   picks: number;
   profit_units: number;
@@ -382,7 +413,10 @@ export interface PickHistory {
 }
 
 export interface DataStatus {
-  sources: Record<string, { task: string; finished_at: string | null; status: string }>;
+  sources: Record<
+    string,
+    { task: string; finished_at: string | null; status: string; reason?: string | null; last_ok?: string | null }
+  >;
   counts: {
     matches: number;
     matches_with_details: number;

@@ -9,8 +9,8 @@ Así se activa:
 
 El plan gratuito tiene un límite mensual de peticiones (250 en oct-2026) y **cada llamada cuenta**, aunque falle.
 La API solo admite una casa por petición, así que:
-- una descarga = 1 llamada por casa, con las 4 competiciones a la vez; nombres de equipos (participants), torneos
-  y mercados se piden una vez por semana;
+- una descarga = 1 llamada por casa, con las 6 competiciones a la vez (cuenta 1 aunque traiga varios torneos);
+  nombres de equipos (participants), torneos y mercados se piden una vez por semana;
 - el worker la lanza una vez al día (08:30) → con 2 casas, unas 60 llamadas al mes más ~12 de catálogos.
 
 Probado con una clave real (19-10-2026). Los mercados se reconocen por su tipo (`marketType`) y su nombre exacto:
@@ -36,6 +36,8 @@ TOURNAMENTS = {
     "EPL": ("premier-league", "england"),
     "BUN": ("bundesliga", "germany"),
     "LAL": ("laliga", "spain"),
+    "SA": ("serie-a", "italy"),
+    "L1": ("ligue-1", "france"),
     "UCL": ("uefa-champions-league", "international-clubs"),
 }
 OUTCOMES_1X2 = {"101": "home", "102": "draw", "103": "away"}
@@ -236,7 +238,7 @@ def sync_upcoming() -> int:
     team_names = participants()
     code_of = {tid: code for code, tid in tids.items()}
     now = datetime.now(UTC)
-    # La API exige una sola casa por petición: 1 llamada por casa para las 4 competiciones. Se descargan todas
+    # La API exige una sola casa por petición: 1 llamada por casa para las 6 competiciones. Se descargan todas
     # antes de guardar para que el 1X2 de Pinnacle sirva de referencia a las demás casas.
     odds = {book: _items(_get("odds-by-tournaments", ttl=1800, bookmaker=book,
                               tournamentIds=",".join(str(t) for t in tids.values())))

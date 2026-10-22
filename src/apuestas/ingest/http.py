@@ -4,6 +4,8 @@
 - Guarda en disco (gzip) las respuestas para no repetir descargas: los partidos terminados
   no cambian, así que se cachean para siempre; lo demás tiene un TTL.
 - Reintenta con espera exponencial ante errores temporales.
+- Si un host no acepta la conexión tras los reintentos, se da por caído durante `HOST_DOWN_PAUSE` y las demás
+  descargas de ese host fallan al momento (`SourceUnavailable`) en vez de esperar cada una sus reintentos.
 - No intenta saltarse protecciones anti-bots: si una fuente bloquea (403), se registra y se sigue.
 """
 
@@ -30,6 +32,15 @@ class SourceBlocked(RuntimeError):
     """La fuente rechazó la petición (403/401). No se reintenta."""
 
 
+class SourceUnavailable(RuntimeError):
+    """El host no acepta conexiones (caído o inalcanzable). Se vuelve a probar pasada la pausa."""
+
+
+# Tras agotar los reintentos sin poder conectar, ese host no se vuelve a probar en 30 minutos. Sin esto, con
+# football-data caído (21-10-2026) cada archivo esperaba 104 s y la ingesta de resultados tardaba casi una hora.
+HOST_DOWN_PAUSE = 1800.0
+
+
 class PoliteClient:
     def __init__(self, min_interval: float | None = None, cache_dir: Path | None = None):
         settings = get_settings()
@@ -37,6 +48,7 @@ class PoliteClient:
         self.cache_dir = cache_dir or settings.cache_dir / "http"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._last_call: dict[str, float] = {}
+        self._down_until: dict[str, float] = {}  # host -> time.monotonic() hasta el que se da por caído
         self._lock = threading.Lock()
         self._client = httpx.Client(
             headers={"User-Agent": settings.http_user_agent, "Accept": "application/json, text/plain, */*"},
@@ -95,6 +107,10 @@ class PoliteClient:
                 return cached
 
         host = urlparse(url).netloc
+        down_until = self._down_until.get(host)
+        if down_until is not None and time.monotonic() < down_until:
+            minutes = max(1, round((down_until - time.monotonic()) / 60))
+            raise SourceUnavailable(f"{host} no responde; se vuelve a probar en {minutes} min")
         last_exc: Exception | None = None
         for attempt in range(retries):
             self._throttle(host)
@@ -118,7 +134,12 @@ class PoliteClient:
                                    f"{resp.text[:300]}")
             if store:
                 self._write_cache(path, resp.content)
+            self._down_until.pop(host, None)
             return resp.content
+        if isinstance(last_exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+            self._down_until[host] = time.monotonic() + HOST_DOWN_PAUSE
+            log.warning("%s no acepta conexiones; se salta durante %d min", host, HOST_DOWN_PAUSE // 60)
+            raise SourceUnavailable(f"{host} no responde (sin conexión): {last_exc}")
         raise RuntimeError(f"No se pudo descargar {url}: {last_exc}")
 
     def get_json(self, url: str, **kwargs: Any) -> Any:

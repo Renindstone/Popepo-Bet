@@ -8,9 +8,20 @@ import { baseOption, Chart, type ChartTheme, useChartTheme } from "@/components/
 import { PickRecord } from "@/components/PickRecord";
 import { Button, Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
 import { put, useApi } from "@/lib/api";
-import { competitionName, int, money, odds, pct, resultText, shortDate, signedPct, splitMatch } from "@/lib/format";
+import {
+  competitionName,
+  int,
+  money,
+  odds,
+  pct,
+  RESULT_TONE,
+  resultText,
+  shortDate,
+  signedPct,
+  splitMatch,
+} from "@/lib/format";
 import { betLabel, bookmakerName, marketName } from "@/lib/markets";
-import type { Aggregate, Bankroll, Performance, PickHistory, UserBet } from "@/lib/types";
+import type { Aggregate, Bankroll, Performance, PickHistory, QualifiedPicks, UserBet } from "@/lib/types";
 
 const PERIODS = [
   { value: "", label: "Todo" },
@@ -111,6 +122,15 @@ export function RendimientoView() {
         ) : (
           <Historial h={history.data} />
         )}
+      </Section>
+
+      <Section
+        id="corte"
+        title="Las que pasan el corte"
+        intro="Todas las apuestas con valor que pasaron el corte de valor, probabilidad y confianza, no solo la apuesta del día. Se guarda el último cálculo antes del partido: las que se retiraron o dejaron de pasar el corte no cuentan. Con 1 unidad por apuesta."
+      >
+        <PickRecord variant="row" source="corte" />
+        <CorteHistorial />
       </Section>
     </>
   );
@@ -492,13 +512,6 @@ function Grupo({
 
 // --------------------------------------------------------------------------- tablas
 
-const RESULT_TONE: Record<string, "boli" | "rojo" | "neutral"> = {
-  win: "boli",
-  half_win: "boli",
-  loss: "rojo",
-  half_loss: "rojo",
-};
-
 function profitClass(x: number | null | undefined): string {
   return x != null && x > 0 ? "text-boli" : x != null && x < 0 ? "text-rojo" : "";
 }
@@ -600,6 +613,110 @@ function BetsWide({ rows, currency }: { rows: UserBet[]; currency: string }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** Las que pasaron el corte en los últimos 60 días, de la más reciente a la más antigua, con su resultado */
+function CorteHistorial() {
+  const { data, error, mutate } = useApi<QualifiedPicks>("/picks/qualified");
+  const [all, setAll] = useState(false);
+  if (error) return <ErrorNote error={error} onRetry={() => mutate()} />;
+  if (!data) return <Loading lines={3} />;
+  if (data.picks.length === 0) {
+    return (
+      <Empty>
+        Aún no hay apuestas que pasen el corte. Se guardan solas cada día y, cuando termina el partido, se anota si se
+        ganaron o se perdieron.
+      </Empty>
+    );
+  }
+  const shown = all ? data.picks : data.picks.slice(0, 12);
+  const tag = (r: QualifiedPicks["picks"][number]) => (
+    <Tag tone={r.result ? (RESULT_TONE[r.result] ?? "neutral") : "tarjeta"}>
+      {r.result ? resultText(r.result) : "Por jugarse"}
+    </Tag>
+  );
+  return (
+    <>
+      <h3 className="semi mb-3 text-base font-bold">Últimos 60 días</h3>
+      <ul className="divide-y divide-regla-suave border-y border-regla-suave md:hidden">
+        {shown.map((r) => {
+          const [home, away] = splitMatch(r.match);
+          return (
+            <li key={r.pick_id} className="py-3">
+              <div className="flex items-start justify-between gap-4">
+                <span className="font-semibold">{betLabel(r.market, r.selection, r.line, { home, away })}</span>
+                <span className="cond num text-2xl leading-none font-bold">{odds(r.odds)}</span>
+              </div>
+              <p className="mt-0.5 text-nota text-grafito">
+                {shortDate(r.date)}, {r.match}, en {bookmakerName(r.bookmaker)}
+              </p>
+              <p className="num mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-nota">
+                {tag(r)}
+                <span>
+                  Valor <strong className="text-boli">{signedPct(r.ev)}</strong>
+                </span>
+                {r.profit_units != null && (
+                  <span className={profitClass(r.profit_units)}>
+                    {r.profit_units > 0 ? "+" : ""}
+                    {r.profit_units.toFixed(2)} u
+                  </span>
+                )}
+                {r.is_pick_of_day && <Tag tone="boli">Apuesta del día</Tag>}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[720px] border-collapse text-interfaz">
+          <thead>
+            <tr className="border-b border-regla text-left text-nota text-grafito">
+              <th className="py-2 pr-4 font-medium">Fecha</th>
+              <th className="py-2 pr-4 font-medium">Partido</th>
+              <th className="py-2 pr-4 font-medium">Apuesta</th>
+              <th className="py-2 pr-4 text-right font-medium">Cuota</th>
+              <th className="py-2 pr-4 text-right font-medium">Valor</th>
+              <th className="py-2 pr-4 font-medium">Resultado</th>
+              <th className="py-2 text-right font-medium">Unidades</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((r) => {
+              const [home, away] = splitMatch(r.match);
+              return (
+                <tr key={r.pick_id} className="border-b border-regla-suave">
+                  <td className="num py-2 pr-4">{shortDate(r.date)}</td>
+                  <td className="py-2 pr-4">{r.match}</td>
+                  <td className="py-2 pr-4">
+                    {betLabel(r.market, r.selection, r.line, { home, away })}
+                    <span className="block text-nota text-grafito">
+                      {bookmakerName(r.bookmaker)}
+                      {r.is_pick_of_day && ", apuesta del día"}
+                    </span>
+                  </td>
+                  <td className="cond num py-2 pr-4 text-right text-lg font-bold">{odds(r.odds)}</td>
+                  <td className="num py-2 pr-4 text-right font-semibold text-boli">{signedPct(r.ev)}</td>
+                  <td className="py-2 pr-4">{tag(r)}</td>
+                  <td className={`num py-2 text-right font-semibold ${profitClass(r.profit_units)}`}>
+                    {r.profit_units == null ? "—" : `${r.profit_units > 0 ? "+" : ""}${r.profit_units.toFixed(2)} u`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {data.picks.length > 12 && (
+        <button
+          type="button"
+          onClick={() => setAll(!all)}
+          className="mt-1 inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4"
+        >
+          {all ? "Mostrar menos" : `Mostrar las ${data.picks.length}`}
+        </button>
+      )}
+    </>
   );
 }
 

@@ -72,6 +72,7 @@ def _upsert_pick(s: Session, match: m.Match, b: BetEval, day: date, stage: str) 
         s.add(pick)
     pick.stage, pick.odds, pick.model_prob, pick.fair_odds = stage, b.odds, b.prob, b.fair_odds
     pick.ev, pick.confidence, pick.stake_pct, pick.reasons = b.ev, b.confidence, b.stake_pct, b.reasons
+    pick.qualifies = qualifies(b)
     return pick
 
 
@@ -110,10 +111,11 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                     pick = _upsert_pick(s, mt, b, day, an.stage)
                     s.flush()
                     b.reasons = [*b.reasons, f"pick_id={pick.id}"]
-                report["value_bets"].append({**b.to_dict(), "match_id": mt.id,
-                                             "label": b.label(mt.home_team.name, mt.away_team.name),
-                                             "match": f"{mt.home_team.name} vs {mt.away_team.name}",
-                                             "qualifies": qualifies(b)})
+                if b.odds >= get_settings().value_list_min_odds:
+                    report["value_bets"].append({**b.to_dict(), "match_id": mt.id,
+                                                 "label": b.label(mt.home_team.name, mt.away_team.name),
+                                                 "match": f"{mt.home_team.name} vs {mt.away_team.name}",
+                                                 "qualifies": qualifies(b)})
                 if qualifies(b) and not started:
                     candidates.append((an, b))
             for p in an.min_odds_props[:6]:
@@ -163,7 +165,8 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                 "confidence": round(chosen.confidence, 2), "stake_pct": chosen.stake_pct,
                 "stage": chosen.stage, "reasons": chosen.reasons,
             }
-        report["value_bets"].sort(key=lambda x: -x["ev"])
+        # Primero las que pasan el corte, luego el resto; dentro de cada grupo, por valor esperado
+        report["value_bets"].sort(key=lambda x: (not x["qualifies"], -x["ev"]))
     return report
 
 
@@ -268,6 +271,34 @@ def pick_record() -> dict:
     if out["since"]:
         out["since"] = out["since"].astimezone(get_settings().tz).date().isoformat()
     return out
+
+
+def qualified_picks(days: int = 60) -> dict:
+    """Todas las que pasaron el corte (no solo la apuesta del día): aciertos desde el inicio y las de los últimos días.
+
+    Cuenta el último cálculo antes del partido: las retiradas o las que dejaron de pasar el corte no cuentan.
+    """
+    tz = get_settings().tz
+    since = today_local() - timedelta(days=days)
+    with session_scope() as s:
+        rows = list(s.scalars(select(m.Pick).where(
+            m.Pick.qualifies.is_(True), m.Pick.status.in_(("open", "settled")))))
+        record = record_from(rows)
+        if record["since"]:
+            record["since"] = record["since"].astimezone(tz).date().isoformat()
+        # De la más reciente a la más antigua; dentro de un mismo partido, la de más valor primero
+        recent = sorted((p for p in rows if p.pick_date >= since),
+                        key=lambda p: (p.match.kickoff_utc, p.ev), reverse=True)
+        return {"record": record, "picks": [{
+            "pick_id": p.id, "date": p.pick_date.isoformat(), "match_id": p.match_id,
+            "kickoff_local": p.match.kickoff_utc.astimezone(tz).strftime("%Y-%m-%d %H:%M"),
+            "match": f"{p.match.home_team.name} vs {p.match.away_team.name}",
+            "market": p.market, "selection": p.selection, "line": p.line, "bookmaker": p.bookmaker,
+            "odds": p.odds, "prob": round(p.model_prob, 3), "ev": round(p.ev, 3),
+            "confidence": round(p.confidence, 2), "is_pick_of_day": p.is_pick_of_day,
+            "status": p.status, "result": p.result, "clv": p.clv,
+            "profit_units": round(profit(p.result, 1.0, p.odds), 2) if p.result else None,
+        } for p in recent]}
 
 
 def pick_history(days: int = 60, only_pick_of_day: bool = True) -> dict:

@@ -13,7 +13,7 @@ const archivo = Archivo({
 
 export const metadata: Metadata = {
   title: { default: "Apuestas", template: "%s | Apuestas" },
-  description: "Análisis prepartido de Premier League, Bundesliga, LaLiga y Champions League.",
+  description: "Análisis prepartido de Premier League, Bundesliga, LaLiga, Serie A, Ligue 1 y Champions League.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -50,6 +50,9 @@ class RatingModel:
     # Partidos con cuotas de cierre en el último año (observaciones del mercado). Vacío = no se sabe (paquetes
     # antiguos o modelos sin mercado); 0 = el mercado no ha visto a este equipo (p.ej. ligas que no se descargan)
     market_matches: dict[int, int] = field(default_factory=dict)
+    # Coeficientes b de la fuerza de referencia (ataque, defensa) cuando se ajusta con `strength`; None = sin ella.
+    # Sirven para mover los conteos cuando la casa ve otra diferencia de fuerza (`fitting.strength_shift`).
+    strength_coef: tuple[float, float] | None = None
 
     def expected(self, home: int, away: int, neutral: bool = False) -> tuple[float, float]:
         ah, aa = self.attack.get(home, 0.0), self.attack.get(away, 0.0)
@@ -67,6 +70,7 @@ class RatingModel:
             "n_matches": {str(k): v for k, v in self.n_matches.items()},
             "as_of": self.as_of.isoformat() if self.as_of else None,
             "market_matches": {str(k): v for k, v in self.market_matches.items()},
+            "strength_coef": list(self.strength_coef) if self.strength_coef else None,
         }
 
     @classmethod
@@ -82,6 +86,7 @@ class RatingModel:
             n_matches={int(k): v for k, v in d.get("n_matches", {}).items()},
             as_of=date.fromisoformat(d["as_of"]) if d.get("as_of") else None,
             market_matches={int(k): int(v) for k, v in d.get("market_matches", {}).items()},
+            strength_coef=tuple(d["strength_coef"]) if d.get("strength_coef") else None,
         )
 
 
@@ -196,4 +201,5 @@ def fit(
         n_matches={t: float(counts[i]) for t, i in idx.items()},
         as_of=as_of,
         market_matches={t: int(market_n[i]) for t, i in idx.items()} if market_n is not None else {},
+        strength_coef=(float(ba), float(bd)) if known else None,
     )

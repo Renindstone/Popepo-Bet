@@ -5,7 +5,7 @@
 ```
 Fuentes gratis                         src/apuestas/
 ──────────────                         ─────────────
-football-data.co.uk ─┐   ingest/      descarga educada (caché en disco, ritmo, reintentos)
+football-data.co.uk ─┐   ingest/      descarga educada (caché en disco, ritmo, reintentos, pausa de hosts caídos)
 FotMob (Opta)        ├─► store.py     resolución de entidades entre fuentes + validación de stats
 Understat            │   pipeline.py  orden y frecuencia de la ingesta
 OddsPapi (opcional) ─┘        │
@@ -33,6 +33,8 @@ OddsPapi (opcional) ─┘        │
 
 El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia.
 
+**Apuestas que pasan el corte:** cada apuesta con valor de un partido que aún no empezó se guarda en `pick` (`picks.generate`) y se actualiza en cada recálculo; `pick.qualifies` dice si pasa el corte de la apuesta del día (`picks.qualifies`: valor, probabilidad, confianza, rango de cuota y, por ahora, solo mercados de goles). Vale el último cálculo antes del partido: si deja de tener valor se retira (`status = "withdrawn"`) y si deja de pasar el corte se desmarca. La liquidación es la de siempre (`picks.settle_all`), y `GET /picks/qualified` da sus aciertos desde el inicio y las de los últimos días.
+
 **Combinadas registradas:** una apuesta con `market = "combo"` en `user_bet`, cuyo partido es el que termina último, y sus selecciones en `user_bet_leg`. La liquidación (`picks.settle_all` y `betting.settlement.combo_profit`) resuelve cada selección y la combinada: una perdida basta para perderla; una anulada divide su cuota de la total.
 
 **Quién es local:** la API solo atiende sin clave las peticiones que llegan desde la propia máquina **sin** cabeceras de proxy o túnel (`X-Forwarded-For`, `CF-Connecting-IP`…). Todo lo demás necesita `X-API-Key`.
@@ -44,7 +46,7 @@ El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: 
 1. **05:30**: resultados de ayer (FotMob, football-data, Understat), detalles de partidos jugados, fusión de equipos duplicados, liquidación de picks y apuestas, reentrenamiento (`var/models/latest.json`).
 2. **08:30**: detalles de los próximos 4 días (alineación prevista, bajas, árbitro), cuotas y, si hay clave, Betano y Pinnacle por OddsPapi.
 3. **09:00**: apuesta del día (solo mercados de goles) → Telegram.
-4. **70, 50, 35, 20 y 10 minutos antes de cada partido** (la tarea corre cada 5 min): si aún no tiene alineación confirmada, se descarga de FotMob, se recalcula y se avisa si cambia la apuesta del día. FotMob suele publicarla una hora antes; la búsqueda de los 50 minutos deja margen si se retrasa.
+4. **70, 50, 35, 20 y 10 minutos antes de cada partido** (la tarea corre cada 5 min): si aún no tiene alineación confirmada (solo cuenta el once oficial de FotMob, no el probable ni el último once titular), se descarga de FotMob, se recalcula y se avisa si cambia la apuesta del día. FotMob suele publicarla una hora antes; la búsqueda de los 50 minutos deja margen si se retrasa.
 5. **A los :15 y :45**: si un partido empezó hace más de 3 horas y hay algo pendiente, se descarga su resultado y se liquidan los picks y las apuestas (con su CLV).
 6. **Cada 3 horas (:10)**: cuotas de bet365 y Betfair de los próximos partidos (`fixtures.csv` de football-data).
 7. **02:00**: descarga de detalles históricos pendientes (400 por noche).

@@ -62,3 +62,70 @@ def test_lineup_checks_fire_once_at_each_point():
     # con un inicio que no cae en múltiplo de 5 (14:02) también se mira una vez cerca de cada punto
     fired = [m + 2 for m in range(0, 121, 5) if scheduler.lineup_due(m + 2)]
     assert len(fired) == 5 and 50 <= fired[3] <= 52
+
+
+
+def test_lineup_search_retries_until_the_official_xi(state, monkeypatch):
+    """A 50 minutos del inicio se vuelve a buscar el once de un partido con el último once de FotMob (lastStarting11,
+    que se guarda como probable) o sin once; el que ya tiene el oficial (standard) no se vuelve a pedir."""
+    from contextlib import contextmanager
+    from datetime import UTC, timedelta
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import Session
+
+    from apuestas.db import models as m
+    from apuestas.ingest import fotmob, store
+    from apuestas.services import picks
+
+    class NaiveClock(datetime):
+        """SQLite devuelve las fechas sin zona horaria: la tarea también las ve así."""
+
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz).replace(tzinfo=None)
+
+    kickoff = datetime.now(UTC).replace(microsecond=0) + timedelta(minutes=50)
+
+    def payload(fid: int, lineup_type: str) -> dict:
+        starters = [{"id": 1000 * fid + i, "name": f"Titular {fid}-{i}", "usualPlayingPositionId": 2} for i in range(11)]
+        return {
+            "general": {"matchId": str(fid), "matchTimeUTCDate": kickoff.isoformat()},
+            "header": {"teams": [{"id": 10 * fid, "score": 0}, {"id": 10 * fid + 1, "score": 0}],
+                       "status": {"utcTime": kickoff.isoformat(), "started": False, "finished": False}},
+            "content": {"lineup": {"lineupType": lineup_type,
+                                   "homeTeam": {"id": 10 * fid, "starters": starters, "subs": []},
+                                   "awayTeam": {"id": 10 * fid + 1, "starters": [], "subs": []}}},
+        }
+
+    engine = create_engine("sqlite://")
+    m.Base.metadata.create_all(engine)
+    with Session(engine) as s:
+        comp = store.ensure_competitions(s)["LAL"]
+        season = store.get_season(s, comp, 2026)
+        ids = {}
+        for fid, lineup_type in ((1, "lastStarting11"), (2, "standard"), (3, None)):
+            home, away = store.fotmob_team(s, 10 * fid, f"Local {fid}"), store.fotmob_team(s, 10 * fid + 1, f"Visita {fid}")
+            match = m.Match(competition_id=comp.id, season_id=season.id, fotmob_id=fid, kickoff_utc=kickoff,
+                            home_team_id=home.id, away_team_id=away.id, status="scheduled")
+            s.add(match)
+            s.flush()
+            if lineup_type:
+                store.apply_fotmob_details(s, match, fotmob.parse_match_details(payload(fid, lineup_type)))
+            ids[lineup_type] = match.id
+        s.flush()
+        assert s.get(m.Match, ids["lastStarting11"]).lineup_status == "predicted"
+        assert s.get(m.Match, ids["standard"]).lineup_status == "confirmed"
+
+        @contextmanager
+        def scope():
+            yield s
+
+        searched = []
+        monkeypatch.setattr(scheduler, "datetime", NaiveClock)
+        monkeypatch.setattr(scheduler, "session_scope", scope)
+        monkeypatch.setattr(scheduler, "_last_pod", {})
+        monkeypatch.setattr(scheduler.pipeline, "sync_fotmob_details", lambda **k: searched.extend(k["match_ids"]))
+        monkeypatch.setattr(picks, "generate", lambda: {"date": "2026-10-25", "pick_of_day": None})
+        scheduler.job_lineups()
+    assert sorted(searched) == sorted([ids["lastStarting11"], ids[None]])

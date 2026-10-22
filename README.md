@@ -1,6 +1,6 @@
 # App Apuestas ⚽
 
-Análisis de apuestas de fútbol con modelos estadísticos para **Premier League, Bundesliga, LaLiga y Champions League** (solo prepartido).
+Análisis de apuestas de fútbol con modelos estadísticos para **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1 y Champions League** (solo prepartido).
 Pensado para usarlo desde Claude (u otro agente) mediante **MCP**, por Telegram o por API REST.
 
 ## Qué hace
@@ -25,7 +25,7 @@ Guía completa, con requisitos, servicios, actualización y problemas frecuentes
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 scripts/db.sh init                      # crea un PostgreSQL propio del proyecto (puerto 5433) y el .env
 .venv/bin/alembic upgrade head          # crea las tablas
-.venv/bin/apuestas ingest all --seasons 3 --backfill 6000   # historial (tarda ~2-3 h la primera vez)
+.venv/bin/apuestas ingest all --seasons 3 --backfill 8000   # historial (tarda ~3-4 h la primera vez)
 .venv/bin/apuestas train                # entrena los modelos
 .venv/bin/apuestas picks                # apuestas con valor de hoy
 ```
@@ -68,11 +68,11 @@ Para exponerlo fuera de tu red usa un túnel (Cloudflare Tunnel o Tailscale Funn
 ### Panel web
 
 Interfaz visual en [web/](web/) (Next.js + ECharts). Necesita Node.js 20.9 o superior. Tiene seis páginas:
-- **Hoy**: apuesta del día arriba y, debajo, tres pestañas con cuántas filas tiene cada una: **Partidos** del día, **Con valor** (otras apuestas con valor) y **Props** (cuota mínima). La pestaña queda en la dirección (`#valor`, `#props`) y se mantiene al pasar al día anterior o al siguiente. Además, un acceso rápido para subir capturas y el **contador de aciertos** de la apuesta del día desde el inicio (aciertos, falladas, devueltas, por jugarse y beneficio con 1 unidad por apuesta).
+- **Hoy**: apuesta del día arriba y, debajo, tres pestañas con cuántas filas tiene cada una: **Partidos** del día, **Con valor** (otras apuestas con valor, por defecto primero las que **pasan el corte** de valor, probabilidad y confianza, con su propio contador de aciertos; en los días pasados, con su resultado. Un selector las ordena también por **más probables**, **más confianza** o **más valor**, y el navegador recuerda la elección. No salen las cuotas de menos de 1.20, `APUESTAS_VALUE_LIST_MIN_ODDS`) y **Props** (cuota mínima). La pestaña queda en la dirección (`#valor`, `#props`) y se mantiene al pasar al día anterior o al siguiente. Además, un acceso rápido para subir capturas y el **contador de aciertos** de la apuesta del día desde el inicio (aciertos, falladas, devueltas, por jugarse y beneficio con 1 unidad por apuesta).
 - **Partidos**: próximos partidos con filtros por competición y días, y un buscador (lupa) que filtra mientras escribes el nombre de cualquiera de los dos equipos; no distingue tildes y entiende iniciales como "psg". Al elegir uno, análisis completo del partido en cinco pestañas: **Alineaciones** (en el campo como FotMob: las probables hasta que se confirman, que se buscan 70, 50, 35, 20 y 10 minutos antes del inicio, con formación, entrenador, dorsales, suplentes, bajas y cómo cambian los goles esperados), **Probabilidades**, **Estadísticas** (con el árbitro y el contexto), **Cuotas** (las que tienen valor y la cuota mínima de los props) y **Jugadores**. La pestaña queda en la dirección (por ejemplo `#cuotas`), así que se puede guardar o compartir.
 - **Evaluar cuota**: comprobar una cuota de Betano y registrar la apuesta. Al elegir un partido, debajo salen **las cuotas de Betano que ya se descargaron** esa mañana, evaluadas por el modelo (primero las que tienen valor): **Evaluar** las pasa al formulario y **+ Cupón** las añade al cupón, sin captura. Con **Añadir al cupón** se juntan varias selecciones: varias de un mismo partido forman un Bet Builder (escribe la cuota que te da la casa) y las de partidos distintos, una combinada. **Evaluar cupón** calcula cada partido y el total con el modelo, y **Registrar cupón** la guarda como una sola apuesta que se liquida sola: basta una selección perdida para perderla, y si una se anula, la cuota total se ajusta.
 - **Capturas**: subir o pegar una captura de cuotas. Claude la lee y el modelo da el veredicto de cada cuota (ver más abajo).
-- **Mis apuestas**: ROI, CLV, desglose y banca, y el historial de la apuesta del día (desde el inicio y en el último año). La **banca inicial** (y su moneda) se edita ahí mismo; de ella salen el stake sugerido y los límites de pérdida, y la banca actual es la inicial más lo ganado o perdido.
+- **Mis apuestas**: ROI, CLV, desglose y banca, el historial de la apuesta del día (desde el inicio y en el último año) y el de **todas las que pasan el corte** (aciertos desde el inicio y las de los últimos 60 días con su resultado). La **banca inicial** (y su moneda) se edita ahí mismo; de ella salen el stake sugerido y los límites de pérdida, y la banca actual es la inicial más lo ganado o perdido.
 - **Datos**: frescura de las fuentes y del modelo.
 
 Con los servicios instalados (`scripts/install-services.sh --with-web`), el panel está siempre en **http://localhost:3000**. Para desarrollarlo a mano, detén antes los servicios (`systemctl --user stop apuestas-web apuestas-api`) y lanza:
@@ -133,10 +133,10 @@ Por defecto descarga **Betano Perú y Pinnacle** (`APUESTAS_ODDSPAPI_BOOKMAKERS=
 
 ## Resultado del backtest (honesto)
 
-Con datos de 2024-25 y 2025-26 (≈2.100 partidos de EPL, Bundesliga y LaLiga):
+Con datos de 2024-25 y 2025-26 (≈2.100 partidos de EPL, Bundesliga y LaLiga; desde el 21-10-2026, además, ≈1.360 de la Serie A y la Ligue 1):
 
-- En **1X2, goles 2.5 y hándicap asiático** el modelo **no le gana a bet365**. Con los ratings implícitos del mercado (cuotas de cierre de partidos anteriores), la log-loss bajó de 0,993 a 0,981, pero bet365 está en 0,975. Ninguna estrategia en esos mercados es rentable: "solo modelo" da un ROI del −6,8 % (antes −4,2 %, diferencia dentro del ruido), con un CLV de +0,5 %.
-- Los modelos de **faltas, remates y tarjetas** sí mejoran claramente a la media de la liga, pero no hay cuotas históricas gratuitas para medir su ROI. El árbitro ayuda en las tarjetas de LaLiga y la Bundesliga, no en las de la Premier.
+- En **1X2, goles 2.5 y hándicap asiático** el modelo **no le gana a bet365**. Con los ratings implícitos del mercado (cuotas de cierre de partidos anteriores), la log-loss bajó de 0,993 a 0,981, pero bet365 está en 0,975. Ninguna estrategia en esos mercados es rentable: "solo modelo" da un ROI del −6,8 % (antes −4,2 %, diferencia dentro del ruido), con un CLV de +0,5 %. En la Serie A y la Ligue 1 pasa lo mismo: el modelo queda cerca de bet365 (en la Ligue 1, a la par), pero no le gana.
+- Los modelos de **faltas, remates y tarjetas** sí mejoran claramente a la media de la liga, pero no hay cuotas históricas gratuitas para medir su ROI. El árbitro ayuda en las tarjetas de LaLiga, la Serie A y la Bundesliga, no en las de la Premier, y en las faltas de la Ligue 1.
 - En los **rivales europeos con pocos partidos** (por ejemplo, Viking), las estadísticas se acercan a la media y, en sus mercados, la probabilidad se mezcla con la de la casa. Así no salen valores absurdos, pero esas cuotas no son de fiar. Los remates y los córners se guían por la fuerza del modelo de goles para comparar equipos de ligas distintas, pero en la Champions aún quedan diferencias con Pinnacle (ver `docs/modelos.md`).
 - El **once confirmado** aporta poco con el índice actual: el efecto calibrado es un tercio del supuesto al principio (0,10 en lugar de 0,30).
 

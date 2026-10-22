@@ -110,6 +110,8 @@ export const COMPETITIONS: Record<string, string> = {
   EPL: "Premier League",
   BUN: "Bundesliga",
   LAL: "LaLiga",
+  SA: "Serie A",
+  L1: "Ligue 1",
   UCL: "Champions League",
 };
 
@@ -136,6 +138,14 @@ export const RESULTS: Record<string, string> = {
   half_loss: "Medio perdida",
   loss: "Perdida",
   void: "Anulada",
+};
+
+/** Tono de la etiqueta de un resultado: azul si se ganó, rojo si se perdió (siempre con su palabra) */
+export const RESULT_TONE: Record<string, "boli" | "rojo" | "neutral"> = {
+  win: "boli",
+  half_win: "boli",
+  loss: "rojo",
+  half_loss: "rojo",
 };
 
 export function resultText(r: string | null | undefined): string {
