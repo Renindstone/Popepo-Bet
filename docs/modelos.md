@@ -283,7 +283,7 @@ Comprobación con las cuotas guardadas (modelo entrenado hasta el 20-10-2026; la
 | Manchester City-AEK | 7,8-2,2 | 5,5-3,5 | 7,9-2,4 | 6,4-3,1 |
 | Napoli-Bodø/Glimt | 6,2-3,7 | 8,2-3,0 | 8,8-2,7 | 6,7-3,5 |
 
-**Por qué no el nivel por liga.** Con tan pocos partidos entre ligas, el nivel de cada liga sale con mucho ruido: la Eredivisie, con 14 partidos ponderados, queda casi al nivel de la Segunda española, y la belga sale tan baja que el Brujas tendría menos córners que el Lens en su campo. Mejora el reparto de las ligas, pero en la Champions apenas (+0,007 ± 0,031 entre ligas) y estropea casos que estaban bien (Porto-PSV, Brujas-Lens). Con la fuerza como guía, el nivel de cada liga sale del modelo de goles, que tiene muchos más datos para comparar ligas (cuotas de cierre y todos los partidos de las tres copas europeas). Juntar las dos cosas es peor que la fuerza sola.
+**Por qué no el nivel por liga.** Con tan pocos partidos entre ligas, el nivel de cada liga sale con mucho ruido: la Eredivisie, con 14 partidos ponderados, queda casi al nivel de la Segunda española, y la belga sale tan baja que el Brujas tendría menos córners que el Lens en su campo. Mejora el reparto de las ligas, pero en la Champions apenas (+0,007 ± 0,031 entre ligas) y estropea casos que estaban bien (Porto-PSV, Brujas-Lens). Con la fuerza como guía, el nivel de cada liga sale del modelo de goles, que tiene muchos más datos para comparar ligas (cuotas de cierre y todos los partidos de las tres copas europeas). Juntar las dos cosas es peor que la fuerza sola. (Se volvió a probar con las estadísticas de la Europa League y la Conference, con casi el doble de cruces, y tampoco mejora: ver "Nivel por liga con los cruces de la Europa League y la Conference" abajo.)
 
 **Lo que queda.** Con equipos grandes aún hay diferencias con Pinnacle: Betis-Feyenoord (4,8-4,9 frente a 5,3-4,1) y Bayern-Arsenal (4,6-4,2 frente a 5,5-4,2). En el análisis del 21-10, "Córners de Feyenoord: Más de 7.5" a 9,00 pasa de +108 % a +41 %, pero su confianza sube de 0,36 a 0,73, porque el modelo y la casa discrepan menos (sección 6). Los córners no pueden ser apuesta del día (solo los mercados de goles). (Explicado y corregido en parte el 22-10-2026: ver "Córners del local grande en la Champions" más abajo.)
 
@@ -304,6 +304,59 @@ Comprobación con las cuotas guardadas (modelo entrenado hasta el 20-10-2026; la
 - **Frente a las casas** (los mismos 41 partidos con cuotas de Pinnacle y 47 de Betano de arriba, modelo hasta el 20-10): casi igual. Error por equipo en córners con Pinnacle: ligas 0,072 → 0,072, Champions con equipos conocidos 0,120 → 0,119, pocos datos 0,083 → 0,081; con Betano 0,058 → 0,060, 0,130 → 0,128 y 0,066 → 0,066. Betis-Feyenoord pasa de 4,8-4,9 a 4,6-4,7 (Pinnacle 5,3-4,1): la falta de datos de la Europa League no explicaba esas diferencias.
 
 Reproducir: `apuestas backtest --europa` con y sin las estadísticas en la base de datos (salidas en `var/backtests/uel_stats_{antes,final}_2024_2026.json`; `uel_stats_despues` es la variante con el xG de las copas).
+
+**Nivel por liga con los cruces de la Europa League y la Conference** (21-10-2026; probado y **no aplicado**). Con las estadísticas de las dos copas, las ligas se cruzan en córners y remates casi el doble que antes. Partidos entre ligas ponderados por antigüedad a 20-10-2026: Portugal 29, Eredivisie 26, Bélgica 18, Turquía 18, Grecia 16 y Escocia 10; las cinco grandes, de 42 a 58. Se repitió la prueba del nivel por liga en el mismo walk-forward 2024-26, con todas las estadísticas en el entrenamiento. Igual que antes: fuerza = nivel de la liga + desviación del equipo, contracción solo en la desviación, y la liga de cada equipo es la de su último partido de liga. Variantes:
+
+- **Nivel por liga** sin la fuerza de goles, con la K de antes (5 en córners, 1 en remates) o con la de la fuerza (20 y 8).
+- **Nivel y fuerza**: nivel por liga más la fuerza de goles como guía. G es la contracción del nivel de cada liga hacia 0, en partidos equivalentes: con G = 0,1 el nivel queda casi libre; con G = 30 solo se aparta de 0 si los cruces lo piden.
+- **Ritmo y fuerza**: solo el ritmo de cada liga (más o menos córners para los dos equipos, sin tocar cuánto domina una liga a otra), más la fuerza.
+- **Nivel solo para equipos sin liga**: los equipos de ligas que no se descargan (Bodø/Glimt, Slavia...) comparten un nivel; los demás, como ahora.
+
+Diferencia de log-verosimilitud por partido frente al modelo de ese día (fuerza de goles como guía, antes del reparto por el 1X2 del 22-10; positivo = mejor), con el error estándar pareado. Con las estadísticas de las copas, en la Champions hay 260 partidos entre ligas y 96 con pocos datos. La última columna son los 199 partidos de Europa League y Conference entre equipos conocidos de ligas distintas (no se analizan en el panel):
+
+| Córners: variante | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo | UEL/UECL entre ligas: por equipo |
+|---|---|---|---|---|---|---|---|
+| Nivel por liga (K de antes) | −0,0032 ± 0,0016 | −0,0201 ± 0,0033 | −0,0010 ± 0,0053 | −0,008 ± 0,019 | −0,012 ± 0,013 | +0,023 ± 0,027 | −0,003 ± 0,021 |
+| Nivel por liga (K de la fuerza) | −0,0029 ± 0,0010 | −0,0253 ± 0,0052 | −0,0008 ± 0,0053 | −0,013 ± 0,019 | −0,020 ± 0,008 | +0,028 ± 0,029 | +0,007 ± 0,022 |
+| Nivel y fuerza (G 0,1) | −0,0007 ± 0,0006 | −0,0018 ± 0,0008 | +0,0007 ± 0,0022 | +0,004 ± 0,016 | −0,017 ± 0,009 | +0,040 ± 0,027 | +0,013 ± 0,017 |
+| Nivel y fuerza (G 30) | −0,0005 ± 0,0005 | −0,0009 ± 0,0006 | +0,0007 ± 0,0014 | +0,006 ± 0,008 | −0,005 ± 0,003 | +0,019 ± 0,009 | +0,016 ± 0,008 |
+| Ritmo y fuerza | −0,0008 ± 0,0006 | −0,0010 ± 0,0006 | −0,0001 ± 0,0009 | +0,000 ± 0,001 | −0,014 ± 0,008 | −0,012 ± 0,008 | −0,001 ± 0,001 |
+| Nivel solo para equipos sin liga | −0,0000 ± 0,0001 | −0,0002 ± 0,0002 | −0,0003 ± 0,0003 | −0,000 ± 0,001 | −0,012 ± 0,007 | +0,016 ± 0,018 | −0,001 ± 0,001 |
+
+| Remates y a puerta: variante | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo | UEL/UECL entre ligas: por equipo |
+|---|---|---|---|---|---|---|---|
+| Remates: nivel por liga (K de la fuerza) | −0,0020 ± 0,0010 | −0,0185 ± 0,0047 | +0,0061 ± 0,0038 | +0,011 ± 0,021 | +0,010 ± 0,010 | +0,097 ± 0,036 | +0,055 ± 0,031 |
+| Remates: nivel y fuerza (G 0,1) | −0,0011 ± 0,0006 | −0,0008 ± 0,0012 | −0,0009 ± 0,0024 | +0,011 ± 0,019 | +0,008 ± 0,009 | +0,089 ± 0,031 | +0,040 ± 0,028 |
+| Remates: nivel y fuerza (G 30) | −0,0009 ± 0,0004 | −0,0003 ± 0,0007 | −0,0005 ± 0,0012 | +0,010 ± 0,009 | +0,005 ± 0,003 | +0,039 ± 0,010 | +0,029 ± 0,011 |
+| Remates: nivel solo para equipos sin liga | +0,0002 ± 0,0001 | +0,0001 ± 0,0003 | +0,0000 ± 0,0002 | −0,000 ± 0,001 | +0,002 ± 0,006 | +0,034 ± 0,017 | −0,002 ± 0,001 |
+| A puerta: nivel por liga (K de la fuerza) | −0,0003 ± 0,0011 | −0,0088 ± 0,0037 | +0,0055 ± 0,0037 | +0,007 ± 0,013 | +0,008 ± 0,012 | +0,029 ± 0,031 | +0,015 ± 0,025 |
+| A puerta: nivel y fuerza (G 30) | −0,0005 ± 0,0005 | +0,0004 ± 0,0006 | −0,0007 ± 0,0011 | +0,004 ± 0,004 | +0,005 ± 0,003 | +0,018 ± 0,008 | +0,009 ± 0,008 |
+
+Comprobación con las cuotas guardadas (los mismos partidos que arriba; modelo entrenado hasta el 20-10-2026). Error de la media de córners de cada equipo:
+
+| Córners, error por equipo | Pinnacle: ligas | Champions, conocidos | Champions, pocos datos | Todos | Betano: ligas | Champions, conocidos | Champions, pocos datos | Todos |
+|---|---|---|---|---|---|---|---|---|
+| **Modelo actual (fuerza)** | 0,073 | **0,119** | **0,081** | **0,086** | 0,060 | **0,128** | **0,066** | **0,082** |
+| Nivel por liga (K de antes) | 0,089 | 0,141 | 0,177 | 0,120 | 0,077 | 0,160 | 0,172 | 0,119 |
+| Nivel y fuerza (G 0,1) | 0,071 | 0,122 | 0,132 | 0,097 | 0,058 | 0,142 | 0,137 | 0,098 |
+| Nivel y fuerza (G 30) | 0,072 | 0,120 | 0,084 | 0,087 | 0,059 | 0,133 | 0,080 | 0,085 |
+| Ritmo y fuerza | 0,071 | 0,119 | 0,088 | 0,087 | 0,059 | 0,129 | 0,074 | 0,083 |
+
+| Córners (local-visitante) | Pinnacle | Modelo actual | Nivel por liga | Nivel y fuerza (G 30) |
+|---|---|---|---|---|
+| Betis-Feyenoord | 5,3-4,1 | 4,6-4,7 | 4,4-4,9 | 4,6-4,8 |
+| Bayern-Arsenal | 5,5-4,2 | 4,8-4,1 | 4,6-4,2 | 4,7-4,2 |
+| Porto-PSV | 5,6-4,2 | 5,2-4,2 | 4,5-5,0 | 4,8-4,5 |
+| Brujas-Lens | 5,5-4,6 | 5,4-4,6 | 4,9-5,3 | 5,2-4,8 |
+| Manchester City-AEK | 7,8-2,2 | 6,5-3,1 | 7,3-2,7 | 6,8-2,9 |
+| Napoli-Bodø/Glimt | 6,2-3,7 | 6,8-3,4 | 9,1-2,5 | 7,2-3,2 |
+
+**Por qué sigue sin servir.** Ahora el nivel de cada liga sí se distingue cuando va solo. Remuestreando los partidos (bootstrap a 20-10-2026), la ventaja en córners de una liga frente a las demás (nivel de ataque + nivel de defensa, relativo a la Premier) es −0,29 ± 0,10 en LaLiga, −0,58 ± 0,10 en la Eredivisie, −0,84 ± 0,11 en Portugal y −0,98 ± 0,12 en Escocia. Pero casi todo eso ya lo explica la fuerza del modelo de goles. Lo que queda por liga encima de la fuerza va de +0,04 a −0,44, con errores de ±0,04 a ±0,15, y no predice mejor:
+- **Córners**: ninguna variante mejora entre ligas (la mejor, +0,006 ± 0,008 por equipo) y todas empeoran un poco las ligas. El nivel por liga sin la fuerza queda muy por debajo (−0,020 ± 0,003 por equipo en las ligas). Además estropea Porto-PSV y Brujas-Lens, igual que sin las copas.
+- **Remates y a puerta**: con nivel y fuerza mejora el reparto entre los dos equipos de la Champions cuando uno tiene pocos datos (remates +0,039 ± 0,010 con G = 30) y en las copas. Pero el total no mejora en ningún grupo, en las ligas empeora un poco (−0,0009 ± 0,0004) y G se eligió mirando estos mismos partidos. Parte de esa mejora la da solo el nivel compartido de los equipos sin liga (+0,034 ± 0,017). No hay cuotas de remates guardadas para comprobarlo con las casas.
+- **Frente a Pinnacle y Betano**, ninguna variante mejora en la Champions, y Betis-Feyenoord y Bayern-Arsenal casi no cambian. Lo que falta en esos dos partidos tampoco es la contracción: con K = 40 en córners salen 4,8-4,6 y 4,8-4,2. Tampoco es un sesgo de local: en los 16 partidos de Champions, la media del local en el modelo queda solo un 2,5 % ± 2,4 % por debajo de la de Pinnacle. La causa resultó ser otra y se corrigió el 22-10-2026: ver "Córners del local grande en la Champions frente a Pinnacle" abajo.
+
+Se queda la fuerza de goles como guía, sin nivel por liga. La versión de `ratings.fit` con nivel por liga para los conteos no se ha guardado en el código.
 
 **Serie A y Ligue 1 como ligas completas** (21-10-2026, a petición del usuario). Hasta entonces eran ligas ligeras: entraban en el modelo con el resultado, los conteos de football-data y las cuotas de cierre, pero sin xG (football-data no lo trae hasta 2026-27), sin árbitro, sin alineaciones y sin jugadores. Ahora tienen lo mismo que la Premier, la Bundesliga y LaLiga: xG de FotMob y de Understat, estadísticas Opta, árbitro, alineaciones y jugadores. Se bajaron los 2.191 partidos jugados desde 2023-24 a una copia de la base de datos y se repitió el walk-forward de siempre (2024-25 y 2025-26) sobre la copia de antes y la de después, en los mismos partidos. `apuestas backtest` evalúa ahora por defecto las cinco ligas y da la log-loss de cada una; `--ligas EPL,BUN,LAL` repite las cifras anteriores.
 
@@ -420,7 +473,6 @@ Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (d
 ## Próximas mejoras previstas
 
 - Un nivel por liga en el modelo de fuerza (nivel de la liga + desviación del equipo) y, si el backtest lo confirma, entrenar con las ligas extra de football-data, que ya se descargan (ver "Copas europeas" arriba).
-- Con las estadísticas de la Europa League y la Conference (desde el 21-10-2026) hay casi el doble de cruces entre ligas en córners y remates: volver a probar un nivel por liga en esos modelos, que sin ellas no mejoraba frente a la fuerza de goles (ver "Córners y remates entre ligas" arriba).
 - Guardar cuotas de 1X2 de la Champions antes de cada partido (ya se guardan las de OddsPapi desde el 19-10-2026) para medir con resultados el reparto de remates y córners movido por el 1X2 en las copas, que hoy solo se mide en las ligas.
 - Guardar el historial de onces previstos para calibrar su β por separado.
 - Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
