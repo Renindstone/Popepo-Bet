@@ -345,7 +345,9 @@ def reconcile(s: Session, match: m.Match) -> None:
 # --------------------------------------------------------------------------- detalles FotMob
 
 
-def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails) -> None:
+def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails, stats_only: bool = False) -> None:
+    """`stats_only` (Europa League y Conference): resultado, árbitro y estadísticas de equipo, sin alineaciones, bajas
+    ni jugadores. Sus onces rotados cambiarían el once típico de los equipos de liga y sus jugadores no se usan."""
     home = fotmob_team(s, det.home_id, match.home_team.name)
     away = fotmob_team(s, det.away_id, match.away_team.name)
     team_by_fid = {det.home_id: home, det.away_id: away}
@@ -362,7 +364,7 @@ def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails) -> None:
         match.referee_id = resolve_referee(s, det.referee, det.referee_country).id
 
     # Alineación: se reemplaza completa (prevista -> confirmada)
-    if det.players:
+    if det.players and not stats_only:
         s.query(m.Lineup).filter(m.Lineup.match_id == match.id).delete()
         status = det.lineup_type or ("confirmed" if det.finished else "predicted")
         for p in det.players:
@@ -392,7 +394,7 @@ def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails) -> None:
                              if fid in team_by_fid} or None
 
     # Bajas: solo tiene sentido actualizarlas con partidos que aún no se han jugado
-    if not det.finished:
+    if not det.finished and not stats_only:
         for team in (home, away):
             reported = [u for u in det.unavailable if team_by_fid.get(u.team_fotmob_id) is team]
             update_availability(s, team, reported, seen_on)
@@ -404,7 +406,7 @@ def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails) -> None:
             set_observations(s, match, team.id, "fotmob", stats)
 
     # Estadísticas por jugador
-    if det.player_stats:
+    if det.player_stats and not stats_only:
         s.query(m.PlayerMatchStats).filter(m.PlayerMatchStats.match_id == match.id).delete()
         starters = {p.fotmob_id for p in det.players if p.is_starter}
         for fid, row in det.player_stats.items():

@@ -7,6 +7,10 @@
 Las ligas "extra" de football-data.co.uk (`fd_extra`, archivos new/XXX.csv) solo traen resultados y el 1X2
 de cierre. Sirven para dar ratings del mercado a los rivales de las copas europeas (Bodø/Glimt, Salzburg,
 Copenhague, Young Boys, Legia...). Algunas se juegan de marzo a noviembre (`calendar_year`).
+
+La Europa League y la Conference (`fotmob_stats`) traen además de FotMob el árbitro y las estadísticas de equipo de
+sus partidos jugados (remates, córners, tarjetas, xG...), sin alineaciones ni jugadores: son los partidos que conectan
+las ligas en los modelos de remates y córners.
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ class Competition:
     espn: str | None = None  # site.api.espn.com
     fd_extra: str | None = None  # football-data.co.uk, liga "extra" (new/XXX.csv)
     calendar_year: bool = False  # temporada de marzo a noviembre (se identifica por el año natural)
+    fotmob_stats: bool = False  # nivel "light": árbitro y estadísticas de equipo de FotMob de los partidos jugados
 
 
 COMPETITIONS: dict[str, Competition] = {
@@ -59,8 +64,8 @@ COMPETITIONS: dict[str, Competition] = {
         Competition("ROU", "Superliga (Rumanía)", "Romania", "light", fd_extra="ROU"),
         Competition("FIN", "Veikkausliiga", "Finland", "light", fd_extra="FIN", calendar_year=True),
         Competition("IRL", "Premier Division", "Ireland", "light", fd_extra="IRL", calendar_year=True),
-        Competition("UEL", "Europa League", "Europe", "light", is_cup=True, fotmob_id=73),
-        Competition("UECL", "Conference League", "Europe", "light", is_cup=True, fotmob_id=10216),
+        Competition("UEL", "Europa League", "Europe", "light", is_cup=True, fotmob_id=73, fotmob_stats=True),
+        Competition("UECL", "Conference League", "Europe", "light", is_cup=True, fotmob_id=10216, fotmob_stats=True),
     ]
 }
 

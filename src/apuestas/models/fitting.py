@@ -37,6 +37,10 @@ log = logging.getLogger(__name__)
 
 MODEL_VERSION = "v1"
 GOALS_XG_WEIGHT = 0.85  # elegido por backtest 2024-26 (mejor log-loss que 0, 0.3 y 0.6)
+# Competiciones cuyo xG no entra en el modelo de goles (solo sus goles): la Europa League y la Conference, que traen
+# estadísticas de FotMob desde el 21-10-2026 para los modelos de conteo. Con su xG, la log-loss 1X2 de la Champions
+# empeoraba (+0,0062 ± 0,0025 por partido, backtest 2024-26) y la de las ligas no cambiaba.
+GOALS_XG_SKIP = frozenset(code for code, c in COMPETITIONS.items() if c.fotmob_stats)
 COUNT_STATS = ("shots", "shots_on_target", "corners", "fouls", "cards")
 PLAYER_STATS = ("shots", "shots_on_target", "goals", "xg", "assists", "xa", "fouls_committed", "yellow_cards")
 # Goles y asistencias también como parte de los goles de su equipo en los minutos que jugó (para repartirlos)
@@ -189,7 +193,7 @@ def goals_obs(rows: list[MatchRow], xg_weight: float = GOALS_XG_WEIGHT) -> list[
     out = []
     for r in rows:
         xh, xa = r.stats_h.get("xg"), r.stats_a.get("xg")
-        if xh is not None and xa is not None:
+        if xh is not None and xa is not None and r.competition not in GOALS_XG_SKIP:
             yh = (1 - xg_weight) * r.hg + xg_weight * xh
             ya = (1 - xg_weight) * r.ag + xg_weight * xa
         else:

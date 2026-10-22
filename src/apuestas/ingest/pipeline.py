@@ -83,15 +83,19 @@ def sync_fotmob_details(
 
     `hours_ahead` (si se da) sustituye a `days_ahead`: p.ej. 1.7 h para buscar alineaciones confirmadas.
     `match_ids` limita la descarga a esos partidos (sin historial atrasado).
+    Las competiciones "light" con `fotmob_stats` (Europa League, Conference) solo bajan los partidos jugados y de
+    ellos solo el árbitro y las estadísticas de equipo (`store.apply_fotmob_details(stats_only=True)`).
     """
-    codes = codes or [c.code for c in FULL]
+    full = {c.code for c in FULL}
+    codes = codes or [*full, *(c.code for c in LIGHT if c.fotmob_stats)]
     now = datetime.now(UTC)
     horizon = timedelta(hours=hours_ahead) if hours_ahead is not None else timedelta(days=days_ahead)
     with session_scope() as s:
-        comp_ids = [c.id for c in store.ensure_competitions(s).values() if c.code in codes]
+        comps = store.ensure_competitions(s)
+        comp_ids = [c.id for c in comps.values() if c.code in codes]
         upcoming = s.scalars(
             select(m.Match.id).where(
-                m.Match.competition_id.in_(comp_ids),
+                m.Match.competition_id.in_([c.id for c in comps.values() if c.code in codes and c.code in full]),
                 m.Match.fotmob_id.is_not(None),
                 m.Match.status == "scheduled",
                 m.Match.kickoff_utc >= now - timedelta(hours=3),
@@ -120,7 +124,7 @@ def sync_fotmob_details(
             if ttl is None and not det.finished and not det.cancelled:
                 # La caché guardó la versión previa al partido: hay que volver a descargarla
                 det = fotmob.match_details(match.fotmob_id, ttl=0)
-            store.apply_fotmob_details(s, match, det)
+            store.apply_fotmob_details(s, match, det, stats_only=match.competition.code not in full)
 
     def task() -> int:
         done = 0
