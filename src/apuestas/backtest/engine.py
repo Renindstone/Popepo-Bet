@@ -7,6 +7,8 @@ Métricas:
 - CLV medio: cuota tomada vs cuota de cierre de bet365 (indicador de ventaja real a corto plazo).
 - Calibración de modelos de remates, córners y tarjetas (verosimilitud frente a la media de la liga), del total del
   partido y de cada equipo, en las ligas y en las copas con estadísticas (`extra_competitions`; solo la Champions).
+  En la Champions se separan los partidos con un equipo de pocos datos (`:pocos_datos`) y, del resto, los de dos
+  equipos de ligas distintas (`:entre_ligas`), que son los que dependen de comparar ligas.
 - Log-loss del modelo por competición, también donde no hay cuotas (`extra_competitions`, p. ej. Champions).
 
 Alineaciones (opción `lineups`): con los onces confirmados históricos de FotMob se mide, en los partidos
@@ -29,6 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from apuestas.betting import odds as oddsmath
+from apuestas.core.competitions import COMPETITIONS
 from apuestas.db import models as m
 from apuestas.features import lineup as lu
 from apuestas.models import distributions as dist
@@ -132,9 +135,11 @@ def run(
     lineups: bool = False,
     extra_competitions: tuple[str, ...] = (),
     count_l2: float | None = None,
+    count_strength: bool = True,
 ) -> BacktestResult:
     """`extra_competitions`: competiciones donde solo se mide el modelo (sin cuotas ni apuestas).
-    `count_l2`: L2 fija de los modelos de conteo (1,0 = la de antes del 21-10-2026) en vez de COUNT_PRIOR_MATCHES."""
+    `count_l2`: L2 fija de los modelos de conteo (1,0 = la de antes del 21-10-2026) en vez de COUNT_PRIOR_MATCHES.
+    `count_strength`: remates y córners guiados por la fuerza del modelo de goles (False = como antes)."""
     from apuestas.db.session import _factory
 
     market_weight = fitting.MARKET_WEIGHT if market_weight is None else market_weight
@@ -143,7 +148,7 @@ def run(
                                  "xg_weight": xg_weight, "min_ev": min_ev, "odds_range": odds_range,
                                  "competitions": competitions, "w_model": w_model, "market_weight": market_weight,
                                  "market_half_life": market_half_life, "extra_competitions": extra_competitions,
-                                 "count_l2": count_l2})
+                                 "count_l2": count_l2, "count_strength": count_strength})
     s = _factory()()
     try:
         before = datetime.combine(end, datetime.min.time(), UTC) + timedelta(days=1)
@@ -174,16 +179,19 @@ def run(
                              half_life_days=half_life_days, market_half_life_days=market_half_life)
             rho = fit_rho([r for r in train if (cur - r.day).days < 730], gm, set(competitions))
             cms = {}
+            strength = fitting.count_strength(gm) if count_strength else None
             for stat in COUNT_STATS:
                 obs = count_obs(train, stat)
                 if len(obs) > 300:
-                    cms[stat] = fit_counts(obs, stat, cur, half_life_days=half_life_days, l2=count_l2)
+                    cms[stat] = fit_counts(obs, stat, cur, half_life_days=half_life_days, l2=count_l2,
+                                           strength=strength)
             refs = fit_referees(train, cms["cards"], cms.get("fouls")) if "cards" in cms else {}
+            leagues = _team_leagues(train)
             for r in test:
                 main = r.competition in competitions
                 _evaluate_match(r, gm, rho, odds.get(r.match_id, {}), res, ll, br, min_ev, odds_range, w_model,
                                 model_only=not main)
-                _evaluate_counts(r, cms, count_ll, refs, "" if main else f":{r.competition}")
+                _evaluate_counts(r, cms, count_ll, refs, "" if main else f":{r.competition}", leagues)
                 if lineups:
                     _evaluate_lineup(r, gm, rho, odds.get(r.match_id, {}), xi_hist, xi_idx, ll_lu, lu_rows)
         cur = nxt
@@ -390,10 +398,26 @@ def _settle(r: MatchRow, market: str, sel: str, line: float | None) -> str:
 FEW_COUNT_MATCHES = 10
 
 
-def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None, suffix: str = "") -> None:
+def _team_leagues(rows: list[MatchRow]) -> dict[int, str]:
+    """Liga de cada equipo: la de su último partido de liga en `rows` (las copas europeas no cuentan)."""
+    last: dict[int, tuple[date, str]] = {}
+    for r in rows:
+        c = COMPETITIONS.get(r.competition)
+        if c is None or c.is_cup:
+            continue
+        for t in (r.home, r.away):
+            if t not in last or r.day > last[t][0]:
+                last[t] = (r.day, r.competition)
+    return {t: code for t, (_, code) in last.items()}
+
+
+def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None, suffix: str = "",
+                     leagues: dict[int, str] | None = None) -> None:
     """Log-verosimilitud del total y de cada equipo (`<stat> por equipo`) frente a la media de la liga. En las
-    copas (`suffix` = ":UCL") se separan los partidos con un equipo de pocos datos (rivales de ligas sin descargar)."""
+    copas (`suffix` = ":UCL") se separan los partidos con un equipo de pocos datos (rivales de ligas sin descargar)
+    y, entre los demás, los de equipos de dos ligas distintas (`leagues`: liga de cada equipo)."""
     refs = refs or {}
+    leagues = leagues or {}
     for stat, cm in cms.items():
         vh, va = r.stats_h.get(stat), r.stats_a.get(stat)
         if vh is None or va is None:
@@ -401,6 +425,8 @@ def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None,
         groups = [suffix]
         if suffix and min(cm.n_matches.get(r.home, 0.0), cm.n_matches.get(r.away, 0.0)) < FEW_COUNT_MATCHES:
             groups.append(f"{suffix}:pocos_datos")
+        elif suffix and leagues.get(r.home) and leagues.get(r.away) and leagues[r.home] != leagues[r.away]:
+            groups.append(f"{suffix}:entre_ligas")
         mh, ma = cm.expected(r.home, r.away, r.neutral)
         a = cm.dispersion
         total = int(vh + va)
