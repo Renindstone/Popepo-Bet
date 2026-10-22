@@ -28,6 +28,12 @@ Mismo modelo de fuerza aplicado a cada estadística (cuánto genera cada equipo 
 
   Caso real: **Aston Villa-Viking** (Champions, 21-10-2026). Viking es noruego. La liga noruega no entra en el modelo y football-data no trae sus córners, así que solo había dos partidos suyos con estadísticas: 5 córners en Stuttgart y 7 contra el Bayern. Con ellos su ataque en córners salía ×1,8 la media. El modelo esperaba 14,7 córners (Villa 9,1, Viking 5,6) frente a 10,5 de Pinnacle (7,4 y 3,0), y en Hoy salían "Córners: Más de 16.5" a 10,00 con +232 % y "Córners de Viking: Más de 6.5" a 9,75 con +230 %. Con la contracción, 11,3 (7,0 y 4,3); el resto lo corrige la regla de prudencia de la sección 6.
 
+- **Remates, remates a puerta y córners guiados por la fuerza del modelo de goles** (desde el 21-10-2026, `fitting.COUNT_STRENGTH_PRIOR`). En estas tres estadísticas, que dependen de cuánto domina cada equipo, la fuerza de un equipo es `b × fuerza_goles + desviación`, con `fuerza_goles` = ataque + defensa en el modelo de goles, `b` ajustado (uno para generar y otro para conceder) y la contracción solo en la desviación. Así, un equipo con pocos datos se acerca a lo que corresponde a su fuerza y no a la media, y la contracción es mayor: K = 8 en remates y a puerta, y 20 en córners. En tarjetas y faltas no mejora (se quedan como estaban).
+
+  Motivo: las ligas solo se cruzan en estas estadísticas por la Champions (la Europa League y la Conference no traen estadísticas): unos 14 partidos ponderados para la Eredivisie, 11 para la liga belga y 2 para la escocesa. Dentro de una liga, solo se sabe cuánto domina cada equipo a sus rivales; el nivel de toda la liga frente a las demás lo fijaba la contracción, que suponía todas las ligas igual de fuertes. Por eso un equipo que domina una liga floja salía igual de dominante en la Champions. El modelo de goles, en cambio, sí conoce bien la fuerza de cada liga: tiene las cuotas de cierre y todos los partidos europeos.
+
+  Caso real: **Betis-Feyenoord** (Champions, 21-10-2026). El análisis daba 4,3 córners al Betis y 5,6 al Feyenoord; Pinnacle, 5,3 y 4,1. "Córners de Feyenoord: Más de 7.5" a 9,00 salía con +108 % y las cuatro primeras "Otras apuestas con valor" de Hoy eran córners del Feyenoord. Ahora 4,9 y 4,9, y esa cuota da +41 % (la primera de Hoy es otra). Sigue lejos de Pinnacle: es mejor, pero no lo arregla del todo (ver backtest, sección 7).
+
 - **Árbitro**: factor = (observado + K) / (esperado + K), con K en partidos "neutros". En **faltas** mejora la predicción (K = 20). En **tarjetas**, medido de nuevo con los árbitros de LaLiga y la Bundesliga (FotMob), K = 80. Ayuda claramente en LaLiga y algo en la Bundesliga; en la Premier no ayuda (ver backtest).
 - **Alineación**: un once más fuerte de lo habitual genera más remates y córners (efecto atenuado, exponente 0,7).
 
@@ -220,11 +226,55 @@ K = 80 mejora a 120 en +0,0006 ± 0,0004. K = 40 da algo más de media, pero con
 | Remates (1) | +0,0014 ± 0,0005 | −0,0022 ± 0,0023 | +0,014 ± 0,006 | +0,004 ± 0,023 | +0,038 ± 0,019 | +0,065 ± 0,052 |
 | Remates a puerta (1) | +0,0013 ± 0,0004 | −0,0022 ± 0,0015 | +0,022 ± 0,008 | +0,019 ± 0,014 | +0,070 ± 0,028 | +0,114 ± 0,040 |
 
-K se eligió con una rejilla (0,5 a 30) en ese mismo walk-forward: el valor que mejora el total sin empeorar "por equipo" en las ligas. Más contracción sigue mejorando el total, pero empeora el reparto entre los dos equipos: en córners, con K = 20, "por equipo" baja −0,005 en ligas y −0,12 con pocos datos. El orden coincide con el que da la variación real entre equipos (empírico: K ≈ 2-3 en remates, 8 en córners, 30-60 en tarjetas), con más contracción donde los equipos se parecen más entre sí. En remates, "por equipo" en ligas baja un poco con cualquier K (−0,002, a 1-1,5 errores estándar); se acepta por la mejora en la Champions, que alimenta las props de jugadores de esos rivales. El 1X2 y las apuestas no cambian (el modelo de goles es el mismo). Antes, el total de córners en la Champions predecía peor que la media de la liga (−0,002); ahora, +0,017.
+K se eligió con una rejilla (0,5 a 30) en ese mismo walk-forward: el valor que mejora el total sin empeorar "por equipo" en las ligas. Más contracción sigue mejorando el total, pero empeora el reparto entre los dos equipos: en córners, con K = 20, "por equipo" baja −0,005 en ligas y −0,12 con pocos datos. El orden coincide con el que da la variación real entre equipos (empírico: K ≈ 2-3 en remates, 8 en córners, 30-60 en tarjetas), con más contracción donde los equipos se parecen más entre sí. En remates, "por equipo" en ligas baja un poco con cualquier K (−0,002, a 1-1,5 errores estándar); se acepta por la mejora en la Champions, que alimenta las props de jugadores de esos rivales. El 1X2 y las apuestas no cambian (el modelo de goles es el mismo). Antes, el total de córners en la Champions predecía peor que la media de la liga (−0,002); ahora, +0,017. (Después, los remates y los córners pasaron a contraerse hacia la fuerza del modelo de goles, con otra K: ver abajo.)
 
 Comprobación con las cuotas guardadas de Pinnacle (47 partidos del 19 al 21-10-2026 con córners y 38 con tarjetas; modelo entrenado hasta el 19-10): error medio de la media de córners de cada equipo frente a la de Pinnacle (raíz del error cuadrático en logaritmo) 0,158 → 0,128, y en equipos con menos de 10 partidos, 0,281 → 0,167. En el total, 0,105 → 0,068. En tarjetas, 0,212 → 0,162 por equipo y 0,170 → 0,128 en el total.
 
-**Limitación que queda: córners de Champions entre ligas.** Con equipos bien conocidos, el error por equipo frente a Pinnacle es 0,178 en la Champions y 0,089 en las ligas (22 y 58 equipo-partido). Por ejemplo, Betis-Feyenoord: el modelo da 4,4 córners al Betis y 5,5 al Feyenoord, y Pinnacle 5,3 y 4,0; "Córners de Feyenoord: Más de 7.5" a 9,00 sale con +97 %. Real Madrid-Leipzig: Leipzig 4,4 frente a 3,5. La confianza baja por la discrepancia con la casa (0,2-0,6), pero el valor esperado no. Es el mismo problema del nivel por liga que en goles: un equipo que domina una liga más floja (Feyenoord en la Eredivisie) parece más fuerte en córners de lo que es contra un rival de la Champions.
+**Córners y remates entre ligas: la fuerza del modelo de goles como guía** (21-10-2026; `apuestas backtest --europa`, frente a `--no-count-strength` para el modelo anterior). Con la contracción de arriba seguía un problema con equipos bien conocidos: frente a Pinnacle, el error por equipo en córners era 0,178 en la Champions y 0,095 en las ligas. Betis-Feyenoord daba 4,2 córners al Betis y 5,6 al Feyenoord (Pinnacle: 5,3 y 4,1). La causa es la de la sección 3: las ligas solo se cruzan en estas estadísticas por la Champions, y el nivel de cada liga lo fijaba la contracción.
+
+Se probaron dos arreglos en el mismo walk-forward: un **nivel por liga** (fuerza = nivel de la liga + desviación del equipo, con la contracción solo en la desviación y la liga de su último partido de liga, como el experimento de goles), y la **fuerza del modelo de goles como guía** (sección 3). En la salida, `:entre_ligas` son los 260 partidos de Champions entre equipos conocidos de ligas distintas, y `:pocos_datos` los 108 con un equipo de menos de 10 partidos. Diferencia de log-verosimilitud por partido frente al modelo anterior, con el error estándar pareado:
+
+| Córners: variante (K) | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo |
+|---|---|---|---|---|---|---|
+| Nivel por liga (5) | +0,0007 ± 0,0004 | +0,0074 ± 0,0022 | −0,0025 ± 0,0036 | +0,007 ± 0,031 | −0,020 ± 0,013 | +0,064 ± 0,044 |
+| Nivel por liga y fuerza (5) | +0,0011 ± 0,0006 | +0,0124 ± 0,0036 | −0,0029 ± 0,0041 | +0,012 ± 0,031 | −0,018 ± 0,015 | +0,065 ± 0,051 |
+| Fuerza (5) | +0,0014 ± 0,0006 | +0,0132 ± 0,0036 | −0,0016 ± 0,0031 | +0,041 ± 0,014 | +0,003 ± 0,006 | +0,060 ± 0,029 |
+| Fuerza (10) | +0,0034 ± 0,0009 | +0,0205 ± 0,0037 | +0,0005 ± 0,0033 | +0,047 ± 0,014 | −0,001 ± 0,009 | +0,053 ± 0,029 |
+| **Fuerza (20, aplicada)** | **+0,0045 ± 0,0016** | **+0,0275 ± 0,0043** | **+0,0019 ± 0,0050** | **+0,053 ± 0,015** | **−0,009 ± 0,014** | **+0,039 ± 0,033** |
+| Fuerza (40) | +0,0034 ± 0,0026 | +0,0311 ± 0,0054 | +0,0015 ± 0,0075 | +0,056 ± 0,017 | −0,018 ± 0,018 | +0,023 ± 0,037 |
+
+| Otras estadísticas: variante (K) | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo |
+|---|---|---|---|---|---|---|
+| **Remates: fuerza (8, aplicada)** | +0,0062 ± 0,0015 | +0,0230 ± 0,0033 | −0,0029 ± 0,0041 | +0,043 ± 0,014 | +0,034 ± 0,019 | +0,114 ± 0,045 |
+| **A puerta: fuerza (8, aplicada)** | +0,0067 ± 0,0015 | +0,0161 ± 0,0023 | −0,0014 ± 0,0048 | +0,025 ± 0,011 | +0,089 ± 0,034 | +0,147 ± 0,044 |
+| Tarjetas: fuerza (10, no aplicada) | −0,0002 ± 0,0003 | +0,0024 ± 0,0011 | +0,0000 ± 0,0021 | −0,003 ± 0,004 | −0,002 ± 0,002 | +0,009 ± 0,007 |
+| Faltas: fuerza (5, no aplicada) | +0,0010 ± 0,0005 | +0,0014 ± 0,0006 | −0,0048 ± 0,0031 | −0,008 ± 0,004 | +0,005 ± 0,005 | −0,001 ± 0,006 |
+
+Con la fuerza como guía, más contracción mejora, al revés que antes: sin la fuerza, K = 10 en córners empeora el reparto (−0,0008 ± 0,0019 por equipo en ligas y −0,054 ± 0,018 con pocos datos). Se eligió el K que mejora las ligas y los partidos entre ligas sin empeorar de forma apreciable los de pocos datos; estos, además, se mezclan con la casa (sección 6). En toda la Champions (378 partidos), córners por equipo +0,047 ± 0,014, remates +0,061 ± 0,016 y a puerta +0,059 ± 0,015; el total no empeora en ninguno. Usar ataque y defensa de goles por separado (cuatro coeficientes en vez de dos) da lo mismo que su suma. El 1X2, las apuestas del backtest, las tarjetas y las faltas no cambian.
+
+Comprobación con las cuotas guardadas (modelo entrenado hasta el 20-10-2026; la media de cada equipo sale de todas las líneas de más/menos y hándicap de córners de la casa, sin margen). Error de la media de córners de cada equipo (raíz del error cuadrático en logaritmo):
+
+| Córners, error por equipo | Ligas | Champions, equipos conocidos | Champions, pocos datos | Todos | Total del partido |
+|---|---|---|---|---|---|
+| Pinnacle (41 partidos: 25 / 9 / 7), modelo anterior | 0,095 | 0,178 | 0,170 | 0,132 | 0,068 |
+| Pinnacle, nivel por liga (5) | 0,090 | 0,160 | 0,150 | 0,120 | 0,069 |
+| Pinnacle, nivel por liga (10) | 0,087 | 0,151 | 0,139 | 0,114 | 0,059 |
+| **Pinnacle, fuerza (20)** | **0,072** | **0,120** | **0,083** | **0,086** | **0,049** |
+| Betano (47 partidos: 29 / 11 / 7), modelo anterior | 0,083 | 0,180 | 0,147 | 0,123 | 0,062 |
+| **Betano, fuerza (20)** | **0,058** | **0,131** | **0,066** | **0,082** | **0,046** |
+
+| Córners (local-visitante) | Pinnacle | Modelo anterior | Nivel por liga | Fuerza |
+|---|---|---|---|---|
+| Betis-Feyenoord | 5,3-4,1 | 4,2-5,6 | 4,6-5,2 | 4,8-4,9 |
+| Porto-PSV | 5,6-4,2 | 5,0-4,6 | 4,3-5,2 | 5,2-4,2 |
+| Brujas-Lens | 5,5-4,6 | 5,5-4,8 | 4,5-5,8 | 5,4-4,6 |
+| Real Madrid-Leipzig | 7,0-3,5 | 7,2-4,3 | 7,2-4,2 | 7,0-3,9 |
+| Manchester City-AEK | 7,8-2,2 | 5,5-3,5 | 7,9-2,4 | 6,4-3,1 |
+| Napoli-Bodø/Glimt | 6,2-3,7 | 8,2-3,0 | 8,8-2,7 | 6,7-3,5 |
+
+**Por qué no el nivel por liga.** Con tan pocos partidos entre ligas, el nivel de cada liga sale con mucho ruido: la Eredivisie, con 14 partidos ponderados, queda casi al nivel de la Segunda española, y la belga sale tan baja que el Brujas tendría menos córners que el Lens en su campo. Mejora el reparto de las ligas, pero en la Champions apenas (+0,007 ± 0,031 entre ligas) y estropea casos que estaban bien (Porto-PSV, Brujas-Lens). Con la fuerza como guía, el nivel de cada liga sale del modelo de goles, que tiene muchos más datos para comparar ligas (cuotas de cierre y todos los partidos de las tres copas europeas). Juntar las dos cosas es peor que la fuerza sola.
+
+**Lo que queda.** Con equipos grandes aún hay diferencias con Pinnacle: Betis-Feyenoord (4,8-4,9 frente a 5,3-4,1) y Bayern-Arsenal (4,6-4,2 frente a 5,5-4,2). En el análisis del 21-10, "Córners de Feyenoord: Más de 7.5" a 9,00 pasa de +108 % a +41 %, pero su confianza sube de 0,36 a 0,73, porque el modelo y la casa discrepan menos (sección 6). Los córners no pueden ser apuesta del día (solo los mercados de goles).
 
 **Lectura**:
 1. En los mercados principales, **bet365 sigue siendo más preciso que el modelo**, también con los ratings del mercado. Ahora el modelo está mucho más cerca (lo que hacen los profesionales), pero no hay ninguna estrategia rentable en 1X2, goles o hándicap. Con el modelo tan cerca del mercado, las pocas "apuestas con valor" que quedan son sobre todo ruido: el ROI no mejora aunque el CLV sí lo haga un poco.
@@ -232,12 +282,12 @@ Comprobación con las cuotas guardadas de Pinnacle (47 partidos del 19 al 21-10-
 3. El cierre de Pinnacle (0,963) es mucho mejor que su cuota previa (0,976): entre la previa y el partido llega mucha información (alineaciones, noticias). El índice de calidad del once solo capta una parte (β = 0,10).
 4. Donde el modelo sí aporta información (faltas, remates, tarjetas, jugadores) es justo donde las casas tienen menos precisión. Ahí hay que comparar las cuotas de Betano con la **cuota mínima** que da el sistema. El árbitro ayuda en las tarjetas de LaLiga y la Bundesliga, no en las de la Premier.
 
-Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (`--market-weight 0` para el modelo sin mercado).
+Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (`--market-weight 0` para el modelo sin mercado; `--no-count-strength` para las estadísticas sin la fuerza de goles, y `--count-l2 1` para la L2 fija de antes).
 
 ## Próximas mejoras previstas
 
 - Un nivel por liga en el modelo de fuerza (nivel de la liga + desviación del equipo) y, si el backtest lo confirma, entrenar con las ligas extra de football-data, que ya se descargan (ver "Copas europeas" arriba).
-- Nivel por liga también en los modelos de estadísticas, para los córners de Champions entre ligas (ver "Limitación que queda" arriba). Se mide con `apuestas backtest --europa` (`corners por equipo:UCL`) y con las cuotas de Pinnacle guardadas.
+- Estadísticas de la Europa League y la Conference (hoy solo se descargan sus resultados): conectarían muchas más ligas en córners y remates, y entonces sí podría ayudar un nivel por liga en esos modelos (probado sin ellas, no mejora frente a la fuerza de goles; ver "Córners y remates entre ligas" arriba).
 - Guardar el historial de onces previstos para calibrar su β por separado.
 - Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
 - Medir la antigüedad de las observaciones del mercado en jornadas en lugar de días, para no perder el mercado durante el parón de verano.

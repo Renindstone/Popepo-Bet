@@ -7,6 +7,9 @@ log E[y_away] = mu        + att[away] - def[home]
   Con valores no enteros se usa cuasi-verosimilitud de Poisson (válida para la media).
 - Pesos por antigüedad (vida media configurable) para que la forma reciente pese más.
 - Regularización L2 hacia 0 para equipos con pocos partidos (ascendidos, rivales exóticos de Champions).
+- Fuerza de referencia (opcional, `strength`): ataque = b_ataque × fuerza + desviación del equipo (igual en defensa),
+  con b ajustado y la L2 solo en la desviación. En los conteos, la fuerza es la del modelo de goles: así un equipo
+  que domina una liga floja no parece igual de dominante en córners contra un rival de la Champions.
 - Todas las ligas se ajustan juntas: los partidos de Champions/Europa y los ascensos/descensos
   conectan las escalas, así un 1.8 de ataque significa lo mismo en Inglaterra que en Portugal.
 - Observaciones del mercado (market=True): goles esperados implícitos en las cuotas de cierre. Entran en el
@@ -99,12 +102,19 @@ def fit(
     max_age_days: int = 1100,
     market_half_life_days: float | None = None,
     prior_matches: float | None = None,
+    strength: dict[int, float] | None = None,
 ) -> RatingModel:
     """`prior_matches`: contracción hacia la media expresada en partidos (ponderados) "promedio" en vez de una L2
     fija. Cada partido aporta a la curvatura del ataque o la defensa de un equipo tanto como su media (~1,4 en
     goles, ~5 en córners, ~12 en remates), así que una misma L2 apenas contrae los conteos grandes: con L2 = 1, un
     equipo con 2 partidos de córners conserva el 90 % de lo que vio en ellos. Con `prior_matches` = K,
-    L2 = K × media y un equipo con n partidos conserva ~n / (n + K)."""
+    L2 = K × media y un equipo con n partidos conserva ~n / (n + K).
+
+    `strength`: fuerza de referencia de cada equipo (0 si falta). La contracción va entonces hacia b × fuerza en vez
+    de hacia 0. Dentro de una liga casi no cambia nada (la desviación absorbe lo que se ve), pero entre ligas que
+    apenas se cruzan (en córners, solo por la Champions) el nivel de cada liga lo da la fuerza y no la L2, que
+    supone que todas las ligas son igual de fuertes. El modelo devuelto guarda en attack/defence la suma, así que se
+    usa igual con o sin fuerza."""
     obs = [o for o in obs if 0 <= (as_of - o.day).days <= max_age_days]
     if not obs:
         raise ValueError("Sin partidos para ajustar el modelo")
@@ -124,34 +134,44 @@ def fit(
         # El mercado apenas tiene ruido: puede pesar más lo reciente que en los partidos reales
         w = np.where(real, w, time_weights(days, as_of, market_half_life_days) * ow)
 
-    def unpack(theta: np.ndarray) -> tuple[float, float, np.ndarray, np.ndarray]:
-        return theta[0], theta[1], theta[2 : 2 + n], theta[2 + n :]
+    # Centrada en los equipos que la tienen, para que mu siga siendo la media (los que no la tienen quedan en 0)
+    strength = strength or {}
+    known = [strength[t] for t in teams if t in strength]
+    center = float(np.mean(known)) if known else 0.0
+    xs = np.array([strength[t] - center if t in strength else 0.0 for t in teams])
+
+    def unpack(theta: np.ndarray) -> tuple[float, float, np.ndarray, np.ndarray, float, float]:
+        """mu, local, desviaciones de ataque y defensa, y coeficientes b de la fuerza (ataque, defensa)."""
+        return theta[0], theta[1], theta[2 : 2 + n], theta[2 + n : 2 + 2 * n], theta[-2], theta[-1]
 
     def objective(theta: np.ndarray) -> tuple[float, np.ndarray]:
-        mu, home, att, de = unpack(theta)
+        mu, home, da, dd, ba, bd = unpack(theta)
+        att, de = da + ba * xs, dd + bd * xs
         eta_h = mu + home * hm + att[hi] - de[ai]
         eta_a = mu + att[ai] - de[hi]
         lh, la = np.exp(eta_h), np.exp(eta_a)
         nll = np.sum(w * (lh - yh * eta_h)) + np.sum(w * (la - ya * eta_a))
-        nll += 0.5 * l2 * (np.sum(att**2) + np.sum(de**2))
+        nll += 0.5 * l2 * (np.sum(da**2) + np.sum(dd**2))
         rh, ra = w * (lh - yh), w * (la - ya)  # derivadas respecto a eta
         g = np.zeros_like(theta)
         g[0] = rh.sum() + ra.sum()
         g[1] = (rh * hm).sum()
         g_att = np.bincount(hi, weights=rh, minlength=n) + np.bincount(ai, weights=ra, minlength=n)
         g_def = -np.bincount(ai, weights=rh, minlength=n) - np.bincount(hi, weights=ra, minlength=n)
-        g[2 : 2 + n] = g_att + l2 * att
-        g[2 + n :] = g_def + l2 * de
+        g[2 : 2 + n] = g_att + l2 * da
+        g[2 + n : 2 + 2 * n] = g_def + l2 * dd
+        g[-2], g[-1] = g_att @ xs, g_def @ xs
         return nll, g
 
     mean_y = max(float(np.average(np.concatenate([yh, ya]), weights=np.concatenate([w, w]))), 1e-3)
     if prior_matches is not None:
         l2 = prior_matches * mean_y
-    theta0 = np.zeros(2 + 2 * n)
+    theta0 = np.zeros(4 + 2 * n)
     theta0[0] = np.log(mean_y)
     theta0[1] = 0.1
     res = minimize(objective, theta0, jac=True, method="L-BFGS-B", options={"maxiter": 2000})
-    mu, home, att, de = unpack(res.x)
+    mu, home, da, dd, ba, bd = unpack(res.x)
+    att, de = da + ba * xs, dd + bd * xs
 
     # Sobredispersión (alfa de NB) por momentos: Var = m + alfa m^2 (solo con partidos reales)
     lh = np.exp(mu + home * hm + att[hi] - de[ai])

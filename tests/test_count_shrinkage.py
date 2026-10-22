@@ -1,5 +1,6 @@
 """Córners y demás conteos de equipos con pocos partidos (p. ej. Viking en la Champions): contracción hacia la
-media en partidos equivalentes y, en sus mercados, mezcla con la probabilidad de la casa."""
+media en partidos equivalentes y, en sus mercados, mezcla con la probabilidad de la casa. Y córners entre ligas
+(Betis-Feyenoord): contracción hacia la fuerza del modelo de goles."""
 
 from collections import defaultdict
 from datetime import date, timedelta
@@ -56,6 +57,71 @@ def test_fit_counts_uses_the_prior_of_each_stat():
     assert fitting.fit_counts(obs, "corners", TODAY).attack == pytest.approx(by_prior.attack)
     fixed = ratings.fit(obs, TODAY, l2=1.0)  # la de antes, para el backtest (--count-l2 1)
     assert fitting.fit_counts(obs, "corners", TODAY, l2=1.0).attack == pytest.approx(fixed.attack)
+
+
+def _two_leagues() -> tuple[list[MatchObs], dict[int, float], object]:
+    """Liga fuerte (equipos 1-10) y liga floja (11-20) que solo se cruzan en tres partidos, como la Eredivisie y LaLiga
+    en córners. Los córners de cada equipo dependen de su fuerza (0,6 × fuerza en ataque y en defensa)."""
+    rng = np.random.default_rng(5)
+    strength = {t: 0.3 + 0.2 * (t - 5.5) / 4.5 for t in range(1, 11)}
+    strength |= {t: -0.3 + 0.2 * (t - 15.5) / 4.5 for t in range(11, 21)}
+
+    def true(h: int, a: int) -> tuple[float, float]:
+        return (float(np.exp(np.log(4.8) + 0.1 + 0.6 * (strength[h] - strength[a]))),
+                float(np.exp(np.log(4.8) + 0.6 * (strength[a] - strength[h]))))
+
+    obs = []
+
+    def play(h: int, a: int, day: date) -> None:
+        mh, ma = true(h, a)
+        obs.append(MatchObs(h, a, day, float(rng.poisson(mh)), float(rng.poisson(ma))))
+
+    for league in (range(1, 11), range(11, 21)):
+        teams = list(league)
+        for w in range(36):
+            rng.shuffle(teams)
+            for h, a in zip(teams[::2], teams[1::2], strict=True):
+                play(int(h), int(a), TODAY - timedelta(days=7 * w + 1))
+    for h, a, days in ((5, 18, 30), (17, 3, 60), (8, 12, 90)):
+        play(h, a, TODAY - timedelta(days=days))
+    return obs, strength, true
+
+
+def test_strength_sets_the_level_of_leagues_that_barely_meet():
+    obs, strength, true = _two_leagues()
+    old = ratings.fit(obs, TODAY, prior_matches=5.0)
+    new = ratings.fit(obs, TODAY, prior_matches=20.0, strength=strength)
+    # El mejor de la liga floja en casa contra uno de mitad de tabla de la fuerte: saca menos córners que su rival
+    real = true(20, 5)
+    assert real[0] < real[1]
+    assert old.expected(20, 5)[0] > old.expected(20, 5)[1]  # sin la fuerza, la L2 pone las dos ligas al mismo nivel
+    got = new.expected(20, 5)
+    assert got[0] < got[1]
+    assert got == pytest.approx(real, rel=0.15)
+    # Dentro de una liga casi no cambia
+    for h, a in ((1, 10), (12, 19)):
+        assert new.expected(h, a) == pytest.approx(old.expected(h, a), rel=0.1)
+
+
+def test_strength_is_optional_and_centred():
+    obs = _corners_obs()
+    plain = ratings.fit(obs, TODAY, prior_matches=5.0)
+    flat = ratings.fit(obs, TODAY, prior_matches=5.0, strength={t: 0.7 for t in range(1, 7)} | {UNSEEN: 0.7})
+    assert flat.mu == pytest.approx(plain.mu)  # una fuerza igual para todos no cambia nada
+    assert flat.expected(UNSEEN, 3) == pytest.approx(plain.expected(UNSEEN, 3))
+
+
+def test_fit_counts_uses_strength_only_in_dominance_stats():
+    obs, strength, _ = _two_leagues()
+    corners = ratings.fit(obs, TODAY, prior_matches=fitting.COUNT_STRENGTH_PRIOR["corners"], strength=strength)
+    assert fitting.fit_counts(obs, "corners", TODAY, strength=strength).attack == pytest.approx(corners.attack)
+    cards = fitting.fit_counts(obs, "cards", TODAY)
+    assert fitting.fit_counts(obs, "cards", TODAY, strength=strength).attack == pytest.approx(cards.attack)
+    fixed = ratings.fit(obs, TODAY, l2=1.0)  # la L2 fija de antes, sin fuerza (--count-l2 1)
+    assert fitting.fit_counts(obs, "corners", TODAY, l2=1.0, strength=strength).attack == pytest.approx(fixed.attack)
+    goals = ratings.RatingModel(teams=[1, 2], mu=0.3, home_adv=0.2, attack={1: 0.4, 2: -0.1},
+                                defence={1: 0.2, 2: 0.0})
+    assert fitting.count_strength(goals) == pytest.approx({1: 0.6, 2: -0.1})
 
 
 def test_parse_market():
@@ -132,3 +198,16 @@ def test_backtest_counts_split_cups_and_teams_with_few_matches():
     ll2: dict = defaultdict(list)
     engine._evaluate_counts(league, {"corners": cm}, ll2)
     assert set(ll2) == {"corners", "corners por equipo"}
+    # Dos equipos conocidos de ligas distintas
+    cross = MatchRow(3, "UCL", TODAY, 1, 2, False, 2, 1, None, {"corners": 7}, {"corners": 3})
+    ll3: dict = defaultdict(list)
+    engine._evaluate_counts(cross, {"corners": cm}, ll3, None, ":UCL", {1: "LAL", 2: "NED"})
+    assert set(ll3) == {"corners:UCL", "corners por equipo:UCL", "corners:UCL:entre_ligas",
+                        "corners por equipo:UCL:entre_ligas"}
+
+
+def test_team_league_is_the_last_league_match():
+    rows = [MatchRow(1, "ENG2", TODAY - timedelta(days=300), 1, 2, False, 1, 0, None, {}, {}),
+            MatchRow(2, "EPL", TODAY - timedelta(days=30), 1, 3, False, 1, 0, None, {}, {}),
+            MatchRow(3, "UCL", TODAY - timedelta(days=5), 1, 4, False, 1, 0, None, {}, {})]
+    assert engine._team_leagues(rows) == {1: "EPL", 2: "ENG2", 3: "EPL"}

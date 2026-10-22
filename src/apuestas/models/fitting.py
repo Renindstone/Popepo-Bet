@@ -4,7 +4,8 @@ Paquete (var/models/latest.json):
 - goals: fuerza ataque/defensa con objetivo = 15% goles + 85% xG (el xG predice mejor que los goles),
   más los goles esperados implícitos en las cuotas de cierre como observaciones extra (MARKET_WEIGHT)
 - rho: corrección Dixon-Coles para marcadores bajos
-- counts[stat]: modelos de remates, remates a puerta, córners, faltas y tarjetas (binomial negativa)
+- counts[stat]: modelos de remates, remates a puerta, córners, faltas y tarjetas (binomial negativa); los de
+  remates y córners, guiados por la fuerza del equipo en el modelo de goles
 - referees: factor de tarjetas/faltas de cada árbitro (con contracción hacia 1)
 - players: tasas por 90' de cada jugador (remates, a puerta, goles, xG, faltas, amarillas)
 - priors: tasas medias por posición (para contraer jugadores con pocos minutos)
@@ -266,12 +267,29 @@ def market_obs(rows: list[MatchRow], implied: dict[int, tuple[float, float]],
 # docs/modelos.md): más contracción donde los equipos se parecen más entre sí (tarjetas) y menos en remates.
 COUNT_PRIOR_MATCHES = {"shots": 1.0, "shots_on_target": 1.0, "corners": 5.0, "fouls": 5.0, "cards": 10.0}
 
+# Estadísticas de dominio: se contraen hacia lo que predice la fuerza del equipo en el modelo de goles (`strength` en
+# `ratings.fit`) en vez de hacia la media, con esta K. Las ligas solo se cruzan en córners y remates por la
+# Champions (unos 14 partidos ponderados para la Eredivisie), así que antes la L2 las ponía a todas al mismo nivel y
+# el Feyenoord, que domina una liga floja, salía con más córners que el Betis (4,2-5,6; Pinnacle 5,3-4,1). Con la
+# fuerza como guía, más contracción mejora (antes, con más K empeoraba el reparto entre los dos equipos). Elegido
+# con el backtest 2024-26 y las cuotas de Pinnacle guardadas (docs/modelos.md). En tarjetas y faltas no mejora.
+COUNT_STRENGTH_PRIOR = {"shots": 8.0, "shots_on_target": 8.0, "corners": 20.0}
+
+
+def count_strength(goals: RatingModel) -> dict[int, float]:
+    """Fuerza de cada equipo en el modelo de goles (ataque + defensa), la referencia de las estadísticas de dominio."""
+    return {t: goals.attack[t] + goals.defence[t] for t in goals.teams}
+
 
 def fit_counts(obs: list[MatchObs], stat: str, as_of: date, half_life_days: float = 240.0,
-               l2: float | None = None) -> RatingModel:
-    """Modelo de una estadística de conteo. `l2` fija la L2 de antes (1,0) en lugar de COUNT_PRIOR_MATCHES."""
+               l2: float | None = None, strength: dict[int, float] | None = None) -> RatingModel:
+    """Modelo de una estadística de conteo. `strength` (`count_strength` del modelo de goles) solo se usa en las de
+    COUNT_STRENGTH_PRIOR. `l2` fija la L2 de antes (1,0), sin fuerza, en lugar de COUNT_PRIOR_MATCHES."""
     if l2 is not None:
         return ratings.fit(obs, as_of, half_life_days=half_life_days, l2=l2)
+    if strength is not None and stat in COUNT_STRENGTH_PRIOR:
+        return ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_STRENGTH_PRIOR[stat],
+                           strength=strength)
     return ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_PRIOR_MATCHES[stat])
 
 
@@ -459,10 +477,11 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
                         market_half_life_days=MARKET_HALF_LIFE)
     rho = fit_rho([r for r in rows if (as_of.date() - r.day).days < 730], goals, full_codes)
     counts = {}
+    strength = count_strength(goals)
     for stat in COUNT_STATS:
         obs = count_obs(rows, stat)
         if len(obs) >= 200:
-            counts[stat] = fit_counts(obs, stat, as_of.date(), half_life_days=half_life_days)
+            counts[stat] = fit_counts(obs, stat, as_of.date(), half_life_days=half_life_days, strength=strength)
     referees = fit_referees(rows, counts["cards"], counts.get("fouls")) if "cards" in counts else {}
     league_avgs: dict[str, float] = {}
     for code in full_codes:
