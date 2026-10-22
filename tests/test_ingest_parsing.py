@@ -100,6 +100,33 @@ def test_fotmob_details_parse():
     assert det.player_stats[5]["shots"] == 3 and det.player_stats[5]["yellow_cards"] == 1
 
 
+def _upcoming_details(lineup_type: str) -> dict:
+    """Respuesta de FotMob para un partido aún por jugar, con el once que da según `lineupType`."""
+    starters = [{"id": 100 + i, "name": f"Titular {i}", "usualPlayingPositionId": 2} for i in range(11)]
+    return {
+        "general": {"matchId": "5868105", "matchTimeUTCDate": "2026-10-25T20:00:00.000Z"},
+        "header": {"teams": [{"id": 8634, "score": 0}, {"id": 8633, "score": 0}],
+                   "status": {"utcTime": "2026-10-25T20:00:00.000Z", "started": False, "finished": False}},
+        "content": {"lineup": {"lineupType": lineup_type, "homeTeam": {"id": 8634, "starters": starters, "subs": []},
+                               "awayTeam": {"id": 8633, "starters": [], "subs": []}}},
+    }
+
+
+@pytest.mark.parametrize(
+    ("lineup_type", "status"),
+    [
+        ("standard", "confirmed"),  # once oficial (FotMob lo publica una hora antes)
+        ("predicted", "predicted"),  # once probable
+        ("lastStarting11", "predicted"),  # último once titular: FotMob aún no tiene probable
+        ("otroTipo", "predicted"),  # un tipo nuevo nunca cuenta como confirmado
+    ],
+)
+def test_fotmob_only_the_official_lineup_is_confirmed(lineup_type, status, caplog):
+    det = fotmob.parse_match_details(_upcoming_details(lineup_type))
+    assert det.lineup_type == status and len(det.players) == 11
+    assert ("desconocido" in caplog.text) == (lineup_type == "otroTipo")
+
+
 @pytest.mark.parametrize(
     ("a", "b", "same"),
     [

@@ -8,10 +8,11 @@ Así se activa:
 3. Comprueba con `apuestas ingest oddspapi --estado` (cuota mensual) y `apuestas ingest oddspapi` (descarga).
 
 El plan gratuito tiene un límite mensual de peticiones (250 en oct-2026) y **cada llamada cuenta**, aunque falle.
-La API solo admite una casa por petición, así que:
-- una descarga = 1 llamada por casa, con las 6 competiciones a la vez (cuenta 1 aunque traiga varios torneos);
-  nombres de equipos (participants), torneos y mercados se piden una vez por semana;
-- el worker la lanza una vez al día (08:30) → con 2 casas, unas 60 llamadas al mes más ~12 de catálogos.
+La API solo admite una casa por petición y **como mucho 5 torneos** por petición, así que:
+- una descarga = 1 llamada por casa con las competiciones que juegan en los próximos 3 días
+  (`oddspapi_window_days`; cuenta 1 aunque traiga varios torneos). Si son las seis (semanas de Champions), 2
+  llamadas por casa. Nombres de equipos (participants), torneos y mercados se piden una vez por semana;
+- el worker la lanza una vez al día (08:30) → con 2 casas, unas 60-90 llamadas al mes más ~12 de catálogos.
 
 Probado con una clave real (19-10-2026). Los mercados se reconocen por su tipo (`marketType`) y su nombre exacto:
 goles, ambos marcan, hándicaps asiático y europeo, y córners y tarjetas (total, por equipo y hándicap).
@@ -23,7 +24,10 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import select
+
 from apuestas.config import get_settings
+from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.ingest import store
 from apuestas.ingest.http import client
@@ -40,6 +44,8 @@ TOURNAMENTS = {
     "L1": ("ligue-1", "france"),
     "UCL": ("uefa-champions-league", "international-clubs"),
 }
+# La API rechaza más de 5 torneos por petición (400 INVALID_PARAMETER, visto el 22-10-2026 con seis competiciones)
+MAX_TOURNAMENTS = 5
 OUTCOMES_1X2 = {"101": "home", "102": "draw", "103": "away"}
 # Tipo de mercado de OddsPapi -> (nuestro mercado, nombre exacto del mercado a partido completo)
 MARKET_TYPES = {
@@ -226,6 +232,22 @@ def participants() -> dict[str, str]:
     return {str(k): v for k, v in data.items() if isinstance(v, str)} if isinstance(data, dict) else {}
 
 
+def playing_soon(days: float, now: datetime | None = None) -> set[str]:
+    """Competiciones con algún partido programado en los próximos `days` días (las demás no gastan petición)."""
+    now = now or datetime.now(UTC)
+    with session_scope() as s:
+        return set(s.scalars(
+            select(m.Competition.code).join(m.Match, m.Match.competition_id == m.Competition.id)
+            .where(m.Match.status == "scheduled", m.Match.kickoff_utc >= now,
+                   m.Match.kickoff_utc <= now + timedelta(days=days)).distinct()))
+
+
+def tournament_groups(tids: dict[str, int], codes: set[str]) -> list[list[int]]:
+    """Torneos a pedir, en grupos de como mucho MAX_TOURNAMENTS (cada grupo es una petición por casa)."""
+    ids = [tid for code, tid in tids.items() if code in codes]
+    return [ids[i:i + MAX_TOURNAMENTS] for i in range(0, len(ids), MAX_TOURNAMENTS)]
+
+
 def sync_upcoming() -> int:
     books = bookmakers()
     if not books:
@@ -234,14 +256,19 @@ def sync_upcoming() -> int:
     if not tids:
         log.warning("OddsPapi: no se encontraron los torneos")
         return 0
+    now = datetime.now(UTC)
+    groups = tournament_groups(tids, playing_soon(get_settings().oddspapi_window_days, now))
+    if not groups:
+        log.info("OddsPapi: ninguna competición juega en los próximos días; no se gasta ninguna petición")
+        return 0
     catalog = market_catalog()
     team_names = participants()
     code_of = {tid: code for code, tid in tids.items()}
-    now = datetime.now(UTC)
-    # La API exige una sola casa por petición: 1 llamada por casa para las 6 competiciones. Se descargan todas
-    # antes de guardar para que el 1X2 de Pinnacle sirva de referencia a las demás casas.
-    odds = {book: _items(_get("odds-by-tournaments", ttl=1800, bookmaker=book,
-                              tournamentIds=",".join(str(t) for t in tids.values())))
+    # La API exige una sola casa y como mucho 5 torneos por petición: 1 llamada por casa y grupo. Se descargan
+    # todas antes de guardar para que el 1X2 de Pinnacle sirva de referencia a las demás casas.
+    odds = {book: [fx for group in groups
+                   for fx in _items(_get("odds-by-tournaments", ttl=1800, bookmaker=book,
+                                         tournamentIds=",".join(str(t) for t in group)))]
             for book in books}
     sharp = {fx.get("fixtureId"): {p.selection: p.price for p in parse_fixture_odds(fx, {}, [book])}
              for book, fixtures in odds.items() if our_name(book) == "pinnacle" for fx in fixtures}

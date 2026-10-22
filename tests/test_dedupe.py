@@ -53,6 +53,9 @@ def test_names_known_variants():
     assert names.similarity("St Etienne", "Saint-Étienne") == 100
     assert names.similarity("AEK", "AEK Larnaca") < 75  # otro club (Chipre)
     assert names.similarity("Dundee", "Dundee United") < 75
+    # Nombres de OddsPapi en la Ligue 1 (22-10-2026)
+    assert names.similarity("Stade Rennais FC", "Rennes") == 100
+    assert names.similarity("Strasbourg Alsace", "Strasbourg") == 100
 
 
 def test_detects_safe_pair_and_leaves_lookalikes_for_review(s):
