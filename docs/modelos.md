@@ -24,6 +24,10 @@ Matriz de marcadores **Dixon-Coles**, con ρ estimado sobre los datos. De ahí s
 
 Mismo modelo de fuerza aplicado a cada estadística (cuánto genera cada equipo y cuánto concede), con distribución **binomial negativa** (la sobredispersión se estima de los datos). Los totales del partido salen de la convolución de ambos equipos.
 
+- **Contracción hacia la media en "partidos equivalentes"** (desde el 21-10-2026, `fitting.COUNT_PRIOR_MATCHES`): remates y remates a puerta 1, córners 5, faltas 5 y tarjetas 10. Un equipo con n partidos (ponderados por antigüedad) conserva más o menos n / (n + K) de lo que se ve en ellos; los de liga (25-45 partidos) apenas cambian. Antes era una L2 fija de 1, la misma que en goles. Pero cada partido pesa en el ajuste tanto como su media (~1,4 goles, ~5 córners, ~12 remates), así que esa L2 casi no contraía: equivalía a 0,1 partidos en remates y faltas, 0,2 en córners y 0,5 en tarjetas.
+
+  Caso real: **Aston Villa-Viking** (Champions, 21-10-2026). Viking es noruego. La liga noruega no entra en el modelo y football-data no trae sus córners, así que solo había dos partidos suyos con estadísticas: 5 córners en Stuttgart y 7 contra el Bayern. Con ellos su ataque en córners salía ×1,8 la media. El modelo esperaba 14,7 córners (Villa 9,1, Viking 5,6) frente a 10,5 de Pinnacle (7,4 y 3,0), y en Hoy salían "Córners: Más de 16.5" a 10,00 con +232 % y "Córners de Viking: Más de 6.5" a 9,75 con +230 %. Con la contracción, 11,3 (7,0 y 4,3); el resto lo corrige la regla de prudencia de la sección 6.
+
 - **Árbitro**: factor = (observado + K) / (esperado + K), con K en partidos "neutros". En **faltas** mejora la predicción (K = 20). En **tarjetas**, medido de nuevo con los árbitros de LaLiga y la Bundesliga (FotMob), K = 80. Ayuda claramente en LaLiga y algo en la Bundesliga; en la Premier no ayuda (ver backtest).
 - **Alineación**: un once más fuerte de lo habitual genera más remates y córners (efecto atenuado, exponente 0,7).
 
@@ -87,6 +91,9 @@ Limitación: en partidos antiguos el valor de mercado es el de la fecha de desca
   La probabilidad del modelo no se toca: solo la confianza. Es una regla de prudencia, porque no hay historial de cuotas de estadísticas para ajustarla con el backtest.
 
   Motivo: con las cuotas de Betano (OddsPapi, 19-10-2026), el modelo veía "valor" en 412 cuotas de los 9 partidos de Champions del día siguiente. Algunas eran absurdas, como "Napoli más de 10,5 córners" a 9,00 con +164 %. La apuesta del día salía de un hándicap de córners con +41 %.
+- **Equipos con pocos partidos con esa estadística** (`analysis.STAT_COVERED`, desde el 21-10-2026). En córners, tarjetas y el resto de estadísticas, si el equipo menos visto de los dos tiene menos de 10 partidos (ponderados) con esa estadística, la probabilidad se mezcla con la de la casa sin margen (o con la cuota suelta, quitándole un 5 %, si la casa no tiene los dos lados). El peso del modelo es n / 10: con 0 partidos manda la casa y no puede salir valor; con 10 o más, solo el modelo. Es más estricta que la regla de goles (que deja un 25 % de modelo con 0 partidos) porque los modelos de estadísticas no tienen ningún backtest contra cuotas. Afecta a los mismos rivales europeos (Viking, LASK, Slavia, Shakhtar, Bodø/Glimt…). Es una regla de prudencia, no un parámetro ajustado.
+
+  Aston Villa-Viking (Viking con 1,9 partidos): "Córners de Viking: Más de 5.5" a 6,50 pasa de +73 % (solo con la contracción) a +11 %, con confianza 0,08. Antes, 34 cuotas de córners de ese partido salían con valor y la mayor daba +232 %; ahora la mayor es esa, con +11 %.
 - **Stake**: Kelly × 0,25, con tope del 3 % de la banca. Límites de pérdida: 5 % diario y 10 % semanal.
 
 ## 7. Backtest (`backtest/engine.py`)
@@ -195,13 +202,29 @@ K = 80 mejora a 120 en +0,0006 ± 0,0004. K = 40 da algo más de media, pero con
   En el backtest de apuestas, solo modelo: 1.594 apuestas, ROI −6,3 % (antes −6,8 %), una diferencia que es ruido.
 - El modelo solo se entrena con las competiciones definidas en `core/competitions.py`. La BD es compartida, y una rama puede cargar ligas nuevas que aún no se han validado.
 
-| Estadísticas (log-verosimilitud por partido) | Mejora frente a la media de la liga |
+| Estadísticas (log-verosimilitud del total por partido) | Mejora frente a la media de la liga |
 |---|---|
-| Faltas | +0,151 (árbitro: +0,006 más) |
-| Remates | +0,035 |
-| Remates a puerta | +0,023 |
-| Tarjetas | +0,013 (árbitro: +0,004 más) |
-| Córners | +0,007 |
+| Faltas | +0,160 (árbitro: +0,006 más) |
+| Remates | +0,036 |
+| Remates a puerta | +0,024 |
+| Tarjetas | +0,022 (árbitro: +0,004 más) |
+| Córners | +0,008 |
+
+**Contracción de las estadísticas** (21-10-2026; `apuestas backtest --europa`, frente a `--count-l2 1` para la L2 fija de antes). Log-verosimilitud por partido, del total y de los dos equipos por separado (`<stat> por equipo`), en 2.132 partidos de liga y 378 de Champions. En la Champions, 108 partidos tienen un equipo con menos de 10 partidos con estadísticas ("pocos datos"; `:pocos_datos` en la salida). Diferencia frente a la L2 fija, con el error estándar pareado:
+
+| Estadística (K) | Ligas: total | Ligas: por equipo | Champions: total | Champions: por equipo | Pocos datos: total | Pocos datos: por equipo |
+|---|---|---|---|---|---|---|
+| Córners (5) | +0,0030 ± 0,0011 | +0,0008 ± 0,0040 | +0,019 ± 0,008 | −0,004 ± 0,023 | +0,043 ± 0,022 | +0,014 ± 0,056 |
+| Tarjetas (10) | +0,0082 ± 0,0019 | +0,0111 ± 0,0024 | +0,015 ± 0,012 | +0,025 ± 0,015 | +0,026 ± 0,038 | +0,056 ± 0,045 |
+| Faltas (5) | +0,0028 ± 0,0018 | +0,0081 ± 0,0027 | +0,045 ± 0,018 | +0,044 ± 0,027 | +0,111 ± 0,059 | +0,137 ± 0,082 |
+| Remates (1) | +0,0014 ± 0,0005 | −0,0022 ± 0,0023 | +0,014 ± 0,006 | +0,004 ± 0,023 | +0,038 ± 0,019 | +0,065 ± 0,052 |
+| Remates a puerta (1) | +0,0013 ± 0,0004 | −0,0022 ± 0,0015 | +0,022 ± 0,008 | +0,019 ± 0,014 | +0,070 ± 0,028 | +0,114 ± 0,040 |
+
+K se eligió con una rejilla (0,5 a 30) en ese mismo walk-forward: el valor que mejora el total sin empeorar "por equipo" en las ligas. Más contracción sigue mejorando el total, pero empeora el reparto entre los dos equipos: en córners, con K = 20, "por equipo" baja −0,005 en ligas y −0,12 con pocos datos. El orden coincide con el que da la variación real entre equipos (empírico: K ≈ 2-3 en remates, 8 en córners, 30-60 en tarjetas), con más contracción donde los equipos se parecen más entre sí. En remates, "por equipo" en ligas baja un poco con cualquier K (−0,002, a 1-1,5 errores estándar); se acepta por la mejora en la Champions, que alimenta las props de jugadores de esos rivales. El 1X2 y las apuestas no cambian (el modelo de goles es el mismo). Antes, el total de córners en la Champions predecía peor que la media de la liga (−0,002); ahora, +0,017.
+
+Comprobación con las cuotas guardadas de Pinnacle (47 partidos del 19 al 21-10-2026 con córners y 38 con tarjetas; modelo entrenado hasta el 19-10): error medio de la media de córners de cada equipo frente a la de Pinnacle (raíz del error cuadrático en logaritmo) 0,158 → 0,128, y en equipos con menos de 10 partidos, 0,281 → 0,167. En el total, 0,105 → 0,068. En tarjetas, 0,212 → 0,162 por equipo y 0,170 → 0,128 en el total.
+
+**Limitación que queda: córners de Champions entre ligas.** Con equipos bien conocidos, el error por equipo frente a Pinnacle es 0,178 en la Champions y 0,089 en las ligas (22 y 58 equipo-partido). Por ejemplo, Betis-Feyenoord: el modelo da 4,4 córners al Betis y 5,5 al Feyenoord, y Pinnacle 5,3 y 4,0; "Córners de Feyenoord: Más de 7.5" a 9,00 sale con +97 %. Real Madrid-Leipzig: Leipzig 4,4 frente a 3,5. La confianza baja por la discrepancia con la casa (0,2-0,6), pero el valor esperado no. Es el mismo problema del nivel por liga que en goles: un equipo que domina una liga más floja (Feyenoord en la Eredivisie) parece más fuerte en córners de lo que es contra un rival de la Champions.
 
 **Lectura**:
 1. En los mercados principales, **bet365 sigue siendo más preciso que el modelo**, también con los ratings del mercado. Ahora el modelo está mucho más cerca (lo que hacen los profesionales), pero no hay ninguna estrategia rentable en 1X2, goles o hándicap. Con el modelo tan cerca del mercado, las pocas "apuestas con valor" que quedan son sobre todo ruido: el ROI no mejora aunque el CLV sí lo haga un poco.
@@ -214,6 +237,7 @@ Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (`
 ## Próximas mejoras previstas
 
 - Un nivel por liga en el modelo de fuerza (nivel de la liga + desviación del equipo) y, si el backtest lo confirma, entrenar con las ligas extra de football-data, que ya se descargan (ver "Copas europeas" arriba).
+- Nivel por liga también en los modelos de estadísticas, para los córners de Champions entre ligas (ver "Limitación que queda" arriba). Se mide con `apuestas backtest --europa` (`corners por equipo:UCL`) y con las cuotas de Pinnacle guardadas.
 - Guardar el historial de onces previstos para calibrar su β por separado.
 - Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
 - Medir la antigüedad de las observaciones del mercado en jornadas en lugar de días, para no perder el mercado durante el parón de verano.

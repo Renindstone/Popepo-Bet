@@ -16,7 +16,7 @@ from apuestas.features import context as ctx
 from apuestas.features import lineup as lu
 from apuestas.models.distributions import Outcome
 from apuestas.models.fitting import ModelBundle
-from apuestas.services.match_model import MatchModel, PlayerProjection
+from apuestas.services.match_model import MatchModel, PlayerProjection, parse_market
 
 MY_BOOKS = ("bet365", "betano")
 SHARP_BOOKS = ("pinnacle", "betfair_ex")
@@ -48,6 +48,22 @@ def market_coverage_weight(n_market: int | None) -> float:
 STAT_DISAGREE_TOLERANCE = 0.05  # hasta 5 puntos no se penaliza: ahí está el valor que se busca
 STAT_DISAGREE_SPAN = 0.15  # de 5 a 20 puntos la confianza baja linealmente hasta el mínimo
 STAT_DISAGREE_MIN_FACTOR = 0.3
+
+# Equipos con pocos partidos con esa estadística (rivales europeos de ligas que no se descargan o cuyas fuentes no
+# traen córners ni tarjetas, como Viking): el modelo de conteo ya los contrae hacia la media
+# (fitting.COUNT_PRIOR_MATCHES), pero lo poco que vio de ellos aún pesa y la casa sabe mucho más. Por debajo de
+# STAT_COVERED partidos (ponderados por antigüedad) del menos visto de los dos, la probabilidad se mezcla con la de
+# la casa sin margen: el peso del modelo va de 0 (sin partidos: la de la casa, así que no puede salir valor) a 1.
+# Más estricta que la de goles (W_MODEL con 0 partidos) porque estos modelos no tienen backtest contra cuotas.
+# Regla de prudencia, no un parámetro ajustado: no hay historial de cuotas de estadísticas.
+STAT_COVERED = 10
+
+
+def stat_coverage_weight(n_matches: float | None) -> float:
+    """Peso del modelo frente a la casa en estadísticas según los partidos del equipo menos visto."""
+    if n_matches is None:
+        return 1.0
+    return min(1.0, max(0.0, n_matches / STAT_COVERED))
 
 
 def book_fair_prob(odds_rows: list[m.OddsSnapshot], bookmaker: str, market: str, selection: str,
@@ -345,20 +361,31 @@ def evaluate_bet(
     if sharp_p is None and w_cov < 1.0 and is_goal_market(market):
         book_p = min(0.99, 1 / (odds * (1 + BOOK_MARGIN)))
         prob = w_cov * model_p + (1 - w_cov) * book_p
+    # Estadísticas (córners, tarjetas…): la casa sin margen sirve para medir la discrepancia y, con equipos poco
+    # vistos, para mezclar (STAT_COVERED)
+    stat = parse_market(market)[1] if not is_goal_market(market) and not market.startswith("player_") else None
+    house_p = book_fair_prob(odds_rows, bookmaker, market, selection, line) if stat else None
+    stat_ref = None
+    w_stat = stat_coverage_weight(quality.get("stat_matches_min", {}).get(stat)) if stat else 1.0
+    if w_stat < 1.0:
+        stat_ref = house_p if house_p is not None else min(0.99, 1 / (odds * (1 + BOOK_MARGIN)))
+        prob = w_stat * model_p + (1 - w_stat) * stat_ref
     no_push = max(1e-9, 1 - out.push)
     ev = (prob * odds - 1) * no_push
     stake = oddsmath.stake_pct(prob, odds, settings.kelly_fraction, settings.max_stake_pct)
     conf = _confidence(market, quality, sharp_p is not None, model_p, sharp_p, rotation)
     reasons = []
-    if not is_goal_market(market) and not market.startswith("player_"):
-        house_p = book_fair_prob(odds_rows, bookmaker, market, selection, line)
-        if house_p is not None:
-            factor = stat_disagreement_factor(model_p, house_p)
-            conf *= factor
-            if factor < 1.0:
-                reasons.append(f"La casa (sin margen) da {house_p:.0%} y el modelo {model_p:.0%}: discrepan mucho, "
-                               "probablemente se equivoca el modelo (confianza baja)")
-    if sharp_p is not None:
+    if house_p is not None:
+        factor = stat_disagreement_factor(model_p, house_p)
+        conf *= factor
+        if factor < 1.0:
+            reasons.append(f"La casa (sin margen) da {house_p:.0%} y el modelo {model_p:.0%}: discrepan mucho, "
+                           "probablemente se equivoca el modelo (confianza baja)")
+    if stat_ref is not None:
+        thin = quality.get("stat_thin_teams", {}).get(stat, "un equipo")
+        reasons.append(f"Modelo {model_p:.0%} · casa sin margen {stat_ref:.0%} · mezcla {prob:.0%}: {thin} con pocos "
+                       "partidos con esta estadística en nuestros datos")
+    elif sharp_p is not None:
         reasons.append(f"Modelo {model_p:.0%} · mercado afilado {sharp_p:.0%} · mezcla {prob:.0%}")
     elif book_p is not None:
         reasons.append(f"Modelo {model_p:.0%} · cuota sin margen {book_p:.0%} · mezcla {prob:.0%}: "
@@ -444,6 +471,14 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         if market_min is not None else 1.0,
         "market_weight": round(market_coverage_weight(market_min), 3),
     }
+    # Partidos (ponderados) del equipo menos visto en cada estadística, y quiénes están por debajo de STAT_COVERED
+    quality["stat_matches_min"] = {
+        stat: round(min(cm.n_matches.get(home, 0.0), cm.n_matches.get(away, 0.0)), 1)
+        for stat, cm in bundle.counts.items()}
+    quality["stat_thin_teams"] = {
+        stat: " y ".join(t.name for t in (match.home_team, match.away_team)
+                         if cm.n_matches.get(t.id, 0.0) < STAT_COVERED)
+        for stat, cm in bundle.counts.items() if quality["stat_matches_min"][stat] < STAT_COVERED}
     if thin:
         quality["no_market_note"] = (f"{' y '.join(thin)} casi sin cuotas de su liga en nuestros datos; "
                                      "el modelo es poco fiable en este partido")

@@ -5,7 +5,8 @@ Métricas:
 - Log-loss / Brier del 1X2: modelo vs probabilidades de bet365 vs Pinnacle (sin margen).
 - ROI de apuestas con valor (1X2, más/menos 2.5 y hándicap asiático principal) a cuota previa de bet365.
 - CLV medio: cuota tomada vs cuota de cierre de bet365 (indicador de ventaja real a corto plazo).
-- Calibración de modelos de remates, córners y tarjetas (verosimilitud frente a la media de la liga).
+- Calibración de modelos de remates, córners y tarjetas (verosimilitud frente a la media de la liga), del total del
+  partido y de cada equipo, en las ligas y en las copas con estadísticas (`extra_competitions`; solo la Champions).
 - Log-loss del modelo por competición, también donde no hay cuotas (`extra_competitions`, p. ej. Champions).
 
 Alineaciones (opción `lineups`): con los onces confirmados históricos de FotMob se mide, en los partidos
@@ -36,6 +37,7 @@ from apuestas.models.fitting import (
     COUNT_STATS,
     MatchRow,
     count_obs,
+    fit_counts,
     fit_referees,
     fit_rho,
     goals_obs,
@@ -129,8 +131,10 @@ def run(
     market_half_life: float | None = None,
     lineups: bool = False,
     extra_competitions: tuple[str, ...] = (),
+    count_l2: float | None = None,
 ) -> BacktestResult:
-    """`extra_competitions`: competiciones donde solo se mide el modelo (sin cuotas ni apuestas)."""
+    """`extra_competitions`: competiciones donde solo se mide el modelo (sin cuotas ni apuestas).
+    `count_l2`: L2 fija de los modelos de conteo (1,0 = la de antes del 21-10-2026) en vez de COUNT_PRIOR_MATCHES."""
     from apuestas.db.session import _factory
 
     market_weight = fitting.MARKET_WEIGHT if market_weight is None else market_weight
@@ -138,7 +142,8 @@ def run(
     res = BacktestResult(params={"start": start.isoformat(), "end": end.isoformat(), "half_life": half_life_days,
                                  "xg_weight": xg_weight, "min_ev": min_ev, "odds_range": odds_range,
                                  "competitions": competitions, "w_model": w_model, "market_weight": market_weight,
-                                 "market_half_life": market_half_life, "extra_competitions": extra_competitions})
+                                 "market_half_life": market_half_life, "extra_competitions": extra_competitions,
+                                 "count_l2": count_l2})
     s = _factory()()
     try:
         before = datetime.combine(end, datetime.min.time(), UTC) + timedelta(days=1)
@@ -172,14 +177,13 @@ def run(
             for stat in COUNT_STATS:
                 obs = count_obs(train, stat)
                 if len(obs) > 300:
-                    cms[stat] = ratings.fit(obs, cur, half_life_days=half_life_days, l2=1.0)
+                    cms[stat] = fit_counts(obs, stat, cur, half_life_days=half_life_days, l2=count_l2)
             refs = fit_referees(train, cms["cards"], cms.get("fouls")) if "cards" in cms else {}
             for r in test:
                 main = r.competition in competitions
                 _evaluate_match(r, gm, rho, odds.get(r.match_id, {}), res, ll, br, min_ev, odds_range, w_model,
                                 model_only=not main)
-                if main:
-                    _evaluate_counts(r, cms, count_ll, refs)
+                _evaluate_counts(r, cms, count_ll, refs, "" if main else f":{r.competition}")
                 if lineups:
                     _evaluate_lineup(r, gm, rho, odds.get(r.match_id, {}), xi_hist, xi_idx, ll_lu, lu_rows)
         cur = nxt
@@ -382,19 +386,28 @@ def _settle(r: MatchRow, market: str, sel: str, line: float | None) -> str:
     return "push"
 
 
-def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None) -> None:
+# Por debajo de estos partidos (ponderados) de un equipo, el partido se cuenta además en el grupo "pocos datos"
+FEW_COUNT_MATCHES = 10
+
+
+def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None, suffix: str = "") -> None:
+    """Log-verosimilitud del total y de cada equipo (`<stat> por equipo`) frente a la media de la liga. En las
+    copas (`suffix` = ":UCL") se separan los partidos con un equipo de pocos datos (rivales de ligas sin descargar)."""
     refs = refs or {}
     for stat, cm in cms.items():
         vh, va = r.stats_h.get(stat), r.stats_a.get(stat)
-        if vh is None or va is None or r.home not in cm.attack or r.away not in cm.attack:
+        if vh is None or va is None:
             continue
+        groups = [suffix]
+        if suffix and min(cm.n_matches.get(r.home, 0.0), cm.n_matches.get(r.away, 0.0)) < FEW_COUNT_MATCHES:
+            groups.append(f"{suffix}:pocos_datos")
         mh, ma = cm.expected(r.home, r.away, r.neutral)
         a = cm.dispersion
         total = int(vh + va)
         pmf = dist.convolve(dist.count_pmf(mh, a, 80), dist.count_pmf(ma, a, 80))
         p_model = pmf[total] if total < len(pmf) else 1e-9
         ref = refs.get(r.referee_id) if r.referee_id else None
-        if stat in ("cards", "fouls") and ref:
+        if stat in ("cards", "fouls") and ref and not suffix:
             f = ref["cards_factor"] if stat == "cards" else ref.get("fouls_factor", 1.0)
             pmf_ref = dist.convolve(dist.count_pmf(mh * f, a, 80), dist.count_pmf(ma * f, a, 80))
             p_ref = pmf_ref[total] if total < len(pmf_ref) else 1e-9
@@ -405,4 +418,17 @@ def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None)
             p_naive = nbinom.pmf(total, rr, rr / (rr + naive_mean))
         else:
             p_naive = poisson.pmf(total, naive_mean)
-        count_ll[stat].append((math.log(max(p_model, 1e-9)), math.log(max(p_naive, 1e-9))))
+        naive_h, naive_a = math.exp(cm.mu + (0.0 if r.neutral else cm.home_adv)), math.exp(cm.mu)
+        side_model = _count_logpmf(int(vh), mh, a) + _count_logpmf(int(va), ma, a)
+        side_naive = _count_logpmf(int(vh), naive_h, a) + _count_logpmf(int(va), naive_a, a)
+        for g in groups:
+            count_ll[f"{stat}{g}"].append((math.log(max(p_model, 1e-9)), math.log(max(p_naive, 1e-9))))
+            count_ll[f"{stat} por equipo{g}"].append((side_model, side_naive))
+
+
+def _count_logpmf(k: int, mean: float, dispersion: float) -> float:
+    mean = max(mean, 1e-6)
+    if dispersion <= 1e-6:
+        return float(poisson.logpmf(k, mean))
+    rr = 1 / dispersion
+    return float(nbinom.logpmf(k, rr, rr / (rr + mean)))

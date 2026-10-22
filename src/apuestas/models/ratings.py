@@ -98,7 +98,13 @@ def fit(
     l2: float = 2.0,
     max_age_days: int = 1100,
     market_half_life_days: float | None = None,
+    prior_matches: float | None = None,
 ) -> RatingModel:
+    """`prior_matches`: contracción hacia la media expresada en partidos (ponderados) "promedio" en vez de una L2
+    fija. Cada partido aporta a la curvatura del ataque o la defensa de un equipo tanto como su media (~1,4 en
+    goles, ~5 en córners, ~12 en remates), así que una misma L2 apenas contrae los conteos grandes: con L2 = 1, un
+    equipo con 2 partidos de córners conserva el 90 % de lo que vio en ellos. Con `prior_matches` = K,
+    L2 = K × media y un equipo con n partidos conserva ~n / (n + K)."""
     obs = [o for o in obs if 0 <= (as_of - o.day).days <= max_age_days]
     if not obs:
         raise ValueError("Sin partidos para ajustar el modelo")
@@ -139,6 +145,8 @@ def fit(
         return nll, g
 
     mean_y = max(float(np.average(np.concatenate([yh, ya]), weights=np.concatenate([w, w]))), 1e-3)
+    if prior_matches is not None:
+        l2 = prior_matches * mean_y
     theta0 = np.zeros(2 + 2 * n)
     theta0[0] = np.log(mean_y)
     theta0[1] = 0.1

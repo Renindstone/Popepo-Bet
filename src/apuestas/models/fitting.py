@@ -258,6 +258,23 @@ def market_obs(rows: list[MatchRow], implied: dict[int, tuple[float, float]],
             for r in rows if r.match_id in implied]
 
 
+# Contracción de los modelos de conteo hacia la media, en partidos ponderados "promedio" (`ratings.fit`,
+# `prior_matches`). Antes era una L2 fija de 1, que apenas contraía (~0,1 partidos en remates y faltas, ~0,2 en
+# córners, ~0,5 en tarjetas): un rival europeo con dos partidos conservaba lo que vio en ellos. Viking (5 y 7
+# córners contra Stuttgart y Bayern) salía con ×1,8 de ataque en córners y Aston Villa-Viking, con 14,7 córners
+# esperados frente a 10,5 de Pinnacle. Elegido con el backtest 2024-26 (walk-forward, ligas y Champions; ver
+# docs/modelos.md): más contracción donde los equipos se parecen más entre sí (tarjetas) y menos en remates.
+COUNT_PRIOR_MATCHES = {"shots": 1.0, "shots_on_target": 1.0, "corners": 5.0, "fouls": 5.0, "cards": 10.0}
+
+
+def fit_counts(obs: list[MatchObs], stat: str, as_of: date, half_life_days: float = 240.0,
+               l2: float | None = None) -> RatingModel:
+    """Modelo de una estadística de conteo. `l2` fija la L2 de antes (1,0) en lugar de COUNT_PRIOR_MATCHES."""
+    if l2 is not None:
+        return ratings.fit(obs, as_of, half_life_days=half_life_days, l2=l2)
+    return ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_PRIOR_MATCHES[stat])
+
+
 def count_obs(rows: list[MatchRow], stat: str) -> list[MatchObs]:
     out = []
     for r in rows:
@@ -445,7 +462,7 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
     for stat in COUNT_STATS:
         obs = count_obs(rows, stat)
         if len(obs) >= 200:
-            counts[stat] = ratings.fit(obs, as_of.date(), half_life_days=half_life_days, l2=1.0)
+            counts[stat] = fit_counts(obs, stat, as_of.date(), half_life_days=half_life_days)
     referees = fit_referees(rows, counts["cards"], counts.get("fouls")) if "cards" in counts else {}
     league_avgs: dict[str, float] = {}
     for code in full_codes:

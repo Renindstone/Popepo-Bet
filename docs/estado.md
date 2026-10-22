@@ -5,7 +5,7 @@
 ## Qué funciona hoy
 
 - **Ingesta diaria** de football-data, FotMob y Understat para Premier League, Bundesliga, LaLiga y Champions, más 9 ligas extra de football-data (solo para ratings del mercado de los rivales europeos). Equipos duplicados entre fuentes se fusionan solos cuando es seguro.
-- **Modelo** de goles con fuerza de ataque y defensa, xG promediado y ratings implícitos de las cuotas de cierre; estadísticas (remates, córners, tarjetas, faltas) y proyecciones de jugadores. Ajuste por alineación y bajas.
+- **Modelo** de goles con fuerza de ataque y defensa, xG promediado y ratings implícitos de las cuotas de cierre; estadísticas (remates, córners, tarjetas, faltas) y proyecciones de jugadores. Ajuste por alineación y bajas. Las estadísticas de equipos con pocos partidos se contraen hacia la media, y en sus mercados la probabilidad se mezcla con la de la casa (desde el 2026-10-21: Aston Villa-Viking daba córners con +232 %, ahora como mucho +11 %).
 - **Apuesta del día** a las 09:00 (solo mercados de goles), con un contador de aciertos desde el inicio en Hoy y en Mis apuestas (`GET /picks/record`; las retiradas al recalcular no cuentan) y **liquidación automática** de picks y apuestas después de cada partido (tarea `post_match`, a los :15 y :45).
 - **Cuotas de Betano y Pinnacle** con OddsPapi a las 08:30 (una petición por casa y día), descartando las que vienen con local y visitante invertidos.
 - **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota (con las **cuotas de Betano ya descargadas** de cada partido, evaluadas y listas para el cupón), mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y la lee la **IA local** (Ollama, qwen2.5vl:7b) o, con el botón «Leer con Claude», Claude Code; incluidas combinadas y Bet Builders.
@@ -41,6 +41,7 @@
   - `claude/precio-afilado-mercados`: Pinnacle como precio de referencia en todos los mercados de goles (incluye la rama anterior).
   - `claude/eloquent-murdock-250aed`: calidad de jugador con el rating de FotMob y `backtest --lineups`.
 - **Validar córners, tarjetas y props** con las cuotas de Betano que ya se guardan, antes de dejarlos entrar en la apuesta del día.
+- **Córners de Champions entre ligas**: con equipos bien conocidos, el modelo reparte mal los córners cuando se cruzan ligas (Betis-Feyenoord: Feyenoord 5,5 frente a 4,0 de Pinnacle, y "Más de 7.5" de Feyenoord sale con +97 %). Hace falta un nivel por liga en los modelos de estadísticas (ver `docs/modelos.md`, "Limitación que queda"). Mientras tanto, esas cuotas salen con poca confianza y no pueden ser apuesta del día.
 - **Telegram**: falta crear el bot y poner el token en `.env`.
 - **Diseño en el celular** (consultar al usuario): la página de un partido mide unos 28.000 px de alto (pestañas o secciones plegables) y el menú superior se corta («Mis apuest…») sin señal de que se desplaza. El resto de pendientes de diseño está en la skill `disenio-panel`.
 - `loginctl enable-linger` para que los servicios sigan corriendo sin sesión iniciada (lo ejecuta el usuario).

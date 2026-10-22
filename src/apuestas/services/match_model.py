@@ -23,6 +23,20 @@ MAX_SHARE = 0.95  # ningún jugador participa en todos los goles de su equipo
 YES = ("yes", "si", "sí", "over")
 
 
+def parse_market(market: str) -> tuple[str, str, str]:
+    """(tipo, estadística, ámbito) de un mercado de goles o de estadística: "ou_corners_home" -> ("ou", "corners",
+    "home"), "ah" -> ("ah", "goals", "total"), "ou_sot" -> ("ou", "shots_on_target", "total")."""
+    parts = market.lower().split("_", 1)
+    kind = parts[0]
+    rest = parts[1] if len(parts) > 1 else "goals"
+    scope = "total"
+    for sc in ("home", "away"):
+        if rest.endswith("_" + sc):
+            rest, scope = rest[: -len(sc) - 1], sc
+    stat = "goals" if rest in ("goals", "") else STAT_ALIASES.get(rest, rest)
+    return kind, stat, scope
+
+
 @dataclass
 class PlayerProjection:
     player_id: int
@@ -228,14 +242,7 @@ class MatchModel:
             return self._player_outcome(market, selection, line, player_id)
 
         # Mercado de goles o de una estadística (ou_corners, ah_cards, 1x2_corners...)
-        parts = market.split("_", 1)
-        kind = parts[0]
-        rest = parts[1] if len(parts) > 1 else "goals"
-        scope = "total"
-        for sc in ("home", "away"):
-            if rest.endswith("_" + sc):
-                rest, scope = rest[: -len(sc) - 1], sc
-        stat = "goals" if rest in ("goals", "") else STAT_ALIASES.get(rest, rest)
+        kind, stat, scope = parse_market(market)
         if stat == "goals":
             diff, total, th, ta = self._goal_pmfs()
         elif stat in self._pmfs:
