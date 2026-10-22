@@ -23,7 +23,7 @@ import {
   splitMatch,
   stageText,
 } from "@/lib/format";
-import { useToday } from "@/lib/hooks";
+import { useRemembered, useToday } from "@/lib/hooks";
 import { betLabel, bookmakerName } from "@/lib/markets";
 import type { Capture, DayMatch, PastValueBet, Performance, PickOfDay, PicksReport, PropMinOdds, ValueBet } from "@/lib/types";
 
@@ -170,18 +170,64 @@ export function HoyView() {
 }
 
 function ValueSection({ rows, past }: { rows: (ValueBet | PastValueBet)[]; past: boolean }) {
+  const [order, setOrder] = useRemembered("apuestas.orden-valor", ORDER_IDS);
   return (
     <Section
       title="Otras apuestas con valor"
+      actions={rows.length > 1 ? <OrderPicker value={order} onChange={setOrder} /> : undefined}
       intro={
         past
-          ? "Las que el sistema guardó ese día con valor positivo. Primero las que pasaron el corte, con su resultado."
-          : "Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota. Primero las que pasan el corte de valor, probabilidad y confianza: el sistema las guarda y, cuando termina el partido, anota si se ganaron o se perdieron. Entre ellas sale la apuesta del día."
+          ? "Las que el sistema guardó ese día con valor positivo, con su resultado. Puedes ver primero las que pasaron el corte, las más probables, las de más confianza o las de más valor."
+          : "Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota. Las que pasan el corte de valor, probabilidad y confianza se guardan y, cuando termina el partido, se anota si se ganaron o se perdieron; entre ellas sale la apuesta del día. «Más probables» ordena por la probabilidad de que salga; «Más confianza», por lo seguro que está el modelo de su estimación."
       }
     >
       <PickRecord variant="line" source="corte" />
-      <ValueBets rows={rows} />
+      <ValueBets rows={rows} order={order} />
     </Section>
+  );
+}
+
+// Orden de «Otras apuestas con valor»; se recuerda en el navegador
+const ORDERS = [
+  { id: "corte", label: "Pasan el corte" },
+  { id: "probable", label: "Más probables" },
+  { id: "confianza", label: "Más confianza" },
+  { id: "valor", label: "Más valor" },
+] as const;
+type Order = (typeof ORDERS)[number]["id"];
+const ORDER_IDS = ORDERS.map((o) => o.id);
+
+function OrderPicker({ value, onChange }: { value: Order; onChange: (v: Order) => void }) {
+  return (
+    <fieldset className="flex flex-wrap gap-1">
+      <legend className="sr-only">Ordenar las apuestas con valor</legend>
+      {ORDERS.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          aria-pressed={value === o.id}
+          onClick={() => onChange(o.id)}
+          className={`h-9 rounded-[3px] border px-3 text-interfaz font-semibold ${
+            value === o.id ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </fieldset>
+  );
+}
+
+/** Primero las que pasan el corte (por valor), o todas por probabilidad, confianza o valor esperado */
+function sortRows(rows: (ValueBet | PastValueBet)[], order: Order): (ValueBet | PastValueBet)[] {
+  const key: Record<Order, (r: ValueBet | PastValueBet) => number> = {
+    corte: (r) => r.ev,
+    probable: (r) => r.prob ?? -1,
+    confianza: (r) => r.confidence ?? -1,
+    valor: (r) => r.ev,
+  };
+  return [...rows].sort(
+    (a, b) => (order === "corte" ? Number(passes(b)) - Number(passes(a)) : 0) || key[order](b) - key[order](a),
   );
 }
 
@@ -375,7 +421,7 @@ const th = "py-2 pr-4 text-left text-nota font-medium text-grafito";
 const td = "py-2.5 pr-4 align-middle";
 
 function isLive(row: ValueBet | PastValueBet): row is ValueBet {
-  return "prob" in row;
+  return !("status" in row);
 }
 
 /** Pasa el corte; en un día pasado, la que se retiró antes del partido ya no cuenta */
@@ -398,13 +444,14 @@ function CutTag({ row, short = false }: { row: ValueBet | PastValueBet; short?: 
   return <Tag>{short ? (live ? "No llega" : "No llegó") : live ? "No llega al corte" : "No llegó al corte"}</Tag>;
 }
 
-function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
+function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; order: Order }) {
   const [all, setAll] = useState(false);
-  if (rows.length === 0) return <Empty>No hay cuotas con valor positivo para este día.</Empty>;
+  if (input.length === 0) return <Empty>No hay cuotas con valor positivo para este día.</Empty>;
+  const rows = sortRows(input, order);
   const shown = all ? rows : rows.slice(0, 12);
   const live = isLive(rows[0]);
-  // Primero vienen las que pasan el corte (la API las ordena así); una línea separa las que no llegan
-  const firstOut = shown.findIndex((r) => !passes(r));
+  // Con el orden «Pasan el corte», una línea separa las que no llegan
+  const firstOut = order === "corte" ? shown.findIndex((r) => !passes(r)) : -1;
   const divider = firstOut > 0 ? firstOut : -1;
   return (
     <>
@@ -434,37 +481,38 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
                 </div>
               )}
               <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-nota">
+                {r.prob != null && (
+                  <span>
+                    Prob. <strong className="num">{pct(r.prob)}</strong>
+                  </span>
+                )}
                 <span>
                   Valor <strong className={`num ${r.ev > 0 ? "text-boli" : "text-rojo"}`}>{signedPct(r.ev)}</strong>
                 </span>
-                {isLive(r) ? (
-                  <>
-                    <span>
-                      Confianza <strong className="num">{pct(r.confidence)}</strong>
-                    </span>
-                    <CutTag row={r} />
-                  </>
-                ) : (
-                  <>
-                    <CutTag row={r} />
-                    <PastResult row={r} />
-                  </>
+                {r.confidence != null && (
+                  <span>
+                    Confianza <strong className="num">{pct(r.confidence)}</strong>
+                  </span>
                 )}
+                <CutTag row={r} />
+                {!isLive(r) && <PastResult row={r} />}
               </p>
             </li>
           );
         })}
       </ul>
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[720px] border-collapse text-interfaz">
+        <table className="w-full min-w-[800px] border-collapse text-interfaz">
           <thead className="border-b border-regla">
             <tr>
               <th className={th}>Partido</th>
               <th className={th}>Apuesta</th>
               <th className={`${th} text-right`}>Cuota</th>
               {live && <th className={`${th} w-40`}>Margen</th>}
+              <th className={`${th} text-right`}>Prob.</th>
               <th className={`${th} text-right`}>Valor</th>
-              {live ? <th className={`${th} text-right`}>Confianza</th> : <th className={th}>Resultado</th>}
+              <th className={`${th} text-right`}>Confianza</th>
+              {!live && <th className={th}>Resultado</th>}
               <th className={th}>Corte</th>
             </tr>
           </thead>
@@ -475,7 +523,7 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
                 <Fragment key={i}>
                   {i === divider && (
                     <tr>
-                      <td colSpan={live ? 7 : 6} className="pt-5 pb-2 text-nota font-semibold text-grafito">
+                      <td colSpan={8} className="pt-5 pb-2 text-nota font-semibold text-grafito">
                         No llegan al corte
                       </td>
                     </tr>
@@ -500,12 +548,12 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
                         <EdgeBar prob={r.prob} odds={r.odds} compact />
                       </td>
                     )}
+                    <td className={`${td} num text-right`}>{pct(r.prob)}</td>
                     <td className={`${td} num text-right font-semibold ${r.ev > 0 ? "text-boli" : "text-rojo"}`}>
                       {signedPct(r.ev)}
                     </td>
-                    {isLive(r) ? (
-                      <td className={`${td} num text-right`}>{pct(r.confidence)}</td>
-                    ) : (
+                    <td className={`${td} num text-right`}>{pct(r.confidence)}</td>
+                    {!isLive(r) && (
                       <td className={td}>
                         <PastResult row={r} />
                       </td>

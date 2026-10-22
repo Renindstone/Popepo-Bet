@@ -108,6 +108,8 @@ export interface PastValueBet {
   line: number | null;
   odds: number;
   ev: number;
+  prob?: number;
+  confidence?: number;
   status: string;
   result: string | null;
   qualifies?: boolean;

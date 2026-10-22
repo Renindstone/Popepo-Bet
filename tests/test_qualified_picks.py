@@ -109,3 +109,5 @@ def test_past_day_lists_the_ones_that_passed_first(s):
     # Pasan el corte (d, b por valor) y después el resto, incluida la retirada aunque pasara el corte
     assert [r["selection"] for r in rows] == ["d", "b", "a", "c"]
     assert rows[0]["qualifies"] is True and rows[2]["qualifies"] is False
+    # Probabilidad y confianza guardadas, para poder ordenar por ellas en el panel
+    assert rows[0]["prob"] == 0.5 and rows[0]["confidence"] == 0.8
