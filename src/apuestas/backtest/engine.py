@@ -2,7 +2,9 @@
 apuesta contra las cuotas de bet365 de ese momento. Mide si el modelo habría ganado dinero.
 
 Métricas:
-- Log-loss / Brier del 1X2: modelo vs probabilidades de bet365 vs Pinnacle (sin margen).
+- Log-loss / Brier del 1X2: modelo vs probabilidades de bet365 vs Pinnacle (sin margen), en total y por liga. Por
+  defecto se evalúan las ligas completas (`LEAGUES`: Premier, Bundesliga, LaLiga, Serie A y Ligue 1; hasta el
+  21-10-2026 solo las tres primeras).
 - ROI de apuestas con valor (1X2, más/menos 2.5 y hándicap asiático principal) a cuota previa de bet365.
 - CLV medio: cuota tomada vs cuota de cierre de bet365 (indicador de ventaja real a corto plazo).
 - Calibración de modelos de remates, córners y tarjetas (verosimilitud frente a la media de la liga), del total del
@@ -31,7 +33,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from apuestas.betting import odds as oddsmath
-from apuestas.core.competitions import COMPETITIONS
+from apuestas.core.competitions import COMPETITIONS, FULL
 from apuestas.db import models as m
 from apuestas.features import lineup as lu
 from apuestas.models import distributions as dist
@@ -98,7 +100,8 @@ class BacktestResult:
         return {
             "params": self.params,
             "matches_evaluated": self.n_matches,
-            "logloss_1x2": {k: round(v, 4) for k, v in self.logloss.items()},
+            "logloss_1x2": {k: round(v, 4) for k, v in self.logloss.items() if ":" not in k},
+            "logloss_1x2_por_competicion": _by_competition(self.logloss),
             "brier_1x2": {k: round(v, 4) for k, v in self.brier.items()},
             "logloss_modelo_por_competicion": {k: {"partidos": len(v), "logloss": round(float(np.mean(v)), 4)}
                                                for k, v in sorted(self.ll_by_comp.items())},
@@ -106,6 +109,16 @@ class BacktestResult:
             "count_models": self.count_calibration,
             **({"lineups": self.lineups} if self.lineups else {}),
         }
+
+
+def _by_competition(logloss: dict[str, float]) -> dict[str, dict[str, float]]:
+    """{"modelo:SA": x, "bet365:SA": y} -> {"SA": {"modelo": x, "bet365": y}}."""
+    out: dict[str, dict[str, float]] = defaultdict(dict)
+    for k, v in logloss.items():
+        if ":" in k:
+            name, comp = k.split(":", 1)
+            out[comp][name] = round(v, 4)
+    return dict(sorted(out.items()))
 
 
 def _profit(b: Bet) -> float:
@@ -120,10 +133,14 @@ def _odds_map(s: Session, match_ids: list[int]) -> dict[int, dict[tuple, float]]
     return out
 
 
+# Ligas con cuotas de football-data que se evalúan por defecto: las completas que no son copas
+LEAGUES = tuple(c.code for c in FULL if not c.is_cup)
+
+
 def run(
     start: date,
     end: date,
-    competitions: tuple[str, ...] = ("EPL", "BUN", "LAL"),
+    competitions: tuple[str, ...] = LEAGUES,
     half_life_days: float = 240.0,
     xg_weight: float = 0.85,
     min_ev: float = 0.03,
@@ -248,6 +265,7 @@ def _evaluate_match(r: MatchRow, gm, rho: float, od: dict, res: BacktestResult, 
         return  # comparamos solo partidos con todas las referencias
     for name, p in variants.items():
         ll[name].append(-math.log(max(p[outcome_idx], 1e-9)))
+        ll[f"{name}:{r.competition}"].append(ll[name][-1])
         br[name].append(sum((p[i] - (1.0 if i == outcome_idx else 0.0)) ** 2 for i in range(3)))
 
     diff = dist.diff_pmf_from_matrix(mat)

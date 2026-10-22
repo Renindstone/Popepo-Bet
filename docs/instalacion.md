@@ -53,11 +53,11 @@ Crea un PostgreSQL propio del proyecto en `~/.local/share/apuestas/pgdata`, que 
 ## 4. Datos y modelos
 
 ```bash
-.venv/bin/apuestas ingest all --seasons 3 --backfill 6000
+.venv/bin/apuestas ingest all --seasons 3 --backfill 8000
 ```
 
 Descarga 3 temporadas de historial más la actual: resultados, estadísticas, alineaciones, árbitros y cuotas de football-data.co.uk, FotMob y Understat.
-- **La primera vez tarda 2 o 3 horas**, porque las peticiones van despacio a propósito para no saturar las fuentes.
+- **La primera vez tarda 3 o 4 horas**, porque las peticiones van despacio a propósito para no saturar las fuentes.
 - Si se corta, vuelve a lanzarlo: lo ya descargado está en caché (`var/cache`) y no se repite.
 
 Luego entrena los modelos (unos minutos):
