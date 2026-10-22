@@ -129,7 +129,7 @@ Las cuotas de bet365 y Pinnacle llegan gratis vía football-data.co.uk (1X2, gol
 3. Comprueba la clave con `.venv/bin/apuestas ingest oddspapi --estado` (muestra las peticiones usadas y el límite del mes) y haz la primera descarga con `.venv/bin/apuestas ingest oddspapi`.
 4. Reinicia el worker: `systemctl --user restart apuestas-worker apuestas-api`. Desde entonces baja las cuotas cada día a las 08:30.
 
-Por defecto descarga **Betano Perú y Pinnacle** (`APUESTAS_ODDSPAPI_BOOKMAKERS=betano.pe,pinnacle`). Pinnacle sirve de referencia del mercado afilado en la Champions. La API solo admite una casa por petición, así que cada casa cuesta 1 petición al día. Con dos casas son unas 60 peticiones al mes, más ~12 de catálogos (equipos, torneos y mercados, una vez por semana). El plan gratuito da 250 al mes. Para añadir bet365 (sus cuotas de Champions), pon `betano.pe,pinnacle,bet365` (+30 al mes).
+Por defecto descarga **Betano Perú y Pinnacle** (`APUESTAS_ODDSPAPI_BOOKMAKERS=betano.pe,pinnacle`). Pinnacle sirve de referencia del mercado afilado en la Champions. La API solo admite una casa y 5 competiciones por petición, así que solo se piden las competiciones que juegan en los próximos 3 días (`APUESTAS_ODDSPAPI_WINDOW_DAYS`): casi siempre 1 petición por casa y día, y 2 cuando juegan las seis (semanas de Champions). Con dos casas son unas 60-90 peticiones al mes, más ~12 de catálogos (equipos, torneos y mercados, una vez por semana). El plan gratuito da 250 al mes. Para añadir bet365 (sus cuotas de Champions), pon `betano.pe,pinnacle,bet365` (+30 al mes).
 
 ## Resultado del backtest (honesto)
 

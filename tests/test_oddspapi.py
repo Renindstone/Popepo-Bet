@@ -249,3 +249,35 @@ def test_sensitive_responses_are_not_cached(tmp_path, monkeypatch):
     assert not list(tmp_path.rglob("*.gz"))
     pc.get_bytes("https://api.oddspapi.io/v4/markets", params={"apiKey": "x"}, ttl=0)
     assert len(list(tmp_path.rglob("*.gz"))) == 1  # lo demás sí se cachea
+
+
+# --------------------------------------------------------------------------- peticiones por descarga (cupo de 250 al mes)
+
+SIX = {"EPL": 17, "BUN": 35, "LAL": 8, "SA": 23, "L1": 34, "UCL": 7}
+
+
+def test_tournament_groups_have_at_most_five():
+    groups = oddspapi.tournament_groups(SIX, set(SIX))
+    assert [len(g) for g in groups] == [5, 1]
+    assert oddspapi.tournament_groups(SIX, {"EPL", "SA", "L1"}) == [[17, 23, 34]]
+    assert oddspapi.tournament_groups(SIX, set()) == []
+
+
+@pytest.mark.parametrize("playing, calls_per_book", [(set(SIX), 2), ({"EPL", "BUN", "LAL", "SA", "L1"}, 1), (set(), 0)])
+def test_sync_upcoming_requests_only_what_plays_soon(monkeypatch, playing, calls_per_book):
+    calls = []
+
+    def fake_get(path, ttl, **params):
+        calls.append((path, params))
+        return {"markets": MARKETS, "participants": {}}.get(path, [])
+
+    monkeypatch.setattr(oddspapi, "bookmakers", lambda: ["betano.pe", "pinnacle"])
+    monkeypatch.setattr(oddspapi, "tournament_ids", lambda: SIX)
+    monkeypatch.setattr(oddspapi, "playing_soon", lambda days, now=None: playing)
+    monkeypatch.setattr(oddspapi, "_get", fake_get)
+    assert oddspapi.sync_upcoming() == 0
+    odds_calls = [p for path, p in calls if path == "odds-by-tournaments"]
+    assert len(odds_calls) == 2 * calls_per_book
+    assert all(len(p["tournamentIds"].split(",")) <= oddspapi.MAX_TOURNAMENTS for p in odds_calls)
+    if not playing:
+        assert calls == []  # ni siquiera los catálogos
