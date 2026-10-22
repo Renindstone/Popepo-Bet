@@ -7,13 +7,22 @@ Endpoints públicos que usa la propia web de FotMob. Uso personal y con ritmo mo
 from __future__ import annotations
 
 import contextlib
+import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 from apuestas.ingest.http import client
 
+log = logging.getLogger(__name__)
+
 BASE = "https://www.fotmob.com/api/data"
+
+# `content.lineup.lineupType`: "standard" es el once oficial; "predicted", el probable; y "lastStarting11", el último
+# once titular del equipo, que FotMob enseña cuando aún no tiene probable. Solo el oficial cuenta como confirmado; lo
+# demás, y cualquier tipo nuevo, se guarda como probable.
+LINEUP_CONFIRMED = "standard"
+LINEUP_TYPES = {"standard", "predicted", "lastStarting11"}
 
 POSITION_BY_USUAL = {0: "GK", 1: "DF", 2: "MF", 3: "FW"}
 
@@ -104,7 +113,7 @@ class FMDetails:
     away_goals_ht: int | None
     referee: str | None
     referee_country: str | None
-    lineup_type: str | None  # predicted | confirmed | None
+    lineup_type: str | None  # predicted | confirmed | None (ver LINEUP_CONFIRMED)
     players: list[FMPlayer] = field(default_factory=list)
     unavailable: list[FMUnavailable] = field(default_factory=list)
     team_stats: dict[int, dict[str, float]] = field(default_factory=dict)  # team_fotmob_id -> stats
@@ -219,7 +228,10 @@ def parse_match_details(data: dict) -> FMDetails:
     lineup = content.get("lineup") or {}
     ltype = lineup.get("lineupType")
     if ltype:
-        det.lineup_type = "predicted" if ltype == "predicted" else "confirmed"
+        det.lineup_type = "confirmed" if ltype == LINEUP_CONFIRMED else "predicted"
+        if ltype not in LINEUP_TYPES:
+            log.warning("FotMob: tipo de alineación desconocido %r (partido %s); se guarda como probable",
+                        ltype, det.fotmob_id)
     for side_key in ("homeTeam", "awayTeam"):
         side = lineup.get(side_key) or {}
         team_fid = int(side.get("id") or (home_id if side_key == "homeTeam" else away_id))

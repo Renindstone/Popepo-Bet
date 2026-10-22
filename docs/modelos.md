@@ -88,7 +88,7 @@ Limitación: en partidos antiguos el valor de mercado es el de la fecha de desca
 
 - **Probabilidad final** = 25 % modelo + 75 % mercado afilado (Pinnacle/Betfair sin margen) cuando existe. Si no existe, solo el modelo.
 - **Valor esperado** = prob × cuota − 1 (corregido por la probabilidad de devolución en líneas asiáticas).
-- **Confianza** (0-1) = alineación (confirmada 1 · prevista 0,85 · solo bajas 0,72) × muestra × tipo de mercado (principal 1 / estadísticas 0,75 / jugador 0,65) × acuerdo modelo-mercado × riesgo de rotación × cobertura del mercado (abajo).
+- **Confianza** (0-1) = alineación (confirmada 1 · prevista 0,85 · solo bajas 0,72; el último once que FotMob da cuando aún no tiene probable cuenta como previsto, y solo el oficial como confirmado) × muestra × tipo de mercado (principal 1 / estadísticas 0,75 / jugador 0,65) × acuerdo modelo-mercado × riesgo de rotación × cobertura del mercado (abajo).
 - **Equipos que el mercado no ha visto** (`analysis.MARKET_COVERED`). Se cuentan los partidos de cada equipo con cuotas de cierre en el último año (`RatingModel.market_matches`). Si alguno de los dos equipos tiene menos de 10:
   - la confianza se multiplica por un factor que baja linealmente hasta 0,6 con 0 partidos;
   - en los mercados de goles (1X2, doble oportunidad, empate no válido, ambos marcan, hándicaps y más/menos goles), si no hay mercado afilado, la probabilidad se mezcla con la de la propia cuota sin margen (se supone un 5 %). El peso del modelo es el mismo 25 % de la mezcla con Pinnacle cuando el equipo tiene 0 partidos, y sube hasta 100 % con 10.
