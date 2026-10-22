@@ -413,7 +413,10 @@ export interface PickHistory {
 }
 
 export interface DataStatus {
-  sources: Record<string, { task: string; finished_at: string | null; status: string }>;
+  sources: Record<
+    string,
+    { task: string; finished_at: string | null; status: string; reason?: string | null; last_ok?: string | null }
+  >;
   counts: {
     matches: number;
     matches_with_details: number;

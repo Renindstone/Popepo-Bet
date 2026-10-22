@@ -69,7 +69,10 @@ export function DatosView() {
                         {SOURCES[key] && <span className="block text-nota text-grafito">{SOURCES[key].what}</span>}
                       </td>
                       <td className="py-2.5 pr-4 text-grafito">{src.task}</td>
-                      <td className="py-2.5 pr-4">{statusTag(src.status, src.finished_at)}</td>
+                      <td className="py-2.5 pr-4">
+                        {statusTag(src.status, src.finished_at)}
+                        {src.reason && <span className="mt-1 block text-nota text-grafito">{src.reason}</span>}
+                      </td>
                       <td className="num py-2.5">
                         {src.finished_at ? (
                           <>
@@ -78,6 +81,11 @@ export function DatosView() {
                           </>
                         ) : (
                           <span className="text-grafito">Aún no termina</span>
+                        )}
+                        {src.status !== "ok" && src.last_ok && (
+                          <span className="mt-1 block text-nota text-grafito">
+                            Último dato bueno: {dateTimeLima(src.last_ok)} ({ago(src.last_ok)})
+                          </span>
                         )}
                       </td>
                     </tr>

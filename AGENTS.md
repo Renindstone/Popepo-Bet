@@ -25,7 +25,7 @@ Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga 
 ## Reglas que no se rompen
 
 1. **El repositorio es público.** Nunca subas `.env`, `var/`, copias de la BD, claves de API ni datos personales. Las claves viven solo en `.env`. Los errores y registros no llevan URLs con claves (ver `ingest/http.py`), y las respuestas que contienen claves no se guardan en la caché.
-2. **No esquives protecciones anti-bots.** Todas las peticiones pasan por `ingest.http.client()` (caché, ritmo y reintentos). Si una fuente bloquea, se descarta.
+2. **No esquives protecciones anti-bots.** Todas las peticiones pasan por `ingest.http.client()` (caché, ritmo, reintentos y una pausa de 30 min para un host que no conecta). Si una fuente bloquea, se descarta.
 3. **Ninguna fuente puede tumbar la ingesta.** Todo pasa por `pipeline._run`, que deja registro en `ingestion_run`.
 4. **La base de datos es compartida** por todas las ramas y worktrees (127.0.0.1:5433). Antes de fusionar o borrar datos haz `pg_dump` a `var/backups/`. El modelo solo entrena con las competiciones de `core/competitions.py`.
 5. **Cualquier cambio en el modelo se justifica con `apuestas backtest`** y se documenta en `docs/modelos.md` con las cifras de antes y después.

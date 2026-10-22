@@ -5,7 +5,7 @@
 ```
 Fuentes gratis                         src/apuestas/
 ──────────────                         ─────────────
-football-data.co.uk ─┐   ingest/      descarga educada (caché en disco, ritmo, reintentos)
+football-data.co.uk ─┐   ingest/      descarga educada (caché en disco, ritmo, reintentos, pausa de hosts caídos)
 FotMob (Opta)        ├─► store.py     resolución de entidades entre fuentes + validación de stats
 Understat            │   pipeline.py  orden y frecuencia de la ingesta
 OddsPapi (opcional) ─┘        │

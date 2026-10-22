@@ -497,13 +497,30 @@ def set_bankroll(username: str, bankroll: float, currency: str = "PEN") -> dict:
         return tracker.bankroll_status(s, user)
 
 
+def failure_reason(error: str | None) -> str | None:
+    """Motivo de un fallo de ingesta en una línea, sin el traceback."""
+    if not error:
+        return None
+    first = error.strip().splitlines()[0]
+    if "no responde" in first or "timed out" in first or "No se pudo descargar" in first:
+        return "El sitio no responde"
+    return first[:160]
+
+
 def data_status() -> dict:
     with session_scope() as s:
         last = {}
-        for src, task, fin, status in s.execute(
-                select(m.IngestionRun.source, m.IngestionRun.task, m.IngestionRun.finished_at, m.IngestionRun.status)
+        for src, task, fin, status, error in s.execute(
+                select(m.IngestionRun.source, m.IngestionRun.task, m.IngestionRun.finished_at, m.IngestionRun.status,
+                       m.IngestionRun.error)
                 .order_by(m.IngestionRun.id.desc()).limit(200)):
-            last.setdefault(src, {"task": task, "finished_at": fin.isoformat() if fin else None, "status": status})
+            last.setdefault(src, {"task": task, "finished_at": fin.isoformat() if fin else None, "status": status,
+                                  "reason": failure_reason(error) if status == "error" else None})
+        # Cuándo dio datos por última vez cada fuente (para ver desde cuándo falla)
+        for src, fin in s.execute(select(m.IngestionRun.source, func.max(m.IngestionRun.finished_at))
+                                  .where(m.IngestionRun.status == "ok").group_by(m.IngestionRun.source)):
+            if src in last:
+                last[src]["last_ok"] = fin.isoformat() if fin else None
         counts = {
             "matches": s.scalar(select(func.count(m.Match.id))),
             "matches_with_details": s.scalar(select(func.count(m.Match.id)).where(m.Match.details_fetched_at.is_not(None))),
