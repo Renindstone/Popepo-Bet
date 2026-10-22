@@ -138,6 +138,14 @@ export const RESULTS: Record<string, string> = {
   void: "Anulada",
 };
 
+/** Tono de la etiqueta de un resultado: azul si se ganó, rojo si se perdió (siempre con su palabra) */
+export const RESULT_TONE: Record<string, "boli" | "rojo" | "neutral"> = {
+  win: "boli",
+  half_win: "boli",
+  loss: "rojo",
+  half_loss: "rojo",
+};
+
 export function resultText(r: string | null | undefined): string {
   if (!r) return "Pendiente";
   return RESULTS[r] ?? r;

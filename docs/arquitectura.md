@@ -33,6 +33,8 @@ OddsPapi (opcional) ─┘        │
 
 El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia.
 
+**Apuestas que pasan el corte:** cada apuesta con valor de un partido que aún no empezó se guarda en `pick` (`picks.generate`) y se actualiza en cada recálculo; `pick.qualifies` dice si pasa el corte de la apuesta del día (`picks.qualifies`: valor, probabilidad, confianza, rango de cuota y, por ahora, solo mercados de goles). Vale el último cálculo antes del partido: si deja de tener valor se retira (`status = "withdrawn"`) y si deja de pasar el corte se desmarca. La liquidación es la de siempre (`picks.settle_all`), y `GET /picks/qualified` da sus aciertos desde el inicio y las de los últimos días.
+
 **Combinadas registradas:** una apuesta con `market = "combo"` en `user_bet`, cuyo partido es el que termina último, y sus selecciones en `user_bet_leg`. La liquidación (`picks.settle_all` y `betting.settlement.combo_profit`) resuelve cada selección y la combinada: una perdida basta para perderla; una anulada divide su cuota de la total.
 
 **Quién es local:** la API solo atiende sin clave las peticiones que llegan desde la propia máquina **sin** cabeceras de proxy o túnel (`X-Forwarded-For`, `CF-Connecting-IP`…). Todo lo demás necesita `X-API-Key`.

@@ -202,6 +202,12 @@ def pick_record(user: str = Depends(current_user)) -> dict:
     return picks.pick_record()
 
 
+@app.get("/picks/qualified")
+def qualified_picks(days: int = 60, user: str = Depends(current_user)) -> dict:
+    """Las que pasaron el corte (no solo la apuesta del día): aciertos desde el inicio y las de los últimos días."""
+    return picks.qualified_picks(days)
+
+
 @app.post("/odds/evaluate")
 def evaluate(o: OddsIn, user: str = Depends(current_user)) -> dict:
     return _wrap(queries.evaluate_odds, o.match, o.market, o.selection, o.odds, o.line, o.bookmaker, o.player)

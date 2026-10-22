@@ -110,6 +110,8 @@ export interface PastValueBet {
   ev: number;
   status: string;
   result: string | null;
+  qualifies?: boolean;
+  is_pick_of_day?: boolean;
 }
 
 export interface StatSummary {
@@ -361,6 +363,33 @@ export interface PickRecord {
   hit_rate: number | null;
   profit_units: number;
   roi: number | null;
+}
+
+/** Una de las que pasaron el corte de valor, probabilidad y confianza (incluye la apuesta del día) */
+export interface QualifiedPick {
+  pick_id: number;
+  date: string;
+  match_id: number;
+  kickoff_local: string;
+  match: string;
+  market: string;
+  selection: string;
+  line: number | null;
+  bookmaker: string;
+  odds: number;
+  prob: number;
+  ev: number;
+  confidence: number;
+  is_pick_of_day: boolean;
+  status: string;
+  result: string | null;
+  clv: number | null;
+  profit_units: number | null;
+}
+
+export interface QualifiedPicks {
+  record: PickRecord;
+  picks: QualifiedPick[];
 }
 
 export interface PickHistory {

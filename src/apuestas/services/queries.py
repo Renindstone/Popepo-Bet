@@ -156,7 +156,9 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
     if refresh or d >= picks.today_local():
         return picks.generate(d)
     with session_scope() as s:
-        rows = list(s.scalars(select(m.Pick).where(m.Pick.pick_date == d).order_by(m.Pick.ev.desc())))
+        # Primero las que pasaron el corte (y no se retiraron), luego el resto por valor esperado
+        rows = sorted(s.scalars(select(m.Pick).where(m.Pick.pick_date == d)),
+                      key=lambda p: (not (p.qualifies and p.status != "withdrawn"), -p.ev))
         pod = next((p for p in rows if p.is_pick_of_day), None)
         return {
             "date": d.isoformat(),
@@ -166,7 +168,8 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
                 "result": pod.result, "clv": pod.clv},
             "value_bets": [{"match": f"{p.match.home_team.name} vs {p.match.away_team.name}", "market": p.market,
                             "selection": p.selection, "line": p.line, "odds": p.odds, "ev": round(p.ev, 3),
-                            "status": p.status, "result": p.result} for p in rows],
+                            "status": p.status, "result": p.result, "qualifies": p.qualifies,
+                            "is_pick_of_day": p.is_pick_of_day} for p in rows],
         }
 
 

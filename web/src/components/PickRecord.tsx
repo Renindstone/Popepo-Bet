@@ -1,21 +1,64 @@
 "use client";
 
+import Link from "next/link";
 import { Figure } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { int, pct, shortDate, signedPct } from "@/lib/format";
-import type { PickRecord as Record } from "@/lib/types";
+import type { QualifiedPicks, PickRecord as Record } from "@/lib/types";
 
 function units(u: number): string {
   return `${u > 0 ? "+" : ""}${u.toFixed(2)} u`;
 }
 
-/** Contador de aciertos de la apuesta del día desde el primer día del sistema. */
-export function PickRecord({ variant = "card" }: { variant?: "card" | "row" }) {
-  const { data: r } = useApi<Record>("/picks/record");
-  if (!r) return null;
+const SOURCES = {
+  // La apuesta del día: una por día como mucho
+  dia: { path: "/picks/record", title: "Aciertos de la apuesta del día", who: "Todas las que eligió el sistema" },
+  // Todas las que pasaron el corte de valor, probabilidad y confianza (la apuesta del día es una de ellas)
+  corte: {
+    path: "/picks/qualified",
+    title: "Aciertos de las que pasan el corte",
+    who: "Todas las que pasaron el corte de valor, probabilidad y confianza",
+  },
+} as const;
+
+/** Contador de aciertos desde el primer día del sistema: de la apuesta del día o de todas las que pasan el corte. */
+export function PickRecord({
+  variant = "card",
+  source = "dia",
+}: {
+  variant?: "card" | "row" | "line";
+  source?: keyof typeof SOURCES;
+}) {
+  const src = SOURCES[source];
+  const { data } = useApi<Record | QualifiedPicks>(src.path);
+  if (!data) return null;
+  const r = "record" in data ? data.record : data;
   const decided = r.hits + r.misses;
   const tone = r.profit_units > 0 ? "boli" : r.profit_units < 0 ? "rojo" : undefined;
   const since = r.since ? `desde el ${shortDate(r.since)}` : "desde el inicio";
+
+  if (variant === "line") {
+    const pending = r.pending === 1 ? "1 por jugarse" : `${int(r.pending)} por jugarse`;
+    return (
+      <p className="mb-4 border-l-[3px] border-boli bg-hoja px-3 py-2 text-interfaz">
+        {r.settled === 0 ? (
+          <>Las que pasan el corte se guardan y se liquidan solas: aún no terminó ninguna ({pending}). </>
+        ) : (
+          <>
+            Las que pasan el corte, {since}: <strong className="num">{`${int(r.hits)} de ${int(decided)}`}</strong>{" "}
+            aciertos ({pct(r.hit_rate)}) y{" "}
+            <strong className={`num ${tone === "boli" ? "text-boli" : tone === "rojo" ? "text-rojo" : ""}`}>
+              {units(r.profit_units)}
+            </strong>{" "}
+            con 1 u por apuesta; {pending}.{" "}
+          </>
+        )}
+        <Link href="/rendimiento#corte" className="font-semibold text-boli underline underline-offset-4">
+          Ver historial
+        </Link>
+      </p>
+    );
+  }
 
   if (variant === "row") {
     return (
@@ -34,11 +77,13 @@ export function PickRecord({ variant = "card" }: { variant?: "card" | "row" }) {
   }
 
   return (
-    <section aria-labelledby="record-titulo" className="rounded-[4px] border border-regla bg-hoja p-5">
-      <h2 id="record-titulo" className="semi text-base font-bold text-tinta">
-        Aciertos de la apuesta del día
+    <section aria-labelledby={`record-${source}`} className="rounded-[4px] border border-regla bg-hoja p-5">
+      <h2 id={`record-${source}`} className="semi text-base font-bold text-tinta">
+        {src.title}
       </h2>
-      <p className="mb-4 text-nota text-grafito">Todas las que eligió el sistema, {since}.</p>
+      <p className="mb-4 text-nota text-grafito">
+        {src.who}, {since}.
+      </p>
       {r.settled === 0 ? (
         <p className="text-nota text-grafito">
           Aún no terminó ninguna. {r.pending === 1 ? "Hay 1 por jugarse." : `Hay ${int(r.pending)} por jugarse.`}

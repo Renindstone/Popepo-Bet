@@ -24,6 +24,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -322,6 +323,8 @@ class Pick(Base):
     confidence: Mapped[float] = mapped_column(Float)
     stake_pct: Mapped[float] = mapped_column(Float)
     is_pick_of_day: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    # Pasa el corte de valor, probabilidad y confianza (`picks.qualifies`) en el último cálculo antes del partido
+    qualifies: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), index=True)
     status: Mapped[str] = mapped_column(String(10), default="open")  # open | withdrawn | settled
     result: Mapped[str | None] = mapped_column(String(10))  # win | loss | push | half_win | half_loss | void
     closing_odds: Mapped[float | None] = mapped_column(Float)

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { Fragment, useCallback, useState } from "react";
 import { CaptureDrop } from "@/components/capturas/CaptureDrop";
 import { Crest } from "@/components/Crest";
 import { PenMark } from "@/components/PenMark";
@@ -16,6 +16,7 @@ import {
   money,
   odds,
   pct,
+  RESULT_TONE,
   resultText,
   shiftDay,
   signedPct,
@@ -174,10 +175,11 @@ function ValueSection({ rows, past }: { rows: (ValueBet | PastValueBet)[]; past:
       title="Otras apuestas con valor"
       intro={
         past
-          ? "Las que el sistema guardó ese día con valor positivo."
-          : "Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota. Solo las que pasan el corte de valor, probabilidad y confianza pueden ser apuesta del día."
+          ? "Las que el sistema guardó ese día con valor positivo. Primero las que pasaron el corte, con su resultado."
+          : "Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota. Primero las que pasan el corte de valor, probabilidad y confianza: el sistema las guarda y, cuando termina el partido, anota si se ganaron o se perdieron. Entre ellas sale la apuesta del día."
       }
     >
+      <PickRecord variant="line" source="corte" />
       <ValueBets rows={rows} />
     </Section>
   );
@@ -376,11 +378,34 @@ function isLive(row: ValueBet | PastValueBet): row is ValueBet {
   return "prob" in row;
 }
 
+/** Pasa el corte; en un día pasado, la que se retiró antes del partido ya no cuenta */
+function passes(row: ValueBet | PastValueBet): boolean {
+  return isLive(row) ? row.qualifies : !!row.qualifies && row.status !== "withdrawn";
+}
+
+/** Resultado de una guardada: retirada antes del partido, pendiente o cómo terminó */
+function PastResult({ row }: { row: PastValueBet }) {
+  if (row.status === "withdrawn") return <Tag>Retirada</Tag>;
+  return <Tag tone={row.result ? (RESULT_TONE[row.result] ?? "neutral") : "tarjeta"}>{resultText(row.result)}</Tag>;
+}
+
+/** Corte: «Pasa» en azul y «No llega» en gris, siempre con su palabra */
+function CutTag({ row, short = false }: { row: ValueBet | PastValueBet; short?: boolean }) {
+  const live = isLive(row);
+  if (passes(row)) {
+    return <Tag tone="boli">{short ? (live ? "Pasa" : "Pasó") : live ? "Pasa el corte" : "Pasó el corte"}</Tag>;
+  }
+  return <Tag>{short ? (live ? "No llega" : "No llegó") : live ? "No llega al corte" : "No llegó al corte"}</Tag>;
+}
+
 function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
   const [all, setAll] = useState(false);
   if (rows.length === 0) return <Empty>No hay cuotas con valor positivo para este día.</Empty>;
   const shown = all ? rows : rows.slice(0, 12);
   const live = isLive(rows[0]);
+  // Primero vienen las que pasan el corte (la API las ordena así); una línea separa las que no llegan
+  const firstOut = shown.findIndex((r) => !passes(r));
+  const divider = firstOut > 0 ? firstOut : -1;
   return (
     <>
       <ul className="divide-y divide-regla-suave border-y border-regla-suave md:hidden">
@@ -388,6 +413,7 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
           const [home, away] = splitMatch(r.match);
           return (
             <li key={i} className="py-3">
+              {i === divider && <p className="mb-3 text-nota font-semibold text-grafito">No llegan al corte</p>}
               <div className="flex items-start justify-between gap-4">
                 <span className="font-semibold">{betLabel(r.market, r.selection, r.line, { home, away })}</span>
                 <span className="cond num text-2xl leading-none font-bold">{odds(r.odds)}</span>
@@ -416,10 +442,13 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
                     <span>
                       Confianza <strong className="num">{pct(r.confidence)}</strong>
                     </span>
-                    {r.qualifies ? <Tag tone="boli">Pasa el corte</Tag> : <Tag>No llega al corte</Tag>}
+                    <CutTag row={r} />
                   </>
                 ) : (
-                  <span>{resultText(r.result)}</span>
+                  <>
+                    <CutTag row={r} />
+                    <PastResult row={r} />
+                  </>
                 )}
               </p>
             </li>
@@ -436,45 +465,56 @@ function ValueBets({ rows }: { rows: (ValueBet | PastValueBet)[] }) {
               {live && <th className={`${th} w-40`}>Margen</th>}
               <th className={`${th} text-right`}>Valor</th>
               {live ? <th className={`${th} text-right`}>Confianza</th> : <th className={th}>Resultado</th>}
-              {live && <th className={th}>Corte</th>}
+              <th className={th}>Corte</th>
             </tr>
           </thead>
           <tbody>
             {shown.map((r, i) => {
               const [home, away] = splitMatch(r.match);
               return (
-                <tr key={i} className="border-b border-regla-suave">
-                  <td className={`${td} max-w-56`}>
-                    {isLive(r) ? (
-                      <Link href={`/partidos/${r.match_id}`} className="hover:text-boli hover:underline">
-                        {r.match}
-                      </Link>
-                    ) : (
-                      r.match
-                    )}
-                  </td>
-                  <td className={td}>
-                    {betLabel(r.market, r.selection, r.line, { home, away })}
-                    {isLive(r) && <span className="block text-nota text-grafito">{bookmakerName(r.bookmaker)}</span>}
-                  </td>
-                  <td className={`${td} num cond text-right text-lg font-bold`}>{odds(r.odds)}</td>
-                  {isLive(r) && (
-                    <td className={td}>
-                      <EdgeBar prob={r.prob} odds={r.odds} compact />
+                <Fragment key={i}>
+                  {i === divider && (
+                    <tr>
+                      <td colSpan={live ? 7 : 6} className="pt-5 pb-2 text-nota font-semibold text-grafito">
+                        No llegan al corte
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="border-b border-regla-suave">
+                    <td className={`${td} max-w-56`}>
+                      {isLive(r) ? (
+                        <Link href={`/partidos/${r.match_id}`} className="hover:text-boli hover:underline">
+                          {r.match}
+                        </Link>
+                      ) : (
+                        r.match
+                      )}
                     </td>
-                  )}
-                  <td className={`${td} num text-right font-semibold ${r.ev > 0 ? "text-boli" : "text-rojo"}`}>
-                    {signedPct(r.ev)}
-                  </td>
-                  {isLive(r) ? (
-                    <td className={`${td} num text-right`}>{pct(r.confidence)}</td>
-                  ) : (
-                    <td className={td}>{resultText(r.result)}</td>
-                  )}
-                  {isLive(r) && (
-                    <td className={td}>{r.qualifies ? <Tag tone="boli">Pasa</Tag> : <Tag>No llega</Tag>}</td>
-                  )}
-                </tr>
+                    <td className={td}>
+                      {betLabel(r.market, r.selection, r.line, { home, away })}
+                      {isLive(r) && <span className="block text-nota text-grafito">{bookmakerName(r.bookmaker)}</span>}
+                    </td>
+                    <td className={`${td} num cond text-right text-lg font-bold`}>{odds(r.odds)}</td>
+                    {isLive(r) && (
+                      <td className={td}>
+                        <EdgeBar prob={r.prob} odds={r.odds} compact />
+                      </td>
+                    )}
+                    <td className={`${td} num text-right font-semibold ${r.ev > 0 ? "text-boli" : "text-rojo"}`}>
+                      {signedPct(r.ev)}
+                    </td>
+                    {isLive(r) ? (
+                      <td className={`${td} num text-right`}>{pct(r.confidence)}</td>
+                    ) : (
+                      <td className={td}>
+                        <PastResult row={r} />
+                      </td>
+                    )}
+                    <td className={td}>
+                      <CutTag row={r} short />
+                    </td>
+                  </tr>
+                </Fragment>
               );
             })}
           </tbody>
