@@ -14,6 +14,7 @@ from apuestas.config import get_settings
 from apuestas.db import models as m
 from apuestas.features import context as ctx
 from apuestas.features import lineup as lu
+from apuestas.models import fitting
 from apuestas.models.distributions import Outcome
 from apuestas.models.fitting import ModelBundle
 from apuestas.services.match_model import MatchModel, PlayerProjection, parse_market
@@ -420,6 +421,13 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         if r:
             ref_cards, ref_fouls = r["cards_factor"], r.get("fouls_factor", 1.0)
 
+    odds_rows = _latest_odds(s, match.id)
+    # Diferencia de fuerza que ve la casa frente al modelo de goles (ya con las alineaciones, para no contar dos
+    # veces las bajas que la casa también conoce): mueve el reparto de remates y córners (fitting.strength_shift)
+    mkt = fitting.prematch_market_goals({(r.bookmaker, r.market, r.selection): r.price for r in odds_rows
+                                         if r.market == "1x2" or (r.market == "ou_goals" and r.line == 2.5)})
+    delta = fitting.strength_delta(mkt[1:], (lam_h, lam_a)) if mkt else 0.0
+
     count_means: dict[str, tuple[float, float]] = {}
     dispersion: dict[str, float] = {}
     for stat, cm in bundle.counts.items():
@@ -428,6 +436,7 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
             # Un equipo más fuerte de lo habitual genera más volumen ofensivo (efecto atenuado)
             mh *= (adj_h.attack_mult * adj_a.defence_mult) ** 0.7
             ma *= (adj_a.attack_mult * adj_h.defence_mult) ** 0.7
+            mh, ma = fitting.strength_shift(cm, mh, ma, delta)
         elif stat == "cards":
             mh, ma = mh * ref_cards, ma * ref_cards
         elif stat == "fouls":
@@ -470,6 +479,8 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         "market_factor": round(MIN_MARKET_FACTOR + (1 - MIN_MARKET_FACTOR) * min(1.0, market_min / MARKET_COVERED), 3)
         if market_min is not None else 1.0,
         "market_weight": round(market_coverage_weight(market_min), 3),
+        # Casa cuyo 1X2 movió el reparto de remates y córners, y cuánto (δ: fuerza sumada al local)
+        "count_market_shift": {"book": mkt[0], "delta": round(delta, 3)} if mkt else None,
     }
     # Partidos (ponderados) del equipo menos visto en cada estadística, y quiénes están por debajo de STAT_COVERED
     quality["stat_matches_min"] = {
@@ -484,7 +495,6 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
                                      "el modelo es poco fiable en este partido")
 
     # Evaluar todas las cuotas disponibles de mis casas
-    odds_rows = _latest_odds(s, match.id)
     bets = []
     for r in odds_rows:
         if r.bookmaker not in MY_BOOKS:

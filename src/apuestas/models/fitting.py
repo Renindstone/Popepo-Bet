@@ -255,6 +255,25 @@ def load_market_goals(s: Session, before: datetime, since: datetime) -> dict[int
             if e <= MARKET_MAX_RMSE}
 
 
+PREMATCH_MARKET_BOOKS = (*MARKET_BOOKS, "betano")  # antes del partido; Betano solo si no hay otra (Champions)
+
+
+def prematch_market_goals(prices: dict[tuple[str, str, str], float]) -> tuple[str, float, float] | None:
+    """Goles esperados (casa, local, visitante) implícitos en el 1X2 y el más/menos 2.5 de un partido, sin margen.
+    `prices`: (casa, mercado, selección) -> cuota, con el más/menos solo de la línea 2.5. None si ninguna casa de
+    PREMATCH_MARKET_BOOKS tiene el 1X2 o el modelo Dixon-Coles no reproduce sus cuotas (MARKET_MAX_RMSE)."""
+    for book in PREMATCH_MARKET_BOOKS:
+        o = [prices.get((book, "1x2", sel)) for sel in ("home", "draw", "away")]
+        if not all(o) or min(o) <= 1.0:
+            continue
+        ou = [prices.get((book, "ou_goals", sel)) for sel in ("over", "under")]
+        p_over = oddsmath.devig(ou)[0] if all(ou) and min(ou) > 1.0 else math.nan
+        lam, rmse = market.implied_goals(np.array([oddsmath.devig(o)]), np.array([p_over]))
+        if rmse[0] <= MARKET_MAX_RMSE:
+            return book, float(lam[0][0]), float(lam[0][1])
+    return None
+
+
 def market_obs(rows: list[MatchRow], implied: dict[int, tuple[float, float]],
                weight: float = MARKET_WEIGHT) -> list[MatchObs]:
     if weight <= 0:
@@ -283,6 +302,33 @@ COUNT_STRENGTH_PRIOR = {"shots": 8.0, "shots_on_target": 8.0, "corners": 20.0}
 def count_strength(goals: RatingModel) -> dict[int, float]:
     """Fuerza de cada equipo en el modelo de goles (ataque + defensa), la referencia de las estadísticas de dominio."""
     return {t: goals.attack[t] + goals.defence[t] for t in goals.teams}
+
+
+# Peso del 1X2 de la casa en el reparto de remates, a puerta y córners (`strength_shift`). Si la casa ve una
+# diferencia de fuerza entre los dos equipos distinta de la del modelo de goles, esas estadísticas se mueven hacia la
+# de la casa: el modelo de goles no le gana al mercado, y los conteos heredan sus errores. Betis-Feyenoord (Champions,
+# 21-10-2026): el modelo de goles veía a los dos casi iguales (1X2 46/22/32; Pinnacle 60/20/20) y daba 4,6-4,7
+# córners; Pinnacle, 5,3-4,1. Con el 1X2 de Pinnacle, 5,0-4,3. Elegido con el walk-forward 2024-26 con las cuotas de
+# cierre de 14 ligas (docs/modelos.md): 0,75 es casi el mejor peso en las tres estadísticas.
+COUNT_MARKET_SHIFT = 0.75
+
+
+def strength_delta(market_goals: tuple[float, float], model_goals: tuple[float, float]) -> float:
+    """Cuánta fuerza hay que sumar al local (y restar al visitante) en el modelo de goles para que la diferencia
+    de goles esperados (en logaritmo) sea la de la casa: δ = ½ [log(λl/λv) casa − log(λl/λv) modelo]."""
+    return 0.5 * (math.log(market_goals[0] / market_goals[1]) - math.log(model_goals[0] / model_goals[1]))
+
+
+def strength_shift(cm: RatingModel, mh: float, ma: float, delta: float,
+                   weight: float = COUNT_MARKET_SHIFT) -> tuple[float, float]:
+    """Medias (local, visitante) de un conteo guiado por la fuerza cuando la fuerza del local sube δ y la del
+    visitante baja δ: el reparto cambia en exp(±peso × (b_ataque + b_defensa) × δ) y el total del partido se queda
+    como estaba (el 1X2 dice quién domina, no cuánto se juega). Sin cambios si el modelo no se ajustó con la fuerza."""
+    if not cm.strength_coef or not delta:
+        return mh, ma
+    f = math.exp(weight * sum(cm.strength_coef) * delta)
+    k = (mh + ma) / (mh * f + ma / f)
+    return mh * f * k, ma / f * k
 
 
 def fit_counts(obs: list[MatchObs], stat: str, as_of: date, half_life_days: float = 240.0,
