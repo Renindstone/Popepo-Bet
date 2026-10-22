@@ -9,7 +9,7 @@
 - **Apuesta del día** a las 09:00 (solo mercados de goles), con un contador de aciertos desde el inicio en Hoy y en Mis apuestas (`GET /picks/record`; las retiradas al recalcular no cuentan) y **liquidación automática** de picks y apuestas después de cada partido (tarea `post_match`, a los :15 y :45).
 - **Cuotas de Betano y Pinnacle** con OddsPapi a las 08:30 (una petición por casa y día), descartando las que vienen con local y visitante invertidos.
 - **Panel web** (`web/`): apuesta del día, partidos del día, análisis, evaluar una cuota (con las **cuotas de Betano ya descargadas** de cada partido, evaluadas y listas para el cupón), mis apuestas y **capturas**: el usuario sube una imagen de Betano o bet365 y la lee la **IA local** (Ollama, qwen2.5vl:7b) o, con el botón «Leer con Claude», Claude Code; incluidas combinadas y Bet Builders.
-- **Diseño del panel** con un sistema propio (skill `disenio-panel`: paleta, escala de texto con tokens `text-etiqueta`/`text-nota`/`text-interfaz`, formas, movimiento) y una auditoría automática (skill `run-app-apuestas`) que sale limpia en escritorio y celular, claro y oscuro: sin desborde, sin texto de menos de 12 px, contraste AA y toques de al menos 24 px (desde el 2026-10-21). Las cuotas de Betano de hándicap de córners y tarjetas ya salen con nombre.
+- **Diseño del panel** con un sistema propio (skill `disenio-panel`: paleta, escala de texto con tokens `text-etiqueta`/`text-nota`/`text-interfaz`, formas, movimiento) y una auditoría automática (skill `run-app-apuestas`) que sale limpia en escritorio y celular, claro y oscuro: sin desborde, sin texto de menos de 12 px, contraste AA y toques de al menos 24 px (desde el 2026-10-21). Las cuotas de Betano de hándicap de córners y tarjetas ya salen con nombre. La página de un partido va en **pestañas** (Alineaciones, Probabilidades, Estadísticas, Cuotas y Jugadores; de 13.400 px de alto en el celular a 3.500 como máximo) y el menú del celular muestra una flecha cuando hay más secciones a un lado.
 - **Mercados de jugador**: gol (también 2 o más), asistencia y gol o asistencia, con xG y xA; en Bet Builders se calculan junto con el resultado. Córners y tarjetas en un Bet Builder salen "aproximados" (desde el 2026-10-20).
 - **Registrar desde una captura** (`POST /captures/{id}/bet`): una cuota o la combinada entera, con el importe que Claude leyó si se ve; la captura recuerda lo registrado (`engine_info.bets`) para no duplicarlo.
 - **Cupón en Evaluar cuota**: varias selecciones de uno o varios partidos (Bet Builders y combinada), evaluadas juntas (`POST /combos/evaluate`) y registradas como una apuesta `combo` con sus selecciones en `user_bet_leg` (`POST /combos`); se liquidan solas.
@@ -31,6 +31,7 @@
 | 2026-10-19 | Las capturas no evaluables se muestran con su motivo; las combinadas se evalúan con la matriz de marcadores. |
 | 2026-10-20 | El README y la documentación hablan de "cualquier persona" que use el código, no de "amigos": el repositorio es público. |
 | 2026-10-20 | La versión universitaria con microservicios vive en un repositorio privado aparte. |
+| 2026-10-21 | La página de un partido va en pestañas y el menú del celular avisa con una flecha de que se desplaza. |
 | 2026-10-21 | Las capturas las lee por defecto una IA local (Ollama) que solo transcribe; Claude queda como respaldo con un botón. En Evaluar cuota se muestran las cuotas de Betano guardadas para no necesitar captura. |
 
 ## Pendiente o por decidir
@@ -43,7 +44,7 @@
 - **Validar córners, tarjetas y props** con las cuotas de Betano que ya se guardan, antes de dejarlos entrar en la apuesta del día.
 - **Córners de Champions entre ligas**: con equipos bien conocidos, el modelo reparte mal los córners cuando se cruzan ligas (Betis-Feyenoord: Feyenoord 5,5 frente a 4,0 de Pinnacle, y "Más de 7.5" de Feyenoord sale con +97 %). Hace falta un nivel por liga en los modelos de estadísticas (ver `docs/modelos.md`, "Limitación que queda"). Mientras tanto, esas cuotas salen con poca confianza y no pueden ser apuesta del día.
 - **Telegram**: falta crear el bot y poner el token en `.env`.
-- **Diseño en el celular** (consultar al usuario): la página de un partido mide unos 28.000 px de alto (pestañas o secciones plegables) y el menú superior se corta («Mis apuest…») sin señal de que se desplaza. El resto de pendientes de diseño está en la skill `disenio-panel`.
+- **Diseño del panel**: los pendientes que la auditoría no mide están en la skill `disenio-panel` (Hoy mide unos 6.900 px en el celular, tamaños grandes de texto sueltos, columnas de las cuotas de Betano, colores sueltos del campo de alineaciones).
 - `loginctl enable-linger` para que los servicios sigan corriendo sin sesión iniciada (lo ejecuta el usuario).
 - Más ideas del modelo en `docs/modelos.md`, "Próximas mejoras previstas".
 

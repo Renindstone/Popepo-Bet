@@ -34,13 +34,13 @@ recompila al arrancar el servicio: tras tocar `web/`, `systemctl --user restart 
 ## Manejar el panel (camino del agente)
 
 ```bash
-# Capturas de todas las páginas: escritorio y celular, claro y oscuro (28 imágenes, ~45 s)
+# Capturas de todas las páginas: escritorio y celular, claro y oscuro (44 imágenes, ~70 s)
 node .claude/skills/run-app-apuestas/driver.mjs shots
 
 # Solo algunas
 node .claude/skills/run-app-apuestas/driver.mjs shots --pages hoy,partido --devices mobile --schemes dark
 
-# Una ruta concreta; --viewport recorta a la pantalla (las páginas largas en celular miden hasta 28.000 px)
+# Una ruta concreta; --viewport recorta a la pantalla (Hoy en celular mide unos 14.000 px de captura)
 node .claude/skills/run-app-apuestas/driver.mjs shot "/evaluar?partido=4821" --mobile --dark --viewport --name evaluar-real --ready "Cuotas de Betano"
 
 # Auditoría de diseño y usabilidad (por defecto tema claro; añade --schemes light,dark)
@@ -55,7 +55,11 @@ Las capturas quedan en `/tmp/apuestas-shots/<página>-<desktop|mobile>-<light|da
 |---|---|---|
 | `hoy` | `/` | Partidos del día |
 | `partidos` | `/partidos` | vs |
-| `partido` | `/partidos/<primer partido>` | Alineaciones |
+| `partido` | `/partidos/<primer partido>` (pestaña Alineaciones) | Alineación y bajas |
+| `partido-probabilidades` | `/partidos/<primer partido>#probabilidades` | Dificultad del rival |
+| `partido-estadisticas` | `/partidos/<primer partido>#estadisticas` | Estadísticas esperadas |
+| `partido-cuotas` | `/partidos/<primer partido>#cuotas` | Props: cuota mínima |
+| `partido-jugadores` | `/partidos/<primer partido>#jugadores` | Proyección para este partido |
 | `evaluar` | `/evaluar?partido=<primer partido>` | Cuotas de Betano |
 | `capturas` | `/capturas` | Arrastra aquí la captura |
 | `rendimiento` | `/rendimiento` | Banca |
@@ -90,8 +94,8 @@ cd web && npm run lint && npx tsc --noEmit
 - **Tema oscuro** = `prefers-color-scheme: dark` (`web/src/app/globals.css`); el driver lo emula con
   `colorScheme`. No hay un interruptor de tema en la página.
 - **Los radios y el campo de archivo son `sr-only` (1×1 px)**: se tocan por su `<label>`. La auditoría los ignora.
-- **El menú superior en celular se desplaza de lado** (`overflow-x-auto`): la auditoría no lo cuenta como desborde,
-  pero en la captura se ve cortado («Mis apuest…»).
+- **El menú superior y las pestañas del partido se desplazan de lado en el celular** (`ScrollRow`): la auditoría no
+  lo cuenta como desborde; en la captura se ven cortados con un difuminado y una flecha, que es lo esperado.
 - **Desde localhost la API no pide clave**; si el panel se abriera desde otro host, pediría la clave en pantalla.
 
 ## Problemas

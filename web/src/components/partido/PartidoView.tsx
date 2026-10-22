@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Chart, useChartTheme } from "@/components/Chart";
 import { Crest } from "@/components/Crest";
+import { Tabs, useHashTab } from "@/components/Tabs";
 import { Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag, TriBar } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { int, num, odds, pct, shortDate, signedPct, stageText } from "@/lib/format";
@@ -21,9 +22,19 @@ import { STAT_NAMES, handicapOption, overGoalsOption, scoresOption, statsShareOp
 import { Alineaciones } from "./Alineaciones";
 import { Jugadores } from "./Jugadores";
 
+// El análisis entero medía más de 13.000 px en el celular: va en pestañas, en el orden de antes
+const TABS = [
+  { id: "alineaciones", label: "Alineaciones" },
+  { id: "probabilidades", label: "Probabilidades" },
+  { id: "estadisticas", label: "Estadísticas" },
+  { id: "cuotas", label: "Cuotas" },
+  { id: "jugadores", label: "Jugadores" },
+] as const;
+
 export function PartidoView() {
   const { id } = useParams<{ id: string }>();
   const { data: a, error, mutate } = useApi<MatchAnalysis>(`/matches/${id}/analysis`);
+  const [tab, setTab] = useHashTab(TABS);
 
   if (error) {
     return (
@@ -64,33 +75,43 @@ export function PartidoView() {
           <Crest id={a.away_id} size={52} className="mr-3 -mt-2" />
           {a.away}
         </h1>
-        <p className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+        <p className="mt-4">
           <Link
             href={`/evaluar?partido=${a.match_id}`}
             className="font-semibold text-boli underline underline-offset-4"
           >
             Evaluar una cuota de este partido
           </Link>
-          <a href="#alineaciones" className="font-semibold text-grafito underline underline-offset-4 hover:text-tinta">
-            Ver alineaciones
-          </a>
-          <a href="#jugadores" className="font-semibold text-grafito underline underline-offset-4 hover:text-tinta">
-            Ir a jugadores
-          </a>
         </p>
       </div>
 
-      <Alineaciones matchId={a.match_id} />
-      <Probabilidades a={a} />
-      <Dificultad a={a} />
-      <Bajas a={a} />
-      <ArbitroYContexto a={a} />
-      <Estadisticas a={a} />
-      <ValorDelPartido a={a} />
-      <Section title="Jugadores" id="jugadores" intro="Proyección para este partido según su ritmo por 90 minutos, los minutos esperados y el rival. Elige un jugador para ver sus probabilidades.">
-        <Jugadores a={a} />
-      </Section>
-      <Calidad a={a} />
+      <Tabs tabs={TABS} current={tab} onSelect={setTab} label="Análisis del partido">
+        {tab === "alineaciones" && (
+          <>
+            <Alineaciones matchId={a.match_id} />
+            <Bajas a={a} />
+          </>
+        )}
+        {tab === "probabilidades" && (
+          <>
+            <Probabilidades a={a} />
+            <Dificultad a={a} />
+            <Calidad a={a} />
+          </>
+        )}
+        {tab === "estadisticas" && (
+          <>
+            <Estadisticas a={a} />
+            <ArbitroYContexto a={a} />
+          </>
+        )}
+        {tab === "cuotas" && <ValorDelPartido a={a} />}
+        {tab === "jugadores" && (
+          <Section title="Jugadores" id="jugadores" intro="Proyección para este partido según su ritmo por 90 minutos, los minutos esperados y el rival. Elige un jugador para ver sus probabilidades.">
+            <Jugadores a={a} />
+          </Section>
+        )}
+      </Tabs>
     </>
   );
 }
@@ -482,6 +503,8 @@ function Estadisticas({ a }: { a: MatchAnalysis }) {
 
 function ValorDelPartido({ a }: { a: MatchAnalysis }) {
   const teams = { home: a.home, away: a.away };
+  const [all, setAll] = useState(false);
+  const bets = all ? a.value_bets : a.value_bets.slice(0, 12);
   return (
     <Section title="Cuotas con valor y props" intro="Cuotas de bet365 y Betano con valor positivo para este partido, y la cuota mínima a pedir en los props que no tienen cuota.">
       <div className="grid gap-x-10 gap-y-8 lg:grid-cols-2">
@@ -500,7 +523,7 @@ function ValorDelPartido({ a }: { a: MatchAnalysis }) {
                 </tr>
               </thead>
               <tbody>
-                {a.value_bets.map((b, i) => (
+                {bets.map((b, i) => (
                   <tr key={i} className="border-b border-regla-suave">
                     <td className="py-2 pr-3">
                       {b.label}
@@ -513,6 +536,15 @@ function ValorDelPartido({ a }: { a: MatchAnalysis }) {
                 ))}
               </tbody>
             </table>
+          )}
+          {a.value_bets.length > 12 && (
+            <button
+              type="button"
+              onClick={() => setAll(!all)}
+              className="mt-1 inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4"
+            >
+              {all ? "Mostrar menos" : `Mostrar las ${a.value_bets.length}`}
+            </button>
           )}
         </div>
         <div className="min-w-0">

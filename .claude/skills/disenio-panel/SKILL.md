@@ -105,6 +105,8 @@ Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el 
 
 - **Estructura de página:** `PageTitle` → contenido principal → `Section`s con `border-t`. Ancho máximo 1180 px,
   márgenes `px-4 sm:px-6`. Lo más importante arriba (la apuesta del día en Hoy, el veredicto en Evaluar).
+- **Páginas largas:** si una página mezcla temas y pasa de unos 4.000 px en el celular, repártela en `Tabs` (como la
+  de un partido) y monta solo la pestaña activa; las listas largas se cortan en 12 filas con «Mostrar las N».
 - **Celular primero:** cero desborde horizontal de la página. Las tablas de consulta anchas van dentro de
   `overflow-x-auto`; si la fila lleva acciones (como «Cuotas de Betano»), mejor recolocar en el celular que esconder
   las acciones a la derecha: columnas secundarias con `hidden sm:table-cell` y su contenido bajo el nombre.
@@ -128,16 +130,18 @@ Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el 
 
 `web/src/components/ui.tsx`: `PageTitle`, `Section`, `Loading`, `ErrorNote` (pide la clave si falta), `Empty`,
 `Tag` (tonos `neutral`, `boli`, `rojo`, `tarjeta`, `confirmada`), `Figure`, `Button`, `EdgeBar`, `TriBar`,
-`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo), `ComboResult` (combinadas), `PickRecord` (aciertos).
+`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo), `ComboResult` (combinadas), `PickRecord` (aciertos),
+`ScrollRow` (fila que se desplaza de lado con difuminado y flecha cuando hay más; la usan el menú y las pestañas) y
+`Tabs` + `useHashTab` (pestañas accesibles, fijas arriba al bajar, con la activa en el ancla de la URL).
 
 ## Pendientes conocidos (auditoría del 21-10-2026, revisada el mismo día)
 
-La auditoría `--schemes light,dark` sale limpia en las 28 variantes (sin desborde, texto < 12 px, contraste bajo
-ni toques < 24 px) y `paleta.mjs --fallos` no da fallos. Queda lo que la auditoría no mide:
+La auditoría `--schemes light,dark` sale limpia en las 44 variantes (sin desborde, texto < 12 px, contraste bajo
+ni toques < 24 px) y `paleta.mjs --fallos` no da fallos. La página de un partido ya va en pestañas (la más larga mide
+unos 3.500 px en el celular) y el menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
 
-- **Página de un partido en celular: 28.000 px de alto.** Pide pestañas o secciones plegables (consultar antes al
-  usuario: cambia cómo se recorre el análisis).
-- **Menú del celular cortado** («Mis apuest…») sin señal de que se desplaza (consultar antes al usuario).
+- **Hoy mide unos 6.900 px en el celular**, ahora la página más larga (consultar antes al usuario: es su página
+  principal).
 - **Tamaños grandes sueltos:** `text-[1.05rem]`, `[1.3rem]`, `[1.35rem]`, `[1.6rem]`, `[1.9rem]`, `[2.2rem]`,
   `[2.6rem]`, `[3.4rem]` junto a `text-lg`/`xl`/`2xl`/`4xl`: llevarlos a la escala (cifras 1,75 / 2,25 rem, título
   2,5 / 3 rem) con tokens como los pequeños.

@@ -32,7 +32,12 @@ const DEVICES = {
 const PAGES = {
   hoy: { path: "/", ready: "Partidos del día" },
   partidos: { path: "/partidos", ready: "vs" },
-  partido: { path: null, ready: "Alineaciones" }, // el primer partido de la lista
+  // El primer partido de la lista, una entrada por pestaña (la pestaña va en el ancla de la URL)
+  partido: { path: null, ready: "Alineación y bajas" },
+  "partido-probabilidades": { path: null, hash: "#probabilidades", ready: "Dificultad del rival" },
+  "partido-estadisticas": { path: null, hash: "#estadisticas", ready: "Estadísticas esperadas" },
+  "partido-cuotas": { path: null, hash: "#cuotas", ready: "Props: cuota mínima" },
+  "partido-jugadores": { path: null, hash: "#jugadores", ready: "Proyección para este partido" },
   evaluar: { path: null, ready: "Cuotas de Betano" }, // Evaluar con ese partido elegido
   capturas: { path: "/capturas", ready: "Arrastra aquí la captura" },
   rendimiento: { path: "/rendimiento", ready: "Banca" },
@@ -73,11 +78,12 @@ async function firstMatchId() {
 }
 
 async function resolvePages(names) {
-  const mid = names.some((n) => n === "partido" || n === "evaluar") ? await firstMatchId() : null;
+  const isMatch = (n) => n === "partido" || n.startsWith("partido-");
+  const mid = names.some((n) => isMatch(n) || n === "evaluar") ? await firstMatchId() : null;
   return names.map((n) => {
     const p = PAGES[n];
     if (!p) throw new Error(`Página desconocida: ${n} (hay: ${Object.keys(PAGES).join(", ")})`);
-    const path = n === "partido" ? `/partidos/${mid}` : n === "evaluar" ? `/evaluar?partido=${mid}` : p.path;
+    const path = isMatch(n) ? `/partidos/${mid}${p.hash ?? ""}` : n === "evaluar" ? `/evaluar?partido=${mid}` : p.path;
     return { name: n, path, ready: p.ready };
   });
 }
