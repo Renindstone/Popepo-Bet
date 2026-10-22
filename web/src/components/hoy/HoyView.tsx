@@ -560,7 +560,7 @@ function Props({ rows }: { rows: PropMinOdds[] }) {
 }
 
 function DayMatches({ rows }: { rows: DayMatch[] }) {
-  if (rows.length === 0) return <Empty>No hay partidos de las cuatro competiciones este día.</Empty>;
+  if (rows.length === 0) return <Empty>No hay partidos de las seis competiciones este día.</Empty>;
   return (
     <ul className="divide-y divide-regla-suave border-y border-regla-suave">
       {rows.map((m) => (

@@ -187,8 +187,8 @@ def sync_football_data(start_years: list[int], codes: list[str] | None = None) -
 
 
 def _apply_fd_row(s, comp, season, tier: str, country: str, r: football_data.FDRow) -> m.Match | None:
-    # Si FotMob ya trae esta liga (las completas, Serie A, Ligue 1), el partido ya existe: se busca por fecha y
-    # nombres parecidos en vez de crear otro. Así "Verona" (football-data) no duplica a "Hellas Verona".
+    # Si FotMob ya trae esta liga (las completas y las ligeras con `fotmob_id`), el partido ya existe: se busca por
+    # fecha y nombres parecidos en vez de crear otro. Así "Verona" (football-data) no duplica a "Hellas Verona".
     has_fotmob = tier == "full" or COMPETITIONS[comp.code].fotmob_id is not None
     match = store.find_match(s, comp.id, r.kickoff_utc, r.home, r.away) if has_fotmob else None
     if match is not None:
@@ -243,11 +243,11 @@ def sync_upcoming_odds() -> int:
 # --------------------------------------------------------------------------- Understat
 
 
-def sync_understat(start_years: list[int]) -> int:
+def sync_understat(start_years: list[int], codes: list[str] | None = None) -> int:
     total = 0
     current = season_start_year(datetime.now(UTC).date())
     for comp_def in FULL:
-        if comp_def.understat is None:
+        if comp_def.understat is None or (codes and comp_def.code not in codes):
             continue
         for year in start_years:
 

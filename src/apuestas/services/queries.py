@@ -96,9 +96,18 @@ def find_player(s: Session, text: str, team_id: int | None = None) -> m.Player:
 # --------------------------------------------------------------------------- consultas
 
 
+def competition_code(text: str) -> str:
+    """Código de una competición completa a partir del código o del nombre: "sa", "Serie A" -> "SA"."""
+    key = names.strip_accents(text).lower().replace(" ", "")
+    for c in FULL:
+        if key in (c.code.lower(), names.strip_accents(c.name).lower().replace(" ", "")):
+            return c.code
+    return text.upper()
+
+
 def upcoming(days: int = 3, competition: str | None = None) -> list[dict]:
     now = datetime.now(UTC)
-    codes = [competition.upper()] if competition else [c.code for c in FULL]
+    codes = [competition_code(competition)] if competition else [c.code for c in FULL]
     with session_scope() as s:
         rows = s.scalars(
             select(m.Match).join(m.Competition).where(

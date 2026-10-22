@@ -35,6 +35,8 @@ def ensure_competitions(s: Session) -> dict[str, m.Competition]:
             row = m.Competition(code=code, name=comp.name, country=comp.country, tier=comp.tier, is_cup=comp.is_cup)
             s.add(row)
             existing[code] = row
+        elif existing[code].tier != comp.tier:  # p. ej. la Serie A y la Ligue 1, que pasaron de "light" a "full"
+            existing[code].tier = comp.tier
     s.flush()
     return existing
 
