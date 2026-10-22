@@ -6,6 +6,8 @@ import { ScrollRow } from "@/components/ScrollRow";
 export interface TabDef {
   id: string;
   label: string;
+  /** Cuántas filas hay dentro (se muestra en gris junto al nombre) */
+  count?: number;
 }
 
 function subscribe(cb: () => void) {
@@ -85,7 +87,8 @@ export function Tabs({
                   }`}
                 >
                   {t.label}
-                  {active && <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-boli" />}
+                  {t.count != null && <>{" "}<span className="num ml-0.5 font-normal text-grafito">{t.count}</span></>}
+                  {active &&<span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-boli" />}
                 </button>
               );
             })}

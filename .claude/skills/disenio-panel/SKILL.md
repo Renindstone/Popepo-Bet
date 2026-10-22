@@ -132,16 +132,16 @@ Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el 
 `Tag` (tonos `neutral`, `boli`, `rojo`, `tarjeta`, `confirmada`), `Figure`, `Button`, `EdgeBar`, `TriBar`,
 `ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo), `ComboResult` (combinadas), `PickRecord` (aciertos),
 `ScrollRow` (fila que se desplaza de lado con difuminado y flecha cuando hay más; la usan el menú y las pestañas) y
-`Tabs` + `useHashTab` (pestañas accesibles, fijas arriba al bajar, con la activa en el ancla de la URL).
+`Tabs` + `useHashTab` (pestañas accesibles, fijas arriba al bajar, con la activa en el ancla de la URL y, si se
+quiere, cuántas filas hay en cada una con `count`).
 
 ## Pendientes conocidos (auditoría del 21-10-2026, revisada el mismo día)
 
-La auditoría `--schemes light,dark` sale limpia en las 44 variantes (sin desborde, texto < 12 px, contraste bajo
-ni toques < 24 px) y `paleta.mjs --fallos` no da fallos. La página de un partido ya va en pestañas (la más larga mide
-unos 3.500 px en el celular) y el menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
+La auditoría `--schemes light,dark` sale limpia en las 52 variantes (sin desborde, texto < 12 px, contraste bajo
+ni toques < 24 px) y `paleta.mjs --fallos` no da fallos. La página de un partido y la de Hoy van en pestañas (en el
+celular, la de un partido mide como mucho unos 3.500 px y Hoy unos 4.200 un sábado de 14 partidos, antes 7.800) y el
+menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
 
-- **Hoy mide unos 6.900 px en el celular**, ahora la página más larga (consultar antes al usuario: es su página
-  principal).
 - **Tamaños grandes sueltos:** `text-[1.05rem]`, `[1.3rem]`, `[1.35rem]`, `[1.6rem]`, `[1.9rem]`, `[2.2rem]`,
   `[2.6rem]`, `[3.4rem]` junto a `text-lg`/`xl`/`2xl`/`4xl`: llevarlos a la escala (cifras 1,75 / 2,25 rem, título
   2,5 / 3 rem) con tokens como los pequeños.

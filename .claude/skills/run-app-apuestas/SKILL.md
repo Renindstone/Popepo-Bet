@@ -34,13 +34,13 @@ recompila al arrancar el servicio: tras tocar `web/`, `systemctl --user restart 
 ## Manejar el panel (camino del agente)
 
 ```bash
-# Capturas de todas las páginas: escritorio y celular, claro y oscuro (44 imágenes, ~70 s)
+# Capturas de todas las páginas: escritorio y celular, claro y oscuro (52 imágenes, ~90 s)
 node .claude/skills/run-app-apuestas/driver.mjs shots
 
 # Solo algunas
 node .claude/skills/run-app-apuestas/driver.mjs shots --pages hoy,partido --devices mobile --schemes dark
 
-# Una ruta concreta; --viewport recorta a la pantalla (Hoy en celular mide unos 14.000 px de captura)
+# Una ruta concreta; --viewport recorta a la pantalla (Hoy en celular mide unos 8.000 px de captura)
 node .claude/skills/run-app-apuestas/driver.mjs shot "/evaluar?partido=4821" --mobile --dark --viewport --name evaluar-real --ready "Cuotas de Betano"
 
 # Auditoría de diseño y usabilidad (por defecto tema claro; añade --schemes light,dark)
@@ -53,7 +53,9 @@ Las capturas quedan en `/tmp/apuestas-shots/<página>-<desktop|mobile>-<light|da
 
 | Página (`--pages`) | Ruta | Espera el texto |
 |---|---|---|
-| `hoy` | `/` | Partidos del día |
+| `hoy` | `/` (pestaña Partidos) | Partidos del día |
+| `hoy-valor` | `/?dia=<día del primer partido>#valor` | Otras apuestas con valor |
+| `hoy-props` | `/?dia=<día del primer partido>#props` | Props con cuota mínima |
 | `partidos` | `/partidos` | vs |
 | `partido` | `/partidos/<primer partido>` (pestaña Alineaciones) | Alineación y bajas |
 | `partido-probabilidades` | `/partidos/<primer partido>#probabilidades` | Dificultad del rival |
@@ -66,7 +68,8 @@ Las capturas quedan en `/tmp/apuestas-shots/<página>-<desktop|mobile>-<light|da
 | `datos` | `/datos` | Fuentes |
 
 Qué mide `audit` en cada página: desborde horizontal (px y elementos), textos de menos de 12 px, contraste por
-debajo de WCAG AA (4,5:1; 3:1 en texto grande), objetivos táctiles de menos de 24 px en celular, imágenes sin `alt`,
+debajo de WCAG AA (4,5:1; 3:1 en texto grande; el texto decorativo con `aria-hidden`, como el «0.00» tachado de
+«Hoy no hay apuesta del día», no cuenta, igual que en WCAG), objetivos táctiles de menos de 24 px en celular, imágenes sin `alt`,
 controles sin nombre, errores de consola y respuestas HTTP ≥ 400. Además guarda un **inventario de diseño**:
 fuentes, tamaños, pesos, colores de texto y de fondo, radios de borde, sombras, animaciones y si existe una regla
 `prefers-reduced-motion`.
@@ -94,6 +97,8 @@ cd web && npm run lint && npx tsc --noEmit
 - **Tema oscuro** = `prefers-color-scheme: dark` (`web/src/app/globals.css`); el driver lo emula con
   `colorScheme`. No hay un interruptor de tema en la página.
 - **Los radios y el campo de archivo son `sr-only` (1×1 px)**: se tocan por su `<label>`. La auditoría los ignora.
+- **Las pestañas `hoy-valor` y `hoy-props` usan el día del primer partido próximo**, no hoy: hoy puede no tener
+  partidos y saldrían vacías. `hoy` sí es `/`, como la ve el dueño.
 - **El menú superior y las pestañas del partido se desplazan de lado en el celular** (`ScrollRow`): la auditoría no
   lo cuenta como desborde; en la captura se ven cortados con un difuminado y una flecha, que es lo esperado.
 - **Desde localhost la API no pide clave**; si el panel se abriera desde otro host, pediría la clave en pantalla.

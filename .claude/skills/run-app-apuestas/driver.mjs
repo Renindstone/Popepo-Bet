@@ -31,6 +31,9 @@ const DEVICES = {
 // Cada página y el texto que indica que ya cargó sus datos (no solo el esqueleto)
 const PAGES = {
   hoy: { path: "/", ready: "Partidos del día" },
+  // Las otras pestañas de Hoy, el día del primer partido próximo (hoy puede no haber partidos y salir vacías)
+  "hoy-valor": { path: null, hash: "#valor", ready: "Otras apuestas con valor" },
+  "hoy-props": { path: null, hash: "#props", ready: "Props con cuota mínima" },
   partidos: { path: "/partidos", ready: "vs" },
   // El primer partido de la lista, una entrada por pestaña (la pestaña va en el ancla de la URL)
   partido: { path: null, ready: "Alineación y bajas" },
@@ -70,20 +73,36 @@ async function check() {
   }
 }
 
-async function firstMatchId() {
+async function firstMatch() {
   const r = await fetch(`${API}/matches?days=10`);
   const rows = await r.json();
   if (!rows.length) throw new Error("La API no tiene partidos próximos (¿ingesta hecha?)");
-  return rows[0].match_id;
+  return rows[0];
+}
+
+// Día del partido en Lima (YYYY-MM-DD) a partir de kickoff_local («vie 23/10 13:30»), que no trae el año
+function matchDay(m) {
+  const [d, mo] = m.kickoff_local.split(" ")[1].split("/").map(Number);
+  const now = new Date();
+  const y = now.getFullYear() + (mo < now.getMonth() + 1 - 6 ? 1 : 0);
+  return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 async function resolvePages(names) {
   const isMatch = (n) => n === "partido" || n.startsWith("partido-");
-  const mid = names.some((n) => isMatch(n) || n === "evaluar") ? await firstMatchId() : null;
+  const isHoyTab = (n) => n.startsWith("hoy-");
+  const first = names.some((n) => isMatch(n) || isHoyTab(n) || n === "evaluar") ? await firstMatch() : null;
+  const mid = first?.match_id;
   return names.map((n) => {
     const p = PAGES[n];
     if (!p) throw new Error(`Página desconocida: ${n} (hay: ${Object.keys(PAGES).join(", ")})`);
-    const path = isMatch(n) ? `/partidos/${mid}${p.hash ?? ""}` : n === "evaluar" ? `/evaluar?partido=${mid}` : p.path;
+    const path = isMatch(n)
+      ? `/partidos/${mid}${p.hash ?? ""}`
+      : isHoyTab(n)
+        ? `/?dia=${matchDay(first)}${p.hash}`
+        : n === "evaluar"
+          ? `/evaluar?partido=${mid}`
+          : p.path;
     return { name: n, path, ready: p.ready };
   });
 }
@@ -171,7 +190,8 @@ function auditInPage(isMobile) {
       if (size < 12) out.smallText.push(`${size}px «${label(el)}»`);
       const fg = parse(s.color);
       const back = bgOf(el);
-      if (fg && back) {
+      // El texto decorativo (aria-hidden, como el «0.00» tachado de «Hoy no hay apuesta») no pide contraste en WCAG
+      if (fg && back && !el.closest('[aria-hidden="true"]')) {
         const [a, b] = [lum(fg), lum(back)].sort((x, y) => y - x);
         const ratio = (a + 0.05) / (b + 0.05);
         const large = size >= 24 || (size >= 18.66 && Number(s.fontWeight) >= 700);

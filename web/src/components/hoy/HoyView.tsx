@@ -7,6 +7,7 @@ import { CaptureDrop } from "@/components/capturas/CaptureDrop";
 import { Crest } from "@/components/Crest";
 import { PenMark } from "@/components/PenMark";
 import { PickRecord } from "@/components/PickRecord";
+import { Tabs, useHashTab } from "@/components/Tabs";
 import { Button, EdgeBar, Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag, TriBar } from "@/components/ui";
 import { api, type ApiError, useApi } from "@/lib/api";
 import {
@@ -33,6 +34,13 @@ function dayTitle(day: string, today: string): string {
   return d.charAt(0).toUpperCase() + d.slice(1);
 }
 
+// Las tres listas una debajo de otra medían 7.800 px en el celular un sábado de 14 partidos: van en pestañas
+const TABS = [
+  { id: "partidos", label: "Partidos" },
+  { id: "valor", label: "Con valor" },
+  { id: "props", label: "Props" },
+] as const;
+
 export function HoyView() {
   const params = useSearchParams();
   const today = useToday();
@@ -41,6 +49,19 @@ export function HoyView() {
   const { data: perf } = useApi<Performance>("/performance");
   const [recalc, setRecalc] = useState<{ busy: boolean; error?: ApiError }>({ busy: false });
   const past = !!day && !!today && day < today;
+
+  // Los días pasados solo guardan las apuestas con valor: sin partidos ni props no hacen falta pestañas
+  const matches = !past ? data?.matches : undefined;
+  const props = !past ? data?.props_to_check : undefined;
+  const counts: Record<string, number | undefined> = {
+    partidos: matches?.length,
+    valor: data?.value_bets.length,
+    props: props?.length,
+  };
+  const tabs = TABS.filter((t) => t.id === "valor" || counts[t.id] != null).map((t) => ({ ...t, count: counts[t.id] }));
+  const [tab, setTab] = useHashTab(tabs);
+  // Al cambiar de día se queda en la misma pestaña
+  const keep = data && tab !== tabs[0].id ? `#${tab}` : "";
 
   async function recalculate() {
     setRecalc({ busy: true });
@@ -56,19 +77,19 @@ export function HoyView() {
   const nav = day && (
     <>
       <Link
-        href={`/?dia=${shiftDay(day, -1)}`}
+        href={`/?dia=${shiftDay(day, -1)}${keep}`}
         className="inline-flex h-10 items-center rounded-[3px] border border-regla bg-hoja px-3 text-interfaz font-semibold hover:border-grafito"
       >
         Día anterior
       </Link>
       <Link
-        href={`/?dia=${shiftDay(day, 1)}`}
+        href={`/?dia=${shiftDay(day, 1)}${keep}`}
         className="inline-flex h-10 items-center rounded-[3px] border border-regla bg-hoja px-3 text-interfaz font-semibold hover:border-grafito"
       >
         Día siguiente
       </Link>
       {day !== today && (
-        <Link href="/" className="inline-flex h-10 items-center px-2 text-interfaz font-semibold text-boli underline underline-offset-4">
+        <Link href={`/${keep}`} className="inline-flex h-10 items-center px-2 text-interfaz font-semibold text-boli underline underline-offset-4">
           Volver a hoy
         </Link>
       )}
@@ -122,37 +143,43 @@ export function HoyView() {
         </div>
       </div>
 
-      {data && (
-        <>
-          {!past && data.matches && (
-            <Section title="Partidos del día">
-              <DayMatches rows={data.matches} />
-            </Section>
-          )}
-
-          <Section
-            title="Otras apuestas con valor"
-            intro={
-              past
-                ? "Las que el sistema guardó ese día con valor positivo."
-                : "Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota. Solo las que pasan el corte de valor, probabilidad y confianza pueden ser apuesta del día."
-            }
-          >
-            <ValueBets rows={data.value_bets} />
-          </Section>
-
-          {!past && data.props_to_check && (
-            <Section
-              title="Props con cuota mínima"
-              intro="Mercados para los que no tenemos cuota. Si tu casa paga al menos la cuota mínima, el modelo ve un 5 % de valor. Sin un mercado afilado como referencia, el margen de error es mayor."
-            >
-              <Props rows={data.props_to_check} />
-            </Section>
-          )}
-
-        </>
-      )}
+      {data &&
+        (tabs.length > 1 ? (
+          <Tabs tabs={tabs} current={tab} onSelect={setTab} label="Listas del día">
+            {tab === "partidos" && matches && (
+              <Section title="Partidos del día">
+                <DayMatches rows={matches} />
+              </Section>
+            )}
+            {tab === "valor" && <ValueSection rows={data.value_bets} past={past} />}
+            {tab === "props" && props && (
+              <Section
+                title="Props con cuota mínima"
+                intro="Mercados para los que no tenemos cuota. Si tu casa paga al menos la cuota mínima, el modelo ve un 5 % de valor. Sin un mercado afilado como referencia, el margen de error es mayor."
+              >
+                <Props rows={props} />
+              </Section>
+            )}
+          </Tabs>
+        ) : (
+          <ValueSection rows={data.value_bets} past={past} />
+        ))}
     </>
+  );
+}
+
+function ValueSection({ rows, past }: { rows: (ValueBet | PastValueBet)[]; past: boolean }) {
+  return (
+    <Section
+      title="Otras apuestas con valor"
+      intro={
+        past
+          ? "Las que el sistema guardó ese día con valor positivo."
+          : "Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota. Solo las que pasan el corte de valor, probabilidad y confianza pueden ser apuesta del día."
+      }
+    >
+      <ValueBets rows={rows} />
+    </Section>
   );
 }
 
@@ -550,7 +577,13 @@ function DayMatches({ rows }: { rows: DayMatch[] }) {
                 <Crest id={m.away_id} size={18} className="mr-1.5 -mt-0.5" />
                 {m.away}
               </span>
-              <span className="block text-nota text-grafito">{competitionName(m.competition)}</span>
+              {/* En el celular la etiqueta va junto a la competición, en vez de en una fila propia */}
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-nota text-grafito">
+                {competitionName(m.competition)}
+                <Tag tone={m.stage === "confirmed" ? "confirmada" : "neutral"} className="sm:hidden">
+                  {stageText(m.stage)}
+                </Tag>
+              </span>
             </span>
             <span className="col-start-2 sm:col-start-auto">
               <TriBar probs={m["1x2"]} home={m.home} away={m.away} />
@@ -560,7 +593,7 @@ function DayMatches({ rows }: { rows: DayMatch[] }) {
                 <span>{pct(m["1x2"].away)}</span>
               </span>
             </span>
-            <span className="col-start-2 flex flex-wrap gap-1.5 sm:col-start-auto">
+            <span className="hidden sm:flex">
               <Tag tone={m.stage === "confirmed" ? "confirmada" : "neutral"} className="sm:w-full sm:justify-center">
                 {stageText(m.stage)}
               </Tag>
