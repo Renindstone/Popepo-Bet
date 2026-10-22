@@ -50,7 +50,7 @@ Mismo modelo de fuerza aplicado a cada estadística (cuánto genera cada equipo 
 
 ## 4. Jugadores (`services/analysis.py::_player_projections`)
 
-Tasas por 90' ponderadas por antigüedad (remates, a puerta, goles, xG, asistencias, xA, faltas, amarillas), **contraídas hacia la media de su posición** (equivalente a 4 partidos). Minutos esperados según la alineación: confirmado titular, previsto (85 %), suplente o sin alineación (frecuencia de titularidad). Remates, faltas y tarjetas se escalan por el volumen esperado del equipo en ese partido.
+Tasas por 90' ponderadas por antigüedad (remates, a puerta, goles, xG, asistencias, xA, faltas, amarillas), **contraídas hacia la media de su posición** (equivalente a 4 partidos). Minutos esperados según la alineación: confirmado titular, previsto (85 %), suplente o sin alineación (frecuencia de titularidad). Goles, asistencias, remates, a puerta y tarjetas se reparten a partir de lo que se espera de su equipo en ese partido (abajo); las faltas salen de su tasa por 90' y sus minutos.
 
 **Goles y asistencias: parte de los goles del equipo** (desde el 20-10-2026). Para cada jugador se calcula qué parte de los goles de su equipo marca, asiste, y su xG y xA, **en los minutos que jugó** (goles del equipo × minutos/90 como exposición), contraída hacia la de su posición con unos 6 goles de equipo de peso. Goles esperados del jugador = (½ parte de goles + ½ parte de xG) × minutos esperados/90 × goles esperados de su equipo en ese partido; igual con asistencias y xA. "Gol o asistencia" suma las dos (un jugador no se asiste a sí mismo).
 
@@ -65,6 +65,43 @@ Antes se usaban las tasas por 90' escaladas contra la media del equipo "frente a
 | | Gol o asistencia | 647 | 793 | 869 | 0,2996 → 0,2929 |
 
 En los últimos 45 días aún se queda un 9 % corto (en 90 días, un 2-3 %). La misma comprobación con la Serie A y la Ligue 1 está en la sección 7 ("Serie A y Ligue 1 como ligas completas"). **Ningún mercado de jugador tiene backtest contra cuotas**: esta comprobación mide que las probabilidades estén bien calibradas, no que ganen a las casas.
+
+**Remates, a puerta y tarjetas: parte de los del equipo** (desde el 22-10-2026, `fitting.VOLUME_SHARE_STATS`). Igual que los goles: para cada jugador se calcula qué parte de los remates, de los remates a puerta y de las tarjetas (amarillas + rojas, como en el modelo de tarjetas) de su equipo hace **en los minutos que jugó**, contraída hacia la de su posición con el peso de 4 partidos de su equipo (unos 51 remates, 18 a puerta u 8 tarjetas). Remates esperados del jugador = parte × minutos esperados/90 × remates esperados de su equipo en ese partido (con alineaciones, árbitro y 1X2 de la casa, sección 3); igual con a puerta y tarjetas. La suma de los jugadores de un equipo es así el total que espera el modelo del equipo.
+
+Antes era la tasa por 90' × minutos × (remates esperados del equipo en el partido / su media "frente a un rival promedio"), el mismo factor que dejaba cortos los goles hasta el 20-10: vale de media 0,82, y los remates de jugador salían un 15 % cortos en todas las ligas (sección 7, "Serie A y Ligue 1 como ligas completas"). Un detalle de los datos: FotMob deja **vacío, no 0**, el remate de quien no remató (en los porteros, el 99,8 % de las filas); al calcular la parte cuenta como 0, como ya hacían las tasas por 90'. Si no, la parte sale inflada (los jugadores sumaban 1,6 veces el equipo).
+
+Comprobación fuera de muestra con las seis competiciones (modelo entrenado hasta el día de corte, partidos con once confirmado de los 90 días siguientes; medias del equipo del modelo de conteo con el factor del árbitro; esperado / real):
+
+| Corte (jugadores-partido) | Mercado | Antes | Ahora | Log-loss antes → ahora |
+|---|---|---|---|---|
+| 15-01-2026 (27.220) | Remates | 0,85 | **1,00** | Más de 1.5: 0,3125 → 0,3032 · más de 2.5: 0,1811 → 0,1747 |
+| | Remates a puerta | 0,86 | **1,01** | Más de 0.5: 0,3469 → 0,3435 |
+| | Tarjeta (sí) | 0,95 | 0,97 | 0,2749 → 0,2742 |
+| | Gol / asistencia | 0,99 / 1,00 | igual | igual (0,1853 en el gol) |
+| 23-07-2026 (16.463) | Remates | 0,79 | 0,92 | Más de 1.5: 0,3408 → 0,3291 · más de 2.5: 0,2098 → 0,2024 |
+| | Remates a puerta | 0,79 | 0,93 | Más de 0.5: 0,3630 → 0,3589 |
+| | Tarjeta (sí) | 0,97 | 1,02 | 0,2661 → 0,2658 |
+| | Gol / asistencia | 0,98 / 0,97 | igual | igual (0,1953 en el gol) |
+
+Por competición (remates · a puerta · tarjeta, esperado / real antes → ahora):
+
+| Liga | 15-01-2026 | 23-07-2026 |
+|---|---|---|
+| Premier | 0,78 → 1,00 · 0,84 → 1,07 · 0,94 → 0,95 | 0,75 → 0,96 · 0,83 → 1,05 · 0,91 → 0,93 |
+| Bundesliga | 0,86 → 1,00 · 0,85 → 0,98 · 0,91 → 0,94 | 0,73 → 0,83 · 0,74 → 0,86 · 0,99 → 1,03 |
+| LaLiga | 0,85 → 0,99 · 0,85 → 0,98 · 0,90 → 0,90 | 0,84 → 0,96 · 0,83 → 0,95 · 0,94 → 0,97 |
+| Serie A | 0,88 → 1,01 · 0,92 → 1,04 · 1,01 → 1,05 | 0,80 → 0,89 · 0,81 → 0,88 · 1,03 → 1,10 |
+| Ligue 1 | 0,90 → 1,00 · 0,93 → 1,05 · 0,93 → 0,94 | 0,83 → 0,91 · 0,80 → 0,90 · 1,03 → 1,06 |
+| Champions | 0,79 → 0,98 · 0,73 → 0,93 · 1,04 → 1,06 | 0,77 → 0,94 · 0,73 → 0,90 · 1,03 → 1,07 |
+
+- **El reparto entre jugadores queda bien en las dos fechas.** Escalando lo de cada jugador al total real de su equipo (para medir solo el reparto), los remates pasan de 0,86 a 1,01 (enero) y de 0,88 a 1,02 (julio), y todas las ligas quedan entre 0,99 y 1,04; a puerta, de 0,86 a 1,01 y de 0,89 a 1,03.
+- **Lo que falta en julio es del modelo de remates del equipo**, no del jugador: esperaba 12,8 remates por equipo y hubo 14,2. En la temporada 2026-27 se remata un 10-20 % más en todas las ligas (por equipo, Bundesliga 13,0 → 15,5, Serie A 12,4 → 14,6, Premier 12,7 → 13,9; football-data y FotMob dan lo mismo) y el modelo, con 240 días de vida media, aún no lo recoge. Afecta igual a los mercados de remates del equipo. Pendiente ("Próximas mejoras").
+- **Tarjetas**: el reparto ya estaba casi bien (el factor del rival promedio en tarjetas apenas se alejaba de 1); lo nuevo mejora un poco la log-loss. Lo que queda por liga (Serie A alta, LaLiga baja en enero) viene del modelo de tarjetas del equipo (Serie A: 2,04 esperadas frente a 1,80 reales en enero y 1,98 frente a 1,68 en julio). Además, FotMob registra como mucho una amarilla por jugador y partido (la segunda cuenta como roja), así que la probabilidad de tarjeta, que se calcula como 1 − e^(−λ), queda un ~8 % por debajo de λ; en el total eso compensa que el modelo de tarjetas del equipo se pasa un 4-9 %. Pendiente revisar las dos cosas juntas.
+- **Alternativa probada**: dividir entre la media real reciente del equipo (vida media 200 días) en lugar de la del rival promedio. El reparto también queda bien (1,00 y 1,01), pero la log-loss es algo peor en enero (más de 2.5 remates: 0,1756 frente a 0,1747) y en la Champions se queda corta (0,92 frente a 0,98); en julio, empate. Se eligió la parte del equipo: es el mismo método que los goles y sigue bien a un jugador que cambia de equipo.
+
+Caso real (22-10-2026, alineaciones probables): **Arsenal-Everton**, Saka pasa de 1,79 a 2,69 remates esperados ("Más de 1.5 remates" de 51 % a 70 %) y Havertz de 1,29 a 2,07; **Aston Villa-Manchester City**, Haaland de 2,54 a 2,97 (67 % → 74 %). Con la alineación probable (solo 11 titulares, sin banquillo) la suma de los listados no llega al total del equipo: falta lo de los suplentes, que no están en la lista.
+
+El paquete de modelos guarda la parte de cada jugador (`volume_share` y su exposición `volume_team90`; el archivo pasa de 1,8 a 2,4 MB). Entra al reentrenar (tarea diaria de resultados o `apuestas train`); con un paquete anterior se usa la fórmula de antes. Medición: `medir_jugadores.py` en las notas de la sesión del 22-10-2026 (no está en el repositorio).
 
 **Bet Builders con jugadores** (`MatchModel.joint_prob`): si el equipo marca k goles, cada uno lo marca el jugador con su parte de los goles esperados del equipo (y lo asiste con su parte de asistencias). Así "gana el Real Madrid y marca Mbappé" se calcula sobre la matriz de marcadores, con su correlación positiva, y "Arsenal o empate y Kane marca o asiste" con su correlación negativa. Varias selecciones de jugadores del mismo equipo se combinan por inclusión-exclusión. Con un solo jugador sale la misma probabilidad que el mercado suelto. Córners, tarjetas, remates y faltas no dependen solo del marcador: en un Bet Builder se multiplican como si fueran independientes y el resultado se marca **aproximado**.
 
@@ -361,7 +398,7 @@ Jugadores, fuera de muestra (modelo entrenado hasta el día de corte; partidos c
 | 23-07-2026 | Serie A | 3.360 | 178 / 184 | 127 / 141 | 289 / 310 | 0,182 (media 0,212) |
 | | Ligue 1 | 1.957 | 132 / 122 | 99 / 93 | 218 / 200 | 0,197 (media 0,233) |
 
-Los goles y las asistencias de jugador salen igual de bien calibrados que en las otras ligas. **Los remates de jugador, en cambio, salen cortos en todas las ligas** (15-01-2026: 13.868 esperados frente a 16.401 reales; Serie A −12 %, Ligue 1 −10 %, Premier −22 %). No viene de las ligas nuevas: las tasas por 90' de cada jugador están bien (con los minutos reales, 0,99 de lo real), pero el paso del equipo al jugador divide los remates esperados del equipo entre su media frente a un "rival promedio" de toda la base de datos, con las ligas de segunda y las ligeras, y ese factor vale de media 0,82. Es el mismo problema que tenían los goles de jugador hasta el 20-10 (sección 4). Queda pendiente.
+Los goles y las asistencias de jugador salen igual de bien calibrados que en las otras ligas. **Los remates de jugador, en cambio, salen cortos en todas las ligas** (15-01-2026: 13.868 esperados frente a 16.401 reales; Serie A −12 %, Ligue 1 −10 %, Premier −22 %). No viene de las ligas nuevas: las tasas por 90' de cada jugador están bien (con los minutos reales, 0,99 de lo real), pero el paso del equipo al jugador divide los remates esperados del equipo entre su media frente a un "rival promedio" de toda la base de datos, con las ligas de segunda y las ligeras, y ese factor vale de media 0,82. Es el mismo problema que tenían los goles de jugador hasta el 20-10 (sección 4). Corregido el 22-10-2026 con la parte de los remates del equipo (sección 4).
 
 Alineaciones: con las cinco ligas, la regresión da β ataque 0,13 ± 0,04 y β defensa 0,10 ± 0,05 en goles (7.694 equipo-partido), coherente con el 0,10 que se usa. En la Serie A el ajuste por once no cambia la log-loss (+0,0001) y en la Ligue 1 la mejora poco (−0,0006), como en la Premier.
 
@@ -426,4 +463,6 @@ Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (d
 - Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
 - Medir la antigüedad de las observaciones del mercado en jornadas en lugar de días, para no perder el mercado durante el parón de verano.
 - Backtest de props cuando haya cuotas guardadas de Betano (OddsPapi).
-- Remates de jugador: corregir la escala del equipo al jugador, que los deja un 15 % cortos en todas las ligas (sección 7, "Serie A y Ligue 1 como ligas completas").
+- Remates del equipo en la temporada 2026-27: se remata un 10-20 % más en todas las ligas y el modelo de conteo (vida media de 240 días) espera 12,8 remates por equipo frente a 14,2 reales; los remates de jugador heredan ese hueco (0,92 de lo real desde julio). Probar un nivel de liga que se adapte antes (por temporada o con memoria más corta solo para el nivel) y medirlo con `apuestas backtest` en remates, a puerta y córners.
+- Tarjetas de jugador: FotMob da como mucho una amarilla por jugador y partido, así que la probabilidad debería ser λ y no 1 − e^(−λ) (~8 % más baja); el modelo de tarjetas del equipo se pasa un 4-9 % (Serie A +13-18 %). Las dos cosas se compensan en el total, no por liga: corregirlas juntas (sección 4).
+- Proyecciones de jugador sin ninguna alineación (días antes del partido): los habituales suman 1.260 minutos por equipo en lugar de ~990 (la frecuencia de titularidad cuenta solo los partidos en que jugó), y todo sale un 16 % alto, también los goles (medido con el corte del 15-01-2026).

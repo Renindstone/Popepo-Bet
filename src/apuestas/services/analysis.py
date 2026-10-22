@@ -217,8 +217,13 @@ class MatchAnalysis:
 
 
 def _team_avg(model, team_id: int, home: bool) -> float:
-    """Media del equipo contra un rival promedio (para escalar a los jugadores)."""
+    """Media del equipo contra un rival promedio (para escalar a los jugadores con paquetes de modelos antiguos)."""
     return math.exp(model.mu + (model.home_adv if home else 0) + model.attack.get(team_id, 0.0))
+
+
+# Contracción de la parte de remates, a puerta y tarjetas de un jugador hacia la de su posición: equivale a 4 partidos
+# completos, como las tasas por 90'
+VOLUME_SHARE_PRIOR_MATCHES = 4.0
 
 
 def _player_projections(
@@ -292,6 +297,16 @@ def _player_projections(
             "fouls_committed": rates["fouls_committed"] * f,
             "yellow_cards": rates["yellow_cards"] * f * cards_ratio,
         }
+        for st, team_st in fitting.VOLUME_SHARE_STATS.items():
+            if f"{st}_share" in prior and team_st in count_means:
+                # Igual que los goles: parte de los remates (o tarjetas) de su equipo en los minutos que juega,
+                # contraída hacia la de su posición, por los que se esperan de su equipo en ESTE partido. Escalar
+                # contra el rival promedio los dejaba ~15 % cortos (docs/modelos.md, sección 4).
+                exposure = ((pr or {}).get("volume_team90") or {}).get(st, 0.0)
+                obs = ((pr or {}).get("volume_share") or {}).get(st, 0.0)
+                k_vol = VOLUME_SHARE_PRIOR_MATCHES * prior.get(f"{st}_team90", 0.0)
+                share = (obs * exposure + prior[f"{st}_share"] * k_vol) / (exposure + k_vol) if exposure + k_vol else 0.0
+                lam[st] = share * f * count_means[team_st][0 if is_home else 1]
         projections.append(PlayerProjection(pid, name, team_id, pos, exp_min, start_prob, lam))
     return projections
 

@@ -7,7 +7,8 @@ Paquete (var/models/latest.json):
 - counts[stat]: modelos de remates, remates a puerta, córners, faltas y tarjetas (binomial negativa); los de
   remates y córners, guiados por la fuerza del equipo en el modelo de goles
 - referees: factor de tarjetas/faltas de cada árbitro (con contracción hacia 1)
-- players: tasas por 90' de cada jugador (remates, a puerta, goles, xG, faltas, amarillas)
+- players: tasas por 90' de cada jugador (remates, a puerta, goles, xG, faltas, amarillas) y su parte de los goles,
+  remates, a puerta y tarjetas de su equipo (para repartir lo que se espera del equipo en un partido)
 - priors: tasas medias por posición (para contraer jugadores con pocos minutos)
 """
 
@@ -45,6 +46,9 @@ COUNT_STATS = ("shots", "shots_on_target", "corners", "fouls", "cards")
 PLAYER_STATS = ("shots", "shots_on_target", "goals", "xg", "assists", "xa", "fouls_committed", "yellow_cards")
 # Goles y asistencias también como parte de los goles de su equipo en los minutos que jugó (para repartirlos)
 SHARE_STATS = ("goals", "xg", "assists", "xa")
+# Remates, a puerta y amarillas también como parte de los de su equipo en los minutos que jugó: estadística del
+# jugador → la del equipo en los modelos de conteo (tarjetas del equipo = amarillas + rojas, como en load_matches)
+VOLUME_SHARE_STATS = {"shots": "shots", "shots_on_target": "shots_on_target", "yellow_cards": "cards"}
 
 
 @dataclass
@@ -437,25 +441,41 @@ def fit_referees(rows: list[MatchRow], cards_model: RatingModel, fouls_model: Ra
     return out
 
 
+def _team_volume(tms: m.TeamMatchStats | None) -> dict[str, float | None]:
+    """Remates, a puerta y tarjetas del equipo en el partido, con las claves de las estadísticas del jugador."""
+    if tms is None:
+        return {}
+    cards = tms.yellow_cards + (tms.red_cards or 0) if tms.yellow_cards is not None else None
+    team = {"shots": tms.shots, "shots_on_target": tms.shots_on_target, "cards": cards}
+    return {st: team[team_st] for st, team_st in VOLUME_SHARE_STATS.items()}
+
+
 def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> tuple[dict[int, dict], dict]:
-    """Tasas por 90' ponderadas por antigüedad y medias por posición."""
+    """Tasas por 90' ponderadas por antigüedad y medias por posición.
+
+    Además, la parte de los goles (SHARE_STATS) y de los remates, a puerta y tarjetas (VOLUME_SHARE_STATS) de su
+    equipo que hace cada jugador en los minutos que juega, para repartir lo que se espera del equipo en un partido.
+    """
     since = before - timedelta(days=500)
     q = (
         select(m.PlayerMatchStats, m.Match.kickoff_utc, m.Player.position, m.Player.name,
-               m.Match.home_team_id, m.Match.home_goals, m.Match.away_goals)
+               m.Match.home_team_id, m.Match.home_goals, m.Match.away_goals, m.TeamMatchStats)
         .join(m.Match, m.Match.id == m.PlayerMatchStats.match_id)
         .join(m.Player, m.Player.id == m.PlayerMatchStats.player_id)
+        .outerjoin(m.TeamMatchStats, and_(m.TeamMatchStats.match_id == m.PlayerMatchStats.match_id,
+                                          m.TeamMatchStats.team_id == m.PlayerMatchStats.team_id))
         .where(m.Match.kickoff_utc < before, m.Match.kickoff_utc >= since, m.PlayerMatchStats.minutes > 0)
     )
     acc: dict[int, dict] = {}
     pos_acc: dict[str, dict[str, float]] = {}
     as_of = before.date()
-    for pms, ko, pos, name, home_id, home_goals, away_goals in s.execute(q):
+    for pms, ko, pos, name, home_id, home_goals, away_goals, tms in s.execute(q):
         w = 0.5 ** ((as_of - ko.date()).days / half_life_days)
         a = acc.setdefault(
             pms.player_id,
             {"name": name, "position": pos, "team_id": pms.team_id, "w_minutes": 0.0, "starts": 0, "apps": 0,
              "starter_minutes": 0.0, "last": None, "team_goals90": 0.0, "share_obs": {st: 0.0 for st in SHARE_STATS},
+             "vol_obs": {st: 0.0 for st in VOLUME_SHARE_STATS}, "vol_team90": {st: 0.0 for st in VOLUME_SHARE_STATS},
              **{st: 0.0 for st in PLAYER_STATS}},
         )
         mins = pms.minutes or 0
@@ -472,6 +492,8 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
             a["last"], a["team_id"] = ko.date(), pms.team_id
         p = pos_acc.setdefault(pos or "MF", {"minutes": 0.0, "team_goals90": 0.0,
                                              "share_obs": {st: 0.0 for st in SHARE_STATS},
+                                             "vol_obs": {st: 0.0 for st in VOLUME_SHARE_STATS},
+                                             "vol_team90": {st: 0.0 for st in VOLUME_SHARE_STATS},
                                              **{st: 0.0 for st in PLAYER_STATS}})
         p["minutes"] += mins
         if team_goals is not None:
@@ -484,10 +506,24 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
                 if st in SHARE_STATS and team_goals is not None:
                     a["share_obs"][st] += w * float(v)
                     p["share_obs"][st] += float(v)
+        for st, team_v in _team_volume(tms).items():
+            if team_v is not None:
+                # FotMob deja vacío (no 0) el remate de quien no remató: vacío = 0, como en las tasas por 90'
+                v = float(getattr(pms, st) or 0)
+                # exposición: remates (o tarjetas) de su equipo, en proporción a los minutos que jugó
+                a["vol_obs"][st] += w * v
+                a["vol_team90"][st] += w * team_v * mins / 90
+                p["vol_obs"][st] += v
+                p["vol_team90"][st] += team_v * mins / 90
     priors = {
         pos: {**{st: (v[st] / v["minutes"] * 90 if v["minutes"] else 0.0) for st in PLAYER_STATS},
               **{f"{st}_share": (v["share_obs"][st] / v["team_goals90"] if v["team_goals90"] else 0.0)
-                 for st in SHARE_STATS}}
+                 for st in SHARE_STATS},
+              **{f"{st}_share": (v["vol_obs"][st] / v["vol_team90"][st] if v["vol_team90"][st] else 0.0)
+                 for st in VOLUME_SHARE_STATS},
+              # remates (o tarjetas) de su equipo por 90': para contraer la parte "en partidos equivalentes"
+              **{f"{st}_team90": (v["vol_team90"][st] / v["minutes"] * 90 if v["minutes"] else 0.0)
+                 for st in VOLUME_SHARE_STATS}}
         for pos, v in pos_acc.items()
     }
     players = {}
@@ -504,6 +540,10 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
             "share": {st: round(a["share_obs"][st] / a["team_goals90"], 4) for st in SHARE_STATS}
             if a["team_goals90"] > 0 else None,
             "team_goals90": round(a["team_goals90"], 3),
+            # parte de los remates, a puerta y tarjetas de su equipo, y cuántos del equipo la respaldan
+            "volume_share": {st: round(a["vol_obs"][st] / a["vol_team90"][st], 4)
+                             for st in VOLUME_SHARE_STATS if a["vol_team90"][st] > 0},
+            "volume_team90": {st: round(a["vol_team90"][st], 3) for st in VOLUME_SHARE_STATS},
             "starts": a["starts"],
             "apps": a["apps"],
             "avg_starter_minutes": round(a["starter_minutes"] / a["starts"], 1) if a["starts"] else None,
