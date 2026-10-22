@@ -111,10 +111,11 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                     pick = _upsert_pick(s, mt, b, day, an.stage)
                     s.flush()
                     b.reasons = [*b.reasons, f"pick_id={pick.id}"]
-                report["value_bets"].append({**b.to_dict(), "match_id": mt.id,
-                                             "label": b.label(mt.home_team.name, mt.away_team.name),
-                                             "match": f"{mt.home_team.name} vs {mt.away_team.name}",
-                                             "qualifies": qualifies(b)})
+                if b.odds >= get_settings().value_list_min_odds:
+                    report["value_bets"].append({**b.to_dict(), "match_id": mt.id,
+                                                 "label": b.label(mt.home_team.name, mt.away_team.name),
+                                                 "match": f"{mt.home_team.name} vs {mt.away_team.name}",
+                                                 "qualifies": qualifies(b)})
                 if qualifies(b) and not started:
                     candidates.append((an, b))
             for p in an.min_odds_props[:6]:

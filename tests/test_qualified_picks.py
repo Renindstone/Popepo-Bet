@@ -99,10 +99,11 @@ def test_qualified_record_counts_only_those_that_passed(s):
 def test_past_day_lists_the_ones_that_passed_first(s):
     mt = match(s, kickoff=datetime.now(UTC) - timedelta(days=3))
     day = picks.today_local() - timedelta(days=3)
-    for sel, ev, passed, status in (("a", 0.30, False, "settled"), ("b", 0.05, True, "settled"),
-                                    ("c", 0.20, True, "withdrawn"), ("d", 0.08, True, "settled")):
+    for sel, ev, passed, status, odds in (("a", 0.30, False, "settled", 2.0), ("b", 0.05, True, "settled", 2.0),
+                                          ("c", 0.20, True, "withdrawn", 2.0), ("d", 0.08, True, "settled", 2.0),
+                                          ("e", 0.01, False, "settled", 1.15)):  # cuota de menos de 1.20: no sale
         s.add(m.Pick(match_id=mt.id, pick_date=day, stage="pre_lineup", market="1x2", selection=sel,
-                     bookmaker="bet365", odds=2.0, model_prob=0.5, fair_odds=2.0, ev=ev, confidence=0.8,
+                     bookmaker="bet365", odds=odds, model_prob=0.5, fair_odds=2.0, ev=ev, confidence=0.8,
                      stake_pct=0.01, qualifies=passed, status=status))
     s.flush()
     rows = queries.pick_of_day(day.isoformat())["value_bets"]

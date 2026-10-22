@@ -157,7 +157,8 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
         return picks.generate(d)
     with session_scope() as s:
         # Primero las que pasaron el corte (y no se retiraron), luego el resto por valor esperado
-        rows = sorted(s.scalars(select(m.Pick).where(m.Pick.pick_date == d)),
+        rows = sorted(s.scalars(select(m.Pick).where(m.Pick.pick_date == d,
+                                                     m.Pick.odds >= get_settings().value_list_min_odds)),
                       key=lambda p: (not (p.qualifies and p.status != "withdrawn"), -p.ev))
         pod = next((p for p in rows if p.is_pick_of_day), None)
         return {

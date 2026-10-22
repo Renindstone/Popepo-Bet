@@ -177,8 +177,8 @@ function ValueSection({ rows, past }: { rows: (ValueBet | PastValueBet)[]; past:
       actions={rows.length > 1 ? <OrderPicker value={order} onChange={setOrder} /> : undefined}
       intro={
         past
-          ? "Las que el sistema guardó ese día con valor positivo, con su resultado. Puedes ver primero las que pasaron el corte, las más probables, las de más confianza o las de más valor."
-          : "Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota. Las que pasan el corte de valor, probabilidad y confianza se guardan y, cuando termina el partido, se anota si se ganaron o se perdieron; entre ellas sale la apuesta del día. «Más probables» ordena por la probabilidad de que salga; «Más confianza», por lo seguro que está el modelo de su estimación."
+          ? "Las que el sistema guardó ese día con valor positivo, con su resultado. Puedes ver primero las que pasaron el corte, las más probables, las de más confianza o las de más valor. No salen las cuotas de menos de 1.20."
+          : "Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota. Las que pasan el corte de valor, probabilidad y confianza se guardan y, cuando termina el partido, se anota si se ganaron o se perdieron; entre ellas sale la apuesta del día. «Más probables» ordena por la probabilidad de que salga; «Más confianza», por lo seguro que está el modelo de su estimación. No salen las cuotas de menos de 1.20, que casi no dejan margen."
       }
     >
       <PickRecord variant="line" source="corte" />
