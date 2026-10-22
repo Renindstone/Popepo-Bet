@@ -36,7 +36,7 @@ Mismo modelo de fuerza aplicado a cada estadística (cuánto genera cada equipo 
 
 - **Europa League y Conference** (desde el 21-10-2026): sus estadísticas de FotMob entran en los cinco modelos de conteo. Son unos 1.020 partidos desde 2023-24, y casi duplican los cruces entre ligas: la Eredivisie pasa de 13 a 27 partidos ponderados, la belga de 10 a 18, la griega de 4 a 17 y la escocesa de 1 a 10. Su xG, en cambio, **no entra en el modelo de goles** (`fitting.GOALS_XG_SKIP`): con él empeoraba la Champions. Detalle en la sección 7.
 
-- **Árbitro**: factor = (observado + K) / (esperado + K), con K en partidos "neutros". En **faltas** mejora la predicción (K = 20). En **tarjetas**, medido de nuevo con los árbitros de LaLiga y la Bundesliga (FotMob), K = 80. Ayuda claramente en LaLiga y algo en la Bundesliga; en la Premier no ayuda (ver backtest).
+- **Árbitro**: factor = (observado + K) / (esperado + K), con K en partidos "neutros". En **faltas** mejora la predicción (K = 20). En **tarjetas**, medido de nuevo con los árbitros de LaLiga y la Bundesliga (FotMob), K = 80. Ayuda claramente en LaLiga y en la Serie A, y algo en la Bundesliga; en la Premier no ayuda. En la Ligue 1 ayuda sobre todo en las faltas (ver backtest).
 - **Alineación**: un once más fuerte de lo habitual genera más remates y córners (efecto atenuado, exponente 0,7).
 
 ## 4. Jugadores (`services/analysis.py::_player_projections`)
@@ -55,7 +55,7 @@ Antes se usaban las tasas por 90' escaladas contra la media del equipo "frente a
 | 45 días (7.618) | Gol | 390 | 482 | 530 | 0,2098 → 0,2062 |
 | | Gol o asistencia | 647 | 793 | 869 | 0,2996 → 0,2929 |
 
-En los últimos 45 días aún se queda un 9 % corto (en 90 días, un 2-3 %). **Ningún mercado de jugador tiene backtest contra cuotas**: esta comprobación mide que las probabilidades estén bien calibradas, no que ganen a las casas.
+En los últimos 45 días aún se queda un 9 % corto (en 90 días, un 2-3 %). La misma comprobación con la Serie A y la Ligue 1 está en la sección 7 ("Serie A y Ligue 1 como ligas completas"). **Ningún mercado de jugador tiene backtest contra cuotas**: esta comprobación mide que las probabilidades estén bien calibradas, no que ganen a las casas.
 
 **Bet Builders con jugadores** (`MatchModel.joint_prob`): si el equipo marca k goles, cada uno lo marca el jugador con su parte de los goles esperados del equipo (y lo asiste con su parte de asistencias). Así "gana el Real Madrid y marca Mbappé" se calcula sobre la matriz de marcadores, con su correlación positiva, y "Arsenal o empate y Kane marca o asiste" con su correlación negativa. Varias selecciones de jugadores del mismo equipo se combinan por inclusión-exclusión. Con un solo jugador sale la misma probabilidad que el mercado suelto. Córners, tarjetas, remates y faltas no dependen solo del marcador: en un Bet Builder se multiplican como si fueran independientes y el resultado se marca **aproximado**.
 
@@ -296,13 +296,75 @@ Comprobación con las cuotas guardadas (modelo entrenado hasta el 20-10-2026; la
 
 Reproducir: `apuestas backtest --europa` con y sin las estadísticas en la base de datos (salidas en `var/backtests/uel_stats_{antes,final}_2024_2026.json`; `uel_stats_despues` es la variante con el xG de las copas).
 
+**Serie A y Ligue 1 como ligas completas** (21-10-2026, a petición del usuario). Hasta entonces eran ligas ligeras: entraban en el modelo con el resultado, los conteos de football-data y las cuotas de cierre, pero sin xG (football-data no lo trae hasta 2026-27), sin árbitro, sin alineaciones y sin jugadores. Ahora tienen lo mismo que la Premier, la Bundesliga y LaLiga: xG de FotMob y de Understat, estadísticas Opta, árbitro, alineaciones y jugadores. Se bajaron los 2.191 partidos jugados desde 2023-24 a una copia de la base de datos y se repitió el walk-forward de siempre (2024-25 y 2025-26) sobre la copia de antes y la de después, en los mismos partidos. `apuestas backtest` evalúa ahora por defecto las cinco ligas y da la log-loss de cada una; `--ligas EPL,BUN,LAL` repite las cifras anteriores.
+
+Log-loss 1X2 del modelo por competición, en todos los partidos con rating (diferencia pareada después − antes; negativo = mejor). El "antes" de la Premier, la Bundesliga, LaLiga y las copas es el backtest de antes, con tres ligas; el de la Serie A y la Ligue 1, la copia de antes evaluando también esas dos ligas:
+
+| Competición | Partidos | Antes | Después | Diferencia |
+|---|---|---|---|---|
+| Premier | 760 | 0,9935 | 0,9938 | +0,0003 ± 0,0002 |
+| Bundesliga | 612 | 0,9801 | 0,9800 | −0,0001 ± 0,0002 |
+| LaLiga | 760 | 0,9648 | 0,9647 | −0,0001 ± 0,0002 |
+| Serie A | 755 | 0,9695 | 0,9695 | −0,0001 ± 0,0009 |
+| Ligue 1 | 608 | 0,9664 | 0,9670 | +0,0007 ± 0,0011 |
+| Champions | 377 | 0,9017 | 0,9022 | +0,0005 ± 0,0005 |
+| Europa League | 371 | 0,9858 | 0,9855 | −0,0003 ± 0,0004 |
+| Conference | 282 | 1,0149 | 1,0151 | +0,0003 ± 0,0004 |
+
+De la Premier, +0,0002 sale solo de estimar ρ (Dixon-Coles) con cinco ligas en vez de tres. Ninguna diferencia llega a dos errores estándar.
+
+Frente a las casas (partidos con cuotas de bet365 y Pinnacle):
+
+| Log-loss 1X2 | Modelo antes | Modelo después | bet365 | Pinnacle | Mezcla 25/75 |
+|---|---|---|---|---|---|
+| Premier | 0,9975 | 0,9978 | 0,9995 | 0,9974 | 0,9966 |
+| Bundesliga | 0,9749 | 0,9748 | 0,9652 | 0,9669 | 0,9681 |
+| LaLiga | 0,9668 | 0,9667 | 0,9578 | 0,9585 | 0,9595 |
+| Serie A | 0,9657 | 0,9656 | 0,9623 | 0,9602 | 0,9608 |
+| Ligue 1 | 0,9644 | 0,9651 | 0,9646 | 0,9649 | 0,9639 |
+| Las cinco (3.495) | 0,9743 | 0,9744 | 0,9704 | 0,9700 | 0,9702 |
+
+Apuestas del backtest (solo modelo, valor ≥ 3 %): Serie A, de 565 apuestas con ROI −3,4 % a 562 con +2,7 % (CLV +0,3 % → +0,5 %); Ligue 1, de 437 con −4,2 % a 422 con −7,4 % (CLV +1,3 % en los dos). Las cinco ligas juntas: 2.584 apuestas, ROI −4,1 %, CLV +0,6 %. Con unas 500 apuestas a cuota ~2, el error estándar del ROI es de 4-5 puntos: ninguna de estas diferencias es significativa.
+
+El xG casi no mueve el 1X2 porque el modelo ya seguía las cuotas de cierre de esas dos ligas (ratings del mercado, sección 1), que son lo que más pesa. En la Ligue 1 el modelo queda a la par de las casas (0,9651 frente a 0,9646 de bet365), pero, como en las demás ligas, eso no da apuestas rentables.
+
+Estadísticas (mejora de la log-verosimilitud por partido frente a la media de la liga; "por equipo" = los dos equipos por separado; el árbitro, frente al mismo modelo sin árbitro):
+
+| Después | Premier | Bundesliga | LaLiga | Serie A | Ligue 1 |
+|---|---|---|---|---|---|
+| Córners por equipo | +0,191 | +0,109 | +0,123 | +0,126 | +0,130 |
+| Remates por equipo | +0,347 | +0,257 | +0,352 | +0,283 | +0,317 |
+| A puerta por equipo | +0,150 | +0,236 | +0,234 | +0,191 | +0,255 |
+| Faltas por equipo | +0,200 | +0,273 | +0,248 | +0,266 | +0,098 |
+| Tarjetas por equipo | +0,048 | +0,046 | +0,023 | +0,078 | +0,038 |
+| Árbitro en tarjetas | −0,004 ± 0,002 | +0,004 ± 0,003 | +0,011 ± 0,004 | +0,013 ± 0,002 | +0,003 ± 0,002 |
+| Árbitro en faltas | +0,007 ± 0,005 | −0,005 ± 0,006 | +0,014 ± 0,006 | +0,006 ± 0,005 | +0,024 ± 0,008 |
+
+Los modelos de la Serie A y la Ligue 1 mejoran a la media de la liga tanto como los de las otras ligas, y ya lo hacían antes con los conteos de football-data (FotMob y football-data dan casi siempre las mismas cifras; difieren en el 13-14 % de las filas, como en LaLiga). Lo nuevo es el árbitro, que football-data no trae fuera de Inglaterra: ayuda claramente en las tarjetas de la Serie A y en las faltas de la Ligue 1. En las ligas de siempre las estadísticas no cambian (±0,0002), y en la Champions mejoran un poco los remates (por equipo +0,0026 ± 0,0008; entre ligas +0,0032 ± 0,0011), sin que nada empeore más allá del ruido.
+
+Jugadores, fuera de muestra (modelo entrenado hasta el día de corte; partidos con once confirmado de los 90 días siguientes; esperado / real y log-loss frente a la tasa media):
+
+| Corte | Liga | Jugador-partidos | Gol | Asistencia | Gol o asistencia | Log-loss del gol |
+|---|---|---|---|---|---|---|
+| 15-01-2026 | Serie A | 5.612 | 275 / 292 | 195 / 192 | 448 / 461 | 0,168 (media 0,205) |
+| | Ligue 1 | 4.184 | 265 / 251 | 193 / 193 | 433 / 417 | 0,183 (media 0,227) |
+| | Las seis competiciones | 27.220 | 1.623 / 1.633 | 1.175 / 1.171 | 2.645 / 2.654 | 0,185 (media 0,227) |
+| 23-07-2026 | Serie A | 3.360 | 178 / 184 | 127 / 141 | 289 / 310 | 0,182 (media 0,212) |
+| | Ligue 1 | 1.957 | 132 / 122 | 99 / 93 | 218 / 200 | 0,197 (media 0,233) |
+
+Los goles y las asistencias de jugador salen igual de bien calibrados que en las otras ligas. **Los remates de jugador, en cambio, salen cortos en todas las ligas** (15-01-2026: 13.868 esperados frente a 16.401 reales; Serie A −12 %, Ligue 1 −10 %, Premier −22 %). No viene de las ligas nuevas: las tasas por 90' de cada jugador están bien (con los minutos reales, 0,99 de lo real), pero el paso del equipo al jugador divide los remates esperados del equipo entre su media frente a un "rival promedio" de toda la base de datos, con las ligas de segunda y las ligeras, y ese factor vale de media 0,82. Es el mismo problema que tenían los goles de jugador hasta el 20-10 (sección 4). Queda pendiente.
+
+Alineaciones: con las cinco ligas, la regresión da β ataque 0,13 ± 0,04 y β defensa 0,10 ± 0,05 en goles (7.694 equipo-partido), coherente con el 0,10 que se usa. En la Serie A el ajuste por once no cambia la log-loss (+0,0001) y en la Ligue 1 la mejora poco (−0,0006), como en la Premier.
+
+Reproducir: `apuestas backtest --lineups --europa` con el código de antes y el de ahora (`--ligas EPL,BUN,LAL`) sobre la base de datos de antes y la de después (salidas por partido en `var/backtests/ligue1_serie_a_{antes3,antes5,despues5}_2024_2026.json`).
+
 **Lectura**:
 1. En los mercados principales, **bet365 sigue siendo más preciso que el modelo**, también con los ratings del mercado. Ahora el modelo está mucho más cerca (lo que hacen los profesionales), pero no hay ninguna estrategia rentable en 1X2, goles o hándicap. Con el modelo tan cerca del mercado, las pocas "apuestas con valor" que quedan son sobre todo ruido: el ROI no mejora aunque el CLV sí lo haga un poco.
 2. bet365 casi nunca paga más que la probabilidad justa de Pinnacle en 1X2 o goles 2.5 (4 casos en dos años), así que comparar casas no sirve con bet365 en esos mercados.
 3. El cierre de Pinnacle (0,963) es mucho mejor que su cuota previa (0,976): entre la previa y el partido llega mucha información (alineaciones, noticias). El índice de calidad del once solo capta una parte (β = 0,10).
-4. Donde el modelo sí aporta información (faltas, remates, tarjetas, jugadores) es justo donde las casas tienen menos precisión. Ahí hay que comparar las cuotas de Betano con la **cuota mínima** que da el sistema. El árbitro ayuda en las tarjetas de LaLiga y la Bundesliga, no en las de la Premier.
+4. Donde el modelo sí aporta información (faltas, remates, tarjetas, jugadores) es justo donde las casas tienen menos precisión. Ahí hay que comparar las cuotas de Betano con la **cuota mínima** que da el sistema. El árbitro ayuda en las tarjetas de LaLiga, la Serie A y la Bundesliga, no en las de la Premier, y en las faltas de la Ligue 1.
 
-Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (`--market-weight 0` para el modelo sin mercado; `--no-count-strength` para las estadísticas sin la fuerza de goles, y `--count-l2 1` para la L2 fija de antes).
+Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (desde el 21-10-2026 evalúa por defecto las cinco ligas completas; `--ligas EPL,BUN,LAL` para las cifras de antes; `--market-weight 0` para el modelo sin mercado; `--no-count-strength` para las estadísticas sin la fuerza de goles, y `--count-l2 1` para la L2 fija de antes).
 
 ## Próximas mejoras previstas
 
@@ -312,3 +374,4 @@ Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (`
 - Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
 - Medir la antigüedad de las observaciones del mercado en jornadas en lugar de días, para no perder el mercado durante el parón de verano.
 - Backtest de props cuando haya cuotas guardadas de Betano (OddsPapi).
+- Remates de jugador: corregir la escala del equipo al jugador, que los deja un 15 % cortos en todas las ligas (sección 7, "Serie A y Ligue 1 como ligas completas").
