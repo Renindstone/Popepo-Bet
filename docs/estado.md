@@ -40,6 +40,7 @@
 | 2026-10-22 | El 1X2 de la casa (Pinnacle, bet365 o Betano) mueve el reparto de remates, a puerta y córners entre los dos equipos (peso 0,75, el total no cambia). |
 | 2026-10-22 | Las apuestas con valor que pasan el corte salen primero y se guardan con su resultado, con un contador de aciertos aparte del de la apuesta del día. |
 | 2026-10-22 | «Con valor» se puede ordenar por las que pasan el corte, probabilidad, confianza o valor, y no muestra cuotas de menos de 1.20. |
+| 2026-10-22 | Remates, remates a puerta y tarjetas de cada jugador son su parte de los de su equipo, como los goles (antes salían un 15 % cortos por el «rival promedio»). Fusionado con el OK del usuario. |
 
 ## Pendiente o por decidir
 
