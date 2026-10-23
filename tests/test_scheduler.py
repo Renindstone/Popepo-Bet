@@ -67,7 +67,8 @@ def test_lineup_checks_fire_once_at_each_point():
 
 def test_lineup_search_retries_until_the_official_xi(state, monkeypatch):
     """A 50 minutos del inicio se vuelve a buscar el once de un partido con el último once de FotMob (lastStarting11,
-    que se guarda como probable) o sin once; el que ya tiene el oficial (standard) no se vuelve a pedir."""
+    que se guarda como probable) o sin once; el que ya tiene el oficial (standard) no se vuelve a pedir, y los de la
+    Europa League (sus alineaciones no se usan) tampoco."""
     from contextlib import contextmanager
     from datetime import UTC, timedelta
 
@@ -113,6 +114,10 @@ def test_lineup_search_retries_until_the_official_xi(state, monkeypatch):
             if lineup_type:
                 store.apply_fotmob_details(s, match, fotmob.parse_match_details(payload(fid, lineup_type)))
             ids[lineup_type] = match.id
+        uel = store.ensure_competitions(s)["UEL"]
+        home, away = store.fotmob_team(s, 90, "Local UEL"), store.fotmob_team(s, 91, "Visita UEL")
+        s.add(m.Match(competition_id=uel.id, season_id=store.get_season(s, uel, 2026).id, fotmob_id=9,
+                      kickoff_utc=kickoff, home_team_id=home.id, away_team_id=away.id, status="scheduled"))
         s.flush()
         assert s.get(m.Match, ids["lastStarting11"]).lineup_status == "predicted"
         assert s.get(m.Match, ids["standard"]).lineup_status == "confirmed"

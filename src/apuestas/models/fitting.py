@@ -5,10 +5,12 @@ Paquete (var/models/latest.json):
   más los goles esperados implícitos en las cuotas de cierre como observaciones extra (MARKET_WEIGHT)
 - rho: corrección Dixon-Coles para marcadores bajos
 - counts[stat]: modelos de remates, remates a puerta, córners, faltas y tarjetas (binomial negativa); los de
-  remates y córners, guiados por la fuerza del equipo en el modelo de goles
+  remates y córners, guiados por la fuerza del equipo en el modelo de goles; los de remates y a puerta, con el
+  nivel reciente de cada liga (memoria corta)
 - referees: factor de tarjetas/faltas de cada árbitro (con contracción hacia 1)
-- players: tasas por 90' de cada jugador (remates, a puerta, goles, xG, faltas, amarillas) y su parte de los goles,
-  remates, a puerta y tarjetas de su equipo (para repartir lo que se espera del equipo en un partido)
+- players: tasas por 90' de cada jugador (remates, a puerta, goles, xG, faltas, amarillas), su parte de los goles,
+  remates, a puerta y tarjetas de su equipo (para repartir lo que se espera del equipo en un partido) y sus minutos
+  en los últimos partidos del equipo (para los partidos que aún no tienen alineación)
 - priors: tasas medias por posición (para contraer jugadores con pocos minutos)
 """
 
@@ -49,6 +51,8 @@ SHARE_STATS = ("goals", "xg", "assists", "xa")
 # Remates, a puerta y amarillas también como parte de los de su equipo en los minutos que jugó: estadística del
 # jugador → la del equipo en los modelos de conteo (tarjetas del equipo = amarillas + rojas, como en load_matches)
 VOLUME_SHARE_STATS = {"shots": "shots", "shots_on_target": "shots_on_target", "yellow_cards": "cards"}
+# Minutos esperados sin alineación: media de los minutos de cada jugador en los últimos partidos de su equipo
+RECENT_TEAM_MATCHES = 8
 
 
 @dataclass
@@ -335,16 +339,100 @@ def strength_shift(cm: RatingModel, mh: float, ma: float, delta: float,
     return mh * f * k, ma / f * k
 
 
+# Nivel reciente de cada liga en remates y remates a puerta (`count_levels`). El modelo de conteo recuerda 1.100 días
+# con vida media de 240 y tarda meses en notar un cambio de toda una liga. Desde julio de 2026 los equipos rematan un
+# 10-20 % más en todas las ligas (Bundesliga 13,0 -> 15,5 por equipo; football-data y FotMob dan lo mismo) y en el
+# walk-forward el modelo se quedaba corto en 2026-27: Bundesliga 16 %, Serie A 14 %, Champions 10 %. El nivel es lo
+# que el modelo se queda corto (o largo) en los partidos recientes de cada liga, con memoria corta y contraído hacia el
+# de todas las competiciones juntas; no toca la fuerza de ningún equipo. En las copas, media de las ligas de los dos
+# equipos más un desvío propio de la copa, con memoria más larga y más contracción (en la Champions el modelo se quedaba
+# corto en los remates a puerta en las tres últimas temporadas: 4 %, 8 % y 17 %). Elegido con el walk-forward
+# 2024-26 (docs/modelos.md, sección 7). En córners empeora un poco (no hay un cambio común a todas las ligas) y en
+# faltas y tarjetas no se ha validado.
+COUNT_LEVEL_STATS = ("shots", "shots_on_target")
+COUNT_LEVEL_HALF_LIFE = 30.0  # días
+COUNT_LEVEL_PRIOR = 10.0  # partidos "promedio" de contracción hacia el nivel de todas las competiciones
+COUNT_CUP_LEVEL_HALF_LIFE = 120.0
+COUNT_CUP_LEVEL_PRIOR = 30.0  # partidos de contracción del desvío de cada copa hacia 0
+COUNT_LEVEL_MAX_DAYS = 400
+
+
+def _is_cup(code: str) -> bool:
+    c = COMPETITIONS.get(code)
+    return c is not None and c.is_cup
+
+
+def team_leagues(rows: list[MatchRow]) -> dict[int, str]:
+    """Liga de cada equipo: la de su último partido de liga en `rows` (las copas europeas no cuentan)."""
+    last: dict[int, tuple[date, str]] = {}
+    for r in rows:
+        c = COMPETITIONS.get(r.competition)
+        if c is None or c.is_cup:
+            continue
+        for t in (r.home, r.away):
+            if t not in last or r.day > last[t][0]:
+                last[t] = (r.day, r.competition)
+    return {t: code for t, (_, code) in last.items()}
+
+
+def count_levels(cm: RatingModel, rows: list[MatchRow], stat: str, as_of: date) -> RatingModel:
+    """Rellena en `cm` el nivel reciente de la liga de cada equipo (`level`) y el desvío de cada copa (`cup_level`),
+    en logaritmo. Nivel de una liga = (real + K·g·m) / (esperado + K·m) en sus partidos de los últimos
+    COUNT_LEVEL_MAX_DAYS días, con vida media COUNT_LEVEL_HALF_LIFE, m el total de un partido medio y g el nivel de
+    todas las competiciones juntas (la K lo contrae hacia g). Un equipo sin liga en los datos (rivales europeos de
+    ligas que no se descargan) toma g. Desvío de una copa = (real + K·m) / (esperado con el nivel de las ligas + K·m),
+    con su propia vida media y K."""
+    cm.level, cm.cup_level = {}, {}
+    recent = []
+    for r in rows:
+        age = (as_of - r.day).days
+        vh, va = r.stats_h.get(stat), r.stats_a.get(stat)
+        if vh is None or va is None or not 0 <= age <= COUNT_LEVEL_MAX_DAYS:
+            continue
+        if r.home in cm.attack and r.away in cm.attack:
+            recent.append((r, age, vh + va, sum(cm.expected(r.home, r.away, r.neutral))))
+    if not recent:
+        return cm
+    m = 2 * math.exp(cm.mu)
+    num: dict[str, float] = {}
+    den: dict[str, float] = {}
+    for r, age, real, exp_ in recent:
+        w = 0.5 ** (age / COUNT_LEVEL_HALF_LIFE)
+        num[r.competition] = num.get(r.competition, 0.0) + w * real
+        den[r.competition] = den.get(r.competition, 0.0) + w * exp_
+    g = sum(num.values()) / sum(den.values())
+    k = COUNT_LEVEL_PRIOR * m
+    league = {c: math.log((num[c] + k * g) / (den[c] + k)) for c in num if not _is_cup(c)}
+    leagues = team_leagues(rows)
+    cm.level = {t: league.get(leagues.get(t, ""), math.log(g)) for t in cm.teams}
+    cup_num: dict[str, float] = {}
+    cup_den: dict[str, float] = {}
+    for r, age, real, exp_ in recent:
+        if _is_cup(r.competition):
+            w = 0.5 ** (age / COUNT_CUP_LEVEL_HALF_LIFE)
+            cup_num[r.competition] = cup_num.get(r.competition, 0.0) + w * real
+            cup_den[r.competition] = cup_den.get(r.competition, 0.0) + w * exp_ * math.exp(cm.level_for(r.home, r.away))
+    kc = COUNT_CUP_LEVEL_PRIOR * m
+    cm.cup_level = {c: math.log((cup_num[c] + kc) / (cup_den[c] + kc)) for c in cup_num}
+    return cm
+
+
 def fit_counts(obs: list[MatchObs], stat: str, as_of: date, half_life_days: float = 240.0,
-               l2: float | None = None, strength: dict[int, float] | None = None) -> RatingModel:
+               l2: float | None = None, strength: dict[int, float] | None = None,
+               rows: list[MatchRow] | None = None) -> RatingModel:
     """Modelo de una estadística de conteo. `strength` (`count_strength` del modelo de goles) solo se usa en las de
-    COUNT_STRENGTH_PRIOR. `l2` fija la L2 de antes (1,0), sin fuerza, en lugar de COUNT_PRIOR_MATCHES."""
+    COUNT_STRENGTH_PRIOR. `l2` fija la L2 de antes (1,0), sin fuerza, en lugar de COUNT_PRIOR_MATCHES. `rows` (los
+    partidos de entrenamiento, con su competición) añade en COUNT_LEVEL_STATS el nivel reciente de cada liga."""
     if l2 is not None:
-        return ratings.fit(obs, as_of, half_life_days=half_life_days, l2=l2)
-    if strength is not None and stat in COUNT_STRENGTH_PRIOR:
-        return ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_STRENGTH_PRIOR[stat],
-                           strength=strength)
-    return ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_PRIOR_MATCHES[stat])
+        cm = ratings.fit(obs, as_of, half_life_days=half_life_days, l2=l2)
+    elif strength is not None and stat in COUNT_STRENGTH_PRIOR:
+        cm = ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_STRENGTH_PRIOR[stat],
+                         strength=strength)
+    else:
+        cm = ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_PRIOR_MATCHES[stat])
+    if rows is not None and stat in COUNT_LEVEL_STATS:
+        count_levels(cm, rows, stat, as_of)
+    return cm
 
 
 def count_obs(rows: list[MatchRow], stat: str) -> list[MatchObs]:
@@ -468,6 +556,7 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
     )
     acc: dict[int, dict] = {}
     pos_acc: dict[str, dict[str, float]] = {}
+    appearances: list[tuple[int, int, datetime, int, int, bool]] = []  # equipo, partido, hora, jugador, minutos, titular
     as_of = before.date()
     for pms, ko, pos, name, home_id, home_goals, away_goals, tms in s.execute(q):
         w = 0.5 ** ((as_of - ko.date()).days / half_life_days)
@@ -480,6 +569,7 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
         )
         mins = pms.minutes or 0
         a["w_minutes"] += w * mins
+        appearances.append((pms.team_id, pms.match_id, ko, pms.player_id, mins, bool(pms.is_starter)))
         team_goals = home_goals if pms.team_id == home_id else away_goals
         if team_goals is not None:
             # exposición: goles de su equipo, en proporción a los minutos que jugó
@@ -549,7 +639,32 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
             "avg_starter_minutes": round(a["starter_minutes"] / a["starts"], 1) if a["starts"] else None,
             "last_match": a["last"].isoformat() if a["last"] else None,
         }
+    recent_minutes(players, appearances, RECENT_TEAM_MATCHES)
     return players, priors
+
+
+def recent_minutes(players: dict[int, dict], appearances: list[tuple], n: int) -> None:
+    """Minutos y titularidades de cada jugador en los últimos `n` partidos de su equipo actual, con 0 si no jugó.
+
+    Añade `recent_minutes` (media por partido del equipo) y `recent_start_rate` a cada jugador. Solo cuentan los
+    partidos desde su primer partido con ese equipo: un fichaje con 3 partidos de titular tiene ~90', no 3 × 90 / 8.
+    Así los minutos de un equipo suman lo que juega de verdad (~988 por partido). La frecuencia de titularidad entre
+    los partidos que jugó cada uno (starts / apps) sumaba 1.300-1.400 (docs/modelos.md, sección 4).
+    """
+    kickoffs: dict[int, dict[int, datetime]] = {}  # equipo → partido → hora
+    first: dict[tuple[int, int], datetime] = {}  # (jugador, equipo) → su primer partido con ese equipo
+    played: dict[tuple[int, int], tuple[int, bool]] = {}  # (jugador, partido) → minutos, titular
+    for team_id, match_id, ko, pid, mins, starter in appearances:
+        kickoffs.setdefault(team_id, {})[match_id] = ko
+        first[(pid, team_id)] = min(ko, first.get((pid, team_id), ko))
+        played[(pid, match_id)] = (mins, starter)
+    last_n = {t: sorted(ms.items(), key=lambda x: x[1], reverse=True)[:n] for t, ms in kickoffs.items()}
+    for pid, pr in players.items():
+        since = first.get((pid, pr["team_id"]))
+        window = [mid for mid, ko in last_n.get(pr["team_id"], []) if since is not None and ko >= since]
+        rows = [played.get((pid, mid), (0, False)) for mid in window]
+        pr["recent_minutes"] = round(sum(mins for mins, _ in rows) / len(rows), 1) if rows else 0.0
+        pr["recent_start_rate"] = round(sum(st for _, st in rows) / len(rows), 3) if rows else 0.0
 
 
 def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> ModelBundle:
@@ -571,7 +686,8 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
     for stat in COUNT_STATS:
         obs = count_obs(rows, stat)
         if len(obs) >= 200:
-            counts[stat] = fit_counts(obs, stat, as_of.date(), half_life_days=half_life_days, strength=strength)
+            counts[stat] = fit_counts(obs, stat, as_of.date(), half_life_days=half_life_days, strength=strength,
+                                      rows=rows)
     referees = fit_referees(rows, counts["cards"], counts.get("fouls")) if "cards" in counts else {}
     league_avgs: dict[str, float] = {}
     for code in full_codes:
