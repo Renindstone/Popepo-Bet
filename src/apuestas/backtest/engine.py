@@ -33,7 +33,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from apuestas.betting import odds as oddsmath
-from apuestas.core.competitions import COMPETITIONS, FULL
+from apuestas.core.competitions import FULL
 from apuestas.db import models as m
 from apuestas.features import lineup as lu
 from apuestas.models import distributions as dist
@@ -49,6 +49,7 @@ from apuestas.models.fitting import (
     load_market_goals,
     load_matches,
     market_obs,
+    team_leagues,
 )
 
 W_MODEL = 0.25
@@ -154,12 +155,15 @@ def run(
     count_l2: float | None = None,
     count_strength: bool = True,
     count_market: bool = True,
+    count_level: bool = True,
 ) -> BacktestResult:
     """`extra_competitions`: competiciones donde solo se mide el modelo (sin cuotas ni apuestas).
     `count_l2`: L2 fija de los modelos de conteo (1,0 = la de antes del 21-10-2026) en vez de COUNT_PRIOR_MATCHES.
     `count_strength`: remates y córners guiados por la fuerza del modelo de goles (False = como antes).
     `count_market`: el reparto de remates y córners se mueve hacia la diferencia de fuerza del 1X2 de cierre del
-    partido (fitting.strength_shift; False = como antes del 22-10-2026). Solo donde hay cuotas de cierre: las ligas."""
+    partido (fitting.strength_shift; False = como antes del 22-10-2026). Solo donde hay cuotas de cierre: las ligas.
+    `count_level`: remates y a puerta con el nivel reciente de cada liga (fitting.count_levels; False = como antes
+    del 22-10-2026)."""
     from apuestas.db.session import _factory
 
     market_weight = fitting.MARKET_WEIGHT if market_weight is None else market_weight
@@ -169,7 +173,7 @@ def run(
                                  "competitions": competitions, "w_model": w_model, "market_weight": market_weight,
                                  "market_half_life": market_half_life, "extra_competitions": extra_competitions,
                                  "count_l2": count_l2, "count_strength": count_strength,
-                                 "count_market": count_market})
+                                 "count_market": count_market, "count_level": count_level})
     s = _factory()()
     try:
         before = datetime.combine(end, datetime.min.time(), UTC) + timedelta(days=1)
@@ -206,9 +210,9 @@ def run(
                 obs = count_obs(train, stat)
                 if len(obs) > 300:
                     cms[stat] = fit_counts(obs, stat, cur, half_life_days=half_life_days, l2=count_l2,
-                                           strength=strength)
+                                           strength=strength, rows=train if count_level else None)
             refs = fit_referees(train, cms["cards"], cms.get("fouls")) if "cards" in cms else {}
-            leagues = _team_leagues(train)
+            leagues = team_leagues(train)
             for r in test:
                 main = r.competition in competitions
                 _evaluate_match(r, gm, rho, odds.get(r.match_id, {}), res, ll, br, min_ev, odds_range, w_model,
@@ -424,19 +428,6 @@ def _settle(r: MatchRow, market: str, sel: str, line: float | None) -> str:
 FEW_COUNT_MATCHES = 10
 
 
-def _team_leagues(rows: list[MatchRow]) -> dict[int, str]:
-    """Liga de cada equipo: la de su último partido de liga en `rows` (las copas europeas no cuentan)."""
-    last: dict[int, tuple[date, str]] = {}
-    for r in rows:
-        c = COMPETITIONS.get(r.competition)
-        if c is None or c.is_cup:
-            continue
-        for t in (r.home, r.away):
-            if t not in last or r.day > last[t][0]:
-                last[t] = (r.day, r.competition)
-    return {t: code for t, (_, code) in last.items()}
-
-
 def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None, suffix: str = "",
                      leagues: dict[int, str] | None = None, delta: float = 0.0) -> None:
     """Log-verosimilitud del total y de cada equipo (`<stat> por equipo`) frente a la media de la liga. En las
@@ -454,7 +445,7 @@ def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None,
             groups.append(f"{suffix}:pocos_datos")
         elif suffix and leagues.get(r.home) and leagues.get(r.away) and leagues[r.home] != leagues[r.away]:
             groups.append(f"{suffix}:entre_ligas")
-        mh, ma = cm.expected(r.home, r.away, r.neutral)
+        mh, ma = cm.expected(r.home, r.away, r.neutral, r.competition)
         if stat in fitting.COUNT_STRENGTH_PRIOR:
             mh, ma = fitting.strength_shift(cm, mh, ma, delta)
         a = cm.dispersion

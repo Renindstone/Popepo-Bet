@@ -210,4 +210,4 @@ def test_team_league_is_the_last_league_match():
     rows = [MatchRow(1, "ENG2", TODAY - timedelta(days=300), 1, 2, False, 1, 0, None, {}, {}),
             MatchRow(2, "EPL", TODAY - timedelta(days=30), 1, 3, False, 1, 0, None, {}, {}),
             MatchRow(3, "UCL", TODAY - timedelta(days=5), 1, 4, False, 1, 0, None, {}, {})]
-    assert engine._team_leagues(rows) == {1: "EPL", 2: "ENG2", 3: "EPL"}
+    assert fitting.team_leagues(rows) == {1: "EPL", 2: "ENG2", 3: "EPL"}
