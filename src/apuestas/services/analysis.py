@@ -446,7 +446,9 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
     count_means: dict[str, tuple[float, float]] = {}
     dispersion: dict[str, float] = {}
     for stat, cm in bundle.counts.items():
-        mh, ma = cm.expected(home, away, match.neutral_venue)
+        # Con el nivel reciente de la liga en remates y a puerta (fitting.count_levels; en copas, también el desvío
+        # de la copa)
+        mh, ma = cm.expected(home, away, match.neutral_venue, match.competition.code)
         if stat in ("shots", "shots_on_target", "corners"):
             # Un equipo más fuerte de lo habitual genera más volumen ofensivo (efecto atenuado)
             mh *= (adj_h.attack_mult * adj_a.defence_mult) ** 0.7
