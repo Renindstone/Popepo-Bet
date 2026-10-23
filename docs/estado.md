@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 22 de octubre de 2026. Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
+Última actualización: 22 de octubre de 2026 (auditoría del modelo). Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
 
 ## Qué funciona hoy
 
@@ -44,6 +44,7 @@
 
 ## Pendiente o por decidir
 
+- **Auditoría del modelo** (19 al 22-10-2026, rama `claude/auditoria-experimentos`): resultados en `docs/auditoria-modelo.md` y experimentos reproducibles con datos públicos en `experimentos/auditoria/` (`preparar.sh` y `correr.sh`, sin tocar la BD). Confirma con la cuota previa los cambios de conteos del 21 y 22-10 (reparto por el 1X2: remates +0,0151, a puerta +0,0100 y córners +0,0075 por equipo, casi lo mismo que con el cierre). Propone, en orden: valor de las líneas de cuarto (sale inflado 12-16 %), copia fija de la apuesta anunciada (hoy el contador mide el último recálculo), fuerza de goles dinámica, dispersión del total en los conteos, apilado con el mercado en lugar de `W_MODEL` y elegir por la probabilidad de valor positivo. Nada de eso está aplicado: necesita backtest con la BD y el OK del usuario.
 - **Copias de prueba de la Serie A y la Ligue 1**: `apuestas_l1sa` y `apuestas_l1sa_antes` (unos 300 MB cada una, en el mismo cluster) ya no hacen falta desde que la rama se fusionó el 2026-10-22; se pueden borrar con `dropdb` (pedir OK).
 - **Remates del equipo cortos esta temporada** (visto el 2026-10-22): desde julio de 2026 se remata un 10-20 % más en todas las ligas (Bundesliga 13,0 → 15,5 por equipo, Serie A 12,4 → 14,6; football-data y FotMob coinciden) y el modelo de remates aún no lo recoge: espera 12,8 por equipo y hay 14,2. Los mercados de remates del equipo y de jugador salen cortos por eso (los de jugador, 0,92 de lo real desde julio), y un «Menos de» puede parecer con valor sin tenerlo. Cambio del modelo: necesita backtest y el OK del usuario (`docs/modelos.md`, "Próximas mejoras").
 - **Tarjetas de jugador**: la probabilidad se calcula como si un jugador pudiera ver varias amarillas, y FotMob registra como mucho una, así que sale un ~8 % baja; el modelo de tarjetas del equipo se pasa un 4-9 % (Serie A +13-18 %). En el total se compensan, por liga no (Serie A alta, LaLiga baja). Corregir las dos cosas juntas.
