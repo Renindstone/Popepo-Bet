@@ -7,6 +7,8 @@ Paquete (var/models/latest.json):
 - counts[stat]: modelos de remates, remates a puerta, córners, faltas y tarjetas (binomial negativa); los de
   remates y córners, guiados por la fuerza del equipo en el modelo de goles
 - referees: factor de tarjetas/faltas de cada árbitro (con contracción hacia 1)
+- count_levels[stat][competición]: nivel reciente de una estadística en cada competición frente al modelo de conteo
+  (tarjetas: COUNT_LEVEL)
 - players: tasas por 90' de cada jugador (remates, a puerta, goles, xG, faltas, amarillas) y su parte de los goles,
   remates, a puerta y tarjetas de su equipo (para repartir lo que se espera del equipo en un partido)
 - priors: tasas medias por posición (para contraer jugadores con pocos minutos)
@@ -46,9 +48,15 @@ COUNT_STATS = ("shots", "shots_on_target", "corners", "fouls", "cards")
 PLAYER_STATS = ("shots", "shots_on_target", "goals", "xg", "assists", "xa", "fouls_committed", "yellow_cards")
 # Goles y asistencias también como parte de los goles de su equipo en los minutos que jugó (para repartirlos)
 SHARE_STATS = ("goals", "xg", "assists", "xa")
-# Remates, a puerta y amarillas también como parte de los de su equipo en los minutos que jugó: estadística del
-# jugador → la del equipo en los modelos de conteo (tarjetas del equipo = amarillas + rojas, como en load_matches)
+# Remates, a puerta y tarjetas también como parte de los de su equipo en los minutos que jugó: estadística del
+# jugador → la del equipo en los modelos de conteo (tarjetas del equipo = amarillas + rojas, como en load_matches).
+# La del jugador en "yellow_cards" es si vio tarjeta (amarilla o roja, `_player_volume`), no cuántas amarillas
 VOLUME_SHARE_STATS = {"shots": "shots", "shots_on_target": "shots_on_target", "yellow_cards": "cards"}
+# En tarjetas, la exposición de un suplente son sus minutos más estos: entra al final, cuando se ven más tarjetas, y
+# juega el descuento. Por minuto ven 1,7-2,3 veces más tarjetas que los titulares de su posición (2023-26, FotMob);
+# con 15 minutos más en los defensas, 20 en los medios y 25 en los delanteros quedan a la par. Sin esto, la parte de
+# los titulares salía alta y la «Tarjeta al jugador» de los titulares se pasaba un 7-11 % (docs/modelos.md, sección 4)
+CARD_SUB_EXTRA_MINUTES = 20.0
 
 
 @dataclass
@@ -62,6 +70,7 @@ class ModelBundle:
     players: dict[int, dict]
     priors: dict[str, dict[str, float]]
     league_avgs: dict[str, float] = field(default_factory=dict)
+    count_levels: dict[str, dict[str, float]] = field(default_factory=dict)
 
     def to_json(self) -> dict:
         return {
@@ -74,6 +83,7 @@ class ModelBundle:
             "players": {str(k): v for k, v in self.players.items()},
             "priors": self.priors,
             "league_avgs": self.league_avgs,
+            "count_levels": self.count_levels,
         }
 
     @classmethod
@@ -88,7 +98,12 @@ class ModelBundle:
             players={int(k): v for k, v in d["players"].items()},
             priors=d["priors"],
             league_avgs=d.get("league_avgs", {}),
+            count_levels=d.get("count_levels", {}),
         )
+
+    def count_level(self, stat: str, competition: str | None) -> float:
+        """Nivel reciente de `stat` en la competición del partido (1 si no hay: paquetes antiguos u otra estadística)."""
+        return self.count_levels.get(stat, {}).get(competition or "", 1.0)
 
 
 def bundle_path() -> Path:
@@ -347,6 +362,43 @@ def fit_counts(obs: list[MatchObs], stat: str, as_of: date, half_life_days: floa
     return ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_PRIOR_MATCHES[stat])
 
 
+# Nivel reciente de cada competición en tarjetas: estadística -> (vida media en días, contracción en partidos). El
+# modelo de tarjetas (vida media 240 días) va por detrás cuando una liga cambia de nivel: de 2023-24 a 2026-27 las
+# tarjetas por equipo bajan en casi todas (Serie A 2,29 → 2,05 → 2,01 → 1,68 en la primera vuelta) y el modelo se
+# pasaba un 5 % en las ligas (Serie A +8 %, Champions +8 %). Nivel = (reales + K) / (esperadas + K) en los partidos
+# de esa competición, con esta vida media; tras el parón de verano vuelve casi a 1 (el modelo). Elegido con el
+# walk-forward 2024-26 (docs/modelos.md, sección 7): vida media 30 días y K = 20; 60-180 días o un nivel largo de
+# la competición como referencia mejoran menos.
+COUNT_LEVEL = {"cards": (30.0, 20.0)}
+
+
+def fit_count_levels(rows: list[MatchRow], counts: dict[str, RatingModel], as_of: date,
+                     levels: dict[str, tuple[float, float]] | None = None) -> dict[str, dict[str, float]]:
+    """Nivel de cada estadística de `levels` (COUNT_LEVEL) en cada competición: (Σ w·reales + K·ē) / (Σ w·esperadas
+    + K·ē), con w = 0,5^(días / vida media), las esperadas del modelo de conteo (sin árbitro) y ē las esperadas por
+    partido en esa competición. Se aplica por la competición del partido, no por la liga de cada equipo."""
+    out: dict[str, dict[str, float]] = {}
+    for stat, (half_life, prior) in (COUNT_LEVEL if levels is None else levels).items():
+        cm = counts.get(stat)
+        if cm is None:
+            continue
+        acc: dict[str, list[float]] = {}  # competición -> [Σ w·reales, Σ w·esperadas, Σ esperadas, partidos]
+        for r in rows:
+            vh, va = r.stats_h.get(stat), r.stats_a.get(stat)
+            if vh is None or va is None:
+                continue
+            eh, ea = cm.expected(r.home, r.away, r.neutral)
+            w = 0.5 ** (max((as_of - r.day).days, 0) / half_life)
+            a = acc.setdefault(r.competition, [0.0, 0.0, 0.0, 0.0])
+            a[0] += w * (vh + va)
+            a[1] += w * (eh + ea)
+            a[2] += eh + ea
+            a[3] += 1
+        out[stat] = {code: round((obs + prior * e / n) / (exp + prior * e / n), 4)
+                     for code, (obs, exp, e, n) in acc.items()}
+    return out
+
+
 def count_obs(rows: list[MatchRow], stat: str) -> list[MatchObs]:
     out = []
     for r in rows:
@@ -450,6 +502,16 @@ def _team_volume(tms: m.TeamMatchStats | None) -> dict[str, float | None]:
     return {st: team[team_st] for st, team_st in VOLUME_SHARE_STATS.items()}
 
 
+def _player_volume(pms: m.PlayerMatchStats) -> dict[str, float]:
+    """Remates, a puerta y tarjeta del jugador en el partido, con las claves de VOLUME_SHARE_STATS. FotMob deja vacío
+    (no 0) el remate de quien no remató: vacío = 0, como en las tasas por 90'. La tarjeta es 1 si vio amarilla o roja
+    y 0 si no: FotMob registra como mucho una amarilla por jugador y partido (la segunda cuenta como roja), y así se
+    liquida «Tarjeta al jugador» (betting/settlement.py). Su parte de las tarjetas del equipo es entonces la
+    probabilidad de que vea tarjeta por cada tarjeta que se espera de su equipo."""
+    carded = 1.0 if (pms.yellow_cards or 0) + (pms.red_cards or 0) > 0 else 0.0
+    return {"shots": float(pms.shots or 0), "shots_on_target": float(pms.shots_on_target or 0), "yellow_cards": carded}
+
+
 def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> tuple[dict[int, dict], dict]:
     """Tasas por 90' ponderadas por antigüedad y medias por posición.
 
@@ -506,15 +568,16 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
                 if st in SHARE_STATS and team_goals is not None:
                     a["share_obs"][st] += w * float(v)
                     p["share_obs"][st] += float(v)
+        player_v = _player_volume(pms)
         for st, team_v in _team_volume(tms).items():
             if team_v is not None:
-                # FotMob deja vacío (no 0) el remate de quien no remató: vacío = 0, como en las tasas por 90'
-                v = float(getattr(pms, st) or 0)
+                v = player_v[st]
                 # exposición: remates (o tarjetas) de su equipo, en proporción a los minutos que jugó
+                exp_mins = mins + (CARD_SUB_EXTRA_MINUTES if st == "yellow_cards" and pms.is_starter is False else 0)
                 a["vol_obs"][st] += w * v
-                a["vol_team90"][st] += w * team_v * mins / 90
+                a["vol_team90"][st] += w * team_v * exp_mins / 90
                 p["vol_obs"][st] += v
-                p["vol_team90"][st] += team_v * mins / 90
+                p["vol_team90"][st] += team_v * exp_mins / 90
     priors = {
         pos: {**{st: (v[st] / v["minutes"] * 90 if v["minutes"] else 0.0) for st in PLAYER_STATS},
               **{f"{st}_share": (v["share_obs"][st] / v["team_goals90"] if v["team_goals90"] else 0.0)
@@ -573,6 +636,7 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
         if len(obs) >= 200:
             counts[stat] = fit_counts(obs, stat, as_of.date(), half_life_days=half_life_days, strength=strength)
     referees = fit_referees(rows, counts["cards"], counts.get("fouls")) if "cards" in counts else {}
+    count_levels = fit_count_levels(rows, counts, as_of.date())
     league_avgs: dict[str, float] = {}
     for code in full_codes:
         sub = [r for r in rows if r.competition == code and (as_of.date() - r.day).days < 400]
@@ -588,6 +652,7 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
         players=players,
         priors=priors,
         league_avgs=league_avgs,
+        count_levels=count_levels,
     )
 
 

@@ -20,6 +20,7 @@ PLAYER_MARKETS = {"player_shots": "shots", "player_sot": "shots_on_target", "pla
 PLAYER_INVOLVEMENT = {"player_goal": ("goals",), "player_assist": ("assists",),
                       "player_goal_assist": ("goals", "assists")}
 MAX_SHARE = 0.95  # ningún jugador participa en todos los goles de su equipo
+MAX_CARD_PROB = 0.95  # tope de «Tarjeta al jugador: sí»
 YES = ("yes", "si", "sí", "over")
 
 
@@ -302,7 +303,10 @@ class MatchModel:
             ln = 0.5 if line is None else line
             return dist.over(pmf, ln) if selection in YES else dist.under(pmf, ln)
         if market == "player_card":
-            p = 1 - math.exp(-pp.lam["yellow_cards"])
+            # La λ ya es la probabilidad de que vea tarjeta: sale de si vio tarjeta o no en cada partido (como mucho
+            # una por partido en FotMob, fitting._player_volume). Con 1 − e^(−λ), como si pudiera ver varias, salía
+            # un ~7 % baja (docs/modelos.md, sección 4)
+            p = min(pp.lam["yellow_cards"], MAX_CARD_PROB)
         else:
             raise ValueError(f"Mercado de jugador no soportado: {market}")
         return dist.prob_outcome(p if selection in ("yes", "si", "sí") else 1 - p)

@@ -221,9 +221,11 @@ def _team_avg(model, team_id: int, home: bool) -> float:
     return math.exp(model.mu + (model.home_adv if home else 0) + model.attack.get(team_id, 0.0))
 
 
-# Contracción de la parte de remates, a puerta y tarjetas de un jugador hacia la de su posición: equivale a 4 partidos
-# completos, como las tasas por 90'
-VOLUME_SHARE_PRIOR_MATCHES = 4.0
+# Contracción de la parte de remates, a puerta y tarjetas de un jugador hacia la de su posición, en partidos completos
+# de su equipo: 4 en remates y a puerta, como las tasas por 90'. En tarjetas, 20: son pocas (4 partidos son unas 8
+# tarjetas del equipo) y con 4 la parte salía muy dispersa: los titulares con menos del 5 % de probabilidad veían
+# tarjeta un 55 % más de lo esperado y los de más del 30 %, un 35-40 % menos (fuera de muestra, docs/modelos.md)
+VOLUME_SHARE_PRIOR_MATCHES = {"shots": 4.0, "shots_on_target": 4.0, "yellow_cards": 20.0}
 
 
 def _player_projections(
@@ -271,10 +273,13 @@ def _player_projections(
             obs90, mins90 = (pr["per90"].get(st, 0.0), pr["minutes90"]) if pr else (0.0, 0.0)
             rates[st] = (obs90 * mins90 + prior.get(st, 0.0) * k) / (mins90 + k)
         avg_start_min = (pr or {}).get("avg_starter_minutes") or 78.0
-        exp_min = start_prob * avg_start_min + (1 - start_prob) * (0.55 * 22 if lineup else 0.0)
+        sub_plays = 0.55 if lineup else 0.0  # un suplente sale en algo más de la mitad de los partidos, ~22'
+        exp_min = start_prob * avg_start_min + (1 - start_prob) * sub_plays * 22
         if exp_min < 5:
             continue
         f = exp_min / 90
+        # En tarjetas, el suplente cuenta con unos minutos más (fitting.CARD_SUB_EXTRA_MINUTES), como al ajustar su parte
+        f_card = (exp_min + (1 - start_prob) * sub_plays * fitting.CARD_SUB_EXTRA_MINUTES) / 90
         if "goals_share" in prior:
             # Parte de los goles de su equipo que marca (y asiste) en los minutos que juega, contraída hacia la de su
             # posición, por los goles que se esperan de su equipo en ESTE partido. No se escala contra un "rival
@@ -304,9 +309,9 @@ def _player_projections(
                 # contra el rival promedio los dejaba ~15 % cortos (docs/modelos.md, sección 4).
                 exposure = ((pr or {}).get("volume_team90") or {}).get(st, 0.0)
                 obs = ((pr or {}).get("volume_share") or {}).get(st, 0.0)
-                k_vol = VOLUME_SHARE_PRIOR_MATCHES * prior.get(f"{st}_team90", 0.0)
+                k_vol = VOLUME_SHARE_PRIOR_MATCHES[st] * prior.get(f"{st}_team90", 0.0)
                 share = (obs * exposure + prior[f"{st}_share"] * k_vol) / (exposure + k_vol) if exposure + k_vol else 0.0
-                lam[st] = share * f * count_means[team_st][0 if is_home else 1]
+                lam[st] = share * (f_card if st == "yellow_cards" else f) * count_means[team_st][0 if is_home else 1]
         projections.append(PlayerProjection(pid, name, team_id, pos, exp_min, start_prob, lam))
     return projections
 
@@ -443,6 +448,8 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
                                          if r.market == "1x2" or (r.market == "ou_goals" and r.line == 2.5)})
     delta = fitting.strength_delta(mkt[1:], (lam_h, lam_a)) if mkt else 0.0
 
+    # Nivel reciente de tarjetas de la competición frente al modelo de tarjetas (fitting.COUNT_LEVEL)
+    cards_level = bundle.count_level("cards", match.competition.code)
     count_means: dict[str, tuple[float, float]] = {}
     dispersion: dict[str, float] = {}
     for stat, cm in bundle.counts.items():
@@ -453,7 +460,7 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
             ma *= (adj_a.attack_mult * adj_h.defence_mult) ** 0.7
             mh, ma = fitting.strength_shift(cm, mh, ma, delta)
         elif stat == "cards":
-            mh, ma = mh * ref_cards, ma * ref_cards
+            mh, ma = mh * ref_cards * cards_level, ma * ref_cards * cards_level
         elif stat == "fouls":
             mh, ma = mh * ref_fouls, ma * ref_fouls
         count_means[stat] = (mh, ma)
@@ -488,6 +495,7 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         "sample_factor": round(min(1.0, 0.4 + n_min / 25), 3),
         "weighted_matches_min": round(n_min, 1),
         "referee_known": referee is not None,
+        "cards_level": round(cards_level, 3),
         "model_as_of": bundle.as_of.isoformat(),
         # Cobertura del mercado (ver MARKET_COVERED): None = el paquete de modelos no la trae
         "market_matches_min": market_min,

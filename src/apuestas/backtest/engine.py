@@ -154,12 +154,14 @@ def run(
     count_l2: float | None = None,
     count_strength: bool = True,
     count_market: bool = True,
+    count_level: bool = True,
 ) -> BacktestResult:
     """`extra_competitions`: competiciones donde solo se mide el modelo (sin cuotas ni apuestas).
     `count_l2`: L2 fija de los modelos de conteo (1,0 = la de antes del 21-10-2026) en vez de COUNT_PRIOR_MATCHES.
     `count_strength`: remates y córners guiados por la fuerza del modelo de goles (False = como antes).
     `count_market`: el reparto de remates y córners se mueve hacia la diferencia de fuerza del 1X2 de cierre del
-    partido (fitting.strength_shift; False = como antes del 22-10-2026). Solo donde hay cuotas de cierre: las ligas."""
+    partido (fitting.strength_shift; False = como antes del 22-10-2026). Solo donde hay cuotas de cierre: las ligas.
+    `count_level`: nivel reciente de tarjetas de cada competición (fitting.COUNT_LEVEL; False = como antes)."""
     from apuestas.db.session import _factory
 
     market_weight = fitting.MARKET_WEIGHT if market_weight is None else market_weight
@@ -169,7 +171,7 @@ def run(
                                  "competitions": competitions, "w_model": w_model, "market_weight": market_weight,
                                  "market_half_life": market_half_life, "extra_competitions": extra_competitions,
                                  "count_l2": count_l2, "count_strength": count_strength,
-                                 "count_market": count_market})
+                                 "count_market": count_market, "count_level": count_level})
     s = _factory()()
     try:
         before = datetime.combine(end, datetime.min.time(), UTC) + timedelta(days=1)
@@ -208,6 +210,7 @@ def run(
                     cms[stat] = fit_counts(obs, stat, cur, half_life_days=half_life_days, l2=count_l2,
                                            strength=strength)
             refs = fit_referees(train, cms["cards"], cms.get("fouls")) if "cards" in cms else {}
+            levels = fitting.fit_count_levels(train, cms, cur) if count_level else {}
             leagues = _team_leagues(train)
             for r in test:
                 main = r.competition in competitions
@@ -216,7 +219,8 @@ def run(
                 delta = 0.0
                 if count_market and r.match_id in implied and r.home in gm.attack and r.away in gm.attack:
                     delta = fitting.strength_delta(implied[r.match_id], gm.expected(r.home, r.away, r.neutral))
-                _evaluate_counts(r, cms, count_ll, refs, "" if main else f":{r.competition}", leagues, delta)
+                _evaluate_counts(r, cms, count_ll, refs, "" if main else f":{r.competition}", leagues, delta,
+                                 levels)
                 if lineups:
                     _evaluate_lineup(r, gm, rho, odds.get(r.match_id, {}), xi_hist, xi_idx, ll_lu, lu_rows)
         cur = nxt
@@ -438,12 +442,15 @@ def _team_leagues(rows: list[MatchRow]) -> dict[int, str]:
 
 
 def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None, suffix: str = "",
-                     leagues: dict[int, str] | None = None, delta: float = 0.0) -> None:
+                     leagues: dict[int, str] | None = None, delta: float = 0.0,
+                     levels: dict[str, dict[str, float]] | None = None) -> None:
     """Log-verosimilitud del total y de cada equipo (`<stat> por equipo`) frente a la media de la liga. En las
     copas (`suffix` = ":UCL") se separan los partidos con un equipo de pocos datos (rivales de ligas sin descargar)
     y, entre los demás, los de equipos de dos ligas distintas (`leagues`: liga de cada equipo). `delta`: fuerza que
-    la casa suma al local frente al modelo de goles (fitting.strength_delta), para las estadísticas de dominio."""
+    la casa suma al local frente al modelo de goles (fitting.strength_delta), para las estadísticas de dominio.
+    `levels`: nivel reciente de cada estadística en cada competición (fitting.fit_count_levels)."""
     refs = refs or {}
+    levels = levels or {}
     leagues = leagues or {}
     for stat, cm in cms.items():
         vh, va = r.stats_h.get(stat), r.stats_a.get(stat)
@@ -457,6 +464,8 @@ def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None,
         mh, ma = cm.expected(r.home, r.away, r.neutral)
         if stat in fitting.COUNT_STRENGTH_PRIOR:
             mh, ma = fitting.strength_shift(cm, mh, ma, delta)
+        level = levels.get(stat, {}).get(r.competition, 1.0)
+        mh, ma = mh * level, ma * level
         a = cm.dispersion
         total = int(vh + va)
         pmf = dist.convolve(dist.count_pmf(mh, a, 80), dist.count_pmf(ma, a, 80))
