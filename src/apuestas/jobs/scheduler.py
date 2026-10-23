@@ -25,7 +25,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy import func, or_, select
 
 from apuestas.config import get_settings
-from apuestas.core.competitions import season_start_year
+from apuestas.core.competitions import FULL, season_start_year
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.ingest import pipeline
@@ -141,7 +141,11 @@ def job_lineups() -> None:
     now = datetime.now(UTC)
     horizon = timedelta(minutes=max(LINEUP_CHECKS_MIN) + LINEUP_EVERY_MIN)
     with session_scope() as s:
-        soon = s.execute(select(m.Match.id, m.Match.kickoff_utc).where(
+        # Solo las competiciones completas: de la Europa League y la Conference no se usan las alineaciones (con
+        # ellas, un jueves eran 18 partidos y cinco búsquedas por partido que no servían para nada)
+        soon = s.execute(select(m.Match.id, m.Match.kickoff_utc)
+                         .join(m.Competition, m.Competition.id == m.Match.competition_id).where(
+            m.Competition.code.in_([c.code for c in FULL]),
             m.Match.status == "scheduled", m.Match.fotmob_id.is_not(None),
             m.Match.kickoff_utc >= now, m.Match.kickoff_utc <= now + horizon,
             (m.Match.lineup_status.is_(None)) | (m.Match.lineup_status != "confirmed"))).all()
