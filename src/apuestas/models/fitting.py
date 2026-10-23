@@ -7,8 +7,9 @@ Paquete (var/models/latest.json):
 - counts[stat]: modelos de remates, remates a puerta, córners, faltas y tarjetas (binomial negativa); los de
   remates y córners, guiados por la fuerza del equipo en el modelo de goles
 - referees: factor de tarjetas/faltas de cada árbitro (con contracción hacia 1)
-- players: tasas por 90' de cada jugador (remates, a puerta, goles, xG, faltas, amarillas) y su parte de los goles,
-  remates, a puerta y tarjetas de su equipo (para repartir lo que se espera del equipo en un partido)
+- players: tasas por 90' de cada jugador (remates, a puerta, goles, xG, faltas, amarillas), su parte de los goles,
+  remates, a puerta y tarjetas de su equipo (para repartir lo que se espera del equipo en un partido) y sus minutos
+  en los últimos partidos del equipo (para los partidos que aún no tienen alineación)
 - priors: tasas medias por posición (para contraer jugadores con pocos minutos)
 """
 
@@ -49,6 +50,8 @@ SHARE_STATS = ("goals", "xg", "assists", "xa")
 # Remates, a puerta y amarillas también como parte de los de su equipo en los minutos que jugó: estadística del
 # jugador → la del equipo en los modelos de conteo (tarjetas del equipo = amarillas + rojas, como en load_matches)
 VOLUME_SHARE_STATS = {"shots": "shots", "shots_on_target": "shots_on_target", "yellow_cards": "cards"}
+# Minutos esperados sin alineación: media de los minutos de cada jugador en los últimos partidos de su equipo
+RECENT_TEAM_MATCHES = 8
 
 
 @dataclass
@@ -468,6 +471,7 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
     )
     acc: dict[int, dict] = {}
     pos_acc: dict[str, dict[str, float]] = {}
+    appearances: list[tuple[int, int, datetime, int, int, bool]] = []  # equipo, partido, hora, jugador, minutos, titular
     as_of = before.date()
     for pms, ko, pos, name, home_id, home_goals, away_goals, tms in s.execute(q):
         w = 0.5 ** ((as_of - ko.date()).days / half_life_days)
@@ -480,6 +484,7 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
         )
         mins = pms.minutes or 0
         a["w_minutes"] += w * mins
+        appearances.append((pms.team_id, pms.match_id, ko, pms.player_id, mins, bool(pms.is_starter)))
         team_goals = home_goals if pms.team_id == home_id else away_goals
         if team_goals is not None:
             # exposición: goles de su equipo, en proporción a los minutos que jugó
@@ -549,7 +554,32 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
             "avg_starter_minutes": round(a["starter_minutes"] / a["starts"], 1) if a["starts"] else None,
             "last_match": a["last"].isoformat() if a["last"] else None,
         }
+    recent_minutes(players, appearances, RECENT_TEAM_MATCHES)
     return players, priors
+
+
+def recent_minutes(players: dict[int, dict], appearances: list[tuple], n: int) -> None:
+    """Minutos y titularidades de cada jugador en los últimos `n` partidos de su equipo actual, con 0 si no jugó.
+
+    Añade `recent_minutes` (media por partido del equipo) y `recent_start_rate` a cada jugador. Solo cuentan los
+    partidos desde su primer partido con ese equipo: un fichaje con 3 partidos de titular tiene ~90', no 3 × 90 / 8.
+    Así los minutos de un equipo suman lo que juega de verdad (~988 por partido). La frecuencia de titularidad entre
+    los partidos que jugó cada uno (starts / apps) sumaba 1.300-1.400 (docs/modelos.md, sección 4).
+    """
+    kickoffs: dict[int, dict[int, datetime]] = {}  # equipo → partido → hora
+    first: dict[tuple[int, int], datetime] = {}  # (jugador, equipo) → su primer partido con ese equipo
+    played: dict[tuple[int, int], tuple[int, bool]] = {}  # (jugador, partido) → minutos, titular
+    for team_id, match_id, ko, pid, mins, starter in appearances:
+        kickoffs.setdefault(team_id, {})[match_id] = ko
+        first[(pid, team_id)] = min(ko, first.get((pid, team_id), ko))
+        played[(pid, match_id)] = (mins, starter)
+    last_n = {t: sorted(ms.items(), key=lambda x: x[1], reverse=True)[:n] for t, ms in kickoffs.items()}
+    for pid, pr in players.items():
+        since = first.get((pid, pr["team_id"]))
+        window = [mid for mid, ko in last_n.get(pr["team_id"], []) if since is not None and ko >= since]
+        rows = [played.get((pid, mid), (0, False)) for mid in window]
+        pr["recent_minutes"] = round(sum(mins for mins, _ in rows) / len(rows), 1) if rows else 0.0
+        pr["recent_start_rate"] = round(sum(st for _, st in rows) / len(rows), 3) if rows else 0.0
 
 
 def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> ModelBundle:
