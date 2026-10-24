@@ -511,6 +511,8 @@ def failure_reason(error: str | None) -> str | None:
     if not error:
         return None
     first = error.strip().splitlines()[0]
+    if "no se pudo resolver" in first or "name resolution" in first:
+        return "Sin conexión a internet en este equipo"
     if "no responde" in first or "timed out" in first or "No se pudo descargar" in first:
         return "El sitio no responde"
     return first[:160]

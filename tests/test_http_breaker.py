@@ -70,12 +70,32 @@ def test_slow_server_errors_do_not_mark_the_host_down(make_client):
     assert len(calls) == 6  # se reintenta en cada descarga: conecta, solo responde mal
 
 
+def test_no_internet_here_does_not_mark_the_host_down(make_client):
+    """«Temporary failure in name resolution»: falla la red de este equipo, no el host (23-10-2026, al encender)."""
+    import socket
+
+    def no_dns(request):
+        try:
+            raise socket.gaierror(-3, "Temporary failure in name resolution")
+        except socket.gaierror as exc:
+            raise httpx.ConnectError(str(exc), request=request) from exc
+
+    c, calls = make_client(no_dns)
+    with pytest.raises(http.SourceUnavailable, match="sin conexión a internet"):
+        c.get_bytes("https://www.fotmob.com/api/leagues", ttl=0)
+    with pytest.raises(http.SourceUnavailable, match="sin conexión a internet"):
+        c.get_bytes("https://www.fotmob.com/api/leagues", ttl=0)
+    assert len(calls) == 6  # cuando vuelva internet se probará enseguida, sin pausa de 30 minutos
+
+
 @pytest.mark.parametrize("error, reason", [
     (None, None),
     ("No se pudo descargar https://www.football-data.co.uk/mmz4281/2627/E0.csv: timed out\nTraceback ...",
      "El sitio no responde"),
     ("www.football-data.co.uk no responde; se vuelve a probar en 29 min", "El sitio no responde"),
     ("Interrumpida al reiniciar el worker", "Interrumpida al reiniciar el worker"),
+    ("www.fotmob.com no responde (sin conexión): [Errno -3] Temporary failure in name resolution",
+     "Sin conexión a internet en este equipo"),
 ])
 def test_failure_reason_is_one_short_line(error, reason):
     assert failure_reason(error) == reason

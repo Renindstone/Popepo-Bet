@@ -15,6 +15,12 @@ def state(tmp_path, monkeypatch):
     monkeypatch.setattr(scheduler, "_state_path", lambda: tmp_path / "worker_state.json")
 
 
+@pytest.fixture(autouse=True)
+def online(monkeypatch):
+    """Por defecto hay internet (sin consultar la red de verdad); las pruebas sin red lo cambian."""
+    monkeypatch.setattr(scheduler, "network_ready", lambda: True)
+
+
 def test_last_fire():
     now = datetime(2026, 10, 20, 8, 28, tzinfo=LIMA)  # martes
     assert scheduler.last_fire(5, 30, None, now) == datetime(2026, 10, 20, 5, 30, tzinfo=LIMA)
@@ -134,3 +140,57 @@ def test_lineup_search_retries_until_the_official_xi(state, monkeypatch):
         monkeypatch.setattr(picks, "generate", lambda: {"date": "2026-10-25", "pick_of_day": None})
         scheduler.job_lineups()
     assert sorted(searched) == sorted([ids["lastStarting11"], ids[None]])
+
+
+# --------------------------------------------------------------------------- sin internet al encender el equipo
+
+
+def test_daily_job_without_internet_is_not_marked_done_and_retries(state, monkeypatch):
+    monkeypatch.setattr(scheduler, "network_ready", lambda: False)
+    monkeypatch.setattr(scheduler, "sleep", lambda s: None)
+    retries = []
+    monkeypatch.setattr(scheduler, "_retry_catch_up", lambda: retries.append(1))
+    ran = []
+
+    @scheduler._safe("descarga", key="descarga", network=0)
+    def download():
+        ran.append(1)
+
+    assert download() == scheduler.NO_NETWORK
+    assert ran == [] and scheduler.last_done("descarga") is None and retries == [1]
+
+
+def test_job_waits_until_the_network_comes_up(state, monkeypatch):
+    answers = iter([False, False, True])  # la red llega a la tercera comprobación
+    monkeypatch.setattr(scheduler, "network_ready", lambda: next(answers))
+    monkeypatch.setattr(scheduler, "sleep", lambda s: None)
+
+    @scheduler._safe("descarga", key="descarga", network=600)
+    def download():
+        return "ok"
+
+    assert download() == "ok" and scheduler.last_done("descarga") is not None
+
+
+def test_catch_up_stops_when_a_job_had_no_internet(state, monkeypatch):
+    """Sin internet para los resultados, la apuesta del día no se calcula con datos viejos: espera a la próxima vuelta."""
+    ran = []
+    jobs = {key: (lambda key=key: ran.append(key) or (scheduler.NO_NETWORK if key == "results" else None),
+                  hour, minute, weekday, grace)
+            for key, (_fn, hour, minute, weekday, grace) in scheduler.DAILY_JOBS.items()}
+    monkeypatch.setattr(scheduler, "DAILY_JOBS", jobs)
+    monkeypatch.setattr(scheduler, "datetime", type("Clock", (datetime,), {
+        "now": classmethod(lambda cls, tz=None: datetime(2026, 10, 23, 9, 22, tzinfo=LIMA))}))
+    scheduler.catch_up()
+    assert ran == ["results"]
+
+
+def test_same_job_does_not_run_twice_at_once(state):
+    calls = []
+
+    @scheduler._safe("resultados", key="resultados")
+    def results():
+        calls.append(1)
+        return results()  # una segunda llamada mientras la primera sigue en marcha (a su hora y desde la recuperación)
+
+    assert results() is None and calls == [1]

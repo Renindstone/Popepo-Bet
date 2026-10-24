@@ -12,6 +12,9 @@ lunes 04:00  niveles de almacenamiento (temporadas terminadas -> resumen y archi
 
 Si el equipo estuvo apagado a la hora de una tarea diaria, se ejecuta al arrancar el worker (ver `catch_up`).
 Si estuvo suspendido, la tarea corre al despertar si no pasó más de `MISFIRE_GRACE_S`.
+Las tareas que descargan esperan a que haya internet (al encender el equipo la red tarda en llegar): las diarias
+hasta `NETWORK_WAIT_S`; si sigue sin haber, no se marcan como hechas y `catch_up` vuelve a probar en
+`CATCH_UP_RETRY_MIN`. Las periódicas (alineaciones, liquidación, cuotas) simplemente se saltan esa vuelta.
 """
 
 from __future__ import annotations
@@ -19,7 +22,10 @@ from __future__ import annotations
 import functools
 import json
 import logging
+import socket
+import threading
 from datetime import UTC, datetime, time, timedelta
+from time import monotonic, sleep
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy import func, or_, select
@@ -59,25 +65,87 @@ def last_done(key: str) -> datetime | None:
     return datetime.fromisoformat(value) if value else None
 
 
-def _safe(name: str, key: str | None = None):
-    """Registra inicio y fallos sin tumbar el worker; con `key`, guarda la hora del último éxito."""
+# ---------------------------------------------------------------------------------------------- internet
+
+# Para saber si hay internet solo se resuelve el nombre de estos hosts: no se hace ninguna petición a las fuentes
+NETWORK_PROBE_HOSTS = ("www.fotmob.com", "understat.com", "www.football-data.co.uk")
+NETWORK_WAIT_S = 600.0  # una tarea diaria espera hasta 10 min a que haya internet
+NETWORK_POLL_S = 15.0
+CATCH_UP_RETRY_MIN = 15  # si aun así no lo hubo, se vuelve a probar a los 15 min
+NO_NETWORK = "sin internet"  # lo que devuelve una tarea que no corrió por falta de internet
+
+
+def network_ready() -> bool:
+    """Hay internet si se resuelve el nombre de alguno de los hosts de prueba (el 23-10-2026, al encender el equipo,
+    la tarea de recuperación arrancó sin red: «Temporary failure in name resolution» en todas las fuentes)."""
+    for host in NETWORK_PROBE_HOSTS:
+        try:
+            socket.getaddrinfo(host, 443)
+            return True
+        except OSError:
+            continue
+    return False
+
+
+def wait_for_network(max_wait_s: float = NETWORK_WAIT_S, poll_s: float = NETWORK_POLL_S) -> bool:
+    deadline = monotonic() + max_wait_s
+    while not network_ready():
+        if monotonic() >= deadline:
+            return False
+        sleep(poll_s)
+    return True
+
+
+_sched = None  # el planificador en marcha, para reprogramar la recuperación
+_running: set[str] = set()
+_running_lock = threading.Lock()
+
+
+def _retry_catch_up() -> None:
+    if _sched is not None:
+        when = datetime.now(get_settings().tz) + timedelta(minutes=CATCH_UP_RETRY_MIN)
+        _sched.add_job(catch_up, "date", run_date=when, id="catch_up", replace_existing=True)
+
+
+def _safe(name: str, key: str | None = None, network: float | None = None):
+    """Registra inicio y fallos sin tumbar el worker; con `key`, guarda la hora del último éxito.
+
+    `network`: segundos que espera a que haya internet antes de empezar (None = la tarea no lo necesita; 0 = si no
+    hay, se salta). Sin internet no corre, no se marca como hecha y devuelve `NO_NETWORK`; si es una tarea diaria,
+    se reprograma la recuperación. Una tarea no corre dos veces a la vez (a su hora y desde la recuperación).
+    """
     def deco(fn):
         @functools.wraps(fn)
         def wrapper(*a, **k):
-            log.info("Tarea %s: inicio", name)
+            busy = key or name
+            with _running_lock:
+                if busy in _running:
+                    log.info("Tarea %s: ya está en marcha", name)
+                    return None
+                _running.add(busy)
             try:
-                out = fn(*a, **k)
-            except Exception:  # noqa: BLE001
-                log.exception("Tarea %s falló", name)
-                return None
-            if key:
-                _mark_done(key)
-            return out
+                if network is not None and not wait_for_network(network):
+                    if key:
+                        log.warning("Tarea %s: sin internet; se vuelve a probar en %d min", name, CATCH_UP_RETRY_MIN)
+                        _retry_catch_up()
+                    return NO_NETWORK
+                log.info("Tarea %s: inicio", name)
+                try:
+                    out = fn(*a, **k)
+                except Exception:  # noqa: BLE001
+                    log.exception("Tarea %s falló", name)
+                    return None
+                if key:
+                    _mark_done(key)
+                return out
+            finally:
+                with _running_lock:
+                    _running.discard(busy)
         return wrapper
     return deco
 
 
-@_safe("resultados", key="results")
+@_safe("resultados", key="results", network=NETWORK_WAIT_S)
 def job_results() -> None:
     from apuestas.models.fitting import fit_all, save_bundle, store_team_ratings
     from apuestas.services.picks import settle_all
@@ -95,7 +163,7 @@ def job_results() -> None:
     log.info("Liquidadas %s; modelo actualizado a %s", settled, bundle.as_of)
 
 
-@_safe("previa", key="preview")
+@_safe("previa", key="preview", network=NETWORK_WAIT_S)
 def job_preview() -> None:
     pipeline.sync_fotmob_details(days_ahead=4, backfill_limit=0, force_upcoming=True)
     pipeline.sync_upcoming_odds()
@@ -132,7 +200,7 @@ def lineup_due(minutes_to_kickoff: float) -> bool:
     return any(t - half < minutes_to_kickoff <= t + half for t in LINEUP_CHECKS_MIN)
 
 
-@_safe("alineaciones")
+@_safe("alineaciones", network=0)
 def job_lineups() -> None:
     """Busca la alineación confirmada de los partidos que empiezan pronto; si cambia la apuesta del día, avisa."""
     from apuestas.bot import telegram
@@ -167,7 +235,7 @@ def job_lineups() -> None:
 POST_MATCH_HOURS = 3  # desde el inicio: el partido ya terminó y FotMob tiene el resultado y las estadísticas
 
 
-@_safe("liquidación tras el partido")
+@_safe("liquidación tras el partido", network=0)
 def job_post_match() -> None:
     """Liquida poco después de cada partido, sin esperar a las 05:30 (solo descarga si hay algo que liquidar)."""
     from apuestas.services.picks import settle_all
@@ -193,12 +261,12 @@ def job_post_match() -> None:
         log.info("Liquidación tras el partido: %s", out)
 
 
-@_safe("cuotas")
+@_safe("cuotas", network=0)
 def job_odds() -> None:
     pipeline.sync_upcoming_odds()
 
 
-@_safe("historial", key="backfill")
+@_safe("historial", key="backfill", network=NETWORK_WAIT_S)
 def job_backfill() -> None:
     pipeline.sync_fotmob_details(days_ahead=0, backfill_limit=400)
 
@@ -253,12 +321,16 @@ def catch_up() -> None:
         done = last_done(key)
         if done and done >= last_fire(hour, minute, weekday, now):  # ya corrió a su hora mientras recuperábamos
             continue
-        fn()
+        if fn() == NO_NETWORK:
+            # Las siguientes dependen de esta (la apuesta del día necesita los resultados y la previa): se esperan
+            # a la próxima vuelta, que ya quedó programada
+            break
 
 
 def run() -> None:
+    global _sched
     tz = get_settings().tz
-    sched = BlockingScheduler(timezone=tz, job_defaults={"misfire_grace_time": MISFIRE_GRACE_S, "coalesce": True})
+    sched = _sched = BlockingScheduler(timezone=tz, job_defaults={"misfire_grace_time": MISFIRE_GRACE_S, "coalesce": True})
     for key, (fn, hour, minute, weekday, _grace) in DAILY_JOBS.items():
         sched.add_job(fn, "cron", hour=hour, minute=minute, id=key,
                       **({"day_of_week": weekday} if weekday is not None else {}))

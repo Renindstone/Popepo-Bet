@@ -15,6 +15,7 @@ import gzip
 import hashlib
 import json
 import logging
+import socket
 import threading
 import time
 from pathlib import Path
@@ -39,6 +40,15 @@ class SourceUnavailable(RuntimeError):
 # Tras agotar los reintentos sin poder conectar, ese host no se vuelve a probar en 30 minutos. Sin esto, con
 # football-data caído (21-10-2026) cada archivo esperaba 104 s y la ingesta de resultados tardaba casi una hora.
 HOST_DOWN_PAUSE = 1800.0
+
+
+def _dns_failure(exc: BaseException | None) -> bool:
+    """El nombre no se resuelve: sin internet en este equipo (o el dominio no existe), no es el host el que falla."""
+    while exc is not None:
+        if isinstance(exc, socket.gaierror):
+            return True
+        exc = exc.__cause__ or exc.__context__
+    return False
 
 
 class PoliteClient:
@@ -136,6 +146,9 @@ class PoliteClient:
                 self._write_cache(path, resp.content)
             self._down_until.pop(host, None)
             return resp.content
+        if _dns_failure(last_exc):
+            # Sin red local no se da el host por caído: si no, al volver internet se saltaría 30 minutos más
+            raise SourceUnavailable(f"sin conexión a internet: no se pudo resolver {host}")
         if isinstance(last_exc, (httpx.ConnectError, httpx.ConnectTimeout)):
             self._down_until[host] = time.monotonic() + HOST_DOWN_PAUSE
             log.warning("%s no acepta conexiones; se salta durante %d min", host, HOST_DOWN_PAUSE // 60)
