@@ -697,6 +697,7 @@ Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (d
 
 ## Próximas mejoras previstas
 
+- **Propuestas de la auditoría de octubre de 2026** ([auditoria-modelo.md](auditoria-modelo.md), experimentos en `experimentos/auditoria/`), por orden: arreglar el valor de las líneas de cuarto y guardar fija la apuesta anunciada; fuerza de goles dinámica (filtro de Kalman, −0,0047 ± 0,0007 de log-loss frente a `ratings.fit` con los mismos datos, −0,0062 si además observa los remates a puerta); dispersión del total calibrada fuera de muestra en los conteos (+0,004 a +0,006 por partido en remates, córners, faltas y tarjetas); apilado aprendido con el mercado en lugar de `W_MODEL`; y decidir por la probabilidad de valor positivo con Kelly contraído. Todo con datos públicos sin xG ni Pinnacle: cada cambio necesita su `apuestas backtest` con la BD antes de entrar.
 - Un nivel por liga en el modelo de fuerza (nivel de la liga + desviación del equipo) y, si el backtest lo confirma, entrenar con las ligas extra de football-data, que ya se descargan (ver "Copas europeas" arriba).
 - Guardar cuotas de 1X2 de la Champions antes de cada partido (ya se guardan las de OddsPapi desde el 19-10-2026) para medir con resultados el reparto de remates y córners movido por el 1X2 en las copas, que hoy solo se mide en las ligas.
 - Guardar el historial de onces previstos para calibrar su β por separado.

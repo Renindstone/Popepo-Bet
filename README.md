@@ -142,6 +142,8 @@ Con datos de 2024-25 y 2025-26 (≈2.100 partidos de EPL, Bundesliga y LaLiga; d
 
 Conclusión: el valor hay que buscarlo en **props, tarjetas con árbitro, remates y noticias de alineaciones**, no en el 1X2. Detalle en [docs/modelos.md](docs/modelos.md).
 
+Hay además una auditoría con datos públicos de 14 ligas (octubre de 2026), con propuestas para mejorar el modelo y experimentos que cualquiera puede repetir: [docs/auditoria-modelo.md](docs/auditoria-modelo.md) y [experimentos/auditoria/](experimentos/auditoria/).
+
 ## Arquitectura
 
 Monolito modular más un worker (tareas programadas). Ver [docs/arquitectura.md](docs/arquitectura.md) y las [decisiones (ADR)](docs/adr/).
