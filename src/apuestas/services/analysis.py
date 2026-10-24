@@ -226,6 +226,44 @@ def _team_avg(model, team_id: int, home: bool) -> float:
 # tarjetas del equipo) y con 4 la parte salía muy dispersa: los titulares con menos del 5 % de probabilidad veían
 # tarjeta un 55 % más de lo esperado y los de más del 30 %, un 35-40 % menos (fuera de muestra, docs/modelos.md)
 VOLUME_SHARE_PRIOR_MATCHES = {"shots": 4.0, "shots_on_target": 4.0, "yellow_cards": 20.0}
+# Minutos que suman los jugadores de un equipo en un partido (media real de 2025-26 en las seis competiciones: 987,5;
+# 11 titulares de ~82' y 4,5 suplentes de ~20')
+TEAM_MINUTES = 988.0
+
+
+def _unavailable(s: Session, team_id: int) -> set[int]:
+    """Jugadores del equipo lesionados o sancionados ahora."""
+    return {
+        a.player_id for a in s.scalars(
+            select(m.Availability).where(m.Availability.team_id == team_id, m.Availability.active.is_(True))
+        ) if a.kind in ("injury", "suspension")
+    }
+
+
+def _minutes_without_lineup(bundle: ModelBundle, team_id: int, out_players: set[int]) -> dict[int, tuple[float, float]]:
+    """Minutos esperados y probabilidad de ser titular de cada jugador cuando el partido aún no tiene alineación.
+
+    Parte de sus minutos en los últimos partidos del equipo (`recent_minutes`, con 0 en los que no jugó) y los escala
+    para que el equipo sume TEAM_MINUTES: los de los lesionados o sancionados se reparten entre el resto, sin pasar de
+    lo que juega cada uno cuando es titular. Vacío con un paquete de modelos sin esos minutos.
+    """
+    team = {pid: pr for pid, pr in bundle.players.items() if pr["team_id"] == team_id and "recent_minutes" in pr}
+    mins = {pid: pr["recent_minutes"] for pid, pr in team.items() if pid not in out_players and pr["recent_minutes"] > 0}
+    total = sum(mins.values())
+    if total > TEAM_MINUTES:  # p. ej. un fichaje que ocupa el sitio de alguien que se fue a una liga sin datos
+        mins = {pid: mi * TEAM_MINUTES / total for pid, mi in mins.items()}
+    cap = {pid: max(team[pid].get("avg_starter_minutes") or 90.0, mins[pid]) for pid in mins}
+    for _ in range(10):  # escalar, topar y repartir otra vez lo que no cabe en los topados
+        free = [pid for pid in mins if mins[pid] < cap[pid]]
+        free_total = sum(mins[pid] for pid in free)
+        if not free_total:
+            break
+        scale = (TEAM_MINUTES - sum(mins.values()) + free_total) / free_total
+        if abs(scale - 1) < 1e-4:
+            break
+        for pid in free:
+            mins[pid] = min(cap[pid], mins[pid] * scale)
+    return {pid: (mi, min(0.9, team[pid]["recent_start_rate"])) for pid, mi in mins.items()}
 
 
 def _player_projections(
@@ -235,24 +273,24 @@ def _player_projections(
         select(m.Lineup, m.Player).join(m.Player, m.Player.id == m.Lineup.player_id)
         .where(m.Lineup.match_id == match.id, m.Lineup.team_id == team_id)
     ).all()
-    out_players = {
-        a.player_id for a in s.scalars(
-            select(m.Availability).where(m.Availability.team_id == team_id, m.Availability.active.is_(True))
-        ) if a.kind in ("injury", "suspension")
-    }
-    candidates: list[tuple[int, str, str | None, float]] = []  # player, name, pos, start_prob
+    out_players = _unavailable(s, team_id)
+    candidates: list[tuple[int, str, str | None, float, float | None]] = []  # jugador, nombre, pos, titular, minutos
     if lineup:
         confirmed = lineup[0][0].status == "confirmed"
         for row, p in lineup:
             if row.is_starter:
-                candidates.append((p.id, p.name, row.position or p.position, 1.0 if confirmed else 0.85))
+                candidates.append((p.id, p.name, row.position or p.position, 1.0 if confirmed else 0.85, None))
             else:
-                candidates.append((p.id, p.name, row.position or p.position, 0.0))
-    else:
+                candidates.append((p.id, p.name, row.position or p.position, 0.0, None))
+    elif recent := _minutes_without_lineup(bundle, team_id, out_players):
+        for pid, (minutes, start_prob) in recent.items():
+            pr = bundle.players[pid]
+            candidates.append((pid, pr["name"], pr["position"], start_prob, minutes))
+    else:  # paquete de modelos anterior: frecuencia de titularidad entre los partidos que jugó
         for pid, pr in bundle.players.items():
             if pr["team_id"] == team_id and pid not in out_players and pr["starts"] >= 2:
                 rate = pr["starts"] / max(pr["apps"], 1)
-                candidates.append((pid, pr["name"], pr["position"], min(0.9, rate)))
+                candidates.append((pid, pr["name"], pr["position"], min(0.9, rate), None))
 
     goals_model = bundle.goals
     team_shots_ratio = 1.0
@@ -264,7 +302,7 @@ def _player_projections(
         cards_ratio = count_means["cards"][0 if is_home else 1] / _team_avg(bundle.counts["cards"], team_id, is_home)
 
     projections = []
-    for pid, name, pos, start_prob in candidates:
+    for pid, name, pos, start_prob, minutes in candidates:
         pr = bundle.players.get(pid)
         prior = bundle.priors.get(pos or "MF") or bundle.priors.get("MF") or {}
         k = 4.0  # equivale a 4 partidos completos de la media de su posición
@@ -273,13 +311,18 @@ def _player_projections(
             obs90, mins90 = (pr["per90"].get(st, 0.0), pr["minutes90"]) if pr else (0.0, 0.0)
             rates[st] = (obs90 * mins90 + prior.get(st, 0.0) * k) / (mins90 + k)
         avg_start_min = (pr or {}).get("avg_starter_minutes") or 78.0
-        sub_plays = 0.55 if lineup else 0.0  # un suplente sale en algo más de la mitad de los partidos, ~22'
-        exp_min = start_prob * avg_start_min + (1 - start_prob) * sub_plays * 22
+        exp_min = minutes
+        if exp_min is None:
+            sub_plays = 0.55 if lineup else 0.0  # un suplente sale en algo más de la mitad de los partidos, ~22'
+            exp_min = start_prob * avg_start_min + (1 - start_prob) * sub_plays * 22
+            sub_extra = (1 - start_prob) * sub_plays  # salidas de suplente: en tarjetas, con unos minutos más
+        else:  # sin alineación: los partidos recientes de su equipo en los que salió de suplente
+            sub_extra = (pr or {}).get("recent_sub_rate", 0.0)
         if exp_min < 5:
             continue
         f = exp_min / 90
         # En tarjetas, el suplente cuenta con unos minutos más (fitting.CARD_SUB_EXTRA_MINUTES), como al ajustar su parte
-        f_card = (exp_min + (1 - start_prob) * sub_plays * fitting.CARD_SUB_EXTRA_MINUTES) / 90
+        f_card = (exp_min + sub_extra * fitting.CARD_SUB_EXTRA_MINUTES) / 90
         if "goals_share" in prior:
             # Parte de los goles de su equipo que marca (y asiste) en los minutos que juega, contraída hacia la de su
             # posición, por los goles que se esperan de su equipo en ESTE partido. No se escala contra un "rival
