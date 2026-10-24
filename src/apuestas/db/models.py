@@ -294,12 +294,16 @@ class TeamRating(Base):
 
 
 class Prediction(Base):
+    """Previa del modelo: lo último que calculó antes del inicio, una por partido (`services/predictions.py`)."""
+
     __tablename__ = "prediction"
+    __table_args__ = (UniqueConstraint("match_id"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    match_id: Mapped[int] = mapped_column(ForeignKey("match.id", ondelete="CASCADE"), index=True)
-    stage: Mapped[str] = mapped_column(String(14))  # pre_lineup | confirmed
-    model_version: Mapped[str] = mapped_column(String(24))
+    match_id: Mapped[int] = mapped_column(ForeignKey("match.id", ondelete="CASCADE"))
+    stage: Mapped[str] = mapped_column(String(14))  # confirmed | predicted | injuries_only | none (MatchAnalysis)
+    model_version: Mapped[str] = mapped_column(String(24))  # versión@fecha del modelo
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     payload: Mapped[dict] = mapped_column(JSONType)
 
 

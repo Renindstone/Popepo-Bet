@@ -113,6 +113,21 @@ def test_merge_moves_duplicate_matches_odds_and_aliases(s):
     assert s.scalar(select(func.count()).select_from(m.TeamMatchStats).where(m.TeamMatchStats.match_id == a.id)) == 2
 
 
+def test_merge_keeps_one_prediction_per_match(s):
+    """Si los dos registros del mismo partido tenían previa, queda la del que se conserva (una por partido)."""
+    sa = comp(s, "SA")
+    keep, drop = team(s, "Hellas Verona", "fotmob"), team(s, "Verona", "fdco", "Italy")
+    rival = team(s, "Lecce", "fotmob")
+    a = game(s, sa, keep, rival, T0, fotmob_id=101)
+    b = game(s, sa, drop, rival, T0 + timedelta(hours=1))
+    s.add_all([m.Prediction(match_id=a.id, stage="confirmed", model_version="v1", payload={"de": "a"}),
+               m.Prediction(match_id=b.id, stage="predicted", model_version="v1", payload={"de": "b"})])
+    s.flush()
+    dedupe.merge_teams(s, keep.id, drop.id)
+    rows = s.scalars(select(m.Prediction)).all()
+    assert [(r.match_id, r.payload) for r in rows] == [(a.id, {"de": "a"})]
+
+
 def test_merge_refuses_teams_that_played_each_other(s):
     sco = comp(s, "SCO")
     d, du = team(s, "Dundee", "fdco", "Scotland"), team(s, "Dundee United", "fotmob", "Scotland")

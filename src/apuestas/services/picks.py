@@ -19,6 +19,7 @@ from apuestas.core.competitions import FULL
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.models.fitting import ModelBundle, load_bundle
+from apuestas.services import predictions
 from apuestas.services.analysis import BetEval, MatchAnalysis, analyze, is_goal_market
 
 log = logging.getLogger(__name__)
@@ -91,6 +92,10 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                 analyses.append(analyze(s, bundle, match))
             except Exception:  # noqa: BLE001 - un partido raro no debe tumbar el informe del día
                 log.exception("No se pudo analizar el partido %s", match.id)
+
+        # Previa de cada partido que aún no empezó (la última antes del inicio queda para el resumen de la semana)
+        for an in analyses:
+            predictions.store(s, an, bundle, now)
 
         candidates: list[tuple[MatchAnalysis, BetEval]] = []
         for an in analyses:

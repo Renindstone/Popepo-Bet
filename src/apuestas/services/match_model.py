@@ -38,6 +38,10 @@ def parse_market(market: str) -> tuple[str, str, str]:
     return kind, stat, scope
 
 
+# Sobredispersión de los remates y remates a puerta de un jugador (binomial negativa con este alfa)
+PLAYER_COUNT_DISPERSION = 0.15
+
+
 @dataclass
 class PlayerProjection:
     player_id: int
@@ -293,7 +297,7 @@ class MatchModel:
         pp = self.players[player_id]
         if market in PLAYER_MARKETS:
             lam = pp.lam[PLAYER_MARKETS[market]]
-            pmf = dist.pmf_to_dict(dist.count_pmf(lam, 0.15))
+            pmf = dist.pmf_to_dict(dist.count_pmf(lam, PLAYER_COUNT_DISPERSION))
             ln = 0.5 if line is None else line
             return dist.over(pmf, ln) if selection == "over" else dist.under(pmf, ln)
         if market in PLAYER_INVOLVEMENT:
