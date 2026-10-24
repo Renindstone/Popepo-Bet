@@ -412,6 +412,18 @@ export interface PickHistory {
   }[];
 }
 
+/** Sincronización manual de Datos (`GET`/`POST /sync`) */
+export interface SyncStatus {
+  running: boolean;
+  started_at: string | null;
+  finished_at: string | null;
+  step: string | null;
+  done_steps: number;
+  total_steps: number;
+  error: string | null;
+  next_allowed_at: string | null;
+}
+
 export interface DataStatus {
   sources: Record<
     string,

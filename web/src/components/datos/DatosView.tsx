@@ -1,10 +1,10 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { ApiKeyForm, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
-import { apiUrl, DIRECT_API_URL, useApi } from "@/lib/api";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ApiKeyForm, Button, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
+import { type ApiError, apiUrl, DIRECT_API_URL, post, useApi } from "@/lib/api";
 import { ago, dateTimeLima, int, pct, shortDate, todayLima } from "@/lib/format";
-import type { DataStatus } from "@/lib/types";
+import type { DataStatus, SyncStatus } from "@/lib/types";
 
 const SOURCES: Record<string, { name: string; what: string }> = {
   fdco: { name: "football-data.co.uk", what: "Resultados, estadísticas y cuotas de bet365, Pinnacle y Betfair" },
@@ -27,6 +27,72 @@ function statusTag(status: string, finishedAt: string | null) {
   return <Tag tone="boli">Al día</Tag>;
 }
 
+/** Flechas en círculo: volver a descargar */
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={`size-4 ${spinning ? "animate-spin motion-reduce:animate-none" : ""}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+      <path d="M21 3v5h-5" />
+    </svg>
+  );
+}
+
+/** Botón de Datos para forzar la sincronización de las fuentes gratuitas, con el paso en curso o el resultado. */
+function SyncButton({ sync, onChange }: { sync: SyncStatus | undefined; onChange: (st: SyncStatus) => void }) {
+  const [starting, setStarting] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const running = !!sync?.running;
+  const waiting = !running && !!sync?.next_allowed_at;
+
+  async function start() {
+    setStarting(true);
+    setRefused(null);
+    try {
+      onChange(await post<SyncStatus>("/sync", {}));
+    } catch (e) {
+      setRefused((e as ApiError).message);
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  const note = refused
+    ? { text: refused, tone: "text-rojo" }
+    : running
+      ? { text: `Paso ${(sync?.done_steps ?? 0) + 1} de ${sync?.total_steps}: ${sync?.step ?? ""}`, tone: "text-grafito" }
+      : sync?.error
+        ? { text: sync.error, tone: "text-rojo" }
+        : sync?.finished_at
+          ? {
+              text: `Sincronizado ${ago(sync.finished_at)}${waiting ? `; puedes volver a hacerlo ${ago(sync.next_allowed_at)}` : ""}.`,
+              tone: "text-grafito",
+            }
+          : null;
+
+  return (
+    <div className="flex flex-col items-start gap-1 sm:items-end">
+      <Button onClick={start} disabled={running || starting || waiting}>
+        <RefreshIcon spinning={running || starting} />
+        {running ? "Sincronizando…" : "Sincronizar"}
+      </Button>
+      {note && (
+        <p role="status" aria-live="polite" className={`max-w-xs text-nota sm:text-right ${note.tone}`}>
+          {note.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function daysSince(day: string): number {
   const [y, m, d] = day.split("-").map(Number);
   const [ty, tm, td] = todayLima().split("-").map(Number);
@@ -34,8 +100,21 @@ function daysSince(day: string): number {
 }
 
 export function DatosView() {
-  const status = useApi<DataStatus>("/status", { refreshInterval: 60_000 });
+  // Mientras se sincroniza, el estado se mira cada pocos segundos; después, cada minuto
+  const sync = useApi<SyncStatus>("/sync", {
+    refreshInterval: (d) => (d?.running ? 3_000 : d?.next_allowed_at ? 30_000 : 0),
+  });
+  const syncing = !!sync.data?.running;
+  const status = useApi<DataStatus>("/status", { refreshInterval: syncing ? 5_000 : 60_000 });
   const s = status.data;
+
+  // Al terminar la sincronización se recarga la tabla de fuentes
+  const wasSyncing = useRef(false);
+  const reloadStatus = status.mutate;
+  useEffect(() => {
+    if (wasSyncing.current && !syncing) void reloadStatus();
+    wasSyncing.current = syncing;
+  }, [syncing, reloadStatus]);
 
   return (
     <>
@@ -50,7 +129,11 @@ export function DatosView() {
         </div>
       ) : (
         <>
-          <Section title="Fuentes" intro="Última tarea registrada de cada fuente. Ninguna fuente puede tumbar la ingesta: si una falla, las demás siguen.">
+          <Section
+            title="Fuentes"
+            intro="Última tarea registrada de cada fuente. Ninguna fuente puede tumbar la ingesta: si una falla, las demás siguen. «Sincronizar» descarga ahora lo de las 05:30 y las 08:30 de FotMob, football-data y Understat y reentrena el modelo (tarda unos minutos y no gasta peticiones de OddsPapi)."
+            actions={<SyncButton sync={sync.data} onChange={(st) => sync.mutate(st, { revalidate: false })} />}
+          >
             <div className="overflow-x-auto">
               <table className="w-full min-w-[680px] border-collapse text-interfaz">
                 <thead>

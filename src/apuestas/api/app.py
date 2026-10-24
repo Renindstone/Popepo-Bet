@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from apuestas import __version__
 from apuestas.config import get_settings
 from apuestas.db.session import session_scope
-from apuestas.services import capture_engines, captures, picks, queries, tracker
+from apuestas.services import capture_engines, captures, picks, queries, sync, tracker
 
 log = logging.getLogger(__name__)
 
@@ -152,6 +152,21 @@ def health() -> dict:
 @app.get("/status")
 def status(user: str = Depends(current_user)) -> dict:
     return queries.data_status()
+
+
+@app.get("/sync")
+def sync_status(user: str = Depends(current_user)) -> dict:
+    """Estado de la sincronización manual (botón de Datos)."""
+    return sync.status()
+
+
+@app.post("/sync")
+def sync_start(user: str = Depends(current_user)) -> dict:
+    """Descarga ahora lo de las 05:30 y las 08:30 de las fuentes gratuitas (sin OddsPapi) y reentrena, en segundo plano."""
+    try:
+        return sync.start()
+    except sync.SyncRefused as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @app.get("/matches")
