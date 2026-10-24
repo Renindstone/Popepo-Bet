@@ -448,19 +448,19 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
                                          if r.market == "1x2" or (r.market == "ou_goals" and r.line == 2.5)})
     delta = fitting.strength_delta(mkt[1:], (lam_h, lam_a)) if mkt else 0.0
 
-    # Nivel reciente de tarjetas de la competición frente al modelo de tarjetas (fitting.COUNT_LEVEL)
-    cards_level = bundle.count_level("cards", match.competition.code)
     count_means: dict[str, tuple[float, float]] = {}
     dispersion: dict[str, float] = {}
     for stat, cm in bundle.counts.items():
-        mh, ma = cm.expected(home, away, match.neutral_venue)
+        # Con el nivel reciente de la liga en remates, a puerta y tarjetas (fitting.count_levels; en copas, también el
+        # desvío de la copa)
+        mh, ma = cm.expected(home, away, match.neutral_venue, match.competition.code)
         if stat in ("shots", "shots_on_target", "corners"):
             # Un equipo más fuerte de lo habitual genera más volumen ofensivo (efecto atenuado)
             mh *= (adj_h.attack_mult * adj_a.defence_mult) ** 0.7
             ma *= (adj_a.attack_mult * adj_h.defence_mult) ** 0.7
             mh, ma = fitting.strength_shift(cm, mh, ma, delta)
         elif stat == "cards":
-            mh, ma = mh * ref_cards * cards_level, ma * ref_cards * cards_level
+            mh, ma = mh * ref_cards, ma * ref_cards
         elif stat == "fouls":
             mh, ma = mh * ref_fouls, ma * ref_fouls
         count_means[stat] = (mh, ma)
@@ -495,7 +495,9 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         "sample_factor": round(min(1.0, 0.4 + n_min / 25), 3),
         "weighted_matches_min": round(n_min, 1),
         "referee_known": referee is not None,
-        "cards_level": round(cards_level, 3),
+        # Nivel reciente de tarjetas de la liga (o de la copa) del partido frente al modelo de tarjetas
+        "cards_level": round(math.exp(bundle.counts["cards"].level_for(home, away, match.competition.code)), 3)
+        if "cards" in bundle.counts else 1.0,
         "model_as_of": bundle.as_of.isoformat(),
         # Cobertura del mercado (ver MARKET_COVERED): None = el paquete de modelos no la trae
         "market_matches_min": market_min,

@@ -93,5 +93,31 @@ def test_full_details_store_lineups_and_players(s):
     assert s.scalar(select(func.count()).select_from(m.PlayerMatchStats)) == 2
 
 
+
+def _upcoming_payload(lineup_type: str) -> dict:
+    """Respuesta de FotMob de un partido por jugar (equipos 1 y 2 de `_cup_match`) con un once de 11."""
+    starters = [{"id": 100 + i, "name": f"Titular {i}", "usualPlayingPositionId": 2} for i in range(11)]
+    return {
+        "general": {"matchId": "99", "matchTimeUTCDate": "2025-10-02T16:45:00.000Z"},
+        "header": {"teams": [{"id": 1, "score": 0}, {"id": 2, "score": 0}],
+                   "status": {"utcTime": "2025-10-02T16:45:00.000Z", "started": False, "finished": False}},
+        "content": {"lineup": {"lineupType": lineup_type, "homeTeam": {"id": 1, "starters": starters, "subs": []},
+                               "awayTeam": {"id": 2, "starters": [], "subs": []}}},
+    }
+
+
+def test_last_starting_xi_is_stored_as_predicted_until_the_official_one(s):
+    """FotMob da el último once titular (lastStarting11) días antes: es probable, no confirmado."""
+    match = _cup_match(s, "UCL")
+    store.apply_fotmob_details(s, match, fotmob.parse_match_details(_upcoming_payload("lastStarting11")))
+    s.flush()
+    assert match.lineup_status == "predicted"
+    assert set(s.scalars(select(m.Lineup.status))) == {"predicted"}
+
+    store.apply_fotmob_details(s, match, fotmob.parse_match_details(_upcoming_payload("standard")))
+    s.flush()
+    assert match.lineup_status == "confirmed"
+    assert set(s.scalars(select(m.Lineup.status))) == {"confirmed"}
+
 def test_europa_and_conference_bring_stats():
     assert [c.code for c in LIGHT if c.fotmob_stats] == ["UEL", "UECL"]

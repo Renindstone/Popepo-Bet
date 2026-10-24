@@ -111,7 +111,7 @@ def backtest(
                                                    "--no-count-strength = el modelo anterior al 21-10-2026"),
     count_market: bool = typer.Option(True, help="Reparto de remates y córners movido hacia el 1X2 de cierre; "
                                                  "--no-count-market = el modelo anterior al 22-10-2026"),
-    count_level: bool = typer.Option(True, help="Nivel reciente de tarjetas de cada competición; "
+    count_level: bool = typer.Option(True, help="Remates y a puerta con el nivel reciente de cada liga; "
                                                 "--no-count-level = el modelo anterior al 22-10-2026"),
     ligas: str = typer.Option(None, help="Ligas con cuotas a evaluar, separadas por comas (por defecto las completas: "
                                          "EPL,BUN,LAL,SA,L1; EPL,BUN,LAL = las de antes del 21-10-2026)"),

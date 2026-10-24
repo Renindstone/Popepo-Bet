@@ -5,12 +5,10 @@ se gana con amarilla o roja. El modelo de tarjetas del equipo (vida media 240 d�
 bajan de nivel: en la Serie A esperaba 2,04 tarjetas por equipo y hubo 1,80 (enero de 2026).
 """
 
-from collections import defaultdict
 from datetime import date, timedelta
 
 import pytest
 
-from apuestas.backtest import engine
 from apuestas.betting.settlement import PLAYER_COLUMNS
 from apuestas.db import models as m
 from apuestas.models import fitting
@@ -27,10 +25,6 @@ def _model(per_team: float) -> RatingModel:
     import math
 
     return RatingModel(teams=[], mu=math.log(per_team), home_adv=0.0, attack={}, defence={})
-
-
-def _row(mid: int, code: str, day: date, cards_h: int | None, cards_a: int | None) -> MatchRow:
-    return MatchRow(mid, code, day, 1, 2, False, 1, 1, None, {"cards": cards_h}, {"cards": cards_a})
 
 
 @pytest.mark.parametrize(("yellow", "red", "carded"), [(0, 0, 0.0), (1, 0, 1.0), (0, 1, 1.0), (1, 1, 1.0),
@@ -52,51 +46,67 @@ def test_player_card_probability_is_the_expected_card():
     assert mm.outcome("player_card", "sí", None, 4).effective_prob() == pytest.approx(MAX_CARD_PROB)
 
 
-def test_level_follows_recent_cards_of_each_competition():
-    cm = _model(2.0)  # 4 tarjetas por partido esperadas en todas las competiciones
-    rows = [_row(k, "SA", TODAY - timedelta(days=3 + k), 2, 1) for k in range(30)]  # 3 por partido: 25 % menos
-    rows += [_row(100 + k, "EPL", TODAY - timedelta(days=3 + k), 2, 2) for k in range(30)]  # lo esperado
-    rows.append(_row(999, "SA", TODAY, None, 2))  # sin tarjetas de un equipo: no cuenta
-    levels = fitting.fit_count_levels(rows, {"cards": cm}, TODAY)
-    half_life, prior = fitting.COUNT_LEVEL["cards"]
-    w = sum(0.5 ** ((3 + k) / half_life) for k in range(30))
-    assert levels["cards"]["SA"] == pytest.approx((3 * w + 4 * prior) / (4 * w + 4 * prior), abs=1e-4)
-    assert 0.75 < levels["cards"]["SA"] < 0.9  # entre lo visto (0,75) y 1 (el modelo): contraído con K partidos
-    assert levels["cards"]["EPL"] == pytest.approx(1.0)
-    # Lo de hace meses apenas pesa: tras el parón de verano el nivel vuelve casi al del modelo
-    old = [_row(r.match_id, r.competition, r.day - timedelta(days=200), 2, 1) for r in rows[:30]]
-    assert fitting.fit_count_levels(old, {"cards": cm}, TODAY)["cards"]["SA"] == pytest.approx(1.0, abs=0.01)
-    # Solo las estadísticas de COUNT_LEVEL y solo si el paquete tiene su modelo
-    assert set(fitting.fit_count_levels(rows, {"cards": cm, "fouls": cm}, TODAY)) == {"cards"}
-    assert fitting.fit_count_levels(rows, {}, TODAY) == {}
+SA, EPL = list(range(1, 9)), list(range(11, 19))
 
 
-def test_bundle_keeps_the_levels_and_old_bundles_use_one():
-    goals = _model(1.4)
-    bundle = ModelBundle(version="v1", as_of=TODAY, goals=goals, rho=0.0, counts={"cards": _model(2.0)}, referees={},
-                         players={}, priors={}, count_levels={"cards": {"SA": 0.87}})
-    back = ModelBundle.from_json(bundle.to_json())
-    assert back.count_level("cards", "SA") == pytest.approx(0.87)
-    assert back.count_level("cards", "EPL") == 1.0
-    assert back.count_level("corners", "SA") == 1.0
-    old = bundle.to_json()
-    del old["count_levels"]
-    assert ModelBundle.from_json(old).count_level("cards", "SA") == 1.0
+def _card_rows() -> list[MatchRow]:
+    """Serie A con un 25 % menos de tarjetas en los últimos 60 días, Premier igual que siempre y una copa entre equipos
+    de las dos ligas con un 20 % menos de las que dicen sus ligas (arbitrada con otros criterios)."""
+    import numpy as np
+
+    rng = np.random.default_rng(3)
+    rows, mid = [], 0
+    for comp, teams in (("SA", list(SA)), ("EPL", list(EPL))):
+        for w in range(150):
+            day = TODAY - timedelta(days=7 * w + 1)
+            f = 0.75 if comp == "SA" and (TODAY - day).days <= 60 else 1.0
+            rng.shuffle(teams)
+            for h, a in zip(teams[::2], teams[1::2], strict=True):
+                mid += 1
+                rows.append(MatchRow(mid, comp, day, int(h), int(a), False, 1, 1, 50 + mid % 6,
+                                     {"cards": float(rng.poisson(2.1 * f))}, {"cards": float(rng.poisson(2.3 * f))}))
+    for w in range(60):
+        mid += 1
+        rows.append(MatchRow(mid, "UCL", TODAY - timedelta(days=4 * w + 2), SA[w % 8], EPL[w % 8], False, 1, 1, None,
+                             {"cards": float(rng.poisson(2.1 * 0.8))}, {"cards": float(rng.poisson(2.3 * 0.8))}))
+    return rows
 
 
-def test_backtest_applies_the_level_of_the_match_competition():
-    cms = {"cards": _model(2.0)}
-    row = _row(1, "SA", TODAY, 1, 2)
-    plain: dict = defaultdict(list)
-    lowered: dict = defaultdict(list)
-    engine._evaluate_counts(row, cms, plain)
-    engine._evaluate_counts(row, cms, lowered, levels={"cards": {"SA": 0.75, "EPL": 1.3}})
-    # 3 tarjetas reales frente a 4 esperadas: con el nivel de la Serie A (3 esperadas) la verosimilitud mejora
-    assert lowered["cards por equipo"][0][0] > plain["cards por equipo"][0][0]
-    assert lowered["cards por equipo"][0][1] == plain["cards por equipo"][0][1]  # la media de la liga, igual
-    other: dict = defaultdict(list)
-    engine._evaluate_counts(row, cms, other, levels={"cards": {"EPL": 1.3}})
-    assert other["cards por equipo"] == plain["cards por equipo"]
+def test_cards_follow_the_recent_level_of_each_league():
+    rows = _card_rows()
+    obs = fitting.count_obs(rows, "cards")
+    old = fitting.fit_counts(obs, "cards", TODAY)
+    cm = fitting.fit_counts(obs, "cards", TODAY, rows=rows)
+    assert old.level == {}
+    assert cm.level[SA[0]] < cm.level[EPL[0]] - 0.05  # la Serie A, con menos tarjetas que lo que dice el modelo
+    assert cm.attack == old.attack and cm.defence == old.defence  # el nivel va aparte
+    # En la copa solo cuenta el nivel de la copa, no la media de las ligas de los dos equipos
+    assert cm.cup_alone and cm.cup_level["UCL"] < 0
+    assert cm.level_for(SA[0], EPL[0], "UCL") == pytest.approx(cm.cup_level["UCL"])
+    assert cm.level_for(SA[0], SA[1], "SA") == pytest.approx(cm.level[SA[0]])
+    # En remates, la copa sigue tomando la media de las ligas más su desvío
+    assert not fitting.COUNT_LEVEL_PARAMS.get("shots", {}).get("cup_alone", False)
+
+
+def test_referees_are_fitted_without_the_level():
+    """El factor del árbitro se mide frente al modelo sin el nivel de hoy, que no vale para partidos de hace años."""
+    rows = _card_rows()
+    obs = fitting.count_obs(rows, "cards")
+    plain = fitting.fit_counts(obs, "cards", TODAY)
+    leveled = fitting.fit_counts(obs, "cards", TODAY, rows=rows)
+    assert fitting.fit_referees(rows, leveled, None) == fitting.fit_referees(rows, plain, None)
+    eh, ea = leveled.expected(SA[0], SA[1], False, "SA")
+    assert (eh, ea) != pytest.approx(leveled.expected(SA[0], SA[1], False, "SA", level=False))
+    assert leveled.expected(SA[0], SA[1], False, "SA", level=False) == pytest.approx(plain.expected(SA[0], SA[1]))
+
+
+def test_cup_alone_survives_the_model_bundle():
+    cm = fitting.fit_counts(fitting.count_obs(_card_rows(), "cards"), "cards", TODAY, rows=_card_rows())
+    back = RatingModel.from_dict(cm.to_dict())
+    assert back.cup_alone and back.level_for(SA[0], EPL[0], "UCL") == pytest.approx(cm.cup_level["UCL"])
+    d = cm.to_dict()
+    del d["cup_alone"]
+    assert not RatingModel.from_dict(d).cup_alone  # paquetes anteriores: como los remates
 
 
 def test_substitutes_count_extra_minutes_in_their_card_share():

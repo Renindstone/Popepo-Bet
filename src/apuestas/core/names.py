@@ -58,6 +58,8 @@ _TEAM_SEEDS = {
     "nec": "nec nijmegen", "guimaraes": "vitoria guimaraes", "saint gilloise": "union saint gilloise",
     "union sg": "union saint gilloise", "verona": "hellas verona", "clermont": "clermont foot",
     "hearts": "heart of midlothian", "buyuksehyr": "basaksehir",
+    # OddsPapi (Serie A y Ligue 1, 22-10-2026)
+    "stade rennais": "rennes", "strasbourg alsace": "strasbourg",
     # Ligas extra de football-data (izquierda) frente a FotMob (derecha)
     "rapid": "rapid wien", "copenhagen": "kobenhavn", "aarhus": "agf", "jagiellonia": "jagiellonia bialystok",
     "legia": "legia warszawa", "rakow": "rakow czestochowa", "univ craiova": "universitatea craiova",

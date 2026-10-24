@@ -45,8 +45,17 @@ Mismo modelo de fuerza aplicado a cada estadística (cuánto genera cada equipo 
 
   Caso real: **Betis-Feyenoord** (Champions, 21-10-2026). El modelo de goles veía a los dos casi igual de fuertes (1X2 46/22/32); Pinnacle, al Betis claro favorito (60/20/20; δ = 0,18). Los córners salían 4,6-4,7 (Pinnacle 5,3-4,1); ahora 5,0-4,3. En el análisis real, con las alineaciones, de 4,7-4,7 a 5,1-4,4, y la mejor cuota de córners "con valor" del partido pasa de +30 % a +10 %.
 
+- **Nivel reciente de cada liga en remates y remates a puerta** (desde el 22-10-2026, `fitting.count_levels` y `COUNT_LEVEL_*`). El modelo de conteo recuerda 1.100 días con vida media de 240, así que tarda meses en notar que **toda una liga** cambia. Y en 2026-27 pasó: se remata un 10-20 % más en casi todas las ligas, y el modelo se quedaba corto (sección 7). Sobre el modelo ajustado como siempre, se añade un nivel por liga:
+  1. En los partidos de cada liga de los últimos 400 días, con vida media de **30 días**: nivel = (real + K·g·m) / (esperado + K·m), con m el total de un partido medio, **K = 10 partidos** y g el mismo cociente con todas las competiciones juntas (cada liga se contrae hacia lo que pasa en todas).
+  2. Cada equipo toma el nivel de su liga (la de su último partido de liga); un rival europeo sin liga en los datos toma g. En un partido de liga se aplica el de esa liga a los dos equipos; en una copa, la media de los de las dos ligas.
+  3. En las copas se suma además un **desvío propio de la copa**, medido sobre lo esperado ya con el nivel de las ligas, con vida media de **120 días** y **K = 30**: en la Champions el modelo se quedaba corto en los remates a puerta en las tres últimas temporadas (4 %, 8 % y 17 %), más que en las ligas de sus equipos.
+
+  El nivel no cambia la fuerza de ningún equipo (ataque y defensa son los mismos) ni el reparto entre los dos: sube o baja el total, y los remates de jugador, que reparten lo del equipo (sección 4), lo heredan. Se guarda en el paquete de modelos (`level` por equipo y `cup_level` por copa) y el análisis lo aplica con la competición del partido. En **córners** se probó y empeora un poco (no hay un cambio común a todas las ligas: Bundesliga +10 %, Premier −6 %); en faltas no se ha validado, y las tarjetas lo llevan con sus propios parámetros (abajo). Niveles al 22-10-2026 en remates: Bundesliga ×1,12, Serie A ×1,10, LaLiga ×1,07, Ligue 1 ×1,06, Premier ×1,05; a puerta: ×1,12, ×1,11, ×1,07, ×1,06 y ×0,99; desvío de la Champions en a puerta, ×1,03.
+
+  Caso real (análisis del 22-10-2026, partidos del fin de semana): **Stuttgart-Gladbach**, remates 19,7-10,2 → 22,0-11,4 y a puerta 8,1-3,3 → 9,0-3,7, y Demirović de 3,08 a 3,44 remates; **Torino-Monza**, 13,7-11,7 → 15,0-12,8; **Ipswich-Nottingham Forest**, 11,9-14,4 → 12,5-15,1 (a puerta igual: en la Premier no sube). Los córners no cambian.
+
 - **Árbitro**: factor = (observado + K) / (esperado + K), con K en partidos "neutros". En **faltas** mejora la predicción (K = 20). En **tarjetas**, medido de nuevo con los árbitros de LaLiga y la Bundesliga (FotMob), K = 80. Ayuda claramente en LaLiga y en la Serie A, y algo en la Bundesliga; en la Premier no ayuda. En la Ligue 1 ayuda sobre todo en las faltas (ver backtest).
-- **Nivel reciente de tarjetas de cada competición** (desde el 22-10-2026, `fitting.COUNT_LEVEL` y `fitting.fit_count_levels`). Las tarjetas por equipo bajan de temporada en temporada en casi todas las ligas (Serie A, primera vuelta: 2,29 en 2023-24, 2,05, 2,01 y 1,68 en 2026-27; Bundesliga 2,07 → 1,75; Ligue 1 2,08 → 1,69), y el modelo de tarjetas, con 240 días de vida media, va por detrás: se pasaba un 5 % en las ligas (Serie A +8 %, Champions +8 %). Ahora las tarjetas esperadas (con el árbitro) se multiplican por el nivel de la competición del partido = (reales + K) / (esperadas + K) en sus partidos, con una vida media de **30 días** y K = **20 partidos** de contracción hacia 1. Tras el parón de verano lo antiguo apenas pesa y el nivel vuelve casi a 1 (lo del modelo). Se aplica por la competición del partido, no por la liga de cada equipo: en la Champions se ven menos tarjetas que en las ligas (1,7-1,8 por equipo). El factor del árbitro sigue midiéndose frente al modelo sin nivel (de media vale 1,00 en cada liga, así que no se cuenta dos veces). El análisis guarda el nivel en `data_quality.cards_level`. Cifras en la sección 7.
+- **Nivel reciente de cada liga en tarjetas** (desde el 22-10-2026; el mismo `fitting.count_levels`, con `COUNT_LEVEL_PARAMS["cards"]`). Las tarjetas por equipo bajan de temporada en temporada en casi todas las ligas (Serie A, primera vuelta: 2,29 en 2023-24, 2,05, 2,01 y 1,68 en 2026-27; Bundesliga 2,07 → 1,75; Ligue 1 2,08 → 1,69), y el modelo de tarjetas, con 240 días de vida media, va por detrás: se pasaba un 5 % en las ligas (Serie A +8 %, Champions +8 %). Llevan el nivel de los remates con dos cambios: **K = 20** partidos (en vez de 10) y, en las copas, **solo el nivel de la copa** (`cup_alone`; 120 días y K = 30), sin la media de las ligas de los dos equipos: en tarjetas la Champions va por su cuenta (en las eliminatorias se ven muchas menos), y con esa media empeoraba. El factor del árbitro se ajusta frente al modelo sin el nivel (`expected(..., level=False)`): el nivel de hoy no vale para partidos de hace años, y de media el factor vale 1,00 en cada liga. El análisis guarda el nivel del partido en `data_quality.cards_level`. Al 22-10-2026: Serie A ×0,93, Bundesliga ×0,93, Ligue 1 ×0,95, LaLiga ×1,02, Premier ×1,03 y Champions ×0,93. Cifras en la sección 7.
 - **Alineación**: un once más fuerte de lo habitual genera más remates y córners (efecto atenuado, exponente 0,7).
 
 ## 4. Jugadores (`services/analysis.py::_player_projections`)
@@ -96,7 +105,7 @@ Por competición (remates · a puerta · tarjeta, esperado / real antes → ahor
 | Champions | 0,79 → 0,98 · 0,73 → 0,93 · 1,04 → 1,06 | 0,77 → 0,94 · 0,73 → 0,90 · 1,03 → 1,07 |
 
 - **El reparto entre jugadores queda bien en las dos fechas.** Escalando lo de cada jugador al total real de su equipo (para medir solo el reparto), los remates pasan de 0,86 a 1,01 (enero) y de 0,88 a 1,02 (julio), y todas las ligas quedan entre 0,99 y 1,04; a puerta, de 0,86 a 1,01 y de 0,89 a 1,03.
-- **Lo que falta en julio es del modelo de remates del equipo**, no del jugador: esperaba 12,8 remates por equipo y hubo 14,2. En la temporada 2026-27 se remata un 10-20 % más en todas las ligas (por equipo, Bundesliga 13,0 → 15,5, Serie A 12,4 → 14,6, Premier 12,7 → 13,9; football-data y FotMob dan lo mismo) y el modelo, con 240 días de vida media, aún no lo recoge. Afecta igual a los mercados de remates del equipo. Pendiente ("Próximas mejoras").
+- **Lo que falta en julio es del modelo de remates del equipo**, no del jugador: esperaba 12,8 remates por equipo y hubo 14,2. En la temporada 2026-27 se remata un 10-20 % más en todas las ligas (por equipo, Bundesliga 13,0 → 15,5, Serie A 12,4 → 14,6, Premier 12,7 → 13,9; football-data y FotMob dan lo mismo) y el modelo, con 240 días de vida media, aún no lo recogía. Afecta igual a los mercados de remates del equipo. Desde el 22-10-2026 el modelo de remates lleva el nivel reciente de cada liga (sección 3), y como el paquete de modelos se reajusta cada día, los remates de jugador lo heredan. Este corte de julio no lo puede ver (el modelo queda fijo 91 días, sin la temporada nueva); el walk-forward semanal de la sección 7 sí: en octubre de 2026, 14,1 remates esperados por equipo frente a 14,3 reales.
 - **Tarjetas**: el reparto ya estaba casi bien (el factor del rival promedio en tarjetas apenas se alejaba de 1); lo nuevo mejora un poco la log-loss. Lo que quedaba por liga (Serie A alta, LaLiga baja en enero) venía del modelo de tarjetas del equipo y de cómo se pasaba de λ a probabilidad: corregido el 22-10-2026 (abajo, "Tarjeta al jugador").
 - **Alternativa probada**: dividir entre la media real reciente del equipo (vida media 200 días) en lugar de la del rival promedio. El reparto también queda bien (1,00 y 1,01), pero la log-loss es algo peor en enero (más de 2.5 remates: 0,1756 frente a 0,1747) y en la Champions se queda corta (0,92 frente a 0,98); en julio, empate. Se eligió la parte del equipo: es el mismo método que los goles y sigue bien a un jugador que cambia de equipo.
 
@@ -110,38 +119,38 @@ El paquete de modelos guarda la parte de cada jugador (`volume_share` y su expos
 2. **Cuenta si vio tarjeta, amarilla o roja** (`fitting._player_volume`), igual que se liquida «Tarjeta al jugador» (`betting/settlement.py`, que ya daba ganada la apuesta con una roja directa). Antes la parte solo contaba amarillas: las 658 rojas directas de la BD no contaban. La doble amarilla cuenta una vez.
 3. **Más contracción hacia su posición en tarjetas**: 20 partidos de su equipo (unas 40 tarjetas) en vez de 4 (`analysis.VOLUME_SHARE_PRIOR_MATCHES`). Con 4, los titulares con menos del 5 % de probabilidad veían tarjeta un 55 % más de lo esperado y los de más del 30 %, un 35-40 % menos. Con 20 y 40 la log-loss es casi igual (diferencias de 0,0001) y mejor que con 10; se eligió 20, la mejor en julio.
 4. **Los suplentes cuentan con 20 minutos más** en tarjetas (`fitting.CARD_SUB_EXTRA_MINUTES`), al ajustar su parte y en el partido (si sale, el 55 % de las veces). Por minuto, un suplente ve 1,7-2,3 veces más tarjetas que un titular de su posición (2023-26: entra al final, cuando hay más tarjetas, y juega el descuento); con 15 minutos más quedan a la par los defensas, con 20 los medios y con 25 los delanteros. Sin esto, la parte de los titulares sale inflada: con los otros tres cambios, sus tarjetas esperadas eran 1,07 (enero) y 1,11 (julio) de las reales.
-5. **Nivel reciente de tarjetas de cada competición** en el modelo del equipo (sección 3).
+5. **Nivel reciente de cada liga en tarjetas** en el modelo del equipo (sección 3).
 
 Comprobación fuera de muestra con las seis competiciones: modelo entrenado hasta el corte y **reentrenado cada semana** durante los 90 días siguientes (en producción se reentrena a diario, y así el nivel de cada competición se va poniendo al día), partidos con once confirmado. «Titulares» son los del once confirmado, lo que se suele apostar; «todos» incluye a los suplentes, y el que no sale cuenta como que no vio tarjeta (al liquidar, se anula). Esperado / real, con lo real = vio amarilla o roja:
 
 | Corte | Grupo | Antes | Ahora | Log-loss antes → ahora |
 |---|---|---|---|---|
-| 15-01-2026 | Titulares (14.146) | 0,965 | **0,998** | 0,4166 → **0,4112** |
-| | Todos (27.220) | 0,935 | 1,050 | 0,2805 → **0,2774** |
-| | Tarjetas del equipo (1.286) | 1,038 | **1,014** | −1,6305 → **−1,6289** |
-| 23-07-2026 | Titulares (8.492) | 1,016 | 1,030 | 0,4047 → **0,3994** |
-| | Todos (16.678) | 0,973 | 1,075 | 0,2742 → **0,2712** |
-| | Tarjetas del equipo (772) | 1,080 | **1,037** | −1,6086 → **−1,6048** |
+| 15-01-2026 | Titulares (14.146) | 0,965 | **0,995** | 0,4166 → **0,4112** |
+| | Todos (27.220) | 0,935 | 1,046 | 0,2805 → **0,2774** |
+| | Tarjetas del equipo (1.286) | 1,038 | **1,011** | −1,6305 → **−1,6288** |
+| 23-07-2026 | Titulares (8.492) | 1,016 | **0,996** | 0,4047 → **0,3992** |
+| | Todos (16.678) | 0,973 | 1,040 | 0,2742 → **0,2709** |
+| | Tarjetas del equipo (772) | 1,080 | **1,003** | −1,6086 → **−1,6016** |
 
 Titulares por competición (esperado / real y log-loss, antes → ahora):
 
 | Liga | 15-01-2026 | 23-07-2026 |
 |---|---|---|
-| Premier | 0,95 → 0,98 · 0,4222 → 0,4207 | 0,92 → 0,95 · 0,4319 → 0,4290 |
-| Bundesliga | 0,96 → 0,97 · 0,4152 → 0,4099 | 1,11 → 1,10 · 0,3891 → 0,3823 |
-| LaLiga | 0,91 → 0,98 · 0,4611 → 0,4524 | 0,97 → 1,00 · 0,4447 → 0,4378 |
-| Serie A | 1,05 → 1,06 · 0,3894 → 0,3828 | 1,11 → 1,09 · 0,3630 → 0,3591 |
-| Ligue 1 | 0,93 → 0,97 · 0,4234 → 0,4175 | 1,03 → 1,01 · 0,3945 → 0,3864 |
-| Champions | 1,06 → 1,07 · 0,3731 → 0,3694 | 1,08 → 1,11 · 0,3806 → 0,3782 |
+| Premier | 0,95 → 0,97 · 0,4222 → 0,4207 | 0,92 → 0,92 · 0,4319 → 0,4293 |
+| Bundesliga | 0,96 → 0,97 · 0,4152 → 0,4099 | 1,11 → 1,06 · 0,3891 → 0,3820 |
+| LaLiga | 0,91 → 0,97 · 0,4611 → 0,4524 | 0,97 → 0,97 · 0,4447 → 0,4376 |
+| Serie A | 1,05 → 1,06 · 0,3894 → 0,3828 | 1,11 → 1,05 · 0,3630 → 0,3587 |
+| Ligue 1 | 0,93 → 0,97 · 0,4234 → 0,4176 | 1,03 → 0,97 · 0,3945 → 0,3861 |
+| Champions | 1,06 → 1,07 · 0,3731 → 0,3693 | 1,08 → 1,09 · 0,3806 → 0,3779 |
 
-Tarjetas del equipo por competición (esperadas / reales, antes → ahora): enero, Premier 1,02 → 1,00, Bundesliga 1,04 → 1,00, LaLiga 0,95 → 0,96, Serie A 1,12 → 1,07, Ligue 1 1,05 → 1,03, Champions 1,13 → 1,07; julio, 0,99 → 0,98, 1,14 → 1,08, 1,02 → 1,00, 1,17 → 1,08, 1,14 → 1,05 y 1,14 → 1,11.
+Tarjetas del equipo por competición (esperadas / reales, antes → ahora): enero, Premier 1,02 → 0,99, Bundesliga 1,04 → 0,99, LaLiga 0,95 → 0,96, Serie A 1,12 → 1,07, Ligue 1 1,05 → 1,03, Champions 1,13 → 1,07; julio, 0,99 → 0,94, 1,14 → 1,04, 1,02 → 0,97, 1,17 → 1,05, 1,14 → 1,02 y 1,14 → 1,09.
 
-- **La log-loss mejora en todas las ligas y en los dos cortes**, y la diferencia entre ligas se estrecha (titulares en enero: de 0,91-1,06 a 0,97-1,07). Antes, en LaLiga salía baja (0,91) porque las dos cosas se sumaban; en la Serie A, la Champions y la Bundesliga de julio, alta, porque el modelo del equipo se pasa más de lo que la probabilidad se quedaba corta.
-- **Lo que queda alto es del modelo de tarjetas del equipo**, no del jugador: en la Serie A, la Champions y la Bundesliga de 2026-27 se ven menos tarjetas que nunca (Serie A 1,68 por equipo) y el nivel de 30 días aún va un poco por detrás (sección 7). Los titulares siguen a las tarjetas del equipo (en julio, 1,03 frente a 1,04).
-- **Por tramos de probabilidad** (titulares): en enero, de 0,48 / 0,79 / 0,87 / 1,00 / 1,10 / 1,43 (menos del 5 %, 5-10 %, 10-15 %, 15-20 %, 20-30 % y más del 30 %) a 0,66 / 1,01 / 0,95 / 1,01 / 1,03 / 1,42; en julio, de 0,63 / 0,84 / 0,89 / 1,07 / 1,17 / 1,33 a 1,35 / 1,16 / 0,97 / 1,03 / 1,07 / 0,91. Los extremos tienen pocos casos (el tramo de más del 30 % pasa de 311 a 130 titulares en enero).
-- **Con 1 − e^(−λ)** y los demás cambios, la log-loss de los titulares es peor en los dos cortes (0,4117 y 0,3997, frente a 0,4112 y 0,3994; en todos, casi igual), y los titulares salen cortos (0,92 y 0,95).
+- **La log-loss mejora en todas las ligas y en los dos cortes**, y la diferencia entre ligas se estrecha (titulares: de 0,91-1,06 a 0,97-1,07 en enero y de 0,92-1,11 a 0,92-1,09 en julio). Antes, en LaLiga salía baja (0,91) porque las dos cosas se sumaban; en la Serie A, la Champions y la Bundesliga de julio, alta, porque el modelo del equipo se pasaba más de lo que la probabilidad se quedaba corta.
+- **Lo que queda es del modelo de tarjetas del equipo**, no del jugador: los titulares siguen a las tarjetas del equipo (en julio, 1,00 frente a 1,00). La Serie A y la Champions quedan algo altas (1,05-1,09: se ven menos tarjetas que nunca y el nivel aún va un poco por detrás) y la Premier de 2026-27, baja (0,92; es la única liga en la que suben, y el nivel la contrae hacia el de todas).
+- **Por tramos de probabilidad** (titulares): en enero, de 0,48 / 0,79 / 0,87 / 1,00 / 1,10 / 1,43 (menos del 5 %, 5-10 %, 10-15 %, 15-20 %, 20-30 % y más del 30 %) a 0,66 / 0,99 / 0,95 / 1,01 / 1,02 / 1,39; en julio, de 0,63 / 0,84 / 0,89 / 1,07 / 1,17 / 1,33 a 1,45 / 1,14 / 0,94 / 1,02 / 0,98 / 0,82. Los extremos tienen pocos casos (el tramo de más del 30 % pasa de 311 a 123 titulares en enero y de 221 a 50 en julio).
+- **Con 1 − e^(−λ)** y los demás cambios, la log-loss es peor en los dos cortes (titulares 0,4117 y 0,3999, frente a 0,4112 y 0,3992; todos 0,2775 y 0,2712, frente a 0,2774 y 0,2709), y los titulares salen cortos (0,92 y 0,92).
 - **«Todos» sale alto (1,05-1,08)** porque el modelo supone que cada suplente del once confirmado sale el 55 % de las veces y juega 22 minutos, y de julio a octubre salió el 45 % y jugó 20. Afecta a todos los mercados de los suplentes (pendiente en "Próximas mejoras"). Además, las apuestas a un suplente que no sale se anulan, y el modelo da su probabilidad contando que puede no salir: para un suplente, «Sí» sale bajo y «No» alto.
-- **Con el modelo fijo los 90 días** (sin reentrenar, como la comprobación de los remates de arriba), los titulares quedan en 0,966 → 1,000 (enero, log-loss 0,4148 → 0,4104) y 1,030 → 1,064 (julio, 0,4007 → 0,3979): el nivel de la competición no se actualiza y en julio vale el de antes del verano.
+- **Con el modelo fijo los 90 días** (sin reentrenar, como la comprobación de los remates de arriba), los titulares quedan en 0,966 → 0,998 (enero, log-loss 0,4148 → 0,4104) y 1,030 → 1,043 (julio, 0,4007 → 0,3977): el nivel de cada liga no se actualiza y en julio vale el de antes del verano.
 
 Reproducir: `medir_tarjetas.py DESDE 90 salida.json --semanal` (y `--registros` para cada jugador) y `medir_k.py` para la contracción, en las notas de la sesión del 22-10-2026 (no están en el repositorio).
 
@@ -167,7 +176,7 @@ Limitación: en partidos antiguos el valor de mercado es el de la fecha de desca
 
 - **Probabilidad final** = 25 % modelo + 75 % mercado afilado (Pinnacle/Betfair sin margen) cuando existe. Si no existe, solo el modelo.
 - **Valor esperado** = prob × cuota − 1 (corregido por la probabilidad de devolución en líneas asiáticas).
-- **Confianza** (0-1) = alineación (confirmada 1 · prevista 0,85 · solo bajas 0,72) × muestra × tipo de mercado (principal 1 / estadísticas 0,75 / jugador 0,65) × acuerdo modelo-mercado × riesgo de rotación × cobertura del mercado (abajo).
+- **Confianza** (0-1) = alineación (confirmada 1 · prevista 0,85 · solo bajas 0,72; el último once que FotMob da cuando aún no tiene probable cuenta como previsto, y solo el oficial como confirmado) × muestra × tipo de mercado (principal 1 / estadísticas 0,75 / jugador 0,65) × acuerdo modelo-mercado × riesgo de rotación × cobertura del mercado (abajo).
 - **Equipos que el mercado no ha visto** (`analysis.MARKET_COVERED`). Se cuentan los partidos de cada equipo con cuotas de cierre en el último año (`RatingModel.market_matches`). Si alguno de los dos equipos tiene menos de 10:
   - la confianza se multiplica por un factor que baja linealmente hasta 0,6 con 0 partidos;
   - en los mercados de goles (1X2, doble oportunidad, empate no válido, ambos marcan, hándicaps y más/menos goles), si no hay mercado afilado, la probabilidad se mezcla con la de la propia cuota sin margen (se supone un 5 %). El peso del modelo es el mismo 25 % de la mezcla con Pinnacle cuando el equipo tiene 0 partidos, y sube hasta 100 % con 10.
@@ -362,7 +371,7 @@ Comprobación con las cuotas guardadas (modelo entrenado hasta el 20-10-2026; la
 | Manchester City-AEK | 7,8-2,2 | 5,5-3,5 | 7,9-2,4 | 6,4-3,1 |
 | Napoli-Bodø/Glimt | 6,2-3,7 | 8,2-3,0 | 8,8-2,7 | 6,7-3,5 |
 
-**Por qué no el nivel por liga.** Con tan pocos partidos entre ligas, el nivel de cada liga sale con mucho ruido: la Eredivisie, con 14 partidos ponderados, queda casi al nivel de la Segunda española, y la belga sale tan baja que el Brujas tendría menos córners que el Lens en su campo. Mejora el reparto de las ligas, pero en la Champions apenas (+0,007 ± 0,031 entre ligas) y estropea casos que estaban bien (Porto-PSV, Brujas-Lens). Con la fuerza como guía, el nivel de cada liga sale del modelo de goles, que tiene muchos más datos para comparar ligas (cuotas de cierre y todos los partidos de las tres copas europeas). Juntar las dos cosas es peor que la fuerza sola.
+**Por qué no el nivel por liga.** Con tan pocos partidos entre ligas, el nivel de cada liga sale con mucho ruido: la Eredivisie, con 14 partidos ponderados, queda casi al nivel de la Segunda española, y la belga sale tan baja que el Brujas tendría menos córners que el Lens en su campo. Mejora el reparto de las ligas, pero en la Champions apenas (+0,007 ± 0,031 entre ligas) y estropea casos que estaban bien (Porto-PSV, Brujas-Lens). Con la fuerza como guía, el nivel de cada liga sale del modelo de goles, que tiene muchos más datos para comparar ligas (cuotas de cierre y todos los partidos de las tres copas europeas). Juntar las dos cosas es peor que la fuerza sola. (Se volvió a probar con las estadísticas de la Europa League y la Conference, con casi el doble de cruces, y tampoco mejora: ver "Nivel por liga con los cruces de la Europa League y la Conference" abajo.)
 
 **Lo que queda.** Con equipos grandes aún hay diferencias con Pinnacle: Betis-Feyenoord (4,8-4,9 frente a 5,3-4,1) y Bayern-Arsenal (4,6-4,2 frente a 5,5-4,2). En el análisis del 21-10, "Córners de Feyenoord: Más de 7.5" a 9,00 pasa de +108 % a +41 %, pero su confianza sube de 0,36 a 0,73, porque el modelo y la casa discrepan menos (sección 6). Los córners no pueden ser apuesta del día (solo los mercados de goles). (Explicado y corregido en parte el 22-10-2026: ver "Córners del local grande en la Champions" más abajo.)
 
@@ -383,6 +392,59 @@ Comprobación con las cuotas guardadas (modelo entrenado hasta el 20-10-2026; la
 - **Frente a las casas** (los mismos 41 partidos con cuotas de Pinnacle y 47 de Betano de arriba, modelo hasta el 20-10): casi igual. Error por equipo en córners con Pinnacle: ligas 0,072 → 0,072, Champions con equipos conocidos 0,120 → 0,119, pocos datos 0,083 → 0,081; con Betano 0,058 → 0,060, 0,130 → 0,128 y 0,066 → 0,066. Betis-Feyenoord pasa de 4,8-4,9 a 4,6-4,7 (Pinnacle 5,3-4,1): la falta de datos de la Europa League no explicaba esas diferencias.
 
 Reproducir: `apuestas backtest --europa` con y sin las estadísticas en la base de datos (salidas en `var/backtests/uel_stats_{antes,final}_2024_2026.json`; `uel_stats_despues` es la variante con el xG de las copas).
+
+**Nivel por liga con los cruces de la Europa League y la Conference** (21-10-2026; probado y **no aplicado**). Con las estadísticas de las dos copas, las ligas se cruzan en córners y remates casi el doble que antes. Partidos entre ligas ponderados por antigüedad a 20-10-2026: Portugal 29, Eredivisie 26, Bélgica 18, Turquía 18, Grecia 16 y Escocia 10; las cinco grandes, de 42 a 58. Se repitió la prueba del nivel por liga en el mismo walk-forward 2024-26, con todas las estadísticas en el entrenamiento. Igual que antes: fuerza = nivel de la liga + desviación del equipo, contracción solo en la desviación, y la liga de cada equipo es la de su último partido de liga. Variantes:
+
+- **Nivel por liga** sin la fuerza de goles, con la K de antes (5 en córners, 1 en remates) o con la de la fuerza (20 y 8).
+- **Nivel y fuerza**: nivel por liga más la fuerza de goles como guía. G es la contracción del nivel de cada liga hacia 0, en partidos equivalentes: con G = 0,1 el nivel queda casi libre; con G = 30 solo se aparta de 0 si los cruces lo piden.
+- **Ritmo y fuerza**: solo el ritmo de cada liga (más o menos córners para los dos equipos, sin tocar cuánto domina una liga a otra), más la fuerza.
+- **Nivel solo para equipos sin liga**: los equipos de ligas que no se descargan (Bodø/Glimt, Slavia...) comparten un nivel; los demás, como ahora.
+
+Diferencia de log-verosimilitud por partido frente al modelo de ese día (fuerza de goles como guía, antes del reparto por el 1X2 del 22-10; positivo = mejor), con el error estándar pareado. Con las estadísticas de las copas, en la Champions hay 260 partidos entre ligas y 96 con pocos datos. La última columna son los 199 partidos de Europa League y Conference entre equipos conocidos de ligas distintas (no se analizan en el panel):
+
+| Córners: variante | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo | UEL/UECL entre ligas: por equipo |
+|---|---|---|---|---|---|---|---|
+| Nivel por liga (K de antes) | −0,0032 ± 0,0016 | −0,0201 ± 0,0033 | −0,0010 ± 0,0053 | −0,008 ± 0,019 | −0,012 ± 0,013 | +0,023 ± 0,027 | −0,003 ± 0,021 |
+| Nivel por liga (K de la fuerza) | −0,0029 ± 0,0010 | −0,0253 ± 0,0052 | −0,0008 ± 0,0053 | −0,013 ± 0,019 | −0,020 ± 0,008 | +0,028 ± 0,029 | +0,007 ± 0,022 |
+| Nivel y fuerza (G 0,1) | −0,0007 ± 0,0006 | −0,0018 ± 0,0008 | +0,0007 ± 0,0022 | +0,004 ± 0,016 | −0,017 ± 0,009 | +0,040 ± 0,027 | +0,013 ± 0,017 |
+| Nivel y fuerza (G 30) | −0,0005 ± 0,0005 | −0,0009 ± 0,0006 | +0,0007 ± 0,0014 | +0,006 ± 0,008 | −0,005 ± 0,003 | +0,019 ± 0,009 | +0,016 ± 0,008 |
+| Ritmo y fuerza | −0,0008 ± 0,0006 | −0,0010 ± 0,0006 | −0,0001 ± 0,0009 | +0,000 ± 0,001 | −0,014 ± 0,008 | −0,012 ± 0,008 | −0,001 ± 0,001 |
+| Nivel solo para equipos sin liga | −0,0000 ± 0,0001 | −0,0002 ± 0,0002 | −0,0003 ± 0,0003 | −0,000 ± 0,001 | −0,012 ± 0,007 | +0,016 ± 0,018 | −0,001 ± 0,001 |
+
+| Remates y a puerta: variante | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo | UEL/UECL entre ligas: por equipo |
+|---|---|---|---|---|---|---|---|
+| Remates: nivel por liga (K de la fuerza) | −0,0020 ± 0,0010 | −0,0185 ± 0,0047 | +0,0061 ± 0,0038 | +0,011 ± 0,021 | +0,010 ± 0,010 | +0,097 ± 0,036 | +0,055 ± 0,031 |
+| Remates: nivel y fuerza (G 0,1) | −0,0011 ± 0,0006 | −0,0008 ± 0,0012 | −0,0009 ± 0,0024 | +0,011 ± 0,019 | +0,008 ± 0,009 | +0,089 ± 0,031 | +0,040 ± 0,028 |
+| Remates: nivel y fuerza (G 30) | −0,0009 ± 0,0004 | −0,0003 ± 0,0007 | −0,0005 ± 0,0012 | +0,010 ± 0,009 | +0,005 ± 0,003 | +0,039 ± 0,010 | +0,029 ± 0,011 |
+| Remates: nivel solo para equipos sin liga | +0,0002 ± 0,0001 | +0,0001 ± 0,0003 | +0,0000 ± 0,0002 | −0,000 ± 0,001 | +0,002 ± 0,006 | +0,034 ± 0,017 | −0,002 ± 0,001 |
+| A puerta: nivel por liga (K de la fuerza) | −0,0003 ± 0,0011 | −0,0088 ± 0,0037 | +0,0055 ± 0,0037 | +0,007 ± 0,013 | +0,008 ± 0,012 | +0,029 ± 0,031 | +0,015 ± 0,025 |
+| A puerta: nivel y fuerza (G 30) | −0,0005 ± 0,0005 | +0,0004 ± 0,0006 | −0,0007 ± 0,0011 | +0,004 ± 0,004 | +0,005 ± 0,003 | +0,018 ± 0,008 | +0,009 ± 0,008 |
+
+Comprobación con las cuotas guardadas (los mismos partidos que arriba; modelo entrenado hasta el 20-10-2026). Error de la media de córners de cada equipo:
+
+| Córners, error por equipo | Pinnacle: ligas | Champions, conocidos | Champions, pocos datos | Todos | Betano: ligas | Champions, conocidos | Champions, pocos datos | Todos |
+|---|---|---|---|---|---|---|---|---|
+| **Modelo actual (fuerza)** | 0,073 | **0,119** | **0,081** | **0,086** | 0,060 | **0,128** | **0,066** | **0,082** |
+| Nivel por liga (K de antes) | 0,089 | 0,141 | 0,177 | 0,120 | 0,077 | 0,160 | 0,172 | 0,119 |
+| Nivel y fuerza (G 0,1) | 0,071 | 0,122 | 0,132 | 0,097 | 0,058 | 0,142 | 0,137 | 0,098 |
+| Nivel y fuerza (G 30) | 0,072 | 0,120 | 0,084 | 0,087 | 0,059 | 0,133 | 0,080 | 0,085 |
+| Ritmo y fuerza | 0,071 | 0,119 | 0,088 | 0,087 | 0,059 | 0,129 | 0,074 | 0,083 |
+
+| Córners (local-visitante) | Pinnacle | Modelo actual | Nivel por liga | Nivel y fuerza (G 30) |
+|---|---|---|---|---|
+| Betis-Feyenoord | 5,3-4,1 | 4,6-4,7 | 4,4-4,9 | 4,6-4,8 |
+| Bayern-Arsenal | 5,5-4,2 | 4,8-4,1 | 4,6-4,2 | 4,7-4,2 |
+| Porto-PSV | 5,6-4,2 | 5,2-4,2 | 4,5-5,0 | 4,8-4,5 |
+| Brujas-Lens | 5,5-4,6 | 5,4-4,6 | 4,9-5,3 | 5,2-4,8 |
+| Manchester City-AEK | 7,8-2,2 | 6,5-3,1 | 7,3-2,7 | 6,8-2,9 |
+| Napoli-Bodø/Glimt | 6,2-3,7 | 6,8-3,4 | 9,1-2,5 | 7,2-3,2 |
+
+**Por qué sigue sin servir.** Ahora el nivel de cada liga sí se distingue cuando va solo. Remuestreando los partidos (bootstrap a 20-10-2026), la ventaja en córners de una liga frente a las demás (nivel de ataque + nivel de defensa, relativo a la Premier) es −0,29 ± 0,10 en LaLiga, −0,58 ± 0,10 en la Eredivisie, −0,84 ± 0,11 en Portugal y −0,98 ± 0,12 en Escocia. Pero casi todo eso ya lo explica la fuerza del modelo de goles. Lo que queda por liga encima de la fuerza va de +0,04 a −0,44, con errores de ±0,04 a ±0,15, y no predice mejor:
+- **Córners**: ninguna variante mejora entre ligas (la mejor, +0,006 ± 0,008 por equipo) y todas empeoran un poco las ligas. El nivel por liga sin la fuerza queda muy por debajo (−0,020 ± 0,003 por equipo en las ligas). Además estropea Porto-PSV y Brujas-Lens, igual que sin las copas.
+- **Remates y a puerta**: con nivel y fuerza mejora el reparto entre los dos equipos de la Champions cuando uno tiene pocos datos (remates +0,039 ± 0,010 con G = 30) y en las copas. Pero el total no mejora en ningún grupo, en las ligas empeora un poco (−0,0009 ± 0,0004) y G se eligió mirando estos mismos partidos. Parte de esa mejora la da solo el nivel compartido de los equipos sin liga (+0,034 ± 0,017). No hay cuotas de remates guardadas para comprobarlo con las casas.
+- **Frente a Pinnacle y Betano**, ninguna variante mejora en la Champions, y Betis-Feyenoord y Bayern-Arsenal casi no cambian. Lo que falta en esos dos partidos tampoco es la contracción: con K = 40 en córners salen 4,8-4,6 y 4,8-4,2. Tampoco es un sesgo de local: en los 16 partidos de Champions, la media del local en el modelo queda solo un 2,5 % ± 2,4 % por debajo de la de Pinnacle. La causa resultó ser otra y se corrigió el 22-10-2026: ver "Córners del local grande en la Champions frente a Pinnacle" abajo.
+
+Se queda la fuerza de goles como guía, sin nivel por liga. La versión de `ratings.fit` con nivel por liga para los conteos no se ha guardado en el código.
 
 **Serie A y Ligue 1 como ligas completas** (21-10-2026, a petición del usuario). Hasta entonces eran ligas ligeras: entraban en el modelo con el resultado, los conteos de football-data y las cuotas de cierre, pero sin xG (football-data no lo trae hasta 2026-27), sin árbitro, sin alineaciones y sin jugadores. Ahora tienen lo mismo que la Premier, la Bundesliga y LaLiga: xG de FotMob y de Understat, estadísticas Opta, árbitro, alineaciones y jugadores. Se bajaron los 2.191 partidos jugados desde 2023-24 a una copia de la base de datos y se repitió el walk-forward de siempre (2024-25 y 2025-26) sobre la copia de antes y la de después, en los mismos partidos. `apuestas backtest` evalúa ahora por defecto las cinco ligas y da la log-loss de cada una; `--ligas EPL,BUN,LAL` repite las cifras anteriores.
 
@@ -488,14 +550,77 @@ En la Champions, el error de la diferencia local − visitante frente a Pinnacle
 
 Reproducir: scripts en la carpeta de notas de la sesión (`wf_cor.py` y `wf_stat.py` para el walk-forward, `cmp_cor.py`, `mkt_final.py` y `bins.py` para las cifras, `pindiag.py` y `played.py` para las casas), y `apuestas backtest --europa` con y sin `--no-count-market` (salidas en `var/backtests/conteos_mercado_{antes,despues}_2024_2026.json`).
 
-**Tarjetas: nivel reciente de cada competición** (22-10-2026). El modelo de tarjetas del equipo se pasaba en casi todas las competiciones: en el walk-forward semanal de 2024-08 a 2026-10, 1,049 de lo real en las ligas (Premier 1,048, Bundesliga 1,061, LaLiga 1,020, Serie A 1,079, Ligue 1 1,045) y 1,075 en la Champions. No es el árbitro (su factor vale de media 1,00 en cada liga), sino que las tarjetas bajan de temporada en temporada y, dentro de cada temporada, de la primera vuelta a la segunda (Serie A 2023-24: 2,29 y 2,04 por equipo; 2026-27: 1,68), y el modelo, con 240 días de vida media, va por detrás.
 
-Variantes probadas en ese walk-forward (solo el modelo de tarjetas; diferencia de log-verosimilitud por equipo y partido, con el árbitro, frente al modelo actual; ligas: 3.849 partidos, Champions: 423):
+**Remates de 2026-27: nivel reciente de cada liga** (22-10-2026). Desde julio de 2026 se remata más en casi todas las ligas. Remates por equipo en agosto-octubre de cada temporada (BD, FotMob y football-data dan lo mismo):
+
+| Agosto-octubre | Premier | Bundesliga | LaLiga | Serie A | Ligue 1 | Champions |
+|---|---|---|---|---|---|---|
+| 2023-24 | 13,5 | 13,7 | 12,6 | 12,5 | 12,7 | 13,8 |
+| 2024-25 | 13,5 | 13,8 | 12,1 | 12,8 | 12,4 | 13,3 |
+| 2025-26 | 11,9 | 13,3 | 12,4 | 12,3 | 12,4 | 13,6 |
+| 2026-27 | 13,7 | 15,6 | 13,5 | 14,6 | 13,7 | 14,8 |
+
+Lo mismo en las demás: Eredivisie 14,0 → 15,0, Escocia 12,4 → 14,4, Turquía 12,9 → 14,0, 2. Bundesliga 13,5 → 15,2; solo Portugal no cambia. A puerta sube en la Bundesliga (4,6 → 5,5), la Serie A (4,0 → 4,9), la Ligue 1, LaLiga y la Champions, no en la Premier. Los córners apenas cambian (Bundesliga 5,0 → 5,4; Premier 4,9 → 4,7).
+
+*Desde cuándo.* Walk-forward semanal (agosto de 2024 a octubre de 2026, el modelo de producción reajustado cada semana con los datos anteriores), real / esperado por temporada:
+
+| Real / esperado | Premier | Bundesliga | LaLiga | Serie A | Ligue 1 | Champions | Otras 11 ligas |
+|---|---|---|---|---|---|---|---|
+| Remates 2024-25 | 0,97 → 0,99 | 0,97 → 0,99 | 0,99 → 1,00 | 0,96 → 0,99 | 0,99 → 1,00 | 1,02 → 1,01 | 0,99 → 1,00 |
+| Remates 2025-26 | 0,99 → 1,01 | 1,01 → 1,01 | 1,02 → 1,00 | 0,99 → 1,00 | 1,00 → 1,01 | 1,05 → 1,02 | 1,01 → 1,01 |
+| Remates 2026-27 | 1,06 → 1,01 | 1,16 → 1,05 | 1,07 → 1,05 | 1,14 → 1,06 | 1,08 → 1,01 | 1,10 → 1,05 | 1,07 → 1,02 |
+| A puerta 2024-25 | 0,94 → 0,98 | 0,97 → 0,99 | 0,99 → 1,01 | 0,97 → 0,99 | 1,02 → 1,00 | 1,04 → 1,03 | 0,99 → 1,00 |
+| A puerta 2025-26 | 0,96 → 1,00 | 1,03 → 1,02 | 1,02 → 1,01 | 0,98 → 1,00 | 0,97 → 1,00 | 1,08 → 1,04 | 1,00 → 1,01 |
+| A puerta 2026-27 | 0,98 → 0,98 | 1,15 → 1,05 | 1,07 → 1,04 | 1,16 → 1,09 | 1,08 → 1,04 | 1,17 → 1,10 | 1,05 → 1,02 |
+
+(antes → con el nivel). Mes a mes, el hueco aparece de golpe en agosto-septiembre de 2026; antes, en toda una temporada ninguna liga se separaba más de un 3-4 % (la Premier, la Bundesliga y la Serie A de 2024-25, en las que el modelo esperaba un 3 % de más). En las cinco ligas, por equipo: en 2026-27, 12,9 remates esperados → 13,7 (reales 14,1); en octubre de 2026, 13,1 → 14,1 (reales 14,3); a puerta en octubre, 4,5 → 4,8 (reales 5,0). Lo que queda corto es sobre todo el arranque de la temporada (agosto), hasta que el nivel tiene partidos nuevos, y los remates a puerta de la Serie A y la Champions, que siguieron subiendo en octubre.
+
+*Variantes* (mejora de la log-verosimilitud por equipo y partido frente al modelo de antes, en el mismo walk-forward; positivo = mejor):
+
+| Variante | Remates, 5 ligas: 24-25 / 25-26 / 26-27 | A puerta, Champions: 24-25 / 25-26 / 26-27 |
+|---|---|---|
+| Todo el modelo con vida media de 120 días | +0,0095 / +0,0022 / +0,0306 | +0,0078 / −0,0238 / −0,0175 |
+| Nivel de liga, vida media 120 días (K 10) | +0,0016 / −0,0000 / +0,0172 | −0,0089 / +0,0026 / +0,0124 |
+| Nivel de liga, 60 días (K 10) | +0,0037 / +0,0003 / +0,0388 | −0,0142 / +0,0009 / +0,0316 |
+| Nivel de liga, 45 días (K 10) | +0,0042 / +0,0002 / +0,0472 | −0,0164 / +0,0000 / +0,0389 |
+| 45 días, contraído hacia todas, más desvío de copa | +0,0043 / +0,0003 / +0,0548 | −0,0058 / +0,0243 / +0,0640 |
+| **30 días, contraído hacia todas, más desvío de copa (aplicada)** | **+0,0050 / +0,0000 / +0,0665** | **−0,0078 / +0,0220 / +0,0714** |
+| 20 días, ídem | +0,0054 / −0,0007 / +0,0711 | −0,0098 / +0,0244 / +0,0720 |
+| Nivel por temporada (solo la actual, K 10), más desvío de copa | +0,0014 / −0,0014 / +0,0647 | −0,0092 / +0,0228 / +0,0649 |
+| Techo: el desvío real de cada liga y temporada, sabido de antemano | +0,0059 / +0,0010 / +0,0904 | +0,0080 / +0,0284 / +0,1224 |
+
+- **Memoria corta solo para el nivel, no para todo el modelo.** Acortar la vida media de todo el modelo de remates (120 días) también ayuda en 2026-27, pero mucho menos y empeora la Champions (a puerta −0,024 en 2025-26 y −0,018 en 2026-27): la fuerza de cada equipo necesita memoria larga; el nivel de la liga, no.
+- **Contraído hacia todas las competiciones** mejora 2026-27 (+0,044 frente a +0,039 con 60 días) sin cambiar nada antes: el cambio es común a casi todas las ligas.
+- **Desvío de copa.** Si la copa solo toma la media de las ligas, en la Champions empeoran los remates a puerta de 2024-25 (−0,014 ± 0,003), porque ese año las ligas remataban a puerta menos de lo esperado y la Champions más. Con el desvío propio queda en −0,008 ± 0,004 (ruido) y mejora 2025-26 y 2026-27. Su vida media (120 días) y K (30) son más largas que las de las ligas porque la Champions tiene pocos partidos y su desvío se repite de temporada en temporada.
+- **30 días** es el mejor compromiso: 20 días mejora un poco más 2026-27 pero empieza a empeorar 2025-26 y la Champions de 2024-25. K entre 3 y 30 casi no cambia nada (con 60 días: +0,042, +0,039 y +0,032 en 2026-27).
+- **Por temporada** (todos los partidos de la temporada actual con el mismo peso) da lo mismo en 2026-27, pero empeora un poco 2025-26 y las otras 11 ligas (−0,003 ± 0,001 en 2024-26).
+- **Córners**: con el mismo nivel, −0,0012, −0,0005 y −0,0019 en las cinco ligas y −0,023 ± 0,007 en la Europa League y la Conference de 2026-27. No se aplica.
+
+Resultado de la variante aplicada, con el error estándar pareado (remates · a puerta, por equipo):
+
+| Grupo | 2024-25 | 2025-26 | 2026-27 |
+|---|---|---|---|
+| 5 ligas | +0,0050 ± 0,0025 · +0,0015 ± 0,0024 | +0,0000 ± 0,0016 · −0,0002 ± 0,0028 | +0,067 ± 0,016 · +0,023 ± 0,010 |
+| Champions | +0,0027 ± 0,0052 · −0,0078 ± 0,0043 | +0,0069 ± 0,0088 · +0,022 ± 0,012 | +0,060 ± 0,026 · +0,071 ± 0,028 |
+| Otras 11 ligas | +0,0009 ± 0,0012 · +0,0001 ± 0,0015 (2024-26) | | +0,038 ± 0,009 · +0,008 ± 0,005 |
+| Europa League y Conference | −0,0012 ± 0,0030 · −0,0052 ± 0,0029 (2024-26) | | +0,027 ± 0,016 · +0,014 ± 0,010 |
+
+En la Europa League y la Conference los remates a puerta de 2024-26 empeoran un poco (−0,005 ± 0,003); esas copas solo sirven para entrenar, no se analizan en el panel.
+
+Con `apuestas backtest --europa` por temporada, frente a `--no-count-level` (log-verosimilitud por equipo y partido): remates en las ligas −5,7730 → −5,7680 (2024-25), −5,7756 → −5,7758 (2025-26) y −6,0711 → −6,0047 (2026-27, 346 partidos hasta el 21-10); a puerta −4,2910 → −4,2895, −4,2961 → −4,2962 y −4,4723 → −4,4501; en la Champions, remates −6,0336 → −6,0309, −5,8715 → −5,8638 y −5,9200 → −5,8691, y a puerta −4,5514 → −4,5592, −4,6298 → −4,6056 y −4,6036 → −4,5384. El 1X2 (0,9708, 0,9790 y 0,9561), las apuestas, los córners, las faltas y las tarjetas, idénticos.
+
+*Faltas y tarjetas*: un nivel de liga de 60 días, sin desvío de copa, mejora las cinco ligas (tarjetas +0,0051 ± 0,0021 en 2024-25 y +0,0086 ± 0,0059 en 2026-27; faltas +0,0065 ± 0,0026 en 2025-26 y +0,017 ± 0,007 en 2026-27), pero empeora las copas (tarjetas en la Champions de 2024-25 −0,007 ± 0,004, faltas en la de 2026-27 −0,014 ± 0,014) y las dos pasan por el factor del árbitro. El modelo de tarjetas, además, espera de más en casi todas las ligas (real / esperado 0,93-1,00 en 2024-26 y 0,86-0,89 en la Serie A, la Ligue 1 y la Bundesliga de 2026-27). Las faltas quedan sin aplicar ("Próximas mejoras"); las tarjetas lo llevan desde el 22-10-2026, con sus propios parámetros (abajo, "Tarjetas: nivel reciente de cada liga").
+
+Reproducir: scripts en la carpeta de notas de la sesión (`nivel-liga/`: `wf.py` para el walk-forward en paralelo, `ana.py` para las cifras, `oraculo.py` para el techo y `nivel_hoy.py` para los niveles de hoy), y `apuestas backtest --europa --start … --end …` con y sin `--no-count-level`.
+
+**Tarjetas: nivel reciente de cada liga** (22-10-2026). El modelo de tarjetas del equipo se pasaba en casi todas las competiciones: en el walk-forward semanal de 2024-08 a 2026-10, 1,049 de lo real en las ligas (Premier 1,048, Bundesliga 1,061, LaLiga 1,020, Serie A 1,079, Ligue 1 1,045) y 1,075 en la Champions. No es el árbitro (su factor vale de media 1,00 en cada liga), sino que las tarjetas bajan de temporada en temporada y, dentro de cada temporada, de la primera vuelta a la segunda (Serie A 2023-24: 2,29 y 2,04 por equipo; 2026-27: 1,68), y el modelo, con 240 días de vida media, va por detrás.
+
+*Primera exploración* (nivel de la competición del partido, contraído hacia 1; solo el modelo de tarjetas, en el mismo walk-forward; diferencia de log-verosimilitud por equipo y partido, con el árbitro, frente al modelo actual; ligas: 3.849 partidos, Champions: 423):
 
 | Variante | Ligas (esperadas / reales) | Premier | Bundesliga | LaLiga | Serie A | Ligue 1 | Champions |
 |---|---|---|---|---|---|---|---|
 | Modelo actual | 1,049 | | | | | | |
-| **Nivel de 30 días, K 20 (aplicado)** | **+0,0049 ± 0,0015 (1,027)** | +0,0084 ± 0,0042 | +0,0020 ± 0,0031 | +0,0018 ± 0,0030 | +0,0086 ± 0,0032 | +0,0025 ± 0,0028 | +0,0032 ± 0,0039 |
+| Nivel de 30 días, K 20 | +0,0049 ± 0,0015 (1,027) | +0,0084 ± 0,0042 | +0,0020 ± 0,0031 | +0,0018 ± 0,0030 | +0,0086 ± 0,0032 | +0,0025 ± 0,0028 | +0,0032 ± 0,0039 |
 | Nivel de 30 días, K 10 | +0,0047 ± 0,0018 (1,022) | +0,0085 | +0,0013 | +0,0013 | +0,0093 | +0,0022 | +0,0028 |
 | Nivel de 60 días, K 20 | +0,0039 ± 0,0013 (1,025) | +0,0047 | +0,0023 | +0,0004 | +0,0088 | +0,0028 | +0,0038 |
 | Nivel de 120 días, K 20 | +0,0032 ± 0,0009 (1,027) | +0,0028 | +0,0033 | −0,0003 | +0,0075 | +0,0024 | +0,0042 |
@@ -504,11 +629,27 @@ Variantes probadas en ese walk-forward (solo el modelo de tarjetas; diferencia d
 | 30 días, contraído hacia el de 365 | +0,0049 ± 0,0015 (1,025) | +0,0078 | +0,0024 | +0,0015 | +0,0090 | +0,0029 | +0,0020 |
 | Modelo con vida media de 120 días | −0,0009 ± 0,0012 (1,043) | −0,0013 | +0,0019 | −0,0025 | −0,0030 | +0,0013 | −0,0035 |
 
-Con los árbitros ajustados frente al modelo con el nivel, igual (+0,0050 ± 0,0016): se dejan como estaban. Por temporada, el nivel de 30 días mejora sobre todo 2024-25 (+0,0084 ± 0,0025) y 2026-27 (+0,0074 ± 0,0057); en 2025-26, +0,0008 ± 0,0019. Un nivel largo no aporta: el de cada liga ya lo recogen sus equipos. En la Europa League y la Conference, que no se analizan en el panel, empeora un poco (las tres copas juntas: −0,0016 ± 0,0021). Lo que queda (1,027 en las ligas) es sobre todo el retraso de un nivel que no deja de bajar; el mes a mes es muy ruidoso (septiembre suele tener más tarjetas y agosto menos), así que no se ajusta por fecha de la temporada.
+Memoria corta (30 días) para el nivel, sí; para todo el modelo, no; un nivel largo no aporta (el de cada liga ya lo recogen sus equipos). Lo que queda es sobre todo el retraso de un nivel que no deja de bajar; el mes a mes es muy ruidoso (septiembre suele tener más tarjetas y agosto menos), así que no se ajusta por fecha de la temporada.
 
-Con `apuestas backtest --europa` frente a `--no-count-level` (2024-08 a 2026-06, 3.504 partidos de liga): tarjetas por equipo −3,3214 → −3,3173 (+0,0041 ± 0,0016), total −2,1103 → −2,1062 y, con el árbitro, −2,1063 → −2,1016 (+0,0047 ± 0,0016). Por liga, por equipo: Premier +0,0076 ± 0,0046, Bundesliga +0,0014 ± 0,0030, LaLiga +0,0022 ± 0,0032, Serie A +0,0070 ± 0,0032, Ligue 1 +0,0014 ± 0,0027; Champions +0,0011 ± 0,0043; Europa League −0,0054 ± 0,0030 y Conference −0,0039 ± 0,0036. De julio a octubre de 2026 (345 partidos de liga): +0,0066 ± 0,0057 (Serie A +0,022 ± 0,018, Ligue 1 +0,021 ± 0,016; Champions, 45 partidos, +0,011 ± 0,007). El 1X2 (0,9727), las apuestas, las faltas y el resto de estadísticas, idénticos.
+*Con el nivel de los remates* (`fitting.count_levels`, fusionado el mismo día; el nivel por liga va dentro del modelo de conteo). Se probaron sus parámetros en las tarjetas con `apuestas backtest --europa` frente a `--no-count-level` (3.504 partidos de liga y 378 de Champions en 2024-26; 345 y 45 en 2026-27; diferencia de log-verosimilitud por equipo y partido):
 
-Reproducir: `wf_tarj.py` y `wf_tarj2.py` (walk-forward de las variantes), `ana_tabla.py` (tabla) y `bt_tarj.py` + `cmp_bt.py` (`apuestas backtest --europa` partido a partido, por liga y periodo), en las notas de la sesión del 22-10-2026.
+| Variante | Ligas 2024-26 | Ligas 2026-27 | Champions 2024-26 | Champions 2026-27 | Ligas, con árbitro 2024-26 |
+|---|---|---|---|---|---|
+| Como los remates (K 10; copas: media de las ligas más su desvío, 120 días, K 30) | +0,0042 ± 0,0020 | +0,0105 ± 0,0093 | −0,0059 ± 0,0046 | +0,0024 ± 0,021 | +0,0050 |
+| K 20 | +0,0050 ± 0,0017 | +0,0123 ± 0,0086 | −0,0043 ± 0,0043 | +0,0060 ± 0,020 | +0,0056 |
+| K 20, desvío de copa de 30 días y K 20 | +0,0050 | +0,0123 | −0,0048 ± 0,0051 | +0,0047 | +0,0056 |
+| 60 días, K 10 | +0,0028 ± 0,0015 | +0,0099 ± 0,0065 | −0,0039 ± 0,0042 | +0,0044 | +0,0034 |
+| K 20, en las copas solo el nivel de la copa (30 días, K 20) | +0,0050 | +0,0123 | +0,0013 ± 0,0040 | +0,0100 ± 0,0066 | +0,0056 |
+| **K 20, en las copas solo el de la copa (120 días, K 30; aplicada)** | **+0,0050 ± 0,0017** | **+0,0123 ± 0,0086** | **+0,0016 ± 0,0032** | **+0,0167 ± 0,0106** | **+0,0056 ± 0,0017** |
+| Primera exploración (nivel de la competición, 30 días, K 20, hacia 1) | +0,0041 ± 0,0016 | +0,0066 ± 0,0057 | +0,0011 ± 0,0043 | +0,0107 ± 0,0073 | +0,0047 |
+
+- **Contraído hacia todas las competiciones** (como los remates) es mejor que hacia 1 en las ligas, sobre todo en 2026-27: las tarjetas bajan en casi todas a la vez.
+- **En las copas, solo el nivel de la copa** (`cup_alone` en el modelo de tarjetas). Con la media de las ligas de los dos equipos, la Champions empeora en 2024-26 (−0,004 a −0,006), con cualquier desvío de copa: en tarjetas, la Champions no sigue a las ligas de sus equipos (en las eliminatorias, de febrero a abril, se ven 1,3-1,8 por equipo; en las ligas, 1,9-2,1).
+- **Árbitro.** Se ajusta frente al modelo sin el nivel (`RatingModel.expected(..., level=False)`): el nivel de hoy no vale para partidos de hace años. En la primera exploración, ajustarlo frente al nivel de la fecha de cada partido daba lo mismo (+0,0050 frente a +0,0049).
+
+Variante aplicada, por liga (por equipo, 2024-26): Premier +0,0080 ± 0,0050, Bundesliga +0,0015 ± 0,0034, LaLiga +0,0042 ± 0,0034, Serie A +0,0078 ± 0,0034, Ligue 1 +0,0021 ± 0,0032; Europa League −0,0029 ± 0,0019 y Conference −0,0030 ± 0,0031 (no se analizan en el panel). En 2026-27: Serie A +0,032 ± 0,024, Ligue 1 +0,033 ± 0,023, Bundesliga +0,007 ± 0,027, Premier −0,004 ± 0,012, LaLiga −0,002 ± 0,011; Conference −0,039 ± 0,015 (18 partidos). En valores: tarjetas por equipo en las ligas −3,3214 → −3,3165 (2024-26) y −3,2199 → −3,2076 (2026-27); total −2,1103 → −2,1053; con el árbitro −2,1063 → −2,1006; Champions por equipo −3,2432 → −3,2415 y −3,1788 → −3,1621. El 1X2 (0,9727), las apuestas y el resto de estadísticas, idénticos.
+
+Reproducir: `wf_tarj.py` y `wf_tarj2.py` (primera exploración), `ana_tabla.py` (su tabla), `bt_tarj2.py` + `cmp_var.py` (`apuestas backtest --europa` partido a partido con los parámetros de tarjetas) y `medir_tarjetas.py --semanal` (jugadores, sección 4), en las notas de la sesión del 22-10-2026.
 
 **Lectura**:
 1. En los mercados principales, **bet365 sigue siendo más preciso que el modelo**, también con los ratings del mercado. Ahora el modelo está mucho más cerca (lo que hacen los profesionales), pero no hay ninguna estrategia rentable en 1X2, goles o hándicap. Con el modelo tan cerca del mercado, las pocas "apuestas con valor" que quedan son sobre todo ruido: el ROI no mejora aunque el CLV sí lo haga un poco.
@@ -516,18 +657,17 @@ Reproducir: `wf_tarj.py` y `wf_tarj2.py` (walk-forward de las variantes), `ana_t
 3. El cierre de Pinnacle (0,963) es mucho mejor que su cuota previa (0,976): entre la previa y el partido llega mucha información (alineaciones, noticias). El índice de calidad del once solo capta una parte (β = 0,10).
 4. Donde el modelo sí aporta información (faltas, remates, tarjetas, jugadores) es justo donde las casas tienen menos precisión. Ahí hay que comparar las cuotas de Betano con la **cuota mínima** que da el sistema. El árbitro ayuda en las tarjetas de LaLiga, la Serie A y la Bundesliga, no en las de la Premier, y en las faltas de la Ligue 1.
 
-Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (desde el 21-10-2026 evalúa por defecto las cinco ligas completas; `--ligas EPL,BUN,LAL` para las cifras de antes; `--market-weight 0` para el modelo sin mercado; `--no-count-strength` para las estadísticas sin la fuerza de goles, `--no-count-market` para remates y córners sin el 1X2 de la casa, `--no-count-level` para las tarjetas sin el nivel reciente de cada competición y `--count-l2 1` para la L2 fija de antes).
+Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (desde el 21-10-2026 evalúa por defecto las cinco ligas completas; `--ligas EPL,BUN,LAL` para las cifras de antes; `--market-weight 0` para el modelo sin mercado; `--no-count-strength` para las estadísticas sin la fuerza de goles, `--no-count-market` para remates y córners sin el 1X2 de la casa, `--no-count-level` para remates, a puerta y tarjetas sin el nivel reciente de cada liga, y `--count-l2 1` para la L2 fija de antes).
 
 ## Próximas mejoras previstas
 
 - Un nivel por liga en el modelo de fuerza (nivel de la liga + desviación del equipo) y, si el backtest lo confirma, entrenar con las ligas extra de football-data, que ya se descargan (ver "Copas europeas" arriba).
-- Con las estadísticas de la Europa League y la Conference (desde el 21-10-2026) hay casi el doble de cruces entre ligas en córners y remates: volver a probar un nivel por liga en esos modelos, que sin ellas no mejoraba frente a la fuerza de goles (ver "Córners y remates entre ligas" arriba).
 - Guardar cuotas de 1X2 de la Champions antes de cada partido (ya se guardan las de OddsPapi desde el 19-10-2026) para medir con resultados el reparto de remates y córners movido por el 1X2 en las copas, que hoy solo se mide en las ligas.
 - Guardar el historial de onces previstos para calibrar su β por separado.
 - Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
 - Medir la antigüedad de las observaciones del mercado en jornadas en lugar de días, para no perder el mercado durante el parón de verano.
 - Backtest de props cuando haya cuotas guardadas de Betano (OddsPapi).
-- Remates del equipo en la temporada 2026-27: se remata un 10-20 % más en todas las ligas y el modelo de conteo (vida media de 240 días) espera 12,8 remates por equipo frente a 14,2 reales; los remates de jugador heredan ese hueco (0,92 de lo real desde julio). Probar un nivel de liga que se adapte antes (por temporada o con memoria más corta solo para el nivel) y medirlo con `apuestas backtest` en remates, a puerta y córners.
-- Tarjetas del equipo en 2026-27: con el nivel de 30 días (sección 3) aún se pasa en la Serie A (1,08), la Bundesliga (1,08) y la Champions (1,11), porque las tarjetas siguen bajando. Probar un nivel que siga la tendencia (por ejemplo, de temporada en temporada) y medirlo con `apuestas backtest --europa`.
+- Faltas con el nivel reciente de cada liga (como los remates y las tarjetas desde el 22-10-2026): mejora las cinco ligas pero empeora las copas, y pasa por el factor del árbitro (sección 7, "Remates de 2026-27").
+- Tarjetas del equipo en 2026-27: con el nivel de cada liga, la Serie A y la Bundesliga quedan en 1,04-1,05 y la Champions en 1,09 (aún algo altas: las tarjetas siguen bajando), y la Premier en 0,94 (en 2026-27 sube, al revés que las demás, y el nivel la contrae hacia el de todas). Volver a medirlo cuando haya más partidos de la temporada.
 - Suplentes del once confirmado: el modelo supone que cada uno sale el 55 % de las veces y juega 22 minutos; de julio a octubre de 2026 salió el 45 % y jugó 20 (todos sus mercados salen algo altos). Y las apuestas a un suplente que no sale se anulan, así que su probabilidad debería ser la de si sale; hoy cuenta que puede no salir («Sí» sale bajo y «No» alto).
 - Proyecciones de jugador sin ninguna alineación (días antes del partido): los habituales suman 1.260 minutos por equipo en lugar de ~990 (la frecuencia de titularidad cuenta solo los partidos en que jugó), y todo sale un 16 % alto, también los goles (medido con el corte del 15-01-2026).

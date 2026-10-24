@@ -5,10 +5,9 @@ Paquete (var/models/latest.json):
   más los goles esperados implícitos en las cuotas de cierre como observaciones extra (MARKET_WEIGHT)
 - rho: corrección Dixon-Coles para marcadores bajos
 - counts[stat]: modelos de remates, remates a puerta, córners, faltas y tarjetas (binomial negativa); los de
-  remates y córners, guiados por la fuerza del equipo en el modelo de goles
+  remates y córners, guiados por la fuerza del equipo en el modelo de goles; los de remates y a puerta, con el
+  nivel reciente de cada liga (memoria corta)
 - referees: factor de tarjetas/faltas de cada árbitro (con contracción hacia 1)
-- count_levels[stat][competición]: nivel reciente de una estadística en cada competición frente al modelo de conteo
-  (tarjetas: COUNT_LEVEL)
 - players: tasas por 90' de cada jugador (remates, a puerta, goles, xG, faltas, amarillas) y su parte de los goles,
   remates, a puerta y tarjetas de su equipo (para repartir lo que se espera del equipo en un partido)
 - priors: tasas medias por posición (para contraer jugadores con pocos minutos)
@@ -70,7 +69,6 @@ class ModelBundle:
     players: dict[int, dict]
     priors: dict[str, dict[str, float]]
     league_avgs: dict[str, float] = field(default_factory=dict)
-    count_levels: dict[str, dict[str, float]] = field(default_factory=dict)
 
     def to_json(self) -> dict:
         return {
@@ -83,7 +81,6 @@ class ModelBundle:
             "players": {str(k): v for k, v in self.players.items()},
             "priors": self.priors,
             "league_avgs": self.league_avgs,
-            "count_levels": self.count_levels,
         }
 
     @classmethod
@@ -98,12 +95,7 @@ class ModelBundle:
             players={int(k): v for k, v in d["players"].items()},
             priors=d["priors"],
             league_avgs=d.get("league_avgs", {}),
-            count_levels=d.get("count_levels", {}),
         )
-
-    def count_level(self, stat: str, competition: str | None) -> float:
-        """Nivel reciente de `stat` en la competición del partido (1 si no hay: paquetes antiguos u otra estadística)."""
-        return self.count_levels.get(stat, {}).get(competition or "", 1.0)
 
 
 def bundle_path() -> Path:
@@ -350,53 +342,110 @@ def strength_shift(cm: RatingModel, mh: float, ma: float, delta: float,
     return mh * f * k, ma / f * k
 
 
-def fit_counts(obs: list[MatchObs], stat: str, as_of: date, half_life_days: float = 240.0,
-               l2: float | None = None, strength: dict[int, float] | None = None) -> RatingModel:
-    """Modelo de una estadística de conteo. `strength` (`count_strength` del modelo de goles) solo se usa en las de
-    COUNT_STRENGTH_PRIOR. `l2` fija la L2 de antes (1,0), sin fuerza, en lugar de COUNT_PRIOR_MATCHES."""
-    if l2 is not None:
-        return ratings.fit(obs, as_of, half_life_days=half_life_days, l2=l2)
-    if strength is not None and stat in COUNT_STRENGTH_PRIOR:
-        return ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_STRENGTH_PRIOR[stat],
-                           strength=strength)
-    return ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_PRIOR_MATCHES[stat])
+# Nivel reciente de cada liga en remates y remates a puerta (`count_levels`). El modelo de conteo recuerda 1.100 días
+# con vida media de 240 y tarda meses en notar un cambio de toda una liga. Desde julio de 2026 los equipos rematan un
+# 10-20 % más en todas las ligas (Bundesliga 13,0 -> 15,5 por equipo; football-data y FotMob dan lo mismo) y en el
+# walk-forward el modelo se quedaba corto en 2026-27: Bundesliga 16 %, Serie A 14 %, Champions 10 %. El nivel es lo
+# que el modelo se queda corto (o largo) en los partidos recientes de cada liga, con memoria corta y contraído hacia el
+# de todas las competiciones juntas; no toca la fuerza de ningún equipo. En las copas, media de las ligas de los dos
+# equipos más un desvío propio de la copa, con memoria más larga y más contracción (en la Champions el modelo se quedaba
+# corto en los remates a puerta en las tres últimas temporadas: 4 %, 8 % y 17 %). Elegido con el walk-forward
+# 2024-26 (docs/modelos.md, sección 7). En córners empeora un poco (no hay un cambio común a todas las ligas) y en
+# faltas no se ha validado.
+# Tarjetas (desde el 22-10-2026): bajan de temporada en temporada (Serie A, primera vuelta: 2,29 por equipo en 2023-24,
+# 1,68 en 2026-27) y el modelo se pasaba un 5 % en las ligas y un 8 % en la Champions. Con K = 20 y, en las copas, solo
+# el nivel de la copa (la Champions no sigue a las ligas de sus equipos: con su media empeoraba). El factor del árbitro
+# se ajusta frente al modelo sin nivel (fit_referees).
+COUNT_LEVEL_STATS = ("shots", "shots_on_target", "cards")
+COUNT_LEVEL_HALF_LIFE = 30.0  # días
+COUNT_LEVEL_PRIOR = 10.0  # partidos "promedio" de contracción hacia el nivel de todas las competiciones
+COUNT_CUP_LEVEL_HALF_LIFE = 120.0
+COUNT_CUP_LEVEL_PRIOR = 30.0  # partidos de contracción del desvío de cada copa hacia 0
+COUNT_LEVEL_MAX_DAYS = 400
+# Vida media y K propios de una estadística, si no son los de arriba; cup_alone: en una copa, solo su nivel
+COUNT_LEVEL_PARAMS: dict[str, dict[str, float | bool]] = {"cards": {"prior": 20.0, "cup_alone": True}}
 
 
-# Nivel reciente de cada competición en tarjetas: estadística -> (vida media en días, contracción en partidos). El
-# modelo de tarjetas (vida media 240 días) va por detrás cuando una liga cambia de nivel: de 2023-24 a 2026-27 las
-# tarjetas por equipo bajan en casi todas (Serie A 2,29 → 2,05 → 2,01 → 1,68 en la primera vuelta) y el modelo se
-# pasaba un 5 % en las ligas (Serie A +8 %, Champions +8 %). Nivel = (reales + K) / (esperadas + K) en los partidos
-# de esa competición, con esta vida media; tras el parón de verano vuelve casi a 1 (el modelo). Elegido con el
-# walk-forward 2024-26 (docs/modelos.md, sección 7): vida media 30 días y K = 20; 60-180 días o un nivel largo de
-# la competición como referencia mejoran menos.
-COUNT_LEVEL = {"cards": (30.0, 20.0)}
+def _is_cup(code: str) -> bool:
+    c = COMPETITIONS.get(code)
+    return c is not None and c.is_cup
 
 
-def fit_count_levels(rows: list[MatchRow], counts: dict[str, RatingModel], as_of: date,
-                     levels: dict[str, tuple[float, float]] | None = None) -> dict[str, dict[str, float]]:
-    """Nivel de cada estadística de `levels` (COUNT_LEVEL) en cada competición: (Σ w·reales + K·ē) / (Σ w·esperadas
-    + K·ē), con w = 0,5^(días / vida media), las esperadas del modelo de conteo (sin árbitro) y ē las esperadas por
-    partido en esa competición. Se aplica por la competición del partido, no por la liga de cada equipo."""
-    out: dict[str, dict[str, float]] = {}
-    for stat, (half_life, prior) in (COUNT_LEVEL if levels is None else levels).items():
-        cm = counts.get(stat)
-        if cm is None:
+def team_leagues(rows: list[MatchRow]) -> dict[int, str]:
+    """Liga de cada equipo: la de su último partido de liga en `rows` (las copas europeas no cuentan)."""
+    last: dict[int, tuple[date, str]] = {}
+    for r in rows:
+        c = COMPETITIONS.get(r.competition)
+        if c is None or c.is_cup:
             continue
-        acc: dict[str, list[float]] = {}  # competición -> [Σ w·reales, Σ w·esperadas, Σ esperadas, partidos]
-        for r in rows:
-            vh, va = r.stats_h.get(stat), r.stats_a.get(stat)
-            if vh is None or va is None:
-                continue
-            eh, ea = cm.expected(r.home, r.away, r.neutral)
-            w = 0.5 ** (max((as_of - r.day).days, 0) / half_life)
-            a = acc.setdefault(r.competition, [0.0, 0.0, 0.0, 0.0])
-            a[0] += w * (vh + va)
-            a[1] += w * (eh + ea)
-            a[2] += eh + ea
-            a[3] += 1
-        out[stat] = {code: round((obs + prior * e / n) / (exp + prior * e / n), 4)
-                     for code, (obs, exp, e, n) in acc.items()}
-    return out
+        for t in (r.home, r.away):
+            if t not in last or r.day > last[t][0]:
+                last[t] = (r.day, r.competition)
+    return {t: code for t, (_, code) in last.items()}
+
+
+def count_levels(cm: RatingModel, rows: list[MatchRow], stat: str, as_of: date) -> RatingModel:
+    """Rellena en `cm` el nivel reciente de la liga de cada equipo (`level`) y el desvío de cada copa (`cup_level`),
+    en logaritmo. Nivel de una liga = (real + K·g·m) / (esperado + K·m) en sus partidos de los últimos
+    COUNT_LEVEL_MAX_DAYS días, con vida media COUNT_LEVEL_HALF_LIFE, m el total de un partido medio y g el nivel de
+    todas las competiciones juntas (la K lo contrae hacia g). Un equipo sin liga en los datos (rivales europeos de
+    ligas que no se descargan) toma g. Desvío de una copa = (real + K·m) / (esperado con el nivel de las ligas + K·m),
+    con su propia vida media y K. COUNT_LEVEL_PARAMS cambia esas vidas medias y K en una estadística."""
+    prm = {"half_life": COUNT_LEVEL_HALF_LIFE, "prior": COUNT_LEVEL_PRIOR, "cup_half_life": COUNT_CUP_LEVEL_HALF_LIFE,
+           "cup_prior": COUNT_CUP_LEVEL_PRIOR, "cup_alone": False, **COUNT_LEVEL_PARAMS.get(stat, {})}
+    cm.level, cm.cup_level, cm.cup_alone = {}, {}, bool(prm["cup_alone"])
+    recent = []
+    for r in rows:
+        age = (as_of - r.day).days
+        vh, va = r.stats_h.get(stat), r.stats_a.get(stat)
+        if vh is None or va is None or not 0 <= age <= COUNT_LEVEL_MAX_DAYS:
+            continue
+        if r.home in cm.attack and r.away in cm.attack:
+            recent.append((r, age, vh + va, sum(cm.expected(r.home, r.away, r.neutral))))
+    if not recent:
+        return cm
+    m = 2 * math.exp(cm.mu)
+    num: dict[str, float] = {}
+    den: dict[str, float] = {}
+    for r, age, real, exp_ in recent:
+        w = 0.5 ** (age / prm["half_life"])
+        num[r.competition] = num.get(r.competition, 0.0) + w * real
+        den[r.competition] = den.get(r.competition, 0.0) + w * exp_
+    g = sum(num.values()) / sum(den.values())
+    k = prm["prior"] * m
+    league = {c: math.log((num[c] + k * g) / (den[c] + k)) for c in num if not _is_cup(c)}
+    leagues = team_leagues(rows)
+    cm.level = {t: league.get(leagues.get(t, ""), math.log(g)) for t in cm.teams}
+    cup_num: dict[str, float] = {}
+    cup_den: dict[str, float] = {}
+    for r, age, real, exp_ in recent:
+        if _is_cup(r.competition):
+            w = 0.5 ** (age / prm["cup_half_life"])
+            cup_num[r.competition] = cup_num.get(r.competition, 0.0) + w * real
+            # Con cup_alone, el nivel de la copa va sobre el modelo sin el de las ligas
+            lv = 1.0 if cm.cup_alone else math.exp(cm.level_for(r.home, r.away))
+            cup_den[r.competition] = cup_den.get(r.competition, 0.0) + w * exp_ * lv
+    kc = prm["cup_prior"] * m
+    cm.cup_level = {c: math.log((cup_num[c] + kc) / (cup_den[c] + kc)) for c in cup_num}
+    return cm
+
+
+def fit_counts(obs: list[MatchObs], stat: str, as_of: date, half_life_days: float = 240.0,
+               l2: float | None = None, strength: dict[int, float] | None = None,
+               rows: list[MatchRow] | None = None) -> RatingModel:
+    """Modelo de una estadística de conteo. `strength` (`count_strength` del modelo de goles) solo se usa en las de
+    COUNT_STRENGTH_PRIOR. `l2` fija la L2 de antes (1,0), sin fuerza, en lugar de COUNT_PRIOR_MATCHES. `rows` (los
+    partidos de entrenamiento, con su competición) añade en COUNT_LEVEL_STATS el nivel reciente de cada liga."""
+    if l2 is not None:
+        cm = ratings.fit(obs, as_of, half_life_days=half_life_days, l2=l2)
+    elif strength is not None and stat in COUNT_STRENGTH_PRIOR:
+        cm = ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_STRENGTH_PRIOR[stat],
+                         strength=strength)
+    else:
+        cm = ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_PRIOR_MATCHES[stat])
+    if rows is not None and stat in COUNT_LEVEL_STATS:
+        count_levels(cm, rows, stat, as_of)
+    return cm
 
 
 def count_obs(rows: list[MatchRow], stat: str) -> list[MatchObs]:
@@ -456,7 +505,9 @@ def fit_referees(rows: list[MatchRow], cards_model: RatingModel, fouls_model: Ra
         ch, ca = r.stats_h.get("cards"), r.stats_a.get("cards")
         if ch is None or ca is None:
             continue
-        eh, ea = cards_model.expected(r.home, r.away, r.neutral)
+        # Frente al modelo sin el nivel reciente de la liga (el de hoy no vale para partidos de hace años): el factor
+        # del árbitro mide lo que se aparta de los demás árbitros, y de media vale 1,00 en cada liga
+        eh, ea = cards_model.expected(r.home, r.away, r.neutral, level=False)
         a = acc.setdefault(
             r.referee_id,
             {"matches": 0, "cards_obs": 0.0, "cards_exp": 0.0, "fouls_obs": 0.0, "fouls_exp": 0.0, "fouls_n": 0,
@@ -467,7 +518,7 @@ def fit_referees(rows: list[MatchRow], cards_model: RatingModel, fouls_model: Ra
         a["cards_exp"] += eh + ea
         fh, fa = r.stats_h.get("fouls"), r.stats_a.get("fouls")
         if fouls_model is not None and fh is not None and fa is not None:
-            xh, xa = fouls_model.expected(r.home, r.away, r.neutral)
+            xh, xa = fouls_model.expected(r.home, r.away, r.neutral, level=False)
             a["fouls_obs"] += fh + fa
             a["fouls_exp"] += xh + xa
             a["fouls_n"] += 1
@@ -634,9 +685,9 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
     for stat in COUNT_STATS:
         obs = count_obs(rows, stat)
         if len(obs) >= 200:
-            counts[stat] = fit_counts(obs, stat, as_of.date(), half_life_days=half_life_days, strength=strength)
+            counts[stat] = fit_counts(obs, stat, as_of.date(), half_life_days=half_life_days, strength=strength,
+                                      rows=rows)
     referees = fit_referees(rows, counts["cards"], counts.get("fouls")) if "cards" in counts else {}
-    count_levels = fit_count_levels(rows, counts, as_of.date())
     league_avgs: dict[str, float] = {}
     for code in full_codes:
         sub = [r for r in rows if r.competition == code and (as_of.date() - r.day).days < 400]
@@ -652,7 +703,6 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
         players=players,
         priors=priors,
         league_avgs=league_avgs,
-        count_levels=count_levels,
     )
 
 

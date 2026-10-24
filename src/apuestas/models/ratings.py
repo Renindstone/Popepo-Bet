@@ -14,6 +14,8 @@ log E[y_away] = mu        + att[away] - def[home]
   conectan las escalas, así un 1.8 de ataque significa lo mismo en Inglaterra que en Portugal.
 - Observaciones del mercado (market=True): goles esperados implícitos en las cuotas de cierre. Entran en el
   ajuste con su peso, pero no cuentan como partidos jugados ni para estimar la sobredispersión.
+- Nivel reciente de la liga (opcional, `level` y `cup_level`, lo rellena `fitting.count_levels` en remates y a
+  puerta): se suma a los dos equipos después del ajuste, sin tocar el ataque ni la defensa de ninguno.
 """
 
 from __future__ import annotations
@@ -53,12 +55,30 @@ class RatingModel:
     # Coeficientes b de la fuerza de referencia (ataque, defensa) cuando se ajusta con `strength`; None = sin ella.
     # Sirven para mover los conteos cuando la casa ve otra diferencia de fuerza (`fitting.strength_shift`).
     strength_coef: tuple[float, float] | None = None
+    # Nivel reciente (log) de la liga de cada equipo y desvío propio de cada copa (`fitting.count_levels`). Vacíos =
+    # sin nivel (goles, córners, faltas, tarjetas y paquetes antiguos).
+    level: dict[int, float] = field(default_factory=dict)
+    cup_level: dict[str, float] = field(default_factory=dict)
+    # True: en una copa con nivel propio solo cuenta ese (tarjetas: la Champions no sigue a las ligas de sus equipos)
+    cup_alone: bool = False
 
-    def expected(self, home: int, away: int, neutral: bool = False) -> tuple[float, float]:
+    def level_for(self, home: int, away: int, competition: str | None = None) -> float:
+        """Log del factor que el nivel reciente aplica a los dos equipos: media del de sus ligas (en un partido de
+        liga, el de esa liga) más el desvío de la copa, si `competition` es una copa con desvío."""
+        if self.cup_alone and competition in self.cup_level:
+            return self.cup_level[competition]
+        lv = 0.5 * (self.level.get(home, 0.0) + self.level.get(away, 0.0))
+        return lv + self.cup_level.get(competition, 0.0) if competition else lv
+
+    def expected(self, home: int, away: int, neutral: bool = False,
+                 competition: str | None = None, level: bool = True) -> tuple[float, float]:
+        """Medias (local, visitante). `level=False`: sin el nivel reciente de la liga (p. ej. para ajustar el factor
+        del árbitro con partidos de hace años)."""
         ah, aa = self.attack.get(home, 0.0), self.attack.get(away, 0.0)
         dh, da = self.defence.get(home, 0.0), self.defence.get(away, 0.0)
         h = 0.0 if neutral else self.home_adv
-        return float(np.exp(self.mu + h + ah - da)), float(np.exp(self.mu + aa - dh))
+        lv = self.level_for(home, away, competition) if level and (self.level or self.cup_level) else 0.0
+        return float(np.exp(self.mu + lv + h + ah - da)), float(np.exp(self.mu + lv + aa - dh))
 
     def to_dict(self) -> dict:
         return {
@@ -71,6 +91,9 @@ class RatingModel:
             "as_of": self.as_of.isoformat() if self.as_of else None,
             "market_matches": {str(k): v for k, v in self.market_matches.items()},
             "strength_coef": list(self.strength_coef) if self.strength_coef else None,
+            "level": {str(k): v for k, v in self.level.items()},
+            "cup_level": dict(self.cup_level),
+            "cup_alone": self.cup_alone,
         }
 
     @classmethod
@@ -87,6 +110,9 @@ class RatingModel:
             as_of=date.fromisoformat(d["as_of"]) if d.get("as_of") else None,
             market_matches={int(k): int(v) for k, v in d.get("market_matches", {}).items()},
             strength_coef=tuple(d["strength_coef"]) if d.get("strength_coef") else None,
+            level={int(k): v for k, v in d.get("level", {}).items()},
+            cup_level=dict(d.get("cup_level", {})),
+            cup_alone=bool(d.get("cup_alone", False)),
         )
 
 
