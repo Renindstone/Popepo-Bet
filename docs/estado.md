@@ -26,7 +26,7 @@
 
 | Fecha | Decisión |
 |---|---|
-| 2026-10 | Solo prepartido; ligas: Premier, Bundesliga, LaLiga y Champions. Solo fuentes gratuitas. |
+| 2026-10 | Solo prepartido; ligas: Premier, Bundesliga, LaLiga y Champions (más la Serie A y la Ligue 1 desde el 2026-10-21, ver abajo). Solo fuentes gratuitas. |
 | 2026-10-19 | Las capturas usan Claude Code con la suscripción del usuario (`claude -p`), preparado para pasar a la API de Anthropic con `APUESTAS_CAPTURES_ENGINE`. |
 | 2026-10-19 | Equipos sin ratings del mercado (como Bodø/Glimt): menos confianza y valor esperado. |
 | 2026-10-19 | Las ligas extra se descargan, pero **no entrenan el modelo** (`extra_leagues_in_model=False`): el backtest no mejoró. |

@@ -1,20 +1,25 @@
-# App Apuestas ⚽
+# Popepo-Bet ⚽
 
-Análisis de apuestas de fútbol con modelos estadísticos para **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1 y Champions League** (solo prepartido).
-Pensado para usarlo desde Claude (u otro agente) mediante **MCP**, por Telegram o por API REST.
+Análisis de apuestas de fútbol **prepartido** con modelos estadísticos para la **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1 y Champions League**.
+Calcula la probabilidad de cada mercado, la compara con la cuota de la casa (bet365, Betano) y propone una apuesta del día. Se usa desde un **panel web**, desde Claude (u otro agente) por **MCP**, por **API REST** o por **Telegram**.
+
+No promete ganancias: el backtest dice con honestidad dónde el modelo no le gana a la casa (ver [más abajo](#resultado-del-backtest-honesto)).
 
 ## Qué hace
 
-- **Recoge datos gratis** de football-data.co.uk (resultados, estadísticas, cuotas de bet365, Betfair Exchange y Pinnacle), FotMob (datos Opta: estadísticas, alineaciones previstas y confirmadas, lesiones, sanciones, árbitros, estadísticas por jugador) y Understat (segundo modelo de xG). Ver [docs/fuentes.md](docs/fuentes.md).
-- **Valida las fuentes entre sí**: los conteos (remates, córners, tarjetas…) se comparan y se marcan discrepancias; el xG se promedia entre proveedores.
-- **Modelos**: fuerza de ataque/defensa conjunta para 17 ligas (las ligas secundarias conectan la escala para rivales de Champions y equipos ascendidos), Dixon-Coles para goles y binomial negativa para remates, remates a puerta, córners, faltas y tarjetas. Además, **factor de árbitro** para tarjetas y faltas, el **nivel reciente de tarjetas** de cada competición y **tasas por 90'** de cada jugador. Ver [docs/modelos.md](docs/modelos.md).
-- **Alineaciones y bajas**: compara el once (previsto o confirmado) con el once típico del equipo según el valor de mercado y el rating de cada jugador, con pesos por posición. Que falte un Szoboszlai baja el ataque y la defensa del Liverpool.
-- **Dificultad del rival** para cada equipo (Fácil → Difícil), con fuerza base y con la alineación real.
-- **Contexto**: días de descanso, calendario cargado y riesgo de rotación si juega Champions en ≤4 días.
-- **Valor esperado** contra las cuotas de bet365/Betano, mezclando el modelo con el mercado afilado (Pinnacle/Betfair).
-- **Apuesta del día**: la de mayor valor × confianza entre las que pasan los umbrales. Si ninguna los pasa, **no hay apuesta del día**.
+- **Recoge datos gratis**: football-data.co.uk (resultados, estadísticas y cuotas de cierre de bet365), FotMob (datos Opta: estadísticas, alineaciones previstas y confirmadas, lesiones, sanciones, árbitros y estadísticas por jugador, también de la Europa League y la Conference) y Understat (segundo modelo de xG). Opcional: OddsPapi para las cuotas de **Betano** y Pinnacle antes de cada partido. Ver [docs/fuentes.md](docs/fuentes.md).
+- **Valida las fuentes entre sí**: los conteos (remates, córners, tarjetas…) se comparan y se marcan discrepancias; el xG se promedia entre proveedores. Si una fuente se cae, las demás siguen y el panel muestra el motivo.
+- **Modelos**: fuerza de ataque y defensa conjunta para 17 competiciones (las cinco grandes ligas, la Champions, la Europa League, la Conference y nueve ligas más que conectan la escala para rivales europeos y equipos ascendidos), con los ratings implícitos de las cuotas de cierre. Dixon-Coles para goles y binomial negativa para remates, remates a puerta, córners, faltas y tarjetas, con el **factor de árbitro** y el reparto entre los dos equipos guiado por el 1X2 de la casa. Ver [docs/modelos.md](docs/modelos.md).
+- **Jugadores**: goles, asistencias y «gol o asistencia» como parte de los goles de su equipo; remates, remates a puerta, faltas y tarjetas por jugador, con sus minutos esperados.
+- **Alineaciones y bajas**: compara el once (previsto o confirmado) con el once típico del equipo según el valor de mercado y el rating de cada jugador. Que falte un Szoboszlai baja el ataque y la defensa del Liverpool. El once confirmado se busca 70, 50, 35, 20 y 10 minutos antes del inicio.
+- **Dificultad del rival** para cada equipo (Fácil → Difícil) y **contexto**: descanso, calendario cargado y riesgo de rotación si juega Champions en ≤4 días.
+- **Valor esperado** contra las cuotas de bet365 y Betano, mezclando el modelo con el mercado afilado (Pinnacle, Betfair).
+- **Apuesta del día**: la de mayor valor × confianza entre las que pasan el corte. Si ninguna lo pasa, **no hay apuesta del día**. Todas las que pasan el corte se guardan y se liquidan solas, con su propio contador de aciertos.
+- **Combinadas y Bet Builders**: las selecciones de un mismo partido se evalúan juntas con la matriz de marcadores (están correlacionadas) y las de partidos distintos se multiplican.
+- **Capturas**: subes una captura de Betano o bet365 y una IA local la lee; el modelo da el veredicto de cada cuota.
+- **Resumen de la semana**: el equipo, el jugador y el once que más superaron lo que esperaban la casa y el modelo.
 - **Cuotas mínimas** para props (remates, tarjetas, córners, jugadores): la cuota a partir de la cual vale la pena en Betano.
-- **Seguimiento** de tus apuestas: liquidación automática, ROI, CLV, rendimiento por mercado/competición/casa y límites de pérdida.
+- **Seguimiento** de tus apuestas: liquidación automática, ROI, CLV, banca, rendimiento por mercado, competición y casa, y límites de pérdida.
 - **Almacenamiento por niveles** (temporada actual / historial / archivo Parquet) con resúmenes de temporada. Ver [docs/adr/0003-almacenamiento-por-niveles.md](docs/adr/0003-almacenamiento-por-niveles.md).
 
 ## Puesta en marcha
@@ -22,6 +27,7 @@ Pensado para usarlo desde Claude (u otro agente) mediante **MCP**, por Telegram 
 Guía completa, con requisitos, servicios, actualización y problemas frecuentes: **[docs/instalacion.md](docs/instalacion.md)**. Resumen:
 
 ```bash
+git clone https://github.com/Renindstone/Popepo-Bet.git && cd Popepo-Bet
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 scripts/db.sh init                      # crea un PostgreSQL propio del proyecto (puerto 5433) y el .env
 .venv/bin/alembic upgrade head          # crea las tablas
@@ -45,13 +51,15 @@ scripts/install-services.sh --with-web   # BD + worker + API + panel en http://l
 | `apuestas semana` | Equipo, jugador y once de la semana (`--semana AAAA-MM-DD` para otra, `--json` para el detalle) |
 | `apuestas evaluate "Arsenal vs Chelsea" ou_cards over 1.85 --line 4.5` | ¿Vale la pena esta cuota de Betano? |
 | `apuestas status` | Frescura de las fuentes y del modelo |
+| `apuestas settle` | Liquida ahora los picks y apuestas de partidos terminados (el worker lo hace solo) |
+| `apuestas ingest oddspapi --estado` | Peticiones de OddsPapi usadas este mes (cupo gratis: 250) |
 | `apuestas backtest` | Valida el modelo contra cuotas históricas de bet365 |
 | `apuestas archive report` | Espacio usado |
 | `apuestas equipos duplicados` | Equipos que parecen el mismo club en dos fuentes (los seguros se fusionan solos en cada ingesta) |
 
 ### Conectar Claude (MCP)
 
-El repo incluye [.mcp.json](.mcp.json): al abrir Claude Code en esta carpeta aparece el servidor `apuestas`. Para Claude Desktop, añade el mismo bloque en su configuración. Herramientas: `apuesta_del_dia`, `analizar_partido`, `evaluar_cuota`, `bajas_equipo`, `registrar_baja`, `perfil_arbitro`, `proyeccion_jugador`, `registrar_apuesta`, `mi_rendimiento`, `capturas_pendientes`, `ver_captura`, `evaluar_captura`, etc.
+El repo incluye [.mcp.json](.mcp.json): al abrir Claude Code en esta carpeta aparece el servidor `apuestas`. Para Claude Desktop, añade el mismo bloque en su configuración. Herramientas: `apuesta_del_dia`, `historial_apuesta_del_dia`, `analizar_partido`, `evaluar_cuota`, `evaluar_combinada`, `resumen_semana`, `bajas_equipo`, `registrar_baja`, `perfil_arbitro`, `proyeccion_jugador`, `registrar_apuesta`, `mis_apuestas`, `mi_rendimiento`, `estado_datos`, `capturas_pendientes`, `ver_captura`, `evaluar_captura`, etc.
 
 ### Varios usuarios (cada uno con su agente)
 
@@ -73,7 +81,7 @@ Interfaz visual en [web/](web/) (Next.js + ECharts). Necesita Node.js 20.9 o sup
 - **Partidos**: próximos partidos con filtros por competición y días, y un buscador (lupa) que filtra mientras escribes el nombre de cualquiera de los dos equipos; no distingue tildes y entiende iniciales como "psg". Al elegir uno, análisis completo del partido en cinco pestañas: **Alineaciones** (en el campo como FotMob: las probables hasta que se confirman, que se buscan 70, 50, 35, 20 y 10 minutos antes del inicio, con formación, entrenador, dorsales, suplentes, bajas y cómo cambian los goles esperados), **Probabilidades**, **Estadísticas** (con el árbitro y el contexto), **Cuotas** (las que tienen valor y la cuota mínima de los props) y **Jugadores**. La pestaña queda en la dirección (por ejemplo `#cuotas`), así que se puede guardar o compartir.
 - **Semana**: el **equipo**, el **jugador** y el **once de la semana**, y los 10 primeros de cada uno. Los equipos se miden frente a la casa (resultado, goles y córners contra el 1X2 sin margen y la línea principal antes del partido) y los jugadores frente a lo que esperaba el modelo antes del partido (remates, a puerta, goles y asistencias, ajustados a sus minutos). Cada dato suma de −1 a +1 según lo raro que fue: superar 9.5 córners con 15 vale más que con 10, y ganar de punto más que de favorito. Es un resumen, no una predicción. Las semanas se recorren con las flechas; los jugadores cuentan desde el 24-10-2026, cuando se empezó a guardar la previa.
 - **Evaluar cuota**: comprobar una cuota de Betano y registrar la apuesta. Al elegir un partido, debajo salen **las cuotas de Betano que ya se descargaron** esa mañana, evaluadas por el modelo (primero las que tienen valor): **Evaluar** las pasa al formulario y **+ Cupón** las añade al cupón, sin captura. Con **Añadir al cupón** se juntan varias selecciones: varias de un mismo partido forman un Bet Builder (escribe la cuota que te da la casa) y las de partidos distintos, una combinada. **Evaluar cupón** calcula cada partido y el total con el modelo, y **Registrar cupón** la guarda como una sola apuesta que se liquida sola: basta una selección perdida para perderla, y si una se anula, la cuota total se ajusta.
-- **Capturas**: subir o pegar una captura de cuotas. Claude la lee y el modelo da el veredicto de cada cuota (ver más abajo).
+- **Capturas**: subir o pegar una captura de cuotas. Una IA la lee (local por defecto, o Claude con un botón) y el modelo da el veredicto de cada cuota (ver más abajo).
 - **Mis apuestas**: ROI, CLV, desglose y banca, el historial de la apuesta del día (desde el inicio y en el último año) y el de **todas las que pasan el corte** (aciertos desde el inicio y las de los últimos 60 días con su resultado). La **banca inicial** (y su moneda) se edita ahí mismo; de ella salen el stake sugerido y los límites de pérdida, y la banca actual es la inicial más lo ganado o perdido.
 - **Datos**: frescura de las fuentes y del modelo. El botón **Sincronizar** (junto a «Fuentes») descarga en ese momento lo de las 05:30 y las 08:30 de FotMob, football-data y Understat, liquida y reentrena el modelo (`POST /sync`; tarda unos minutos, no gasta peticiones de OddsPapi y se puede repetir cada 10 minutos).
 
@@ -101,15 +109,17 @@ En **Capturas** (o en el recuadro de **Hoy**) arrastra, elige o pega con Ctrl+V 
 
 Tarda unos 5 a 10 segundos por captura con la tarjeta gráfica. Si lee mal una cuota, usa **Corregir cuotas** (se reevalúa con el modelo sin volver a leerla) o **Leer con Claude** para que la lea Claude Code con tu suscripción. Para instalar la IA local, ver [docs/instalacion.md](docs/instalacion.md#ia-local-para-las-capturas-opcional); sin ella, configura `APUESTAS_CAPTURES_ENGINE=claude_code` en `.env`.
 
-**Registrar desde la captura.** Si ya hiciste la apuesta, pulsa **Registrar** junto a la cuota, o **Registrar esta combinada** debajo de una combinada, y escribe el importe (si Claude lo vio en la captura, ya viene puesto). Queda en **Mis apuestas** y se liquida sola, sin pasar por Evaluar cuota. Cada cuota o combinada se registra una sola vez, aunque vuelvas a leer o corrijas la captura. Una combinada con selecciones que el sistema no puede liquidar (atajadas, primer goleador…) hay que armarla sin ellas en Evaluar cuota.
+**Registrar desde la captura.** Si ya hiciste la apuesta, pulsa **Registrar** junto a la cuota, o **Registrar esta combinada** debajo de una combinada, y escribe el importe (si la IA lo vio en la captura, ya viene puesto). Queda en **Mis apuestas** y se liquida sola, sin pasar por Evaluar cuota. Cada cuota o combinada se registra una sola vez, aunque vuelvas a leer o corrijas la captura. Una combinada con selecciones que el sistema no puede liquidar (atajadas, primer goleador…) hay que armarla sin ellas en Evaluar cuota.
 
 **Combinadas y Bet Builders.** Si la captura es una combinada (una sola cuota para varias selecciones):
-- Claude la separa por partidos.
+- Se separa por partidos.
 - Dentro de un partido, la probabilidad conjunta sale de la matriz de marcadores, porque "gana el City" y "más de 2,5 goles" dependen entre sí. Los **goles y asistencias de jugadores** ("Kane anotará o asistirá", "gol de Mbappé", "2 o más goles") entran en ese mismo cálculo: cada gol del equipo se reparte entre sus jugadores según su parte de goles, xG, asistencias y xA.
 - Córners, tarjetas, remates y faltas dentro de un Bet Builder se combinan como si no dependieran del resultado: el bloque sale marcado como **aproximado**.
 - Los partidos distintos se multiplican, y el resultado se compara con la cuota de cada bloque y con la total.
 
-Lo que el modelo no puede calcular aparece marcado con su motivo, sin inventar: atajadas, primer goleador, resultado exacto, o jugadores que no figuran en la alineación prevista. Si en la captura no hay nada evaluable, queda como **No evaluable**, con la explicación de Claude.
+Lo que el modelo no puede calcular aparece marcado con su motivo, sin inventar: atajadas, primer goleador, resultado exacto, o jugadores que no figuran en la alineación prevista. Si en la captura no hay nada evaluable, queda como **No evaluable**, con el motivo.
+
+Con **Leer con Claude** (o `APUESTAS_CAPTURES_ENGINE=claude_code`) la lee Claude Code:
 
 - Usa **tu suscripción de Claude**: cuenta para tu límite de uso, sin coste extra. Necesita el CLI `claude` con la sesión iniciada en esta PC y la API corriendo.
 - La IA corre aislada: sin acceso a archivos ni a la terminal, solo con las tres herramientas de capturas.
@@ -124,7 +134,7 @@ Crea un bot con @BotFather y pon `APUESTAS_TELEGRAM_TOKEN` y `APUESTAS_TELEGRAM_
 
 ### Betano (opcional)
 
-Las cuotas de bet365 y Pinnacle llegan gratis vía football-data.co.uk (1X2, goles 2.5 y hándicap asiático), pero solo para las ligas, no para la Champions. Las de **Betano Perú** (también de la Champions, con córners, tarjetas y hándicap normal) llegan por [OddsPapi](https://oddspapi.io), que tiene cuenta gratuita:
+Las cuotas de bet365 llegan gratis vía football-data.co.uk (1X2, goles 2.5 y hándicap asiático; las de Pinnacle, solo hasta 2025-26), pero solo para las ligas, no para las copas europeas. Las de **Betano Perú** y Pinnacle antes de cada partido (también de la Champions, con goles por equipo, córners, tarjetas y hándicap de 3 vías) llegan por [OddsPapi](https://oddspapi.io), que tiene cuenta gratuita:
 
 1. Crea la cuenta en oddspapi.io y copia la clave de API de tu cuenta.
 2. Pégala en `.env`: `APUESTAS_ODDSPAPI_KEY=...`.

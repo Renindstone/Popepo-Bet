@@ -1,4 +1,4 @@
-# App Apuestas: guía para Claude
+# Popepo-Bet: guía para Claude
 
 La guía completa para cualquier IA está en `AGENTS.md` (se importa aquí). El estado del proyecto y el trabajo pendiente están en `docs/estado.md`.
 

@@ -1,6 +1,6 @@
 # Instalación desde cero
 
-Guía para instalar App Apuestas en una PC nueva y dejarlo funcionando solo. Se probó en Linux (CachyOS, de la familia Arch). En otras distribuciones cambian los nombres de los paquetes. En macOS debería funcionar con Homebrew, pero no se ha probado. En Windows, usa WSL.
+Guía para instalar Popepo-Bet en una PC nueva y dejarlo funcionando solo. Se probó en Linux (CachyOS, de la familia Arch). En otras distribuciones cambian los nombres de los paquetes. En macOS debería funcionar con Homebrew, pero no se ha probado. En Windows, usa WSL.
 
 ## 1. Requisitos
 
@@ -31,11 +31,11 @@ En Debian o Ubuntu: `sudo apt install git python3 python3-venv postgresql nodejs
 ## 2. Código y entorno de Python
 
 ```bash
-git clone https://github.com/Renindstone/app-apuestas.git
+git clone https://github.com/Renindstone/Popepo-Bet.git
 ```
 
 ```bash
-cd app-apuestas && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
+cd Popepo-Bet && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ```
 
 ## 3. Base de datos
