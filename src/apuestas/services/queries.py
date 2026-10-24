@@ -160,6 +160,13 @@ def verdict_fields(ev: analysis.BetEval) -> dict:
             "min_odds_for_value": round((1 + st.pick_min_ev) / ev.prob, 2) if ev.prob > 0 else None}
 
 
+def week_recap(day: str | None = None, detail: bool = True) -> dict:
+    """Equipo, jugador y once de la semana del día dado (por defecto, esta semana). Ver `services/weekly.py`."""
+    from apuestas.services import weekly
+
+    return weekly.week_recap(date.fromisoformat(day) if day else None, detail=detail)
+
+
 def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
     d = date.fromisoformat(day) if day else picks.today_local()
     if refresh or d >= picks.today_local():

@@ -173,6 +173,14 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
                                 "pasan_el_corte": picks.qualified_picks(d)}, dias)
 
     @server.tool()
+    def resumen_semana(semana: str | None = None) -> str:
+        """Equipo, jugador y once de la semana (AAAA-MM-DD de cualquier día; por defecto esta semana) y los 10
+        primeros: quién sorprendió a la casa (equipos: resultado, goles y córners frente a su línea) y a nuestro
+        modelo (jugadores: remates, a puerta, goles y asistencias) en partidos ya jugados. Cada dato suma de −1 a +1.
+        Resume lo que pasó: no predice la semana siguiente."""
+        return _safe(queries.week_recap, semana, False)
+
+    @server.tool()
     def capturas_pendientes() -> str:
         """Capturas de cuotas (imágenes de bet365/Betano) que el usuario subió al panel y esperan lectura."""
         return _safe(captures.pending, _user())

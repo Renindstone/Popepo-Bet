@@ -217,6 +217,12 @@ def pick_record(user: str = Depends(current_user)) -> dict:
     return picks.pick_record()
 
 
+@app.get("/week")
+def week(day: str | None = None, user: str = Depends(current_user)) -> dict:
+    """Equipo, jugador y once de la semana: quién sorprendió a la casa (equipos) y a nuestro modelo (jugadores)."""
+    return _wrap(queries.week_recap, day)
+
+
 @app.get("/picks/qualified")
 def qualified_picks(days: int = 60, user: str = Depends(current_user)) -> dict:
     """Las que pasaron el corte (no solo la apuesta del día): aciertos desde el inicio y las de los últimos días."""

@@ -154,6 +154,27 @@ def picks(day: str = typer.Option(None, help="AAAA-MM-DD (hoy por defecto)"), se
 
 
 @app.command()
+def semana(dia: str = typer.Option(None, "--semana", help="AAAA-MM-DD de cualquier día de la semana (esta por defecto)"),
+           as_json: bool = typer.Option(False, "--json")) -> None:
+    """Equipo, jugador y once de la semana: quién superó lo que esperaban la casa y el modelo."""
+    from apuestas.services import queries
+
+    _logging(False)
+    data = queries.week_recap(dia)
+    if as_json:
+        _print_json(data)
+        return
+    cov = data["coverage"]
+    console.print(f"Semana del {data['week_start']} al {data['week_end']} ({data['status']}): {cov['played']} jugados, "
+                  f"{cov['with_prediction']} con previa, {cov['scheduled']} por jugarse")
+    for title, rows in (("Equipos", data["teams"]), ("Jugadores", data["players"])):
+        console.print(f"\n{title}:")
+        for i, r in enumerate(rows, 1):
+            console.print(f"  {i:>2}. {r['name']}: {r['score']:+.2f} ({r['n_matches']} partido/s)")
+    console.print(f"\n{data['note']}")
+
+
+@app.command()
 def analyze(match: str, as_json: bool = typer.Option(False, "--json")) -> None:
     """Analiza un partido: 'Arsenal vs Chelsea', 'Arsenal' o un id."""
     from apuestas.bot import telegram
