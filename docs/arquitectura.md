@@ -20,7 +20,7 @@ OddsPapi (opcional) ─┘        │
    fitting (paquete)     rotación, dificultad)        Parquet + DuckDB
          └──────────┬─────────┘
                     ▼
-   services/  analysis (partido completo) · picks (apuesta del día, liquidación)
+   services/  analysis (partido completo) · picks (apuesta del día, liquidación) · predictions (previa) · weekly (semana)
               tracker (usuarios, apuestas, banca) · queries (capa común)
                     │
       ┌─────────────┼──────────────┬───────────────┐
@@ -32,6 +32,8 @@ OddsPapi (opcional) ─┘        │
 ```
 
 El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia.
+
+**Previa guardada y resumen de la semana** (ADR 0006): `picks.generate` guarda en `prediction` lo que el modelo esperaba de cada partido (una fila por partido, la última antes del inicio y nunca después; `services/predictions.py`). `services/weekly.py` compara cada semana lo que pasó con la casa (equipos) y con esa previa (jugadores), al leerlo: `GET /week`, MCP `resumen_semana`, `apuestas semana` y la página Semana.
 
 **Apuestas que pasan el corte:** cada apuesta con valor de un partido que aún no empezó se guarda en `pick` (`picks.generate`) y se actualiza en cada recálculo; `pick.qualifies` dice si pasa el corte de la apuesta del día (`picks.qualifies`: valor, probabilidad, confianza, rango de cuota y, por ahora, solo mercados de goles). Vale el último cálculo antes del partido: si deja de tener valor se retira (`status = "withdrawn"`) y si deja de pasar el corte se desmarca. La liquidación es la de siempre (`picks.settle_all`), y `GET /picks/qualified` da sus aciertos desde el inicio y las de los últimos días.
 

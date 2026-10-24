@@ -7,6 +7,7 @@ import { ScrollRow } from "@/components/ScrollRow";
 const LINKS = [
   { href: "/", label: "Hoy" },
   { href: "/partidos", label: "Partidos" },
+  { href: "/semana", label: "Semana" },
   { href: "/evaluar", label: "Evaluar cuota" },
   { href: "/capturas", label: "Capturas" },
   { href: "/rendimiento", label: "Mis apuestas" },

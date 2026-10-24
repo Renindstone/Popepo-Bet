@@ -91,6 +91,42 @@ export function shiftDay(day: string, delta: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/** Lunes de la semana de un día (YYYY-MM-DD) */
+export function weekStart(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  const weekday = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; // lunes = 0
+  return shiftDay(day, -weekday);
+}
+
+/** "del 19 al 25 de octubre" (o "del 27 de octubre al 2 de noviembre") a partir del lunes */
+export function weekLabel(monday: string): string {
+  const fmt = (day: string, month: boolean) => {
+    const [y, m, d] = day.split("-").map(Number);
+    return new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", day: "numeric", ...(month ? { month: "long" } : {}) }).format(
+      new Date(Date.UTC(y, m - 1, d)),
+    );
+  };
+  const sunday = shiftDay(monday, 6);
+  const sameMonth = monday.slice(5, 7) === sunday.slice(5, 7);
+  return `del ${fmt(monday, !sameMonth)} al ${fmt(sunday, true)}`;
+}
+
+/** Número con signo: +0.77, −0.47 (0 sin signo) */
+export function signedNum(n: number | null | undefined, digits = 2): string {
+  if (n == null || Number.isNaN(n)) return "—";
+  const s = Math.abs(n).toFixed(digits);
+  return n > 0 ? `+${s}` : n < 0 ? `−${s}` : s;
+}
+
+/** "Vinícius Júnior" → "Vinícius Jr."; "Kylian Mbappé" → "Mbappé" (como en FotMob, el apellido) */
+export function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return name;
+  const last = parts[parts.length - 1];
+  if (/^(júnior|junior|jr\.?)$/i.test(last)) return `${parts[parts.length - 2]} Jr.`;
+  return last;
+}
+
 /** "lunes 19 de octubre" a partir de YYYY-MM-DD */
 export function longDay(day: string): string {
   const [y, m, d] = day.split("-").map(Number);

@@ -1,20 +1,13 @@
 "use client";
 
 import { Crest } from "@/components/Crest";
+import { PitchFrame, PitchName } from "@/components/Pitch";
 import { Empty, ErrorNote, Loading, Section, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
+import { shortName } from "@/lib/format";
 import type { LineupPlayer, LineupTeam, MatchLineups } from "@/lib/types";
 
 const KINDS: Record<string, string> = { injury: "Lesión", suspension: "Sanción", doubtful: "Duda", other: "Baja" };
-
-/** "Vinícius Júnior" → "Vinícius Jr."; "Kylian Mbappé" → "Mbappé" (como en FotMob, el apellido) */
-function shortName(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return name;
-  const last = parts[parts.length - 1];
-  if (/^(júnior|junior|jr\.?)$/i.test(last)) return `${parts[parts.length - 2]} Jr.`;
-  return last;
-}
 
 function minutesToKickoff(kickoffLocal: string): number {
   // "YYYY-MM-DD HH:MM" en hora de Lima (UTC−5, sin horario de verano)
@@ -107,12 +100,10 @@ function Pitch({ teams, orientation }: { teams: LineupTeam[]; orientation: "hori
     return side === "home" ? { left: x * 100, top: y * 50 } : { left: (1 - x) * 100, top: 100 - y * 50 };
   };
   return (
-    <div
-      className={`relative w-full overflow-hidden rounded-[6px] bg-[#2e5d45] ${horizontal ? "aspect-[105/68]" : "mx-auto aspect-[68/105] max-w-[460px]"}`}
-      role="img"
-      aria-label={teams.map((t) => `${t.team} (${t.formation ?? "sin formación"}): ${t.starters.map((p) => p.name).join(", ")}`).join(". ")}
+    <PitchFrame
+      orientation={orientation}
+      label={teams.map((t) => `${t.team} (${t.formation ?? "sin formación"}): ${t.starters.map((p) => p.name).join(", ")}`).join(". ")}
     >
-      <PitchLines horizontal={horizontal} />
       {teams.flatMap((t) =>
         t.starters.map((p) => {
           const pos = place(t.side, p);
@@ -129,47 +120,17 @@ function Pitch({ teams, orientation }: { teams: LineupTeam[]; orientation: "hori
               >
                 {p.shirt ?? ""}
                 {p.rating != null && (
-                  <span className="absolute -top-2 -right-4 rounded-[3px] bg-[#1c2624]/85 px-1 text-xs leading-4 font-semibold text-white">
+                  <span className="absolute -top-2 -right-4 rounded-[3px] bg-[#1c2624] px-1 text-xs leading-4 font-semibold text-white">
                     {p.rating.toFixed(1)}
                   </span>
                 )}
               </span>
-              <span className="mt-0.5 max-w-full truncate rounded-[3px] bg-[#1c2624]/55 px-1 text-center text-xs leading-4 md:text-etiqueta font-medium text-white">
-                {shortName(p.name)}
-              </span>
+              <PitchName>{shortName(p.name)}</PitchName>
             </div>
           );
         }),
       )}
-    </div>
-  );
-}
-
-function PitchLines({ horizontal }: { horizontal: boolean }) {
-  const line = "absolute border-white/45";
-  return (
-    <div aria-hidden="true" className="absolute inset-[3%]">
-      <div className={`${line} inset-0 border-2`} />
-      {horizontal ? (
-        <>
-          <div className={`${line} top-0 bottom-0 left-1/2 border-l-2`} />
-          <div className={`${line} top-1/2 left-1/2 aspect-square h-[27%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2`} />
-          <div className={`${line} top-[21%] bottom-[21%] left-0 w-[16%] border-2 border-l-0`} />
-          <div className={`${line} top-[21%] right-0 bottom-[21%] w-[16%] border-2 border-r-0`} />
-          <div className={`${line} top-[37%] bottom-[37%] left-0 w-[5.5%] border-2 border-l-0`} />
-          <div className={`${line} top-[37%] right-0 bottom-[37%] w-[5.5%] border-2 border-r-0`} />
-        </>
-      ) : (
-        <>
-          <div className={`${line} top-1/2 right-0 left-0 border-t-2`} />
-          <div className={`${line} top-1/2 left-1/2 aspect-square w-[27%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2`} />
-          <div className={`${line} top-0 right-[21%] left-[21%] h-[16%] border-2 border-t-0`} />
-          <div className={`${line} right-[21%] bottom-0 left-[21%] h-[16%] border-2 border-b-0`} />
-          <div className={`${line} top-0 right-[37%] left-[37%] h-[5.5%] border-2 border-t-0`} />
-          <div className={`${line} right-[37%] bottom-0 left-[37%] h-[5.5%] border-2 border-b-0`} />
-        </>
-      )}
-    </div>
+    </PitchFrame>
   );
 }
 

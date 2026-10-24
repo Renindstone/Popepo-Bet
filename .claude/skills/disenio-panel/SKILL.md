@@ -130,7 +130,7 @@ Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el 
 
 `web/src/components/ui.tsx`: `PageTitle`, `Section`, `Loading`, `ErrorNote` (pide la clave si falta), `Empty`,
 `Tag` (tonos `neutral`, `boli`, `rojo`, `tarjeta`, `confirmada`), `Figure`, `Button`, `EdgeBar`, `TriBar`,
-`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo), `ComboResult` (combinadas), `PickRecord` (aciertos),
+`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo), `PitchFrame`, `PitchName` y `PitchDisc` (`components/Pitch.tsx`: el campo con sus líneas, para las alineaciones y el once de la semana), `ComboResult` (combinadas), `PickRecord` (aciertos),
 `ScrollRow` (fila que se desplaza de lado con difuminado y flecha cuando hay más; la usan el menú y las pestañas) y
 `Tabs` + `useHashTab` (pestañas accesibles, fijas arriba al bajar, con la activa en el ancla de la URL y, si se
 quiere, cuántas filas hay en cada una con `count`).
@@ -147,7 +147,7 @@ menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
   2,5 / 3 rem) con tokens como los pequeños.
 - **Cuotas de Betano en escritorio:** cada mercado es su propia tabla y las columnas no se alinean entre grupos; y el
   nombre de cada fila repite el del grupo («Hándicap (3 vías): Galatasaray +1» bajo «Hándicap (3 vías)»).
-- **Hex sueltos** en el campo de alineaciones y en la etiqueta «Confirmadas» (ver Reglas de la paleta).
+- **Hex sueltos** en el campo (`components/Pitch.tsx`, que usan las alineaciones y el once de la semana) y en la etiqueta «Confirmadas» (ver Reglas de la paleta).
 
 Al resolver uno, bórralo de esta lista y añade los nuevos que encuentre la auditoría.
 

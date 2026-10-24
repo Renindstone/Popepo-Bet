@@ -412,6 +412,77 @@ export interface PickHistory {
   }[];
 }
 
+// --------------------------------------------------------------------------- resumen de la semana (GET /week)
+
+/** Un dato de un partido frente a lo esperado: suma de −1 a +1 (0 = lo esperado) */
+export interface WeekItem {
+  item: "result" | "goals" | "corners" | "shots" | "shots_on_target" | "assists" | "conceded";
+  label: string;
+  actual: number | string;
+  expected: number;
+  line: number | null;
+  p_over: number | null;
+  source: "casa" | "modelo";
+  book: string | null;
+  kind: string | null;
+  score: number;
+}
+
+export interface WeekMatch {
+  match_id: number;
+  label: string;
+  kickoff_local: string;
+  stage?: string | null;
+  minutes?: number | null;
+  score: number;
+  items: WeekItem[];
+}
+
+export interface WeekTeam {
+  team_id: number;
+  name: string;
+  competition: string;
+  score: number;
+  mean: number;
+  n_matches: number;
+  matches?: WeekMatch[];
+}
+
+export interface WeekPlayer {
+  player_id: number;
+  name: string;
+  position: string | null;
+  team_id: number;
+  team: string;
+  minutes: number;
+  score: number;
+  mean: number;
+  n_matches: number;
+  matches?: WeekMatch[];
+}
+
+export interface WeekRecap {
+  week_start: string;
+  week_end: string;
+  status: "en_curso" | "cerrada";
+  note: string;
+  history_since: string | null;
+  coverage: {
+    played: number;
+    with_prediction: number;
+    without_prediction: number;
+    stale: number;
+    pending_stats: number;
+    team_matches: number;
+    scheduled: number;
+  };
+  team_of_week: WeekTeam | null;
+  player_of_week: WeekPlayer | null;
+  eleven: { formation: string; slots: { line: "GK" | "DF" | "MF" | "FW"; player: WeekPlayer | null }[] };
+  teams: WeekTeam[];
+  players: WeekPlayer[];
+}
+
 /** Sincronización manual de Datos (`GET`/`POST /sync`) */
 export interface SyncStatus {
   running: boolean;

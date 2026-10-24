@@ -695,6 +695,32 @@ Reproducir: `wf_tarj.py` y `wf_tarj2.py` (primera exploración), `ana_tabla.py` 
 
 Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (desde el 21-10-2026 evalúa por defecto las cinco ligas completas; `--ligas EPL,BUN,LAL` para las cifras de antes; `--market-weight 0` para el modelo sin mercado; `--no-count-strength` para las estadísticas sin la fuerza de goles, `--no-count-market` para remates y córners sin el 1X2 de la casa, `--no-count-level` para remates, a puerta y tarjetas sin el nivel reciente de cada liga, y `--count-l2 1` para la L2 fija de antes).
 
+## 8. Resumen de la semana: sorpresa frente a lo esperado (`models/surprise.py`, `services/weekly.py`)
+
+No cambia el modelo ni las apuestas (no hace falta backtest): resume cada semana quién superó lo esperado.
+
+- **Puntuación de cada dato**: `P(X < real) − P(X > real)` con la distribución esperada, de −1 a +1 (0 = lo
+  esperado). Cuenta el margen: con 9,9 córners esperados, 10 suma +0,09, 12 +0,43, 15 +0,77 y 6 −0,65.
+- **Resultado**: `(puntos − puntos esperados) / 3`, con el 1X2 sin margen. Ganar con un 15 % de probabilidad suma
+  +0,77; ganar con un 75 %, +0,19; empatar siendo ese favorito, −0,47.
+- **Equipos, frente a la casa** (la última cuota antes del inicio de cada tipo; el cierre primero):
+  - Resultado: 1X2 de Pinnacle, Betfair, bet365, Betano o la media, en ese orden; si no hay, el de la previa.
+  - Goles y córners de cada equipo: la línea principal (la más cercana al 50 % sin margen) de Pinnacle o Betano. Con
+    esa línea y su probabilidad se despeja la media de una Poisson (goles) o de la binomial negativa del modelo
+    (córners, con su alfa). Sin línea de goles por equipo, los goles implícitos en el 1X2 y el más/menos 2.5
+    (`fitting.prematch_market_goals`); si tampoco, la previa del modelo.
+  - Los remates a puerta no cuentan: ninguna casa los cotiza.
+- **Jugadores, frente a la previa del modelo** (`services/predictions.py`): remates y remates a puerta (binomial
+  negativa, alfa 0,15), goles y asistencias (Poisson). La tasa se ajusta a los minutos jugados (`λ × minutos /
+  minutos esperados`), para medir cómo jugó y no que entrara en el once por sorpresa. Hacen falta 30 minutos.
+  Porteros y defensas con 60 minutos o más suman además los goles recibidos frente a la vara de goles del rival, con
+  el signo cambiado.
+- **Semana**: la suma de los partidos (se muestran también los partidos jugados y la media). Once en 4-3-3 por
+  posición.
+- **Límites**: el dato tiene techo (un gol con λ 0,08 suma +0,92 y dos +0,997), así que el detalle muestra lo real
+  y lo esperado. Sumar favorece a quien jugó dos partidos. El jugador de la semana suele ser un delantero: tiene más
+  datos con recorrido al alza. Una semana buena es en parte suerte: no predice la siguiente.
+
 ## Próximas mejoras previstas
 
 - **Propuestas de la auditoría de octubre de 2026** ([auditoria-modelo.md](auditoria-modelo.md), experimentos en `experimentos/auditoria/`), por orden: arreglar el valor de las líneas de cuarto y guardar fija la apuesta anunciada; fuerza de goles dinámica (filtro de Kalman, −0,0047 ± 0,0007 de log-loss frente a `ratings.fit` con los mismos datos, −0,0062 si además observa los remates a puerta); dispersión del total calibrada fuera de muestra en los conteos (+0,004 a +0,006 por partido en remates, córners, faltas y tarjetas); apilado aprendido con el mercado en lugar de `W_MODEL`; y decidir por la probabilidad de valor positivo con Kelly contraído. Todo con datos públicos sin xG ni Pinnacle: cada cambio necesita su `apuestas backtest` con la BD antes de entrar.

@@ -43,6 +43,10 @@ const PAGES = {
   "partido-jugadores": { path: null, hash: "#jugadores", ready: "Proyección para este partido" },
   evaluar: { path: null, ready: "Cuotas de Betano" }, // Evaluar con ese partido elegido
   capturas: { path: "/capturas", ready: "Arrastra aquí la captura" },
+  // Semana en curso, una entrada por pestaña
+  semana: { path: "/semana", ready: "Equipo de la semana" },
+  "semana-equipos": { path: "/semana#equipos", ready: "Resultado, goles y córners" },
+  "semana-jugadores": { path: "/semana#jugadores", ready: "Remates, remates a puerta" },
   rendimiento: { path: "/rendimiento", ready: "Banca" },
   datos: { path: "/datos", ready: "Fuentes" },
 };
