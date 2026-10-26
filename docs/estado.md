@@ -20,7 +20,7 @@
 - **Escudos de los equipos** junto a sus nombres en Hoy, Partidos, el partido y las alineaciones (de FotMob, en caché).
 - **Banca inicial editable** en Mis apuestas (`PUT /bankroll`), con la banca actual al lado.
 - **Servidor MCP** para Claude, **API REST** y **bot de Telegram** (este último sin configurar).
-- Servicios systemd de usuario: `apuestas-db`, `apuestas-worker`, `apuestas-api` y `apuestas-web`. Si el equipo estuvo apagado a la hora de una tarea diaria, el worker la recupera al arrancar (desde el 2026-10-20). Si al encender no hay internet todavía, las tareas que descargan lo esperan (hasta 10 min) y, si sigue sin haber, la recuperación vuelve a probar a los 15 min sin darlas por hechas (desde el 2026-10-23).
+- Servicios systemd de usuario: `apuestas-db`, `apuestas-worker`, `apuestas-api` y `apuestas-web`. Si el equipo estuvo apagado a la hora de una tarea diaria, el worker la recupera al arrancar (desde el 2026-10-20). Si al encender no hay internet todavía, las tareas que descargan lo esperan (hasta 10 min) y, si sigue sin haber, la recuperación vuelve a probar a los 15 min sin darlas por hechas (desde el 2026-10-23). El worker solo funciona de 05:00 a 20:00 (temporizadores de systemd; desde el 2026-10-26).
 
 ## Decisiones del usuario (no las cambies sin preguntarle)
 
@@ -47,6 +47,7 @@
 | 2026-10-22 | Sin ninguna alineación, los minutos de cada jugador son su media en los últimos 8 partidos de su equipo, escalada a los 988 minutos que juega un equipo (antes sumaban 1.300-1.400 y los goles y remates de los jugadores salían un 20-31 % por encima de los del equipo). Fusionado con el OK del usuario. |
 | 2026-10-22 | «Tarjeta al jugador»: la probabilidad es la λ (cuenta amarilla o roja, como se liquida), con más contracción hacia su posición y 20 minutos más para los suplentes. Las tarjetas del equipo llevan el nivel reciente de cada liga (K 20; en copas, solo el de la copa). Fusionado con el OK del usuario. |
 | 2026-10-24 | Semana: equipos frente a la casa (resultado, goles y córners; sin tarjetas), jugadores frente a la previa del modelo, puntuación por sorpresa con margen, suma de la semana, once 4-3-3 y los 10 primeros, en una página nueva. |
+| 2026-10-26 | La descarga de datos (el worker) se apaga a las 20:00 y no arranca antes de las 05:00, para no gastar recursos por la noche; la API, el panel y la base de datos siguen encendidos. |
 
 ## Pendiente o por decidir
 

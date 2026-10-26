@@ -25,7 +25,7 @@ ExecStop="$PROJECT_DIR/scripts/db.sh" stop
 WantedBy=default.target
 UNIT
 
-unit() {  # nombre, comando, descripción
+unit() {  # nombre, comando, descripción, líneas extra de [Service] (opcional)
   cat > "$UNIT_DIR/apuestas-$1.service" <<UNIT
 [Unit]
 Description=App Apuestas: $3
@@ -34,6 +34,7 @@ Requires=apuestas-db.service
 
 [Service]
 WorkingDirectory=$PROJECT_DIR
+${4:-}
 ExecStart="$BIN" $2
 Restart=on-failure
 RestartSec=30
@@ -71,7 +72,31 @@ WantedBy=default.target
 UNIT
 }
 
-unit worker worker "tareas programadas"
+# El worker solo descarga de 05:00 a 20:00: por la noche no gasta recursos (decisión del usuario, 2026-10-26).
+# Fuera de ese horario no arranca (ni al encender el PC); a las 20:00 se apaga y a las 05:00 vuelve. Al arrancar
+# recupera las tareas del día que no corrieron.
+unit worker worker "tareas programadas" "ExecCondition=/bin/sh -c 'h=\$(date +%%-H); [ \"\$h\" -ge 5 ] && [ \"\$h\" -lt 20 ]'"
+cat > "$UNIT_DIR/apuestas-worker-stop.service" <<UNIT
+[Unit]
+Description=App Apuestas: apagar el worker por la noche
+
+[Service]
+Type=oneshot
+ExecStart=$(command -v systemctl) --user stop apuestas-worker.service
+UNIT
+for when in stop start; do
+  cat > "$UNIT_DIR/apuestas-worker-$when.timer" <<UNIT
+[Unit]
+Description=App Apuestas: $([[ $when == stop ]] && echo "apagar el worker a las 20:00" || echo "encender el worker a las 05:00")
+
+[Timer]
+OnCalendar=*-*-* $([[ $when == stop ]] && echo 20:00:00 || echo 05:00:00)
+Unit=apuestas-worker$([[ $when == stop ]] && echo -stop).service
+
+[Install]
+WantedBy=timers.target
+UNIT
+done
 services=(apuestas-db apuestas-worker)
 with_api=false
 for arg in "$@"; do
@@ -89,6 +114,7 @@ fi
 
 systemctl --user daemon-reload
 systemctl --user enable "${services[@]}"
+systemctl --user enable --now apuestas-worker-stop.timer apuestas-worker-start.timer
 # La BD solo se arranca (reiniciarla cortaría a los demás); el resto se reinicia para cargar el código actual
 systemctl --user start apuestas-db
 systemctl --user restart "${services[@]:1}"

@@ -93,7 +93,7 @@ Instala y arranca estos servicios de systemd de usuario (no necesitan sudo):
 | Servicio | Qué hace |
 |---|---|
 | `apuestas-db` | Arranca la base de datos |
-| `apuestas-worker` | Tareas programadas en hora de Lima: resultados y reentrenamiento (05:30), previa de los partidos (08:30), apuesta del día (09:00), alineaciones cada 20 min, cuotas cada 3 h, historial atrasado (02:00) y archivo de temporadas (lunes) |
+| `apuestas-worker` | Tareas programadas en hora de Lima: resultados y reentrenamiento (05:30), previa de los partidos (08:30), apuesta del día (09:00), alineaciones cada 20 min, cuotas cada 3 h, historial atrasado (02:00) y archivo de temporadas (lunes). Solo funciona de 05:00 a 20:00: a las 20:00 lo apaga `apuestas-worker-stop.timer` y a las 05:00 lo enciende `apuestas-worker-start.timer`; fuera de ese horario no arranca ni al encender el PC (desde el 2026-10-26). |
 | `apuestas-api` | API REST en `127.0.0.1:8000`; también procesa las capturas |
 | `apuestas-web` | Panel en **http://localhost:3000**. Se compila al arrancar, así que el primer arranque tarda un poco |
 

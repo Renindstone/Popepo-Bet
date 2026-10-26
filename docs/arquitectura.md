@@ -54,6 +54,8 @@ El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: 
 7. **02:00**: descarga de detalles históricos pendientes (400 por noche).
 8. **Lunes 04:00**: niveles de almacenamiento (resumen y archivo de temporadas cerradas).
 
+**Horario del worker:** solo funciona de 05:00 a 20:00: a las 20:00 lo apaga `apuestas-worker-stop.timer` y a las 05:00 lo enciende `apuestas-worker-start.timer`; fuera de ese horario no arranca ni al encender el PC (desde el 2026-10-26). Así no gasta recursos por la noche; las tareas de las 02:00 se recuperan al arrancar.
+
 **Si el equipo estaba apagado** a la hora de una tarea diaria (05:30, 08:30, 09:00, 02:00 o la del lunes), el worker la ejecuta al arrancar, en ese orden. La hora del último éxito de cada una se guarda en `var/worker_state.json`. La apuesta del día solo se recupera hasta 12 horas después de las 09:00; las demás, hasta 20 horas. **Si estaba suspendido**, la tarea atrasada corre al despertar si no pasó más de una hora.
 
 **Si no hay internet** (al encender el equipo la red tarda en llegar; el 23-10-2026 la recuperación arrancó sin ella y todas las fuentes fallaron): las tareas que descargan esperan a que se resuelva el nombre de FotMob, Understat o football-data (`scheduler.network_ready`, sin hacer peticiones). Las diarias esperan hasta 10 minutos; si sigue sin haber, no se marcan como hechas y la recuperación vuelve a probar a los 15, sin calcular la apuesta del día con datos viejos. Las periódicas (alineaciones, liquidación, cuotas) se saltan esa vuelta. Un fallo de nombre no da el host por caído (`ingest/http.py`), y una tarea no corre dos veces a la vez.
