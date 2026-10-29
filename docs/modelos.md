@@ -32,7 +32,9 @@ Matriz de marcadores **Dixon-Coles**, con ρ estimado sobre los datos. De ahí s
 
 ## 3. Estadísticas: remates, a puerta, córners, faltas y tarjetas
 
-Mismo modelo de fuerza aplicado a cada estadística (cuánto genera cada equipo y cuánto concede), con distribución **binomial negativa** (la sobredispersión se estima de los datos). Los totales del partido salen de la convolución de ambos equipos.
+Mismo modelo de fuerza aplicado a cada estadística (cuánto genera cada equipo y cuánto concede), con distribución **binomial negativa** (la sobredispersión se estima de los datos). Los mercados de cada equipo usan su propia binomial negativa; el total del partido, otra con la media de los dos y su propia dispersión (punto siguiente). Los hándicaps de estadísticas siguen saliendo de los dos equipos como independientes.
+
+- **Dispersión propia del total** (desde el 29-10-2026, `fitting.COUNT_TOTAL_DISPERSION` y `dist.count_total_pmf`): remates 0,010, a puerta 0,003, córners 0,017, faltas 0,005 y tarjetas 0 (Poisson). Antes el total era la suma de los dos equipos como si fueran independientes, pero no lo son: en los partidos de liga 2024-26, los residuos del local y del visitante se correlacionan −0,22 en remates y −0,19 en córners (si uno ataca, el otro no) y +0,17 en tarjetas (el partido caliente sube a los dos). Sumarlos como independientes daba un total demasiado ancho en remates y córners. La dispersión se midió **fuera de muestra** en el backtest: la del propio ajuste sale la mitad de alta en córners y empeoraba las tarjetas. Ejemplo: 6,0 y 4,5 córners esperados (alfa del equipo 0,07) daban una desviación típica del total de 3,8 córners; ahora, 3,5. Los mercados de cada equipo no cambian. Cifras en la sección 7.
 
 - **Contracción hacia la media en "partidos equivalentes"** (desde el 21-10-2026, `fitting.COUNT_PRIOR_MATCHES`): remates y remates a puerta 1, córners 5, faltas 5 y tarjetas 10. Un equipo con n partidos (ponderados por antigüedad) conserva más o menos n / (n + K) de lo que se ve en ellos; los de liga (25-45 partidos) apenas cambian. Antes era una L2 fija de 1, la misma que en goles. Pero cada partido pesa en el ajuste tanto como su media (~1,4 goles, ~5 córners, ~12 remates), así que esa L2 casi no contraía: equivalía a 0,1 partidos en remates y faltas, 0,2 en córners y 0,5 en tarjetas.
 
@@ -711,6 +713,18 @@ Memoria corta (30 días) para el nivel, sí; para todo el modelo, no; un nivel l
 Variante aplicada, por liga (por equipo, 2024-26): Premier +0,0080 ± 0,0050, Bundesliga +0,0015 ± 0,0034, LaLiga +0,0042 ± 0,0034, Serie A +0,0078 ± 0,0034, Ligue 1 +0,0021 ± 0,0032; Europa League −0,0029 ± 0,0019 y Conference −0,0030 ± 0,0031 (no se analizan en el panel). En 2026-27: Serie A +0,032 ± 0,024, Ligue 1 +0,033 ± 0,023, Bundesliga +0,007 ± 0,027, Premier −0,004 ± 0,012, LaLiga −0,002 ± 0,011; Conference −0,039 ± 0,015 (18 partidos). En valores: tarjetas por equipo en las ligas −3,3214 → −3,3165 (2024-26) y −3,2199 → −3,2076 (2026-27); total −2,1103 → −2,1053; con el árbitro −2,1063 → −2,1006; Champions por equipo −3,2432 → −3,2415 y −3,1788 → −3,1621. El 1X2 (0,9727), las apuestas y el resto de estadísticas, idénticos.
 
 Reproducir: `wf_tarj.py` y `wf_tarj2.py` (primera exploración), `ana_tabla.py` (su tabla), `bt_tarj2.py` + `cmp_var.py` (`apuestas backtest --europa` partido a partido con los parámetros de tarjetas) y `medir_tarjetas.py --semanal` (jugadores, sección 4), en las notas de la sesión del 22-10-2026.
+
+**Dispersión propia del total de las estadísticas** (29-10-2026; `apuestas backtest`, entrada `<stat>+total`, y `experimentos/validacion/dispersion_total.py`). Log-verosimilitud del total por partido en las cinco ligas, 2024-26 (3.504 partidos), frente a sumar los dos equipos como independientes, con el margen del 95 % pareado:
+
+| Estadística | Alfa del total | Antes | Después | Mejora | Prueba honesta (alfa de 2024-25, evaluada en 2025-26) |
+| --- | --- | --- | --- | --- | --- |
+| Remates | 0,010 | −3,1443 | −3,1373 | +0,0071 ± 0,0040 | +0,0099 ± 0,0056 |
+| A puerta | 0,003 | −2,5052 | −2,5044 | +0,0008 ± 0,0008 | +0,0008 ± 0,0012 |
+| Córners | 0,017 | −2,6174 | −2,6131 | +0,0043 ± 0,0032 | +0,0047 ± 0,0052 |
+| Faltas | 0,005 | −3,0565 | −3,0535 | +0,0031 ± 0,0026 | +0,0035 ± 0,0024 |
+| Tarjetas | 0 | −2,1053 | −2,1053 | 0 | 0 |
+
+Las alfas salen de los mismos partidos del backtest (columna "Mejora"); la última columna las estima solo con 2024-25 y mide en 2025-26, y da lo mismo, así que no es sobreajuste. Con la alfa del propio ajuste (en muestra) la mejora era menor: remates +0,0059, córners +0,0021, y tarjetas −0,0006 en 2025-26. Fuera de muestra, la alfa del equipo sale algo más alta que la del ajuste (córners 0,084 frente a 0,067), pero la del total sigue muy por debajo de la mitad de la del equipo, que es lo que equivale a sumar dos independientes. En tarjetas el total ya sale Poisson: los equipos van por debajo de una Poisson (alfa −0,07 fuera de muestra) y la correlación positiva lo compensa. El 1X2, las apuestas y los mercados de cada equipo, idénticos. Frente a Betano (`estadisticas_betano.py`, 36 partidos), la pérdida logarítmica de córners pasa de −0,0010 ± 0,0064 a −0,0012 ± 0,0055 (modelo − Betano): con tan pocos partidos no se distingue. Queda abierto el hándicap de estadísticas, que sigue suponiendo independencia (con correlación negativa, la diferencia entre los dos equipos es más ancha de lo que dice el modelo).
 
 **Lectura**:
 1. En los mercados principales, **bet365 sigue siendo más preciso que el modelo**, también con los ratings del mercado. Ahora el modelo está mucho más cerca (lo que hacen los profesionales), pero no hay ninguna estrategia rentable en 1X2, goles o hándicap. Con el modelo tan cerca del mercado, las pocas "apuestas con valor" que quedan son sobre todo ruido: el ROI no mejora aunque el CLV sí lo haga un poco.

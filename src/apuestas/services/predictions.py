@@ -47,7 +47,9 @@ def payload_from(an: MatchAnalysis, bundle: ModelBundle) -> dict:
         "model_as_of": bundle.as_of.isoformat(),
         "goals": {"home": _r(mm.lam_home), "away": _r(mm.lam_away), "rho": _r(mm.rho)},
         "1x2": {k: _r(v) for k, v in mm.probs_1x2().items()},
-        "counts": {stat: {"home": _r(h), "away": _r(a), "dispersion": _r(mm.count_dispersion.get(stat, 0.0))}
+        "counts": {stat: {"home": _r(h), "away": _r(a), "dispersion": _r(mm.count_dispersion.get(stat, 0.0)),
+                          "total_dispersion": (_r(mm.count_total_dispersion[stat])
+                                               if stat in mm.count_total_dispersion else None)}
                    for stat, (h, a) in sorted(mm.count_means.items())},
         "player_dispersion": {"shots": PLAYER_COUNT_DISPERSION, "shots_on_target": PLAYER_COUNT_DISPERSION},
         "players": [{"player_id": pp.player_id, "side": "home" if pp.team_id == mm.home_id else "away",

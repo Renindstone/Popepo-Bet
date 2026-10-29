@@ -20,7 +20,6 @@ import math
 import statistics
 from collections import defaultdict
 
-import numpy as np
 from sqlalchemy import select, text
 
 from apuestas.betting import odds as oddsmath
@@ -28,6 +27,7 @@ from apuestas.betting.settlement import RESULT_PROFIT
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.models import distributions as dist
+from apuestas.models import fitting
 from apuestas.models import surprise as sp
 from apuestas.services import weekly
 
@@ -43,8 +43,11 @@ def pmf_for(payload: dict, stat: str, scope: str) -> dict[int, float] | None:
     if not c:
         return None
     alpha = c.get("dispersion", 0.0)
-    home, away = sp.count_dist(c["home"], alpha), sp.count_dist(c["away"], alpha)
-    arr = home if scope == "home" else away if scope == "away" else np.convolve(home, away)
+    if scope == "total":  # con la dispersión propia del total (las previas de antes del 29-10-2026 no la traen)
+        arr = dist.count_total_pmf(c["home"], c["away"], alpha,
+                                   c.get("total_dispersion", fitting.COUNT_TOTAL_DISPERSION.get(stat)))
+    else:
+        arr = sp.count_dist(c["home" if scope == "home" else "away"], alpha)
     return {k: float(v) for k, v in enumerate(arr)}
 
 

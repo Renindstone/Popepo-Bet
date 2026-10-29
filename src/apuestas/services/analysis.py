@@ -508,6 +508,7 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
 
     count_means: dict[str, tuple[float, float]] = {}
     dispersion: dict[str, float] = {}
+    total_dispersion: dict[str, float] = {}
     for stat, cm in bundle.counts.items():
         # Con el nivel reciente de la liga en remates, a puerta y tarjetas (fitting.count_levels; en copas, también el
         # desvío de la copa)
@@ -523,8 +524,10 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
             mh, ma = mh * ref_fouls, ma * ref_fouls
         count_means[stat] = (mh, ma)
         dispersion[stat] = cm.dispersion
+        if cm.total_dispersion is not None:
+            total_dispersion[stat] = cm.total_dispersion
 
-    mm = MatchModel(home, away, lam_h, lam_a, bundle.rho, count_means, dispersion)
+    mm = MatchModel(home, away, lam_h, lam_a, bundle.rho, count_means, dispersion, total_dispersion)
     for is_home, tid, lam in ((True, home, lam_h), (False, away, lam_a)):
         for pp in _player_projections(s, bundle, match, tid, is_home, count_means, lam):
             mm.players[pp.player_id] = pp
