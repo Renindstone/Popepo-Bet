@@ -21,6 +21,17 @@ from apuestas.services.match_model import MatchModel, PlayerProjection, parse_ma
 
 MY_BOOKS = ("bet365", "betano")
 SHARP_BOOKS = ("pinnacle", "betfair_ex")
+# Suplentes del once confirmado: de julio a octubre de 2026 (9.701) salieron el 44,3 % y jugaron 20,1 min. Antes se
+# suponía 55 % y 22 min, y todos sus mercados salían ~36 % altos
+SUB_PLAY_RATE = 0.443
+SUB_MINUTES = 20.1
+
+
+def expected_minutes(start_prob: float, avg_start_min: float, lineup: bool) -> float:
+    """Minutos esperados de un jugador del once confirmado o previsto: titular o suplente que sale."""
+    return start_prob * avg_start_min + (1 - start_prob) * (SUB_PLAY_RATE if lineup else 0.0) * SUB_MINUTES
+
+
 W_MODEL = 0.25  # peso del modelo frente al mercado afilado: el backtest muestra que el mercado sabe más
 MAIN_MARKETS = ("1x2", "ou_goals", "ah", "btts", "dnb", "dc")
 
@@ -317,9 +328,8 @@ def _player_projections(
         avg_start_min = (pr or {}).get("avg_starter_minutes") or 78.0
         exp_min = minutes
         if exp_min is None:
-            sub_plays = 0.55 if lineup else 0.0  # un suplente sale en algo más de la mitad de los partidos, ~22'
-            exp_min = start_prob * avg_start_min + (1 - start_prob) * sub_plays * 22
-            sub_extra = (1 - start_prob) * sub_plays  # salidas de suplente: en tarjetas, con unos minutos más
+            exp_min = expected_minutes(start_prob, avg_start_min, lineup)
+            sub_extra = (1 - start_prob) * (SUB_PLAY_RATE if lineup else 0.0)  # en tarjetas, con unos minutos más
         else:  # sin alineación: los partidos recientes de su equipo en los que salió de suplente
             sub_extra = (pr or {}).get("recent_sub_rate", 0.0)
         if exp_min < 5:

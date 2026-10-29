@@ -148,7 +148,7 @@ def test_substitutes_count_extra_minutes_in_their_card_share():
             full["volume_team90"]["yellow_cards"] * (25 + extra) / 90, rel=1e-3)
         assert bench["volume_team90"]["shots"] == pytest.approx(full["volume_team90"]["shots"] * 25 / 90, rel=1e-3)
         assert bench["volume_share"]["yellow_cards"] == pytest.approx(0.5 * 90 / (25 + extra), rel=1e-3)
-        # En el partido, el suplente del once confirmado cuenta también con esos minutos (si sale, el 55 %)
+        # En el partido, el suplente del once confirmado cuenta también con esos minutos (si sale, el 44,3 %)
         nxt = m.Match(competition_id=comp.id, season_id=season.id, kickoff_utc=before + timedelta(days=2),
                       home_team_id=inter.id, away_team_id=milan.id, status="scheduled")
         s.add(nxt)
@@ -163,10 +163,11 @@ def test_substitutes_count_extra_minutes_in_their_card_share():
         means = {"shots": (10.0, 9.0), "shots_on_target": (4.0, 3.0), "cards": (2.0, 2.0)}
         proj = {pp.player_id: pp for pp in analysis._player_projections(s, bundle, nxt, inter.id, True, means, 1.4)}
     pb = proj[sub.id]
-    assert pb.expected_minutes == pytest.approx(0.55 * 22)
+    assert pb.expected_minutes == pytest.approx(analysis.SUB_PLAY_RATE * analysis.SUB_MINUTES)
     share = (bench["volume_share"]["yellow_cards"] * bench["volume_team90"]["yellow_cards"]
              + priors["MF"]["yellow_cards_share"] * analysis.VOLUME_SHARE_PRIOR_MATCHES["yellow_cards"]
              * priors["MF"]["yellow_cards_team90"]) / (bench["volume_team90"]["yellow_cards"]
                                                        + analysis.VOLUME_SHARE_PRIOR_MATCHES["yellow_cards"]
                                                        * priors["MF"]["yellow_cards_team90"])
-    assert pb.lam["yellow_cards"] == pytest.approx(share * 0.55 * (22 + extra) / 90 * 2.0, rel=1e-3)
+    assert pb.lam["yellow_cards"] == pytest.approx(
+        share * analysis.SUB_PLAY_RATE * (analysis.SUB_MINUTES + extra) / 90 * 2.0, rel=1e-3)

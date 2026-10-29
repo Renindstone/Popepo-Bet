@@ -179,3 +179,12 @@ def test_projection_without_lineup_with_an_old_bundle_keeps_the_previous_rule(s)
     assert proj["J10"].start_prob == 0.9
     assert proj["J10"].expected_minutes == pytest.approx(0.9 * 70)
     assert "J12" not in proj  # nunca fue titular
+
+
+def test_minutos_de_un_suplente_con_once_confirmado():
+    """Medido de julio a octubre de 2026 (9.701 suplentes): salen el 44,3 % y juegan 20,1 min, unos 8,9 por suplente."""
+    from apuestas.services import analysis
+
+    assert analysis.expected_minutes(0.0, 80.0, lineup=True) == pytest.approx(0.443 * 20.1)
+    assert analysis.expected_minutes(1.0, 80.0, lineup=True) == pytest.approx(80.0)
+    assert analysis.expected_minutes(0.0, 80.0, lineup=False) == 0.0
