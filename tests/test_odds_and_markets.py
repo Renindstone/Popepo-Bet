@@ -156,3 +156,14 @@ def test_stat_handicap_labels_have_names():
 
     assert bet_label("ah_corners", "home", -1.5, "Galatasaray", "Bodø/Glimt") == "Hándicap de córners: Galatasaray -1.5"
     assert bet_label("ah_cards", "away", 0.5, "Galatasaray", "Bodø/Glimt") == "Hándicap de tarjetas: Bodø/Glimt +0.5"
+
+
+def test_valor_de_lineas_de_cuarto_cuenta_las_mitades():
+    """En una línea de cuarto, el valor con la probabilidad equivalente tiene que dar lo mismo que el valor exacto."""
+    from apuestas.models import distributions as dist
+
+    out = dist.line_outcome({-1: 0.2, 0: 0.25, 1: 0.3, 2: 0.25}, -0.25)  # hándicap asiático −0.25
+    assert out.half_loss > 0
+    odds = 1.95
+    approx = (out.effective_prob() * odds - 1) * out.decided()
+    assert approx == pytest.approx(out.ev(odds), abs=1e-9)
