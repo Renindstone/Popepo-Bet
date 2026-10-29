@@ -20,7 +20,7 @@ import {
   signedPct,
   splitMatch,
 } from "@/lib/format";
-import { betLabel, bookmakerName, marketName } from "@/lib/markets";
+import { betLabel, bookmakerName, clvRefText, marketName } from "@/lib/markets";
 import type { Aggregate, Bankroll, Performance, PickHistory, QualifiedPicks, UserBet } from "@/lib/types";
 
 const PERIODS = [
@@ -127,7 +127,7 @@ export function RendimientoView() {
       <Section
         id="corte"
         title="Las que pasan el corte"
-        intro="Todas las apuestas con valor que pasaron el corte de valor, probabilidad y confianza, no solo la apuesta del día. Se guarda el último cálculo antes del partido: las que se retiraron o dejaron de pasar el corte no cuentan. Con 1 unidad por apuesta."
+        intro="Todas las apuestas con valor que pasaron el corte de valor, probabilidad y confianza, no solo la apuesta del día. Se guarda el último cálculo antes del partido: las que se retiraron o dejaron de pasar el corte no cuentan. Con 1 unidad por apuesta. El CLV compara la cuota tomada con la justa (sin margen) de Pinnacle unos 15 minutos antes del partido, o con el cierre de bet365: con unos cientos de apuestas dice si hay ventaja mucho antes que el ROI. Hasta el 28-10 la de Pinnacle solía ser de horas antes."
       >
         <PickRecord variant="row" source="corte" />
         <CorteHistorial />
@@ -662,14 +662,20 @@ function CorteHistorial() {
                     {r.profit_units.toFixed(2)} u
                   </span>
                 )}
+                {r.clv != null && (
+                  <span className={profitClass(r.clv)}>
+                    CLV {signedPct(r.clv)} <span className="text-grafito">({clvRefText(r.clv_ref)})</span>
+                  </span>
+                )}
                 {r.is_pick_of_day && <Tag tone="boli">Apuesta del día</Tag>}
               </p>
+              {r.clv_note && <p className="mt-1 text-nota text-grafito">{r.clv_note}</p>}
             </li>
           );
         })}
       </ul>
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[720px] border-collapse text-interfaz">
+        <table className="w-full min-w-[820px] border-collapse text-interfaz">
           <thead>
             <tr className="border-b border-regla text-left text-nota text-grafito">
               <th className="py-2 pr-4 font-medium">Fecha</th>
@@ -677,6 +683,7 @@ function CorteHistorial() {
               <th className="py-2 pr-4 font-medium">Apuesta</th>
               <th className="py-2 pr-4 text-right font-medium">Cuota</th>
               <th className="py-2 pr-4 text-right font-medium">Valor</th>
+              <th className="py-2 pr-4 text-right font-medium">CLV</th>
               <th className="py-2 pr-4 font-medium">Resultado</th>
               <th className="py-2 text-right font-medium">Unidades</th>
             </tr>
@@ -697,6 +704,14 @@ function CorteHistorial() {
                   </td>
                   <td className="cond num py-2 pr-4 text-right text-lg font-bold">{odds(r.odds)}</td>
                   <td className="num py-2 pr-4 text-right font-semibold text-boli">{signedPct(r.ev)}</td>
+                  <td className="py-2 pr-4 text-right">
+                    <span className={`num font-semibold ${profitClass(r.clv)}`}>{signedPct(r.clv)}</span>
+                    {(r.clv_ref || r.clv_note) && (
+                      <span className="block text-nota text-grafito">
+                        {r.clv_ref ? clvRefText(r.clv_ref) : "sin referencia"}
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2 pr-4">{tag(r)}</td>
                   <td className={`num py-2 text-right font-semibold ${profitClass(r.profit_units)}`}>
                     {r.profit_units == null ? "—" : `${r.profit_units > 0 ? "+" : ""}${r.profit_units.toFixed(2)} u`}

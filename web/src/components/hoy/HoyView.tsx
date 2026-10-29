@@ -435,6 +435,14 @@ function PastResult({ row }: { row: PastValueBet }) {
   return <Tag tone={row.result ? (RESULT_TONE[row.result] ?? "neutral") : "tarjeta"}>{resultText(row.result)}</Tag>;
 }
 
+/** CLV de una guardada: su cuota frente a la justa de Pinnacle (o el cierre de bet365) antes del partido */
+function PastClv({ row }: { row: PastValueBet }) {
+  if (row.clv == null) return null;
+  return (
+    <span className={`num ${row.clv > 0 ? "text-boli" : row.clv < 0 ? "text-rojo" : ""}`}>CLV {signedPct(row.clv)}</span>
+  );
+}
+
 /** Corte: «Pasa» en azul y «No llega» en gris, siempre con su palabra */
 function CutTag({ row, short = false }: { row: ValueBet | PastValueBet; short?: boolean }) {
   const live = isLive(row);
@@ -496,6 +504,7 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                 )}
                 <CutTag row={r} />
                 {!isLive(r) && <PastResult row={r} />}
+                {!isLive(r) && <PastClv row={r} />}
               </p>
             </li>
           );
@@ -556,6 +565,9 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                     {!isLive(r) && (
                       <td className={td}>
                         <PastResult row={r} />
+                        <span className="block text-nota">
+                          <PastClv row={r} />
+                        </span>
                       </td>
                     )}
                     <td className={td}>

@@ -10,6 +10,10 @@ function units(u: number): string {
   return `${u > 0 ? "+" : ""}${u.toFixed(2)} u`;
 }
 
+function toneClass(v: number | null | undefined): string {
+  return v == null || v === 0 ? "" : v > 0 ? "text-boli" : "text-rojo";
+}
+
 const SOURCES = {
   // La apuesta del día: una por día como mucho
   dia: { path: "/picks/record", title: "Aciertos de la apuesta del día", who: "Todas las que eligió el sistema" },
@@ -51,6 +55,12 @@ export function PickRecord({
               {units(r.profit_units)}
             </strong>{" "}
             con 1 u por apuesta; {pending}.{" "}
+            {r.avg_clv != null && (
+              <>
+                CLV medio <strong className={`num ${toneClass(r.avg_clv)}`}>{signedPct(r.avg_clv)}</strong> frente a
+                Pinnacle sin margen antes del partido ({int(r.with_clv)} con referencia).{" "}
+              </>
+            )}
           </>
         )}
         <Link href="/rendimiento#corte" className="font-semibold text-boli underline underline-offset-4">
@@ -64,13 +74,20 @@ export function PickRecord({
     return (
       <div className="mb-8">
         <h3 className="semi mb-3 text-base font-bold">Desde el inicio ({since.replace("desde el ", "")})</h3>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-6">
+        <div className={`grid grid-cols-2 gap-x-8 gap-y-6 ${source === "corte" ? "sm:grid-cols-4 lg:grid-cols-7" : "sm:grid-cols-6"}`}>
           <Figure value={`${int(r.hits)} de ${int(decided)}`} label="aciertos" tone={r.hits > 0 ? "boli" : undefined} />
           <Figure value={pct(r.hit_rate)} label="acierto (sin devueltas)" />
           <Figure value={int(r.misses)} label="falladas" />
           <Figure value={int(r.pushes)} label="devueltas" />
           <Figure value={int(r.pending)} label="por jugarse" />
           <Figure value={units(r.profit_units)} label={`beneficio (ROI ${signedPct(r.roi)})`} tone={tone} />
+          {source === "corte" && (
+            <Figure
+              value={signedPct(r.avg_clv)}
+              label={`CLV medio (${int(r.with_clv)} con referencia)`}
+              tone={r.avg_clv == null || r.avg_clv === 0 ? undefined : r.avg_clv > 0 ? "boli" : "rojo"}
+            />
+          )}
         </div>
       </div>
     );

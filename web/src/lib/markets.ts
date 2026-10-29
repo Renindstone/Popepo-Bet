@@ -1,6 +1,7 @@
 // Mercados: nombres en español y opciones del formulario de evaluación
 
 import { lineText } from "./format";
+import type { ClvRef } from "./types";
 
 const STATS: Record<string, string> = {
   goals: "Goles",
@@ -104,6 +105,14 @@ export const BOOKMAKERS: Record<string, string> = {
 export function bookmakerName(b: string | null | undefined): string {
   if (!b) return "—";
   return BOOKMAKERS[b] ?? b;
+}
+
+/** Referencia del CLV: «Pinnacle, 14 min antes», «Pinnacle, 27 h antes» o «cierre de bet365» */
+export function clvRefText(ref: ClvRef | null | undefined): string {
+  if (!ref) return "";
+  if (ref.kind === "closing") return `cierre de ${bookmakerName(ref.book)}`;
+  const m = ref.minutes_before;
+  return `${bookmakerName(ref.book)}, ${m < 90 ? `${m} min` : `${Math.round(m / 60)} h`} antes`;
 }
 
 // --------------------------------------------------------------------------- formulario

@@ -5,6 +5,8 @@
 09:00  apuesta del día -> Telegram
 70, 50, 35, 20 y 10 min antes de cada partido (si aún no hay alineación confirmada): descargarla, recalcular
              y avisar si cambia la apuesta del día. FotMob suele publicarla una hora antes.
+15 min antes de cada partido con apuestas abiertas que pasan el corte: Pinnacle por OddsPapi, la referencia de su
+             CLV (como mucho `oddspapi_closing_per_day` peticiones al día).
 cada 30 min  partidos terminados (3 h tras el inicio) o apuestas abiertas de partidos jugados -> resultado y liquidar
 cada 3 h     cuotas
 02:00  descarga de detalles atrasados (historial)
@@ -232,6 +234,47 @@ def job_lineups() -> None:
     _last_pod[day] = key
 
 
+# Minutos antes del inicio en que se baja Pinnacle para el CLV (la tarea corre cada LINEUP_EVERY_MIN minutos)
+CLOSING_CHECK_MIN = 15
+CLOSING_TASK = "closing odds"
+
+
+def closing_due(minutes_to_kickoff: float) -> bool:
+    half = LINEUP_EVERY_MIN / 2
+    return CLOSING_CHECK_MIN - half < minutes_to_kickoff <= CLOSING_CHECK_MIN + half
+
+
+@_safe("cierre de Pinnacle", network=0)
+def job_closing_odds() -> None:
+    """Pinnacle poco antes de los partidos con apuestas abiertas que pasan el corte, para su CLV (cupo de OddsPapi)."""
+    from apuestas.services.picks import local_day_bounds, today_local
+
+    st = get_settings()
+    if not (st.oddspapi_key and st.oddspapi_closing_per_day > 0):
+        return
+    now = datetime.now(UTC)
+    with session_scope() as s:
+        soon = s.execute(select(m.Competition.code, m.Match.kickoff_utc)
+                         .join(m.Match, m.Match.competition_id == m.Competition.id)
+                         .join(m.Pick, m.Pick.match_id == m.Match.id).where(
+            m.Pick.status == "open", m.Pick.qualifies.is_(True), m.Match.status == "scheduled",
+            m.Match.kickoff_utc > now, m.Match.kickoff_utc <= now + timedelta(minutes=CLOSING_CHECK_MIN + LINEUP_EVERY_MIN),
+        )).all()
+        codes = {code for code, ko in soon if closing_due((ko - now).total_seconds() / 60)}
+        if not codes:
+            return
+        # Las que fallan también cuentan: OddsPapi cobra cada llamada
+        done = s.scalar(select(func.count()).select_from(m.IngestionRun).where(
+            m.IngestionRun.source == "oddspapi", m.IngestionRun.task == CLOSING_TASK,
+            m.IngestionRun.started_at >= local_day_bounds(today_local())[0]))
+    if done >= st.oddspapi_closing_per_day:
+        log.info("Cierre de Pinnacle: ya van %d descargas hoy; %s se queda con el último precio guardado", done, codes)
+        return
+    from apuestas.ingest import oddspapi
+
+    pipeline._run("oddspapi", CLOSING_TASK, lambda: oddspapi.sync_closing(codes))
+
+
 POST_MATCH_HOURS = 3  # desde el inicio: el partido ya terminó y FotMob tiene el resultado y las estadísticas
 
 
@@ -335,6 +378,7 @@ def run() -> None:
         sched.add_job(fn, "cron", hour=hour, minute=minute, id=key,
                       **({"day_of_week": weekday} if weekday is not None else {}))
     sched.add_job(job_lineups, "cron", minute=f"*/{LINEUP_EVERY_MIN}", id="lineups")
+    sched.add_job(job_closing_odds, "cron", minute=f"*/{LINEUP_EVERY_MIN}", id="closing_odds")
     sched.add_job(job_post_match, "cron", minute="15,45", id="post_match")
     sched.add_job(job_odds, "cron", hour="*/3", minute=10, id="odds")
     sched.add_job(catch_up, "date", run_date=datetime.now(tz) + timedelta(seconds=10), id="catch_up")

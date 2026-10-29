@@ -12,7 +12,9 @@ La API solo admite una casa por petición y **como mucho 5 torneos** por petici�
 - una descarga = 1 llamada por casa con las competiciones que juegan en los próximos 3 días
   (`oddspapi_window_days`; cuenta 1 aunque traiga varios torneos). Si son las seis (semanas de Champions), 2
   llamadas por casa. Nombres de equipos (participants), torneos y mercados se piden una vez por semana;
-- el worker la lanza una vez al día (08:30) → con 2 casas, unas 60-90 llamadas al mes más ~12 de catálogos.
+- el worker la lanza una vez al día (08:30) → con 2 casas, unas 60-90 llamadas al mes más ~12 de catálogos;
+- y, para el CLV, una de Pinnacle unos 15 min antes de cada hora de inicio con apuestas abiertas que pasan el
+  corte, como mucho `oddspapi_closing_per_day` al día (3: unas 40-90 al mes; `sync_closing`).
 
 Probado con una clave real (19-10-2026). Los mercados se reconocen por su tipo (`marketType`) y su nombre exacto:
 goles, ambos marcan, hándicaps asiático y europeo, y córners y tarjetas (total, por equipo y hándicap).
@@ -248,8 +250,9 @@ def tournament_groups(tids: dict[str, int], codes: set[str]) -> list[list[int]]:
     return [ids[i:i + MAX_TOURNAMENTS] for i in range(0, len(ids), MAX_TOURNAMENTS)]
 
 
-def sync_upcoming() -> int:
-    books = bookmakers()
+def sync_upcoming(books: list[str] | None = None, codes: set[str] | None = None, ttl: float = 1800) -> int:
+    """Cuotas de las casas configuradas para las competiciones que juegan pronto (o solo `books` y `codes`)."""
+    books = books or bookmakers()
     if not books:
         raise RuntimeError("APUESTAS_ODDSPAPI_BOOKMAKERS está vacío")
     tids = tournament_ids()
@@ -257,7 +260,7 @@ def sync_upcoming() -> int:
         log.warning("OddsPapi: no se encontraron los torneos")
         return 0
     now = datetime.now(UTC)
-    groups = tournament_groups(tids, playing_soon(get_settings().oddspapi_window_days, now))
+    groups = tournament_groups(tids, playing_soon(get_settings().oddspapi_window_days, now) if codes is None else codes)
     if not groups:
         log.info("OddsPapi: ninguna competición juega en los próximos días; no se gasta ninguna petición")
         return 0
@@ -267,7 +270,7 @@ def sync_upcoming() -> int:
     # La API exige una sola casa y como mucho 5 torneos por petición: 1 llamada por casa y grupo. Se descargan
     # todas antes de guardar para que el 1X2 de Pinnacle sirva de referencia a las demás casas.
     odds = {book: [fx for group in groups
-                   for fx in _items(_get("odds-by-tournaments", ttl=1800, bookmaker=book,
+                   for fx in _items(_get("odds-by-tournaments", ttl=ttl, bookmaker=book,
                                          tournamentIds=",".join(str(t) for t in group)))]
             for book in books}
     sharp = {fx.get("fixtureId"): {p.selection: p.price for p in parse_fixture_odds(fx, {}, [book])}
@@ -311,3 +314,8 @@ def sync_upcoming() -> int:
     log.info("OddsPapi: %d partido-casa emparejados, %d descartados, %d cuotas nuevas (%s)",
              matched, len(rejected), n, ",".join(books))
     return n
+
+
+def sync_closing(codes: set[str]) -> int:
+    """Pinnacle poco antes del inicio, para el CLV (`picks.closing_reference`): 1 petición por cada 5 torneos."""
+    return sync_upcoming(books=["pinnacle"], codes=codes, ttl=300)

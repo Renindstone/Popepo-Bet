@@ -88,6 +88,10 @@ def book_fair_prob(odds_rows: list[m.OddsSnapshot], bookmaker: str, market: str,
         trio = [price(s, line) for s in ("home", "draw", "away")]
         if all(trio):
             return dict(zip(("home", "draw", "away"), oddsmath.devig(trio), strict=True)).get(selection)
+    elif market == "btts":
+        yes, no = price("yes", None), price("no", None)
+        if yes and no:
+            return dict(zip(("yes", "no"), oddsmath.devig([yes, no]), strict=True)).get(selection)
     return None
 
 

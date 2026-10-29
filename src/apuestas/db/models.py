@@ -331,8 +331,10 @@ class Pick(Base):
     qualifies: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), index=True)
     status: Mapped[str] = mapped_column(String(10), default="open")  # open | withdrawn | settled
     result: Mapped[str | None] = mapped_column(String(10))  # win | loss | push | half_win | half_loss | void
-    closing_odds: Mapped[float | None] = mapped_column(Float)
+    closing_odds: Mapped[float | None] = mapped_column(Float)  # cuota justa (sin margen) de la referencia del CLV
     clv: Mapped[float | None] = mapped_column(Float)
+    closing_source: Mapped[str | None] = mapped_column(String(16))  # casa de la referencia (pinnacle, bet365...)
+    closing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # cuándo se vio ese precio
     reasons: Mapped[list | None] = mapped_column(JSONType)
     match: Mapped[Match] = relationship()
 

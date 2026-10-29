@@ -20,7 +20,7 @@ from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.models.fitting import ModelBundle, load_bundle
 from apuestas.services import predictions
-from apuestas.services.analysis import BetEval, MatchAnalysis, analyze, is_goal_market
+from apuestas.services.analysis import BetEval, MatchAnalysis, analyze, book_fair_prob, is_goal_market
 
 log = logging.getLogger(__name__)
 
@@ -178,17 +178,39 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
 # --------------------------------------------------------------------------- liquidación
 
 
-def closing_price(s: Session, match_id: int, bookmaker: str, market: str, selection: str,
-                  line: float | None) -> float | None:
-    for book in (bookmaker, "bet365", "pinnacle", "betfair_ex"):
-        row = s.scalar(select(m.OddsSnapshot).where(
-            m.OddsSnapshot.match_id == match_id, m.OddsSnapshot.bookmaker == book,
-            m.OddsSnapshot.market == market, m.OddsSnapshot.selection == selection,
-            m.OddsSnapshot.line.is_(None) if line is None else m.OddsSnapshot.line == line,
-            m.OddsSnapshot.kind == "closing").order_by(m.OddsSnapshot.captured_at.desc()).limit(1))
-        if row is not None:
-            return row.price
+# Referencias del CLV, de la más fiable a la menos, siempre sin margen: el cierre de las casas afiladas
+# (football-data), el último precio de Pinnacle antes del inicio (OddsPapi; `jobs.scheduler.job_closing_odds` lo baja
+# unos minutos antes de los partidos con apuestas que pasan el corte) y el cierre de bet365. football-data solo trae
+# el cierre de 1X2, Más/Menos 2.5 y hándicap asiático de las ligas, y días después del partido.
+CLV_REFERENCES = (("pinnacle", "closing"), ("betfair_ex", "closing"), ("pinnacle", "live"), ("bet365", "closing"))
+
+
+def closing_reference(s: Session, match: m.Match, market: str, selection: str,
+                      line: float | None) -> tuple[float, str, datetime] | None:
+    """Cuota justa de referencia para el CLV: (cuota sin margen, casa, cuándo se vio ese precio por primera vez)."""
+    rows = s.scalars(select(m.OddsSnapshot).where(
+        m.OddsSnapshot.match_id == match.id, m.OddsSnapshot.market == market,
+        m.OddsSnapshot.bookmaker.in_({b for b, _ in CLV_REFERENCES}),
+        (m.OddsSnapshot.kind == "closing") | (m.OddsSnapshot.captured_at < match.kickoff_utc),
+    ).order_by(m.OddsSnapshot.captured_at)).all()
+    for book, kind in CLV_REFERENCES:
+        latest = {(r.selection, r.line): r for r in rows if r.bookmaker == book and r.kind == kind}
+        prob = book_fair_prob(list(latest.values()), book, market, selection, line)
+        if prob:
+            return round(1 / prob, 3), book, latest[(selection, line)].captured_at
     return None
+
+
+def set_clv(s: Session, row: m.Pick | m.UserBet) -> bool:
+    """Rellena la cuota de referencia y el CLV (cuánto mejor fue la cuota tomada que la justa del cierre)."""
+    ref = closing_reference(s, row.match, row.market, row.selection, row.line)
+    if ref is None:
+        return False
+    row.closing_odds, book, at = ref
+    row.clv = round(oddsmath.clv(row.odds, row.closing_odds), 4)
+    if isinstance(row, m.Pick):
+        row.closing_source, row.closing_at = book, at
+    return True
 
 
 def settle_all() -> dict:
@@ -199,9 +221,7 @@ def settle_all() -> dict:
             if res is None:
                 continue
             pick.result, pick.status = res, "settled"
-            pick.closing_odds = closing_price(s, pick.match_id, pick.bookmaker, pick.market, pick.selection, pick.line)
-            if pick.closing_odds:
-                pick.clv = round(oddsmath.clv(pick.odds, pick.closing_odds), 4)
+            set_clv(s, pick)
             out["picks"] += 1
         for bet in s.scalars(select(m.UserBet).where(m.UserBet.result.is_(None))):
             if bet.market == "combo":
@@ -218,26 +238,20 @@ def settle_all() -> dict:
                 continue
             bet.result = res
             bet.profit = profit(res, bet.stake, bet.odds)
-            bet.closing_odds = closing_price(s, bet.match_id, bet.bookmaker, bet.market, bet.selection, bet.line)
-            if bet.closing_odds:
-                bet.clv = round(oddsmath.clv(bet.odds, bet.closing_odds), 4)
+            set_clv(s, bet)
             out["bets"] += 1
         out["clv"] = fill_missing_clv(s)
     return out
 
 
 def fill_missing_clv(s: Session, days: int = 21) -> int:
-    """CLV de lo ya liquidado sin cuota de cierre: football-data publica el cierre días después del partido."""
+    """CLV de lo ya liquidado sin referencia: football-data publica el cierre días después del partido."""
     since = datetime.now(UTC) - timedelta(days=days)
     n = 0
     for model in (m.Pick, m.UserBet):
         rows = s.scalars(select(model).join(m.Match, m.Match.id == model.match_id).where(
             model.result.is_not(None), model.closing_odds.is_(None), m.Match.kickoff_utc >= since)).all()
-        for r in rows:
-            r.closing_odds = closing_price(s, r.match_id, r.bookmaker, r.market, r.selection, r.line)
-            if r.closing_odds:
-                r.clv = round(oddsmath.clv(r.odds, r.closing_odds), 4)
-                n += 1
+        n += sum(set_clv(s, r) for r in rows)
     return n
 
 
@@ -247,9 +261,10 @@ PUSH_RESULTS = ("push", "void")
 
 
 def record_from(rows: list) -> dict:
-    """Contador de aciertos a partir de picks (status, result, odds, created_at), con 1 unidad por apuesta.
+    """Contador de aciertos a partir de picks (status, result, odds, clv, created_at), con 1 unidad por apuesta.
 
-    El porcentaje de acierto no cuenta las devueltas (push/void): no se ganó ni se perdió.
+    El porcentaje de acierto no cuenta las devueltas (push/void): no se ganó ni se perdió. El CLV medio, de las
+    liquidadas que tienen referencia (`with_clv`).
     `since` es el día (en Lima) en que el sistema eligió la primera.
     """
     settled = [p for p in rows if p.status == "settled"]
@@ -258,13 +273,27 @@ def record_from(rows: list) -> dict:
     pushes = sum(1 for p in settled if p.result in PUSH_RESULTS)
     pl = sum(profit(p.result, 1.0, p.odds) for p in settled)
     decided = hits + misses
+    clvs = [p.clv for p in settled if p.clv is not None]
     return {
         "since": min((p.created_at for p in rows), default=None),
         "settled": len(settled), "hits": hits, "misses": misses, "pushes": pushes,
         "pending": sum(1 for p in rows if p.status == "open"),
         "hit_rate": round(hits / decided, 3) if decided else None,
         "profit_units": round(pl, 2), "roi": round(pl / len(settled), 4) if settled else None,
+        "avg_clv": round(sum(clvs) / len(clvs), 4) if clvs else None, "with_clv": len(clvs),
     }
+
+
+def clv_fields(p: m.Pick) -> dict:
+    """CLV de una apuesta guardada con su referencia, o por qué no lo tiene."""
+    ref = None
+    if p.closing_source:
+        ref = {"book": p.closing_source, "kind": "closing" if p.closing_at >= p.match.kickoff_utc else "live",
+               "minutes_before": max(0, round((p.match.kickoff_utc - p.closing_at).total_seconds() / 60))}
+    note = None
+    if p.status == "settled" and p.clv is None:
+        note = "Sin cuota de referencia: ni Pinnacle ni el cierre de bet365 tenían esta línea antes del partido"
+    return {"clv": p.clv, "closing_odds": p.closing_odds, "clv_ref": ref, "clv_note": note}
 
 
 def pick_record() -> dict:
@@ -301,7 +330,7 @@ def qualified_picks(days: int = 60) -> dict:
             "market": p.market, "selection": p.selection, "line": p.line, "bookmaker": p.bookmaker,
             "odds": p.odds, "prob": round(p.model_prob, 3), "ev": round(p.ev, 3),
             "confidence": round(p.confidence, 2), "is_pick_of_day": p.is_pick_of_day,
-            "status": p.status, "result": p.result, "clv": p.clv,
+            "status": p.status, "result": p.result, **clv_fields(p),
             "profit_units": round(profit(p.result, 1.0, p.odds), 2) if p.result else None,
         } for p in recent]}
 

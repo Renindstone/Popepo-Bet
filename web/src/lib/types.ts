@@ -114,6 +114,7 @@ export interface PastValueBet {
   result: string | null;
   qualifies?: boolean;
   is_pick_of_day?: boolean;
+  clv?: number | null;
 }
 
 export interface StatSummary {
@@ -365,6 +366,16 @@ export interface PickRecord {
   hit_rate: number | null;
   profit_units: number;
   roi: number | null;
+  /** CLV medio de las liquidadas que tienen referencia (`with_clv`) */
+  avg_clv: number | null;
+  with_clv: number;
+}
+
+/** De dónde sale la cuota justa (sin margen) del CLV: el cierre de una casa o su último precio antes del partido */
+export interface ClvRef {
+  book: string;
+  kind: "closing" | "live";
+  minutes_before: number;
 }
 
 /** Una de las que pasaron el corte de valor, probabilidad y confianza (incluye la apuesta del día) */
@@ -386,6 +397,10 @@ export interface QualifiedPick {
   status: string;
   result: string | null;
   clv: number | null;
+  closing_odds: number | null;
+  clv_ref: ClvRef | null;
+  /** Por qué una liquidada no tiene CLV */
+  clv_note: string | null;
   profit_units: number | null;
 }
 

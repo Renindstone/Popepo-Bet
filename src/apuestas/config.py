@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Solo se piden las competiciones con partidos en los próximos N días: la API admite 5 torneos por petición y
     # con seis competiciones haría falta una segunda petición por casa (en semanas de Champions la hace igual)
     oddspapi_window_days: float = 3.0
+    # Descargas de Pinnacle antes del inicio para el CLV de las que pasan el corte (0 = ninguna). Aprobado por el
+    # usuario el 2026-10-28: como mucho 3 al día, unas 40-90 peticiones más al mes
+    oddspapi_closing_per_day: int = 3
     telegram_token: str = ""
     telegram_chat_id: str = ""
     default_user: str = "renzo"

@@ -187,7 +187,7 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
                             "selection": p.selection, "line": p.line, "odds": p.odds, "ev": round(p.ev, 3),
                             "prob": round(p.model_prob, 3), "confidence": round(p.confidence, 2),
                             "status": p.status, "result": p.result, "qualifies": p.qualifies,
-                            "is_pick_of_day": p.is_pick_of_day} for p in rows],
+                            "is_pick_of_day": p.is_pick_of_day, "clv": p.clv} for p in rows],
         }
 
 
