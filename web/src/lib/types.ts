@@ -553,7 +553,7 @@ export interface RadarFigure {
   player_id: number;
   name: string;
   score: number;
-  lineup?: "confirmado" | "probable" | null;
+  lineup?: "confirmado" | "probable" | "sin_once" | null;
 }
 
 export interface RadarTeam {

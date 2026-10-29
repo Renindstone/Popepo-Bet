@@ -143,9 +143,13 @@ function RecapBody({
           <p className="mb-3 max-w-[72ch] border-t-[3px] border-tarjeta bg-tarjeta-suave px-3 py-2 text-interfaz">{data.note}</p>
           <Coverage data={data} />
           {data.coverage.played === 0 ? (
-            <div className="pb-10">
-              <Empty>{`${month ? "En este mes" : "Esta semana"} aún no se jugó ningún partido de las seis competiciones.`}</Empty>
-            </div>
+            <>
+              <div className="pb-8">
+                <Empty>{`${month ? "En este mes" : "Esta semana"} aún no se jugó ningún partido de las seis competiciones.`}</Empty>
+              </div>
+              {/* El radar mira los últimos 28 días: no depende de que la semana elegida tenga partidos */}
+              <Radar />
+            </>
           ) : (
             <>
               <div className="grid gap-x-10 gap-y-8 pb-8 lg:grid-cols-2">

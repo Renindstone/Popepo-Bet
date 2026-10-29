@@ -173,3 +173,57 @@ def test_api_expone_investigar():
     from apuestas.api.app import app
 
     assert "/radar/investigate" in {r.path for r in app.routes}
+
+
+# --------------------------------------------------------------------------- arreglos de la revisión final
+
+
+def test_rescata_notas_colgadas_tras_reiniciar(s):
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 10, 29, 18, 0, tzinfo=UTC)
+    old = ai_notes.request(s, "fallo", "pick:1", DAY)
+    fresh = ai_notes.request(s, "fallo", "pick:2", DAY)
+    old.status, old.updated_at = "trabajando", now - timedelta(seconds=get_settings().ai_notes_timeout_s + 300)
+    fresh.status, fresh.updated_at = "trabajando", now - timedelta(seconds=30)
+    s.flush()
+    assert ai_notes.rescue_stuck(now) == 1
+    assert (old.status, fresh.status) == ("pendiente", "trabajando")
+
+
+def test_investigar_reintenta_tras_un_error(s, monkeypatch):
+    sent = []
+    monkeypatch.setattr(ai_notes, "submit", sent.append)
+    monkeypatch.setattr(ai_notes.radar, "get", lambda: RADAR)
+    monkeypatch.setattr(ai_notes, "today", lambda: DAY)
+    note = ai_notes.request(s, "radar", "team:16", DAY)
+    note.status, note.error = "error", "No encuentro el CLI de Claude Code"
+    s.flush()
+    assert ai_notes.investigate(OWNER, "team", 16)["status"] == "pendiente"
+    assert sent == [note.id] and note.error is None
+
+
+def test_comando_no_deja_leer_la_api_local(s, monkeypatch):
+    monkeypatch.setattr(ai_notes.shutil, "which", lambda _: "/usr/bin/claude")
+    cmd, _, _ = ai_notes.command(ai_notes.request(s, "fallo", "pick:7", DAY))
+    denied = cmd[cmd.index("--disallowedTools") + 1].split(",")
+    assert {"WebFetch(domain:127.0.0.1)", "WebFetch(domain:localhost)", "WebFetch(domain:[::1])"} <= set(denied)
+
+
+def test_el_mcp_del_motor_solo_tiene_sus_tres_herramientas(monkeypatch):
+    from apuestas.mcp_server.server import build
+
+    monkeypatch.setattr(get_settings(), "mcp_engine", True)
+    assert {t.name for t in build()._tool_manager.list_tools()} == {"datos_fallo", "datos_radar", "guardar_explicacion"}
+
+
+def test_un_fallo_de_las_notas_no_deshace_la_liquidacion(s, monkeypatch):
+    from apuestas.services import picks
+
+    def boom(*_):
+        raise RuntimeError("fallo al pedir la nota")
+
+    monkeypatch.setattr(ai_notes, "after_settle", boom)
+    p = lost_pod(s)
+    assert picks.request_notes(s, [p]) == 0
+    assert s.get(m.Pick, p.id).status == "settled"  # la sesión sigue sirviendo

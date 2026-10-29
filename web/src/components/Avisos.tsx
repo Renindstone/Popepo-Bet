@@ -11,7 +11,14 @@ function headline(a: Alert): string {
 function figuresText(a: Alert): string | null {
   if (!a.figures.length) return null;
   const parts = a.figures.map((f) => {
-    const where = f.lineup === "confirmado" ? "en el once confirmado" : f.lineup === "probable" ? "en el once probable" : "fuera del once";
+    const where =
+      f.lineup === "confirmado"
+        ? "en el once confirmado"
+        : f.lineup === "probable"
+          ? "en el once probable"
+          : f.lineup === "sin_once"
+            ? "once aún sin publicar"
+            : "fuera del once";
     return `${f.name} (${signedNum(f.score, 1)}), ${where}`;
   });
   return `Sus figuras: ${parts.join("; ")}.`;

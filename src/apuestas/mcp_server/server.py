@@ -248,6 +248,11 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
         """Frescura de cada fuente de datos y fecha del último entrenamiento del modelo."""
         return _safe(queries.data_status)
 
+    if get_settings().mcp_engine and not http:
+        # El motor de notas lee páginas de internet: solo ve sus tres herramientas, ninguna que escriba en la BD
+        for t in list(server._tool_manager.list_tools()):
+            if t.name not in ai_notes.MCP_TOOLS:
+                server.remove_tool(t.name)
     return server
 
 

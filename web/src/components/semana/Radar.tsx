@@ -31,8 +31,8 @@ function nextText(matches: NextMatch[]): string {
 function Investigar({ kind, id, note, onDone }: { kind: "team" | "player"; id: number; note?: AiNote | null; onDone: () => void }) {
   const { me } = useMe();
   const [state, setState] = useState<{ busy: boolean; error?: ApiError }>({ busy: false });
-  if (note) return <NotaClaude note={note} />;
-  if (!me?.can_investigate) return null;
+  if (note && note.status !== "error") return <NotaClaude note={note} />;
+  if (!me?.can_investigate) return note ? <NotaClaude note={note} /> : null;
   async function go() {
     setState({ busy: true });
     try {
@@ -45,13 +45,14 @@ function Investigar({ kind, id, note, onDone }: { kind: "team" | "player"; id: n
   }
   return (
     <>
+      {note && <NotaClaude note={note} />}
       <button
         type="button"
         onClick={go}
         disabled={state.busy}
         className="mt-1 inline-flex min-h-10 items-center text-nota font-bold text-boli underline underline-offset-4 disabled:opacity-50"
       >
-        {state.busy ? "Pidiéndoselo a Claude…" : "Investigar con Claude"}
+        {state.busy ? "Pidiéndoselo a Claude…" : note ? "Volver a intentarlo" : "Investigar con Claude"}
       </button>
       {state.error && <ErrorNote error={state.error} />}
     </>

@@ -181,6 +181,19 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
     return report
 
 
+def request_notes(s: Session, settled: list[m.Pick]) -> int:
+    """Pide la explicación de Claude de las apuestas del día perdidas sin arriesgar la liquidación: si falla, solo se
+    deshace su propio savepoint."""
+    from apuestas.services import ai_notes  # aquí: ai_notes importa queries, que importa este módulo
+
+    try:
+        with s.begin_nested():
+            return ai_notes.after_settle(s, settled)
+    except Exception:  # noqa: BLE001 - sin nota la liquidación sigue valiendo
+        log.exception("No se pudo pedir la explicación de Claude")
+        return 0
+
+
 def attach_alerts(report: dict, alerts: dict[int, list[dict]]) -> None:
     """Pone los avisos del radar de cada partido en sus filas, en las apuestas con valor y en la del día."""
     for row in [*report.get("matches", []), *report.get("value_bets", [])]:
@@ -228,8 +241,6 @@ def set_clv(s: Session, row: m.Pick | m.UserBet) -> bool:
 
 
 def settle_all() -> dict:
-    from apuestas.services import ai_notes  # aquí: ai_notes importa queries, que importa este módulo
-
     out = {"picks": 0, "bets": 0}
     with session_scope() as s:
         settled = []
@@ -241,7 +252,7 @@ def settle_all() -> dict:
             set_clv(s, pick)
             settled.append(pick)
             out["picks"] += 1
-        out["notes"] = ai_notes.after_settle(s, settled)
+        out["notes"] = request_notes(s, settled)
         for bet in s.scalars(select(m.UserBet).where(m.UserBet.result.is_(None))):
             if bet.market == "combo":
                 for leg in bet.legs:

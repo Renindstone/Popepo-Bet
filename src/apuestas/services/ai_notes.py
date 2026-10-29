@@ -18,7 +18,7 @@ import shutil
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import select, update
@@ -34,6 +34,9 @@ log = logging.getLogger(__name__)
 
 MCP_TOOLS = ("datos_fallo", "datos_radar", "guardar_explicacion")
 WEB_TOOLS = ("WebSearch", "WebFetch")
+# Una página de noticias podría pedirle a Claude que lea la API de esta PC, que confía en lo local como el dueño
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "[::1]", "0.0.0.0")
+STUCK_MARGIN_S = 120
 MAX_TEXT = 1200
 MAX_SOURCES = 6
 LOST = ("loss", "half_loss")
@@ -106,6 +109,7 @@ def command(note: m.AiNote) -> tuple[list[str], dict[str, str], Path]:
         "--strict-mcp-config",
         "--tools", ",".join(WEB_TOOLS),   # solo buscar y leer noticias: ni archivos ni terminal
         "--allowedTools", ",".join([*WEB_TOOLS, *(f"mcp__apuestas__{t}" for t in MCP_TOOLS)]),
+        "--disallowedTools", ",".join(f"WebFetch(domain:{h})" for h in LOCAL_HOSTS),
         "--permission-mode", "dontAsk",
         "--setting-sources", "",
         "--no-session-persistence",
@@ -231,6 +235,8 @@ def investigate(username: str, kind: str, item_id: int) -> dict:
             raise PermissionError("Solo el dueño, con la IA encendida, puede pedir explicaciones a Claude")
         prev = latest(s, "radar", ref)
         fresh = prev is None or prev.day != today()
+        if prev is not None and not fresh and prev.status == "error":  # se puede volver a intentar (p.ej. tras /login)
+            prev.status, prev.error, fresh = "pendiente", None, True
         note = request(s, "radar", ref, today())
         note_id, out = note.id, public(s, note, username)
     if fresh:
@@ -256,8 +262,23 @@ def submit(note_id: int) -> None:
     _executor.submit(run, note_id)
 
 
+def rescue_stuck(now: datetime | None = None) -> int:
+    """Vuelve a `pendiente` las notas que se quedaron en `trabajando` porque se reinició el servicio a medias."""
+    now = now or datetime.now(UTC)
+    cutoff = now - timedelta(seconds=get_settings().ai_notes_timeout_s + STUCK_MARGIN_S)
+    n = 0
+    with session_scope() as s:
+        for note in s.scalars(select(m.AiNote).where(m.AiNote.status == "trabajando")):
+            when = note.updated_at or note.created_at
+            if when is not None and (when if when.tzinfo else when.replace(tzinfo=UTC)) < cutoff:
+                note.status, n = "pendiente", n + 1
+    return n
+
+
 def process_pending() -> int:
-    """Escribe las pendientes, de una en una (tarea del worker; también recoge las que la API no terminó)."""
+    """Escribe las pendientes, de una en una (tarea del worker; también recoge las que la API no terminó y las que
+    se cortaron al reiniciar)."""
+    rescue_stuck()
     with session_scope() as s:
         ids = list(s.scalars(select(m.AiNote.id).where(m.AiNote.status == "pendiente").order_by(m.AiNote.created_at)))
     for note_id in ids:

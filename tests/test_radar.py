@@ -181,3 +181,33 @@ def test_proximos_partidos_llevan_avisos(s, monkeypatch):
     monkeypatch.setattr(radar, "flagged_now", lambda: {b.id: radar_row(b, "baja")})
     row = next(r for r in queries.upcoming(days=3) if r["match_id"] == mt.id)
     assert [(x["side"], x["kind"]) for x in row["alerts"]] == [("away", "baja")]
+
+
+# --------------------------------------------------------------------------- arreglos de la revisión final
+
+
+def test_figura_sin_once_publicado(s):
+    a, b = make_teams(s, 2)
+    mt = upcoming_match(s, a, b)
+    p = m.Player(name="Uno")
+    s.add(p)
+    s.flush()
+    figs = [{"player_id": p.id, "name": p.name, "score": 2.0}]
+    alert = radar.alerts_for_match(s, mt, AS_OF, {a.id: radar_row(a, "racha", figs)})[0]
+    assert alert["figures"][0]["lineup"] == "sin_once"
+
+
+def test_partido_terminado_sin_avisos(s):
+    a, b = make_teams(s, 2)
+    mt = upcoming_match(s, a, b)
+    mt.status = "finished"
+    s.flush()
+    assert radar.alerts_for_match(s, mt, AS_OF, {a.id: radar_row(a, "racha")}) == []
+
+
+def test_un_fallo_del_radar_no_rompe_las_paginas(monkeypatch):
+    def boom():
+        raise RuntimeError("radar roto")
+
+    monkeypatch.setattr(radar, "get", boom)
+    assert radar.flagged_now() == {}

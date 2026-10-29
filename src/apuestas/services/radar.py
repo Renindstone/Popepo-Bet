@@ -7,6 +7,7 @@ más. El radar avisa, no predice: no cambia la probabilidad ni el corte de ningu
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import UTC, datetime, timedelta
 
@@ -17,6 +18,8 @@ from apuestas.config import get_settings
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.services import weekly
+
+log = logging.getLogger(__name__)
 
 WINDOW_DAYS = 28
 UPSET_MAX = 0.25  # batacazo: gana con esta probabilidad o menos
@@ -156,20 +159,34 @@ LINEUP_WORD = {"confirmed": "confirmado", "predicted": "probable"}
 
 def alerts_for_match(s: Session, match: m.Match, as_of: datetime, cached: dict[int, dict] | None = None) -> list[dict]:
     """Avisos de un partido: la ficha del radar de cada equipo que esté en él, con sus figuras en el once o no."""
+    if match.status != "scheduled":  # un partido ya jugado no lleva aviso (el radar lo citaría a él mismo)
+        return []
     flagged = status(s, as_of) if cached is None else cached
     rows = [(side, flagged[t]) for side, t in (("home", match.home_team_id), ("away", match.away_team_id)) if t in flagged]
     if not rows:
         return []
-    ids = [f["player_id"] for _, row in rows for f in row["figures"]]
-    xi = {} if not ids else {r.player_id: LINEUP_WORD.get(r.status) for r in s.scalars(select(m.Lineup).where(
-        m.Lineup.match_id == match.id, m.Lineup.player_id.in_(ids), m.Lineup.is_starter.is_(True)))}
+    starters = s.execute(select(m.Lineup.team_id, m.Lineup.player_id, m.Lineup.status).where(
+        m.Lineup.match_id == match.id, m.Lineup.is_starter.is_(True))).all()
+    published = {team for team, _, _ in starters}
+    xi = {player: LINEUP_WORD.get(st) for _, player, st in starters}
+
+    def lineup(team_id: int, player_id: int) -> str | None:
+        # Sin once publicado de ese equipo no se sabe: no es lo mismo que «fuera del once»
+        return xi.get(player_id) if team_id in published else "sin_once"
+
     return [{**row, "side": side, "note": NOTE,
-             "figures": [{**f, "lineup": xi.get(f["player_id"])} for f in row["figures"]]} for side, row in rows]
+             "figures": [{**f, "lineup": lineup(row["team_id"], f["player_id"])} for f in row["figures"]]}
+            for side, row in rows]
 
 
 def flagged_now() -> dict[int, dict]:
-    """Los equipos del radar de ahora, de la caché (para no recalcular 28 días en cada consulta)."""
-    r = get()
+    """Los equipos del radar de ahora, de la caché (para no recalcular 28 días en cada consulta). Si el radar falla,
+    ninguno: un aviso de menos no puede tumbar la lista de partidos ni el análisis."""
+    try:
+        r = get()
+    except Exception:  # noqa: BLE001
+        log.exception("No se pudo calcular el radar")
+        return {}
     return {t["team_id"]: t for t in r["racha"] + r["baja"]}
 
 
