@@ -1,6 +1,6 @@
 // Formas de las respuestas de la API FastAPI (src/apuestas/api/app.py y services/queries.py)
 
-export type Competicion = "EPL" | "BUN" | "LAL" | "SA" | "L1" | "UCL" | string;
+export type Competicion = "EPL" | "BUN" | "LAL" | "SA" | "L1" | "POR" | "BEL" | "UCL" | string;
 
 export interface MatchSummary {
   alerts?: Alert[];

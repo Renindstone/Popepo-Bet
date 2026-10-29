@@ -114,7 +114,7 @@ def backtest(
     count_level: bool = typer.Option(True, help="Remates y a puerta con el nivel reciente de cada liga; "
                                                 "--no-count-level = el modelo anterior al 22-10-2026"),
     ligas: str = typer.Option(None, help="Ligas con cuotas a evaluar, separadas por comas (por defecto las completas: "
-                                         "EPL,BUN,LAL,SA,L1; EPL,BUN,LAL = las de antes del 21-10-2026)"),
+                                         "EPL,BUN,LAL,SA,L1,POR,BEL; EPL,BUN,LAL,SA,L1 = las de antes del 29-10-2026)"),
     out: str = "",
 ) -> None:
     """Backtest walk-forward contra cuotas históricas de bet365."""

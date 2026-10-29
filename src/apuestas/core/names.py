@@ -60,6 +60,10 @@ _TEAM_SEEDS = {
     "hearts": "heart of midlothian", "buyuksehyr": "basaksehir",
     # OddsPapi (Serie A y Ligue 1, 22-10-2026)
     "stade rennais": "rennes", "strasbourg alsace": "strasbourg",
+    # Portugal y Bélgica: football-data y OddsPapi (izquierda) frente a FotMob (derecha), 29-10-2026
+    "avs": "avs futebol sad", "estrela": "estrela da amadora", "beerschot va": "beerschot", "dender": "fcv dender eh",
+    "mechelen": "kv mechelen", "oud heverlee leuven": "oh leuven", "rwd molenbeek": "rwdm brussels",
+    "standard": "standard liege", "waregem": "zulte waregem", "royal charleroi": "sporting charleroi",
     # Ligas extra de football-data (izquierda) frente a FotMob (derecha)
     "rapid": "rapid wien", "copenhagen": "kobenhavn", "aarhus": "agf", "jagiellonia": "jagiellonia bialystok",
     "legia": "legia warszawa", "rakow": "rakow czestochowa", "univ craiova": "universitatea craiova",

@@ -35,7 +35,7 @@ def ensure_competitions(s: Session) -> dict[str, m.Competition]:
             row = m.Competition(code=code, name=comp.name, country=comp.country, tier=comp.tier, is_cup=comp.is_cup)
             s.add(row)
             existing[code] = row
-        elif existing[code].tier != comp.tier:  # p. ej. la Serie A y la Ligue 1, que pasaron de "light" a "full"
+        elif existing[code].tier != comp.tier:  # p. ej. la Serie A, la Ligue 1, Portugal y Bélgica: de "light" a "full"
             existing[code].tier = comp.tier
     s.flush()
     return existing
@@ -195,6 +195,16 @@ def upsert_fotmob_match(s: Session, comp: m.Competition, season: m.Season, fm: F
     match = s.scalar(select(m.Match).where(m.Match.fotmob_id == fm.fotmob_id))
     home = fotmob_team(s, fm.home_id, fm.home_name)
     away = fotmob_team(s, fm.away_id, fm.away_name)
+    if match is None:
+        # Liga que era "light" sin FotMob (Portugal y Bélgica hasta el 29-10-2026): football-data ya creó el partido
+        match = s.scalar(select(m.Match).where(
+            m.Match.competition_id == comp.id, m.Match.fotmob_id.is_(None),
+            m.Match.home_team_id == home.id, m.Match.away_team_id == away.id,
+            m.Match.kickoff_utc >= fm.kickoff_utc - timedelta(hours=40),
+            m.Match.kickoff_utc <= fm.kickoff_utc + timedelta(hours=40),
+        ))
+        if match is not None:
+            match.fotmob_id = fm.fotmob_id
     if match is None:
         match = m.Match(
             competition_id=comp.id,

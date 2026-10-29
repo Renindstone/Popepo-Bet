@@ -411,7 +411,7 @@ function Jornada({ rows }: { rows: DayMatch[] }) {
         <span className="text-nota font-semibold text-grafito">1X2 del modelo, en %</span>
       </div>
       {rows.length === 0 ? (
-        <Empty>No hay partidos de las seis competiciones este día.</Empty>
+        <Empty>No hay partidos de las ocho competiciones este día.</Empty>
       ) : (
         <table className="w-full table-fixed border-collapse text-interfaz">
           <caption className="sr-only">Partidos del día con la probabilidad de local, empate y visitante</caption>

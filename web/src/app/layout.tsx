@@ -12,7 +12,7 @@ const sofiaXC = Sofia_Sans_Extra_Condensed({ variable: "--font-sofia-xc", subset
 
 export const metadata: Metadata = {
   title: { default: "Popepo-Bet", template: "%s | Popepo-Bet" },
-  description: "Análisis prepartido de Premier League, Bundesliga, LaLiga, Serie A, Ligue 1 y Champions League.",
+  description: "Análisis prepartido de Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga, Pro League (Bélgica) y Champions League.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
