@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, date, datetime, time, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from apuestas.betting import odds as oddsmath
@@ -77,6 +77,19 @@ def _upsert_pick(s: Session, match: m.Match, b: BetEval, day: date, stage: str) 
     return pick
 
 
+def _lock_day(s: Session, day: date) -> None:
+    """El worker y la API pueden calcular el mismo día a la vez: en PostgreSQL, uno espera al otro para no duplicar
+    apuestas guardadas ni elegir dos apuestas del día."""
+    if s.bind.dialect.name == "postgresql":
+        s.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": 7_000_000 + day.toordinal()})
+
+
+def _listed(odds: float, started: bool) -> bool:
+    """Si una cuota con valor sale en «Con valor»: no las de menos de 1.20 ni las de partidos que ya empezaron (en
+    directo esa cuota ya no es la de antes del partido)."""
+    return not started and odds >= get_settings().value_list_min_odds
+
+
 def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict:
     day = day or today_local()
     bundle = bundle or load_bundle()
@@ -84,6 +97,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
     report: dict = {"date": day.isoformat(), "pick_of_day": None, "value_bets": [], "props_to_check": [],
                     "matches": [], "notes": []}
     with session_scope() as s:
+        _lock_day(s, day)
         analyses: list[MatchAnalysis] = []
         for match in matches_for_day(s, day):
             if match.status != "scheduled":
@@ -116,7 +130,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                     pick = _upsert_pick(s, mt, b, day, an.stage)
                     s.flush()
                     b.reasons = [*b.reasons, f"pick_id={pick.id}"]
-                if b.odds >= get_settings().value_list_min_odds:
+                if _listed(b.odds, started):
                     report["value_bets"].append({**b.to_dict(), "match_id": mt.id,
                                                  "label": b.label(mt.home_team.name, mt.away_team.name),
                                                  "match": f"{mt.home_team.name} vs {mt.away_team.name}",
@@ -245,7 +259,11 @@ def settle_all() -> dict:
     with session_scope() as s:
         settled = []
         for pick in s.scalars(select(m.Pick).where(m.Pick.status == "open")):
-            res = settle(s, pick.match, pick.market, pick.selection, pick.line)
+            try:
+                res = settle(s, pick.match, pick.market, pick.selection, pick.line)
+            except Exception:  # noqa: BLE001 - un dato roto no puede frenar la liquidación de las demás
+                log.exception("No se pudo liquidar la apuesta %s (%s %s)", pick.id, pick.market, pick.selection)
+                continue
             if res is None:
                 continue
             pick.result, pick.status = res, "settled"
@@ -263,7 +281,11 @@ def settle_all() -> dict:
                     bet.result, bet.profit = done
                     out["bets"] += 1
                 continue
-            res = settle(s, bet.match, bet.market, bet.selection, bet.line, bet.player_id)
+            try:
+                res = settle(s, bet.match, bet.market, bet.selection, bet.line, bet.player_id)
+            except Exception:  # noqa: BLE001
+                log.exception("No se pudo liquidar la apuesta del usuario %s (%s)", bet.id, bet.market)
+                continue
             if res is None:
                 continue
             bet.result = res

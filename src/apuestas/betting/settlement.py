@@ -17,6 +17,12 @@ PLAYER_COLUMNS = {"player_shots": ("shots",), "player_sot": ("shots_on_target",)
 YES = ("yes", "si", "sí")
 
 
+def needs_line(market: str) -> bool:
+    """Hándicap asiático, hándicap (3 vías) y Más/Menos de equipo no se pueden liquidar sin su línea. Las props de
+    jugador usan 0.5 si no la llevan."""
+    return market.lower().split("_", 1)[0] in ("ah", "eh", "ou")
+
+
 def _team_value(st: m.TeamMatchStats | None, stat: str) -> int | None:
     if st is None:
         return None

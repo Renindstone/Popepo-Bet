@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from apuestas.betting.settlement import needs_line
 from apuestas.config import get_settings
 from apuestas.core import names
 from apuestas.core.competitions import FULL
@@ -464,6 +465,8 @@ def register_combo(username: str, blocks: list[dict], total_odds: float, stake: 
         pos = 0
         for b in out:
             for lg in b["legs"]:
+                if needs_line(lg["market"]) and lg["line"] is None:
+                    raise ValueError(f"Falta la línea de «{lg['market']}» en el cupón: sin ella no se puede liquidar.")
                 bet.legs.append(m.UserBetLeg(position=pos, match_id=b["match_id"], market=lg["market"],
                                              selection=lg["selection"], line=lg["line"], player_id=lg["player_id"],
                                              odds=lg["odds"], block_odds=b["odds"] if len(b["legs"]) > 1 else None,

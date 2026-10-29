@@ -30,7 +30,6 @@ class Competition:
     fd_code: str | None = None  # football-data.co.uk
     understat: str | None = None  # understat.com
     fotmob_id: int | None = None  # fotmob.com
-    espn: str | None = None  # site.api.espn.com
     fd_extra: str | None = None  # football-data.co.uk, liga "extra" (new/XXX.csv)
     calendar_year: bool = False  # temporada de marzo a noviembre (se identifica por el año natural)
     fotmob_stats: bool = False  # nivel "light": árbitro y estadísticas de equipo de FotMob de los partidos jugados
@@ -40,12 +39,12 @@ COMPETITIONS: dict[str, Competition] = {
     c.code: c
     for c in [
         # --- Análisis completo ---
-        Competition("EPL", "Premier League", "England", "full", fd_code="E0", understat="EPL", fotmob_id=47, espn="eng.1"),
-        Competition("BUN", "Bundesliga", "Germany", "full", fd_code="D1", understat="Bundesliga", fotmob_id=54, espn="ger.1"),
-        Competition("LAL", "LaLiga", "Spain", "full", fd_code="SP1", understat="La_liga", fotmob_id=87, espn="esp.1"),
-        Competition("SA", "Serie A", "Italy", "full", fd_code="I1", understat="Serie_A", fotmob_id=55, espn="ita.1"),
-        Competition("L1", "Ligue 1", "France", "full", fd_code="F1", understat="Ligue_1", fotmob_id=53, espn="fra.1"),
-        Competition("UCL", "Champions League", "Europe", "full", is_cup=True, fotmob_id=42, espn="uefa.champions"),
+        Competition("EPL", "Premier League", "England", "full", fd_code="E0", understat="EPL", fotmob_id=47),
+        Competition("BUN", "Bundesliga", "Germany", "full", fd_code="D1", understat="Bundesliga", fotmob_id=54),
+        Competition("LAL", "LaLiga", "Spain", "full", fd_code="SP1", understat="La_liga", fotmob_id=87),
+        Competition("SA", "Serie A", "Italy", "full", fd_code="I1", understat="Serie_A", fotmob_id=55),
+        Competition("L1", "Ligue 1", "France", "full", fd_code="F1", understat="Ligue_1", fotmob_id=53),
+        Competition("UCL", "Champions League", "Europe", "full", is_cup=True, fotmob_id=42),
         # --- Solo para la escala de fuerza ---
         Competition("POR", "Primeira Liga", "Portugal", "light", fd_code="P1"),
         Competition("NED", "Eredivisie", "Netherlands", "light", fd_code="N1"),

@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from apuestas.betting.settlement import needs_line
 from apuestas.config import get_settings
 from apuestas.db import models as m
 
@@ -88,9 +89,21 @@ def bankroll_status(s: Session, user: m.User) -> dict:
     }
 
 
+def check_bet(market: str, line: float | None, odds: float, stake: float | None = None) -> None:
+    """Lo que no puede entrar: sin línea donde hace falta (frenaría la liquidación), cuota de 1 o menos, importe de 0
+    o negativo."""
+    if market != "combo" and needs_line(market) and line is None:
+        raise ValueError(f"Falta la línea de la apuesta ({market}): sin ella no se puede liquidar.")
+    if odds is None or odds <= 1:
+        raise ValueError("La cuota tiene que ser mayor que 1.")
+    if stake is not None and stake <= 0:
+        raise ValueError("El importe tiene que ser mayor que 0.")
+
+
 def register_bet(s: Session, user: m.User, match: m.Match, bookmaker: str, market: str, selection: str,
                  line: float | None, odds: float, stake: float, player_id: int | None = None,
                  model_prob: float | None = None, pick_id: int | None = None, notes: str | None = None) -> m.UserBet:
+    check_bet(market, line, odds, stake)
     bet = m.UserBet(user_id=user.id, match_id=match.id, bookmaker=bookmaker, market=market, selection=selection,
                     line=line, odds=odds, stake=stake, player_id=player_id, model_prob=model_prob, pick_id=pick_id,
                     notes=notes)
