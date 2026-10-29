@@ -34,3 +34,6 @@ docs/adr
 .impeccable/*
 !.impeccable/design.json
 !.impeccable/surfaces/
+
+# Bocetos de las conversaciones de diseño (superpowers)
+.superpowers/
