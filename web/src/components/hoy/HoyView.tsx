@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useCallback, useState } from "react";
+import { AlertList, AlertTags } from "@/components/Avisos";
 import { CaptureDrop } from "@/components/capturas/CaptureDrop";
 import { Crest } from "@/components/Crest";
 import { PickRecord } from "@/components/PickRecord";
+import { AlertTag } from "@/components/semana/Radar";
 import { Tabs, useHashTab } from "@/components/Tabs";
 import { Button, EdgeBar, Empty, ErrorNote, Figure, Loading, Section, Tag } from "@/components/ui";
 import { api, type ApiError, useApi } from "@/lib/api";
@@ -335,6 +337,7 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
           ))}
         </ul>
       )}
+      {!past && <AlertList alerts={pick.alerts} className="mt-5" />}
       {evaluarHref && !past && (
         <Link href={evaluarHref} className="mt-4 inline-flex min-h-10 items-center text-interfaz font-bold text-boli underline underline-offset-4">
           Comprobar la cuota de Betano
@@ -458,10 +461,13 @@ function Jornada({ rows }: { rows: DayMatch[] }) {
                           {m.away}
                         </span>
                       </Link>
-                      {m.stage === "confirmed" && (
-                        <Tag tone="confirmada" className="mt-1">
-                          {stageText(m.stage)}
-                        </Tag>
+                      {(m.stage === "confirmed" || !!m.alerts?.length) && (
+                        <span className="mt-1 flex flex-wrap gap-1">
+                          {m.stage === "confirmed" && <Tag tone="confirmada">{stageText(m.stage)}</Tag>}
+                          {m.alerts?.map((a) => (
+                            <AlertTag key={a.team_id} alert={a} />
+                          ))}
+                        </span>
                       )}
                     </td>
                     {p.map((x, i) => (
@@ -550,6 +556,9 @@ function CutTag({ row, short = false }: { row: ValueBet | PastValueBet; short?: 
 
 function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; order: Order }) {
   const [all, setAll] = useState(false);
+  // Fila con el aviso del radar abierto
+  const [open, setOpen] = useState<number | null>(null);
+  const toggle = (i: number) => setOpen(open === i ? null : i);
   if (input.length === 0) return <Empty>No hay cuotas con valor positivo para este día.</Empty>;
   const rows = sortRows(input, order);
   const shown = all ? rows : rows.slice(0, 12);
@@ -579,6 +588,8 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                 )}
                 {isLive(r) && `, en ${bookmakerName(r.bookmaker)}`}
               </p>
+              {isLive(r) && <AlertTags alerts={r.alerts} open={open === i} onToggle={() => toggle(i)} />}
+              {isLive(r) && open === i && <AlertList alerts={r.alerts} className="mt-2" />}
               {isLive(r) && (
                 <div className="mt-2">
                   <EdgeBar prob={r.prob} odds={r.odds} compact />
@@ -642,6 +653,7 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                       ) : (
                         r.match
                       )}
+                      {isLive(r) && <AlertTags alerts={r.alerts} open={open === i} onToggle={() => toggle(i)} />}
                     </td>
                     <td className={td}>
                       {betLabel(r.market, r.selection, r.line, { home, away })}
@@ -670,6 +682,13 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                       <CutTag row={r} short />
                     </td>
                   </tr>
+                  {isLive(r) && open === i && (
+                    <tr className="border-b border-regla-suave">
+                      <td colSpan={8} className="pt-1 pb-3">
+                        <AlertList alerts={r.alerts} />
+                      </td>
+                    </tr>
+                  )}
                 </Fragment>
               );
             })}

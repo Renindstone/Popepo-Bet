@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Chart, useChartTheme } from "@/components/Chart";
 import { Crest } from "@/components/Crest";
 import { Tabs, useHashTab } from "@/components/Tabs";
+import { AlertList } from "@/components/Avisos";
 import { Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag, TriBar } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { int, num, odds, pct, shortDate, signedPct, stageText } from "@/lib/format";
@@ -83,6 +84,7 @@ export function PartidoView() {
             Evaluar una cuota de este partido
           </Link>
         </p>
+        <AlertList alerts={a.alerts} className="mt-5" />
       </div>
 
       <Tabs tabs={TABS} current={tab} onSelect={setTab} label="Análisis del partido">

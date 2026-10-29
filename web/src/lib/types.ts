@@ -3,6 +3,7 @@
 export type Competicion = "EPL" | "BUN" | "LAL" | "SA" | "L1" | "UCL" | string;
 
 export interface MatchSummary {
+  alerts?: Alert[];
   match_id: number;
   competition: Competicion;
   kickoff_local: string; // "lun 19/10 14:00" (hora de Lima)
@@ -34,6 +35,7 @@ export interface BetEval {
 }
 
 export interface ValueBet extends BetEval {
+  alerts?: Alert[];
   match_id: number;
   label: string;
   match: string;
@@ -54,6 +56,7 @@ export interface PropMinOdds {
 }
 
 export interface PickOfDay {
+  alerts?: Alert[];
   pick_id?: number;
   match_id?: number;
   match: string;
@@ -79,6 +82,7 @@ export interface PickOfDay {
 }
 
 export interface DayMatch {
+  alerts?: Alert[];
   match_id: number;
   competition: Competicion;
   kickoff_local: string; // "14:00"
@@ -184,6 +188,7 @@ export interface PlayerProjection {
 }
 
 export interface MatchAnalysis {
+  alerts?: Alert[];
   match_id: number;
   competition: string;
   kickoff_utc: string;

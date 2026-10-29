@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Crest } from "@/components/Crest";
 import { Empty, ErrorNote, Loading, PageTitle, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
+import { AlertTag } from "@/components/semana/Radar";
 import { COMPETITIONS, competitionName, stageText } from "@/lib/format";
 import { matchesTeams } from "@/lib/search";
 import type { MatchSummary } from "@/lib/types";
@@ -108,6 +109,13 @@ export function PartidosView() {
                           {m.away}
                         </span>
                         <span className="block text-nota text-grafito">{competitionName(m.competition)}</span>
+                        {!!m.alerts?.length && (
+                          <span className="mt-1 flex flex-wrap gap-1">
+                            {m.alerts.map((a) => (
+                              <AlertTag key={a.team_id} alert={a} />
+                            ))}
+                          </span>
+                        )}
                       </span>
                       <span className="col-start-2 truncate text-nota text-grafito sm:col-start-auto">
                         {m.referee ? `Árbitro: ${m.referee}` : "Árbitro sin designar"}
