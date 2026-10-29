@@ -477,6 +477,9 @@ export interface WeekPlayer {
 }
 
 export interface WeekRecap {
+  period: "semana" | "mes";
+  weeks: number;
+  available: true;
   week_start: string;
   week_end: string;
   status: "en_curso" | "cerrada";
@@ -496,6 +499,86 @@ export interface WeekRecap {
   eleven: { formation: string; slots: { line: "GK" | "DF" | "MF" | "FW"; player: WeekPlayer | null }[] };
   teams: WeekTeam[];
   players: WeekPlayer[];
+}
+
+/** El mes antes de tener 4 semanas completas con la previa guardada */
+export interface MonthUnavailable {
+  period: "mes";
+  available: false;
+  available_from: string | null;
+  week_start: string;
+  week_end: string;
+  note: string;
+}
+
+export type PeriodRecap = WeekRecap | MonthUnavailable;
+
+// --------------------------------------------------------------------------- radar de Sorpresas (GET /radar)
+
+/** Explicación escrita por Claude (solo si el usuario usa la IA) */
+export interface AiNote {
+  status: "pendiente" | "trabajando" | "lista" | "error";
+  text: string | null;
+  sources: { title: string; url: string }[];
+  error: string | null;
+  updated_at: string | null;
+}
+
+export interface NextMatch {
+  match_id: number;
+  label: string;
+  kickoff_local: string; // "sáb 01/11 12:00"
+}
+
+export interface RadarFigure {
+  player_id: number;
+  name: string;
+  score: number;
+  lineup?: "confirmado" | "probable" | null;
+}
+
+export interface RadarTeam {
+  team_id: number;
+  name: string;
+  competition: string;
+  kind: "racha" | "baja";
+  score: number;
+  n_matches: number;
+  reason: { type: "batacazo" | "pinchazo" | "suma"; match_id: number; label: string; date: string; p_win: number | null };
+  figures: RadarFigure[];
+  next_matches: NextMatch[];
+  note?: AiNote | null;
+}
+
+export interface RadarPlayer {
+  player_id: number;
+  name: string;
+  team_id: number;
+  team: string;
+  score: number;
+  minutes: number;
+  n_matches: number;
+  best: { match_id: number; label: string; items: WeekItem[] };
+  next_matches: NextMatch[];
+  note?: AiNote | null;
+}
+
+export interface RadarReport {
+  window_start: string;
+  window_end: string;
+  racha: RadarTeam[];
+  baja: RadarTeam[];
+  jugadores: RadarPlayer[];
+}
+
+/** Aviso de un partido: la ficha del radar de uno de sus equipos, con sus figuras en el once o no */
+export type Alert = Omit<RadarTeam, "note"> & { side: "home" | "away"; note: string };
+
+/** El usuario de esta clave y sus ajustes (GET /me) */
+export interface Me {
+  username: string;
+  ai_enabled: boolean;
+  can_investigate: boolean;
 }
 
 /** Sincronización manual de Datos (`GET`/`POST /sync`) */

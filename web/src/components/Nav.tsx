@@ -9,7 +9,7 @@ import { useToday } from "@/lib/hooks";
 const LINKS = [
   { href: "/", label: "Hoy" },
   { href: "/partidos", label: "Partidos" },
-  { href: "/semana", label: "Semana" },
+  { href: "/sorpresas", label: "Sorpresas" },
   { href: "/evaluar", label: "Evaluar cuota" },
   { href: "/capturas", label: "Capturas" },
   { href: "/rendimiento", label: "Mis apuestas" },

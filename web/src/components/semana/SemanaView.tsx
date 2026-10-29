@@ -5,90 +5,158 @@ import { useSearchParams } from "next/navigation";
 import { Crest } from "@/components/Crest";
 import { MatchItems, POSITIONS, Ranking } from "@/components/semana/Ranking";
 import { OnceSemana } from "@/components/semana/OnceSemana";
+import { Radar } from "@/components/semana/Radar";
 import { Tabs, useHashTab } from "@/components/Tabs";
 import { Empty, ErrorNote, Figure, Loading, PageTitle, Section } from "@/components/ui";
 import { useApi } from "@/lib/api";
-import { competitionName, shiftDay, shortDate, signedNum, weekLabel, weekStart } from "@/lib/format";
+import { competitionName, monthAvailableFrom, rangeLabel, shiftDay, shortDate, signedNum, weekStart } from "@/lib/format";
 import { useToday } from "@/lib/hooks";
-import type { WeekPlayer, WeekRecap, WeekTeam } from "@/lib/types";
-
-const TABS = [
-  { id: "once", label: "Once de la semana" },
-  { id: "equipos", label: "Equipos" },
-  { id: "jugadores", label: "Jugadores" },
-] as const;
+import type { PeriodRecap, WeekPlayer, WeekRecap, WeekTeam } from "@/lib/types";
 
 const navLink =
-  "inline-flex h-10 items-center border border-regla bg-hoja px-3 text-interfaz font-semibold hover:border-grafito";
+  "inline-flex h-10 items-center border border-tinta bg-hoja px-3 text-interfaz font-bold transition-colors hover:bg-tinta hover:text-papel";
+const pickerOn = "inline-flex h-10 items-center border border-tinta bg-tinta px-4 text-interfaz font-bold text-papel";
+const pickerOff =
+  "inline-flex h-10 items-center border border-tinta bg-hoja px-4 text-interfaz font-bold transition-colors hover:bg-tinta hover:text-papel";
 
-/** Resumen de la semana: quién superó lo que esperaban la casa (equipos) y el modelo (jugadores) */
+/** Sorpresas: quién superó lo que esperaban la casa (equipos) y el modelo (jugadores), por semana o por mes */
 export function SemanaView() {
   const params = useSearchParams();
   const today = useToday();
+  const month = params.get("periodo") === "mes";
   const current = today ? weekStart(today) : "";
   const asked = params.get("semana");
   const monday = asked ? weekStart(asked) : current;
-  const { data, error, mutate } = useApi<WeekRecap>(monday ? `/week?day=${monday}` : null);
+  const path = month ? (asked ? `/week?period=mes&day=${monday}` : "/week?period=mes") : monday ? `/week?day=${monday}` : null;
+  const { data, error, mutate } = useApi<PeriodRecap>(path);
+  // El mes se identifica por su última semana; sin ?semana= es la última completa
+  const last = data ? weekStart(data.week_end) : monday;
+  const lastFull = current ? shiftDay(current, -7) : "";
+  const step = month ? 28 : 7;
+  const recap = data?.available ? data : null;
+  const per = month ? "del mes" : "de la semana";
 
-  const tabs = TABS.map((t) => ({
-    ...t,
-    count: t.id === "equipos" ? data?.teams.length : t.id === "jugadores" ? data?.players.length : undefined,
-  }));
+  const tabs = [
+    { id: "once", label: `Once ${per}` },
+    { id: "equipos", label: "Equipos", count: recap?.teams.length },
+    { id: "jugadores", label: "Jugadores", count: recap?.players.length },
+  ];
   const [tab, setTab] = useHashTab(tabs);
   const keep = tab !== tabs[0].id ? `#${tab}` : "";
+  const href = (week: string | null) =>
+    `/sorpresas?${[month ? "periodo=mes" : null, week ? `semana=${week}` : null].filter(Boolean).join("&")}${keep}`;
+  const newest = month ? lastFull : current;
 
-  const nav = monday && (
+  const nav = last && (
     <>
-      <Link href={`/semana?semana=${shiftDay(monday, -7)}${keep}`} className={navLink}>
-        Semana anterior
+      <Link href={href(shiftDay(last, -step))} className={navLink}>
+        {month ? "Mes anterior" : "Semana anterior"}
       </Link>
-      {monday < current && (
-        <Link href={`/semana?semana=${shiftDay(monday, 7)}${keep}`} className={navLink}>
-          Semana siguiente
+      {last < newest && (
+        <Link href={href(shiftDay(last, step))} className={navLink}>
+          {month ? "Mes siguiente" : "Semana siguiente"}
         </Link>
       )}
-      {monday !== current && (
-        <Link href={`/semana${keep}`} className="inline-flex h-10 items-center px-2 text-interfaz font-semibold text-boli underline underline-offset-4">
-          Volver a esta semana
+      {last !== newest && (
+        <Link href={href(null)} className="inline-flex h-10 items-center px-2 text-interfaz font-bold text-boli underline underline-offset-4">
+          {month ? "Volver al último mes" : "Volver a esta semana"}
         </Link>
       )}
     </>
   );
-  const label = monday ? weekLabel(monday) : "";
+  const label = data ? rangeLabel(data.week_start, data.week_end) : "";
+  const monthFrom = monthAvailableFrom(recap?.history_since);
+  const monthLocked = !month && !!today && (!monthFrom || today < monthFrom);
 
   return (
     <>
       <PageTitle
-        title="Semana"
-        sub={monday ? `${label.charAt(0).toUpperCase()}${label.slice(1)}${data?.status === "en_curso" ? ", en curso" : ""}.` : null}
+        title="Sorpresas"
+        sub={label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}${recap?.status === "en_curso" ? ", en curso" : ""}.` : null}
         actions={nav}
       />
+      <div role="group" aria-label="Periodo" className="-mt-2 mb-6 flex flex-wrap items-center gap-2">
+        {month ? (
+          <Link href="/sorpresas" className={pickerOff}>
+            Semana
+          </Link>
+        ) : (
+          <span aria-current="page" className={pickerOn}>
+            Semana
+          </span>
+        )}
+        {month ? (
+          <span aria-current="page" className={pickerOn}>
+            Mes
+          </span>
+        ) : monthLocked ? (
+          <span className="inline-flex h-10 items-center border border-regla px-4 text-interfaz font-bold text-grafito">
+            {monthFrom ? `Mes · desde el ${shortDate(monthFrom)}` : "Mes · cuando haya 4 semanas"}
+          </span>
+        ) : (
+          <Link href="/sorpresas?periodo=mes" className={pickerOff}>
+            Mes
+          </Link>
+        )}
+        <span className="text-nota text-grafito">El mes son las 4 semanas completas que terminan en la elegida.</span>
+      </div>
       {error ? (
         <div className="pb-10">
           <ErrorNote error={error} onRetry={() => mutate()} />
         </div>
       ) : !data ? (
         <div className="pb-10">
-          <Loading lines={6} label="Calculando el resumen de la semana" />
+          <Loading lines={6} label="Calculando las sorpresas" />
         </div>
+      ) : !data.available ? (
+        <>
+          <p className="mb-8 max-w-[72ch] border-t-[3px] border-tarjeta bg-tarjeta-suave px-3 py-2 text-interfaz">
+            {data.available_from
+              ? `El mes llega el ${shortDate(data.available_from)}: hacen falta 4 semanas completas con la previa del modelo guardada.`
+              : "El mes llegará cuando haya 4 semanas completas con la previa del modelo guardada."}
+          </p>
+          <Radar />
+        </>
       ) : (
+        <RecapBody data={data} month={month} tabs={tabs} tab={tab} setTab={setTab} />
+      )}
+    </>
+  );
+}
+
+function RecapBody({
+  data,
+  month,
+  tabs,
+  tab,
+  setTab,
+}: {
+  data: WeekRecap;
+  month: boolean;
+  tabs: { id: string; label: string; count?: number }[];
+  tab: string;
+  setTab: (id: string) => void;
+}) {
+  const per = month ? "del mes" : "de la semana";
+  return (
         <>
           <p className="mb-3 max-w-[72ch] border-t-[3px] border-tarjeta bg-tarjeta-suave px-3 py-2 text-interfaz">{data.note}</p>
           <Coverage data={data} />
           {data.coverage.played === 0 ? (
             <div className="pb-10">
-              <Empty>Esta semana aún no se jugó ningún partido de las seis competiciones.</Empty>
+              <Empty>{`${month ? "En este mes" : "Esta semana"} aún no se jugó ningún partido de las seis competiciones.`}</Empty>
             </div>
           ) : (
             <>
-              <div className="grid gap-6 pb-8 lg:grid-cols-2">
-                <Destacado kind="equipo" row={data.team_of_week} />
-                <Destacado kind="jugador" row={data.player_of_week} />
+              <div className="grid gap-x-10 gap-y-8 pb-8 lg:grid-cols-2">
+                <Destacado kind="equipo" per={per} row={data.team_of_week} />
+                <Destacado kind="jugador" per={per} row={data.player_of_week} />
               </div>
-              <Tabs tabs={tabs} current={tab} onSelect={setTab} label="Resumen de la semana">
+              <Radar />
+              <Tabs tabs={tabs} current={tab} onSelect={setTab} label={`Resumen ${per}`}>
                 {tab === "once" && (
                   <Section
-                    title="Once de la semana"
+                    title={`Once ${per}`}
                     intro="En 4-3-3, los que más superaron lo que esperaba el modelo en cada línea. Porteros y defensas suman también los goles que recibió su equipo frente a lo esperado."
                   >
                     <OnceSemana eleven={data.eleven} />
@@ -112,14 +180,12 @@ export function SemanaView() {
                 )}
               </Tabs>
               <p className="pb-10 text-nota text-grafito">
-                Cada dato suma de −1 a +1: 0 es lo esperado y cuanto más raro fue por arriba, más cerca de +1. La semana
-                es la suma de sus partidos.
+                Cada dato suma de −1 a +1: 0 es lo esperado y cuanto más raro fue por arriba, más cerca de +1.{" "}
+                {month ? "El mes" : "La semana"} es la suma de sus partidos.
               </p>
             </>
           )}
         </>
-      )}
-    </>
   );
 }
 
@@ -133,12 +199,12 @@ function Coverage({ data }: { data: WeekRecap }) {
   return <p className="mb-6 text-nota text-grafito">{`${parts.join("; ")}.`}</p>;
 }
 
-function Destacado({ kind, row }: { kind: "equipo" | "jugador"; row: WeekTeam | WeekPlayer | null }) {
-  const title = kind === "equipo" ? "Equipo de la semana" : "Jugador de la semana";
+function Destacado({ kind, per, row }: { kind: "equipo" | "jugador"; per: string; row: WeekTeam | WeekPlayer | null }) {
+  const title = `${kind === "equipo" ? "Equipo" : "Jugador"} ${per}`;
   const player = row && "player_id" in row ? row : null;
   return (
-    <section aria-label={title} className="border border-regla bg-hoja p-5">
-      <h2 className="semi text-base font-bold">{title}</h2>
+    <section aria-label={title} className="border-t-[3px] border-tinta pt-3">
+      <h2 className="cond text-[1.75rem] leading-none font-black uppercase">{title}</h2>
       {!row ? (
         <p className="mt-2 text-nota text-grafito">
           {kind === "equipo"

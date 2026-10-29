@@ -100,15 +100,26 @@ export function weekStart(day: string): string {
 
 /** "del 19 al 25 de octubre" (o "del 27 de octubre al 2 de noviembre") a partir del lunes */
 export function weekLabel(monday: string): string {
+  return rangeLabel(monday, shiftDay(monday, 6));
+}
+
+/** "del 26 de octubre al 22 de noviembre" entre dos fechas AAAA-MM-DD */
+export function rangeLabel(start: string, end: string): string {
   const fmt = (day: string, month: boolean) => {
     const [y, m, d] = day.split("-").map(Number);
     return new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", day: "numeric", ...(month ? { month: "long" } : {}) }).format(
       new Date(Date.UTC(y, m - 1, d)),
     );
   };
-  const sunday = shiftDay(monday, 6);
-  const sameMonth = monday.slice(5, 7) === sunday.slice(5, 7);
-  return `del ${fmt(monday, !sameMonth)} al ${fmt(sunday, true)}`;
+  return `del ${fmt(start, start.slice(5, 7) !== end.slice(5, 7))} al ${fmt(end, true)}`;
+}
+
+/** Lunes desde el que hay un mes (4 semanas completas) con la previa guardada desde `historySince` */
+export function monthAvailableFrom(historySince: string | null | undefined): string | null {
+  if (!historySince) return null;
+  const monday = weekStart(historySince);
+  const firstFull = monday === historySince ? monday : shiftDay(monday, 7);
+  return shiftDay(firstFull, 28);
 }
 
 /** Número con signo: +0.77, −0.47 (0 sin signo) */

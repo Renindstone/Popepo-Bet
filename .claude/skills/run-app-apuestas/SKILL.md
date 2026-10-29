@@ -64,9 +64,10 @@ Las capturas quedan en `/tmp/apuestas-shots/<página>-<desktop|mobile>-<light|da
 | `partido-jugadores` | `/partidos/<primer partido>#jugadores` | Proyección para este partido |
 | `evaluar` | `/evaluar?partido=<primer partido>` | Cuotas de Betano |
 | `capturas` | `/capturas` | Arrastra aquí la captura |
-| `semana` | `/semana` (pestaña Once de la semana) | Equipo de la semana |
-| `semana-equipos` | `/semana#equipos` | Resultado, goles y córners |
-| `semana-jugadores` | `/semana#jugadores` | Remates, remates a puerta |
+| `sorpresas` | `/sorpresas` (semana, radar y pestaña Once) | En el radar |
+| `sorpresas-mes` | `/sorpresas?periodo=mes` | En el radar |
+| `sorpresas-equipos` | `/sorpresas#equipos` | Resultado, goles y córners |
+| `sorpresas-jugadores` | `/sorpresas#jugadores` | Remates, remates a puerta |
 | `rendimiento` | `/rendimiento` | Banca |
 | `datos` | `/datos` | Fuentes |
 

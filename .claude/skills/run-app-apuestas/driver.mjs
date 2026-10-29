@@ -44,9 +44,10 @@ const PAGES = {
   evaluar: { path: null, ready: "Cuotas de Betano" }, // Evaluar con ese partido elegido
   capturas: { path: "/capturas", ready: "Arrastra aquí la captura" },
   // Semana en curso, una entrada por pestaña
-  semana: { path: "/semana", ready: "Equipo de la semana" },
-  "semana-equipos": { path: "/semana#equipos", ready: "Resultado, goles y córners" },
-  "semana-jugadores": { path: "/semana#jugadores", ready: "Remates, remates a puerta" },
+  sorpresas: { path: "/sorpresas", ready: "En el radar" },
+  "sorpresas-mes": { path: "/sorpresas?periodo=mes", ready: "En el radar" },
+  "sorpresas-equipos": { path: "/sorpresas#equipos", ready: "Resultado, goles y córners" },
+  "sorpresas-jugadores": { path: "/sorpresas#jugadores", ready: "Remates, remates a puerta" },
   rendimiento: { path: "/rendimiento", ready: "Banca" },
   datos: { path: "/datos", ready: "Fuentes" },
 };

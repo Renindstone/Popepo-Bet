@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { SemanaView } from "@/components/semana/SemanaView";
 import { Loading } from "@/components/ui";
 
-export const metadata: Metadata = { title: "Semana" };
+export const metadata: Metadata = { title: "Sorpresas" };
 
 export default function Page() {
   return (
