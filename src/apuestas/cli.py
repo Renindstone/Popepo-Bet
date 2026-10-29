@@ -155,17 +155,22 @@ def picks(day: str = typer.Option(None, help="AAAA-MM-DD (hoy por defecto)"), se
 
 @app.command()
 def semana(dia: str = typer.Option(None, "--semana", help="AAAA-MM-DD de cualquier día de la semana (esta por defecto)"),
+           mes: bool = typer.Option(False, "--mes", help="Las 4 semanas completas que terminan en esa semana"),
            as_json: bool = typer.Option(False, "--json")) -> None:
-    """Equipo, jugador y once de la semana: quién superó lo que esperaban la casa y el modelo."""
+    """Equipo, jugador y once de la semana (o del mes): quién superó lo que esperaban la casa y el modelo."""
     from apuestas.services import queries
 
     _logging(False)
-    data = queries.week_recap(dia)
+    data = queries.week_recap(dia, period="mes" if mes else "semana")
     if as_json:
         _print_json(data)
         return
+    if not data["available"]:
+        console.print(f"El mes aún no está disponible: desde el {data['available_from'] or 'cuando haya previas'}.")
+        return
     cov = data["coverage"]
-    console.print(f"Semana del {data['week_start']} al {data['week_end']} ({data['status']}): {cov['played']} jugados, "
+    titulo = "Mes" if mes else "Semana"
+    console.print(f"{titulo} del {data['week_start']} al {data['week_end']} ({data['status']}): {cov['played']} jugados, "
                   f"{cov['with_prediction']} con previa, {cov['scheduled']} por jugarse")
     for title, rows in (("Equipos", data["teams"]), ("Jugadores", data["players"])):
         console.print(f"\n{title}:")

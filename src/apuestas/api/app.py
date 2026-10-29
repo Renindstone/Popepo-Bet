@@ -218,9 +218,10 @@ def pick_record(user: str = Depends(current_user)) -> dict:
 
 
 @app.get("/week")
-def week(day: str | None = None, user: str = Depends(current_user)) -> dict:
-    """Equipo, jugador y once de la semana: quién sorprendió a la casa (equipos) y a nuestro modelo (jugadores)."""
-    return _wrap(queries.week_recap, day)
+def week(day: str | None = None, period: str = "semana", user: str = Depends(current_user)) -> dict:
+    """Equipo, jugador y once de la semana o del mes (4 semanas): quién sorprendió a la casa (equipos) y a nuestro
+    modelo (jugadores)."""
+    return _wrap(queries.week_recap, day, True, period)
 
 
 @app.get("/picks/qualified")

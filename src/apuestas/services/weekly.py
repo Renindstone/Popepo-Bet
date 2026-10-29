@@ -204,10 +204,11 @@ def _rank_key(row: dict) -> tuple:
     return (-round(row["score"], 3), -round(row["mean"], 3), row["name"])
 
 
-def recap(s: Session, monday: date, now: datetime | None = None, detail: bool = True) -> dict:
-    now = now or datetime.now(UTC)
+def score_range(s: Session, start: datetime, end: datetime, now: datetime | None = None) -> dict:
+    """Puntuación de equipos y jugadores en los partidos terminados entre `start` y `end`, ordenados y sin cortar.
+
+    La usan la semana y el mes (`recap`) y el radar (`services/radar.py`)."""
     tz = get_settings().tz
-    start, end = week_bounds(monday)
     codes = [c.code for c in FULL]
     matches = list(s.scalars(
         select(m.Match).join(m.Competition, m.Competition.id == m.Match.competition_id)
@@ -302,7 +303,17 @@ def recap(s: Session, monday: date, now: datetime | None = None, detail: bool = 
             out.append(r)
         return sorted(out, key=_rank_key)
 
-    team_rank, player_rank = finish(teams), finish(players)
+    return {"teams": finish(teams), "players": finish(players), "coverage": cov}
+
+
+def recap(s: Session, monday: date, now: datetime | None = None, detail: bool = True, weeks: int = 1) -> dict:
+    """La semana del lunes dado o, con `weeks=4`, las 4 semanas que terminan en ella (el mes)."""
+    now = now or datetime.now(UTC)
+    tz = get_settings().tz
+    first = monday - timedelta(days=7 * (weeks - 1))
+    start, end = week_bounds(first)[0], week_bounds(monday)[1]
+    scored = score_range(s, start, end, now)
+    team_rank, player_rank, cov = scored["teams"], scored["players"], scored["coverage"]
     slots = []
     for line, n in FORMATION:
         chosen = [p for p in player_rank if p["position"] == line][:n]
@@ -313,13 +324,15 @@ def recap(s: Session, monday: date, now: datetime | None = None, detail: bool = 
             return row
         return {k: v for k, v in row.items() if k != "matches"}
 
-    first = s.scalar(select(func.min(m.Prediction.created_at)))
+    since = s.scalar(select(func.min(m.Prediction.created_at)))
     return {
-        "week_start": monday.isoformat(),
+        "period": "mes" if weeks > 1 else "semana",
+        "weeks": weeks,
+        "week_start": first.isoformat(),
         "week_end": (monday + timedelta(days=6)).isoformat(),
         "status": "en_curso" if now < end else "cerrada",
         "note": NOTE,
-        "history_since": _aware(first).astimezone(tz).date().isoformat() if first else None,
+        "history_since": _aware(since).astimezone(tz).date().isoformat() if since else None,
         "coverage": cov,
         "team_of_week": team_rank[0] if team_rank else None,
         "player_of_week": player_rank[0] if player_rank else None,
@@ -329,7 +342,47 @@ def recap(s: Session, monday: date, now: datetime | None = None, detail: bool = 
     }
 
 
-def week_recap(day: date | None = None, detail: bool = True) -> dict:
-    day = day or datetime.now(get_settings().tz).date()
+# --------------------------------------------------------------------------- el mes: 4 semanas completas
+
+MONTH_WEEKS = 4
+
+
+def first_full_week(s: Session) -> date | None:
+    """Lunes de la primera semana completa con la previa guardada (la de los jugadores)."""
+    first = s.scalar(select(func.min(m.Prediction.created_at)))
+    if first is None:
+        return None
+    d = _aware(first).astimezone(get_settings().tz).date()
+    return d if d.weekday() == 0 else week_start(d) + timedelta(days=7)
+
+
+def month_available(s: Session, last_monday: date, now: datetime) -> bool:
+    """El mes que termina en la semana de `last_monday`: sus 4 semanas acabaron y todas tienen previa."""
+    first = first_full_week(s)
+    if first is None:
+        return False
+    return last_monday - timedelta(days=7 * (MONTH_WEEKS - 1)) >= first and now >= week_bounds(last_monday)[1]
+
+
+def period_recap(s: Session, day: date | None, period: str, now: datetime | None = None, detail: bool = True) -> dict:
+    """La semana del día dado (por defecto, la actual) o el mes que termina en ella (por defecto, en la última
+    semana completa)."""
+    now = now or datetime.now(UTC)
+    today = now.astimezone(get_settings().tz).date()
+    if period == "semana":
+        return {**recap(s, week_start(day or today), now, detail), "available": True}
+    if period != "mes":
+        raise ValueError(f"Periodo desconocido: {period} (semana o mes)")
+    last = week_start(day) if day else week_start(today) - timedelta(days=7)
+    if not month_available(s, last, now):
+        first = first_full_week(s)
+        return {"period": "mes", "weeks": MONTH_WEEKS, "available": False,
+                "available_from": (first + timedelta(days=7 * MONTH_WEEKS)).isoformat() if first else None,
+                "week_start": (last - timedelta(days=7 * (MONTH_WEEKS - 1))).isoformat(),
+                "week_end": (last + timedelta(days=6)).isoformat(), "note": NOTE}
+    return {**recap(s, last, now, detail, weeks=MONTH_WEEKS), "available": True}
+
+
+def week_recap(day: date | None = None, detail: bool = True, period: str = "semana") -> dict:
     with session_scope() as s:
-        return recap(s, week_start(day), detail=detail)
+        return period_recap(s, day, period, detail=detail)

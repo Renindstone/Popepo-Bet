@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
 from apuestas.db import models as m
@@ -173,3 +173,95 @@ def test_mcp_and_api_expose_the_week():
 
     assert "resumen_semana" in {t.name for t in build()._tool_manager.list_tools()}
     assert "/week" in {r.path for r in app.routes}
+
+
+# --------------------------------------------------------------------------- rango de fechas y vista Mes
+
+
+def add_played(s, home, away, kickoff, hg, ag, p_home=2.0, p_draw=3.4, p_away=3.6):
+    """Partido terminado con el 1X2 de Pinnacle antes del inicio: basta para puntuar el resultado."""
+    comp = store.ensure_competitions(s)["EPL"]
+    season = store.get_season(s, comp, 2026)
+    mt = m.Match(competition_id=comp.id, season_id=season.id, kickoff_utc=kickoff, home_team_id=home.id,
+                 away_team_id=away.id, status="finished", home_goals=hg, away_goals=ag)
+    s.add(mt)
+    s.flush()
+    # En SQLite el id BIGINT no se autoincrementa: se numera a mano
+    nxt = (s.scalar(select(func.max(m.OddsSnapshot.id))) or 0) + 1
+    s.add_all([m.OddsSnapshot(id=nxt + i, match_id=mt.id, bookmaker="pinnacle", market="1x2", selection=sel, price=p,
+                              kind="live", source="oddspapi", captured_at=kickoff - timedelta(hours=4))
+               for i, (sel, p) in enumerate((("home", p_home), ("draw", p_draw), ("away", p_away)))])
+    s.flush()
+    return mt
+
+
+def make_teams(s, n):
+    teams = [m.Team(name=f"Equipo {i:02d}") for i in range(n)]
+    s.add_all(teams)
+    s.flush()
+    return teams
+
+
+def no_bundle(monkeypatch):
+    monkeypatch.setattr(weekly.fitting, "load_bundle", lambda: (_ for _ in ()).throw(FileNotFoundError()))
+
+
+def test_score_range_sin_cortar(s, monkeypatch):
+    no_bundle(monkeypatch)
+    t = make_teams(s, 12)
+    for i in range(0, 12, 2):
+        add_played(s, t[i], t[i + 1], KICKOFF + timedelta(hours=i), 1, 0)
+    start, end = weekly.week_bounds(MONDAY)
+    assert len(weekly.score_range(s, start, end)["teams"]) == 12
+
+
+def test_recap_mes_suma_cuatro_semanas(s, monkeypatch):
+    no_bundle(monkeypatch)
+    a, b, c = make_teams(s, 3)
+    first = add_played(s, a, b, KICKOFF, 2, 0)  # semana del 19-10
+    last = add_played(s, a, c, KICKOFF + timedelta(days=21), 0, 1)  # semana del 9-11
+    r = weekly.recap(s, date(2026, 11, 9), now=datetime(2026, 11, 20, tzinfo=UTC), weeks=4)
+    assert r["period"] == "mes" and r["weeks"] == 4
+    assert (r["week_start"], r["week_end"]) == ("2026-10-19", "2026-11-15")
+    row = next(t for t in weekly.score_range(s, *weekly.week_bounds(MONDAY))["teams"] if t["name"] == a.name)
+    mes = next(t for t in r["teams"] if t["name"] == a.name)
+    assert mes["n_matches"] == 2
+    assert {x["match_id"] for x in mes["matches"]} == {first.id, last.id}
+    assert mes["score"] == pytest.approx(row["score"] + next(x["score"] for x in mes["matches"] if x["match_id"] == last.id), abs=1e-3)
+
+
+def add_first_previa(s, created_at):
+    a, b = make_teams(s, 2)
+    mt = add_played(s, a, b, created_at + timedelta(hours=6), 1, 1)
+    s.add(m.Prediction(match_id=mt.id, stage="predicted", model_version="v1", payload={"v": 1},
+                       created_at=created_at, updated_at=created_at))
+    s.flush()
+
+
+def test_mes_disponible(s):
+    add_first_previa(s, datetime(2026, 10, 24, 15, 0, tzinfo=UTC))  # sábado 24-10 en Lima
+    assert weekly.first_full_week(s) == date(2026, 10, 26)
+    now = datetime(2026, 11, 23, 10, 0, tzinfo=UTC)  # lunes 23-11, 05:00 en Lima
+    assert weekly.month_available(s, date(2026, 11, 16), now) is True
+    assert weekly.month_available(s, date(2026, 11, 9), now) is False
+    assert weekly.month_available(s, date(2026, 11, 16), datetime(2026, 11, 22, 12, 0, tzinfo=UTC)) is False
+
+
+def test_mes_no_disponible(s, monkeypatch):
+    no_bundle(monkeypatch)
+    add_first_previa(s, datetime(2026, 10, 24, 15, 0, tzinfo=UTC))
+    r = weekly.period_recap(s, date(2026, 10, 30), "mes", now=datetime(2026, 10, 30, 15, 0, tzinfo=UTC))
+    assert r["available"] is False and r["available_from"] == "2026-11-23" and r["period"] == "mes"
+
+
+def test_mes_sin_previas(s, monkeypatch):
+    no_bundle(monkeypatch)
+    r = weekly.period_recap(s, None, "mes", now=datetime(2026, 10, 30, 15, 0, tzinfo=UTC))
+    assert r["available"] is False and r["available_from"] is None
+
+
+def test_semana_sigue_igual(s, monkeypatch):
+    no_bundle(monkeypatch)
+    build_week(s)
+    r = weekly.period_recap(s, date(2026, 10, 21), "semana", now=datetime(2026, 10, 27, tzinfo=UTC))
+    assert r["period"] == "semana" and r["available"] is True and r["team_of_week"]["name"] == "Arsenal"
