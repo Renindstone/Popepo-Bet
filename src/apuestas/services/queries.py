@@ -16,7 +16,7 @@ from apuestas.core.competitions import FULL
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.models.fitting import load_bundle
-from apuestas.services import analysis, picks, tracker
+from apuestas.services import analysis, picks, radar, tracker
 
 
 class NotFound(LookupError):
@@ -121,18 +121,22 @@ def upcoming(days: int = 3, competition: str | None = None) -> list[dict]:
             loc = dt.astimezone(tz)
             return f"{dias[loc.weekday()]} {loc:%d/%m %H:%M}"
 
+        flagged = radar.flagged_now()
         return [{"match_id": r.id, "competition": r.competition.code,
                  "kickoff_local": local(r.kickoff_utc),
                  "home": r.home_team.name, "away": r.away_team.name,
                  "home_id": r.home_team_id, "away_id": r.away_team_id,
-                 "referee": r.referee.name if r.referee else None, "lineups": r.lineup_status} for r in rows]
+                 "referee": r.referee.name if r.referee else None, "lineups": r.lineup_status,
+                 "alerts": radar.alerts_for_match(s, r, now, flagged)} for r in rows]
 
 
 def match_analysis(ref: str | int) -> dict:
     bundle = load_bundle()
     with session_scope() as s:
         match = find_match(s, ref)
-        return analysis.analyze(s, bundle, match).to_dict()
+        out = analysis.analyze(s, bundle, match).to_dict()
+        out["alerts"] = radar.alerts_for_match(s, match, datetime.now(UTC), radar.flagged_now())
+        return out
 
 
 def evaluate_odds(ref: str | int, market: str, selection: str, odds: float, line: float | None = None,

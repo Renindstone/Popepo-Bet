@@ -19,7 +19,7 @@ from apuestas.core.competitions import FULL
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.models.fitting import ModelBundle, load_bundle
-from apuestas.services import predictions
+from apuestas.services import predictions, radar
 from apuestas.services.analysis import BetEval, MatchAnalysis, analyze, book_fair_prob, is_goal_market
 
 log = logging.getLogger(__name__)
@@ -172,7 +172,21 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
             }
         # Primero las que pasan el corte, luego el resto; dentro de cada grupo, por valor esperado
         report["value_bets"].sort(key=lambda x: (not x["qualifies"], -x["ev"]))
+        try:
+            flagged = radar.flagged_now()
+            attach_alerts(report, {an.match.id: radar.alerts_for_match(s, an.match, now, flagged) for an in analyses})
+        except Exception:  # noqa: BLE001 - sin radar el informe del día sigue sirviendo
+            log.exception("No se pudieron calcular los avisos del radar")
+            attach_alerts(report, {})
     return report
+
+
+def attach_alerts(report: dict, alerts: dict[int, list[dict]]) -> None:
+    """Pone los avisos del radar de cada partido en sus filas, en las apuestas con valor y en la del día."""
+    for row in [*report.get("matches", []), *report.get("value_bets", [])]:
+        row["alerts"] = alerts.get(row["match_id"], [])
+    if report.get("pick_of_day"):
+        report["pick_of_day"]["alerts"] = alerts.get(report["pick_of_day"]["match_id"], [])
 
 
 # --------------------------------------------------------------------------- liquidación

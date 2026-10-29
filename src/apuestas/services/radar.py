@@ -150,6 +150,29 @@ def status(s: Session, as_of: datetime) -> dict[int, dict]:
     return {t["team_id"]: t for t in r["racha"] + r["baja"]}
 
 
+NOTE = "Es un aviso para mirarlo con más cuidado: no cambia la probabilidad ni el corte."
+LINEUP_WORD = {"confirmed": "confirmado", "predicted": "probable"}
+
+
+def alerts_for_match(s: Session, match: m.Match, as_of: datetime, cached: dict[int, dict] | None = None) -> list[dict]:
+    """Avisos de un partido: la ficha del radar de cada equipo que esté en él, con sus figuras en el once o no."""
+    flagged = status(s, as_of) if cached is None else cached
+    rows = [(side, flagged[t]) for side, t in (("home", match.home_team_id), ("away", match.away_team_id)) if t in flagged]
+    if not rows:
+        return []
+    ids = [f["player_id"] for _, row in rows for f in row["figures"]]
+    xi = {} if not ids else {r.player_id: LINEUP_WORD.get(r.status) for r in s.scalars(select(m.Lineup).where(
+        m.Lineup.match_id == match.id, m.Lineup.player_id.in_(ids), m.Lineup.is_starter.is_(True)))}
+    return [{**row, "side": side, "note": NOTE,
+             "figures": [{**f, "lineup": xi.get(f["player_id"])} for f in row["figures"]]} for side, row in rows]
+
+
+def flagged_now() -> dict[int, dict]:
+    """Los equipos del radar de ahora, de la caché (para no recalcular 28 días en cada consulta)."""
+    r = get()
+    return {t["team_id"]: t for t in r["racha"] + r["baja"]}
+
+
 _cache: dict[str, tuple[float, dict]] = {}
 
 

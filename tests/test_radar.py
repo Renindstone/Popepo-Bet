@@ -1,6 +1,6 @@
 """Radar de Sorpresas: equipos en racha y en baja, jugadores en racha y sus próximos partidos."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -101,3 +101,83 @@ def test_api_expone_el_radar():
     from apuestas.api.app import app
 
     assert "/radar" in {r.path for r in app.routes}
+
+
+# --------------------------------------------------------------------------- avisos
+
+
+def radar_row(team, kind, figures=()):
+    return {"team_id": team.id, "name": team.name, "competition": "EPL", "kind": kind, "score": 1.5 if kind == "racha" else -1.5,
+            "n_matches": 2, "reason": {"type": "suma"}, "figures": list(figures), "next_matches": []}
+
+
+def upcoming_match(s, home, away):
+    from apuestas.ingest import store
+
+    comp = store.ensure_competitions(s)["EPL"]
+    season = store.get_season(s, comp, 2026)
+    mt = m.Match(competition_id=comp.id, season_id=season.id, kickoff_utc=AS_OF + timedelta(days=1),
+                 home_team_id=home.id, away_team_id=away.id, status="scheduled")
+    s.add(mt)
+    s.flush()
+    return mt
+
+
+def test_avisos_dos_equipos(s):
+    a, b = make_teams(s, 2)
+    mt = upcoming_match(s, a, b)
+    cached = {a.id: radar_row(a, "racha"), b.id: radar_row(b, "baja")}
+    alerts = radar.alerts_for_match(s, mt, AS_OF, cached)
+    assert [x["side"] for x in alerts] == ["home", "away"]
+    assert [x["kind"] for x in alerts] == ["racha", "baja"]
+    assert all(x["note"] == radar.NOTE for x in alerts)
+
+
+def test_figura_en_el_once(s):
+    a, b = make_teams(s, 2)
+    mt = upcoming_match(s, a, b)
+    p1, p2, p3 = (m.Player(name=n) for n in ("Uno", "Dos", "Tres"))
+    s.add_all([p1, p2, p3])
+    s.flush()
+    s.add_all([m.Lineup(match_id=mt.id, team_id=a.id, player_id=p1.id, status="predicted", is_starter=True),
+               m.Lineup(match_id=mt.id, team_id=a.id, player_id=p2.id, status="confirmed", is_starter=True)])
+    s.flush()
+    figs = [{"player_id": p.id, "name": p.name, "score": 2.0} for p in (p1, p2, p3)]
+    alert = radar.alerts_for_match(s, mt, AS_OF, {a.id: radar_row(a, "racha", figs)})[0]
+    assert [f["lineup"] for f in alert["figures"]] == ["probable", "confirmado", None]
+
+
+def test_sin_radar_sin_avisos(s):
+    a, b = make_teams(s, 2)
+    assert radar.alerts_for_match(s, upcoming_match(s, a, b), AS_OF, {}) == []
+
+
+def test_attach_alerts_pone_la_lista_en_todo():
+    from apuestas.services import picks
+
+    report = {"matches": [{"match_id": 1}, {"match_id": 2}], "value_bets": [{"match_id": 1}, {"match_id": 2}],
+              "pick_of_day": {"match_id": 1}}
+    aviso = {"team_id": 9, "kind": "baja"}
+    picks.attach_alerts(report, {1: [aviso]})
+    assert report["matches"][0]["alerts"] == [aviso] and report["matches"][1]["alerts"] == []
+    assert report["value_bets"][0]["alerts"] == [aviso] and report["value_bets"][1]["alerts"] == []
+    assert report["pick_of_day"]["alerts"] == [aviso]
+
+
+def test_proximos_partidos_llevan_avisos(s, monkeypatch):
+    from contextlib import contextmanager
+
+    from apuestas.services import queries
+
+    @contextmanager
+    def scope():
+        yield s
+
+    monkeypatch.setattr(queries, "session_scope", scope)
+    a, b = make_teams(s, 2)
+    mt = upcoming_match(s, a, b)
+    mt.kickoff_utc = datetime.now(UTC) + timedelta(days=1)
+    s.flush()
+    monkeypatch.setattr(radar, "flagged_now", lambda: {b.id: radar_row(b, "baja")})
+    row = next(r for r in queries.upcoming(days=3) if r["match_id"] == mt.id)
+    assert [(x["side"], x["kind"]) for x in row["alerts"]] == [("away", "baja")]
