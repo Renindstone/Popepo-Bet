@@ -227,3 +227,12 @@ def test_un_fallo_de_las_notas_no_deshace_la_liquidacion(s, monkeypatch):
     p = lost_pod(s)
     assert picks.request_notes(s, [p]) == 0
     assert s.get(m.Pick, p.id).status == "settled"  # la sesión sigue sirviendo
+
+
+def test_una_nota_a_la_vez(s):
+    first = ai_notes.request(s, "fallo", "pick:1", DAY)
+    second = ai_notes.request(s, "fallo", "pick:2", DAY)
+    assert ai_notes.claim(first.id) is True
+    assert ai_notes.claim(second.id) is False  # la API y el worker no lanzan dos Claude a la vez
+    s.refresh(second)
+    assert second.status == "pendiente"

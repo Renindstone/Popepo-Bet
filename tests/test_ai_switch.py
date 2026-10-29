@@ -57,3 +57,14 @@ def test_api_expone_me():
     from apuestas.api.app import app
 
     assert {("/me", "GET"), ("/me", "PUT")} <= {(r.path, meth) for r in app.routes for meth in getattr(r, "methods", ())}
+
+
+def test_reprocesar_captura_con_la_ia_apagada(s):
+    from fastapi import HTTPException
+
+    from apuestas.api.app import reprocess_capture
+
+    queries.set_me(OWNER, ai_enabled=False)
+    with pytest.raises(HTTPException) as exc:
+        reprocess_capture(1, user=OWNER)
+    assert exc.value.status_code == 409 and "IA está apagada" in exc.value.detail

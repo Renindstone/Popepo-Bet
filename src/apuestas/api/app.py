@@ -388,6 +388,10 @@ def capture_image(capture_id: int, user: str = Depends(current_user)) -> FileRes
 def reprocess_capture(capture_id: int, fallback: bool = False, user: str = Depends(current_user)) -> dict:
     """Vuelve a mandar la captura a la IA (p.ej. tras un error). `fallback` la lee con el motor alternativo
     (Claude) en lugar del habitual (la IA local)."""
+    try:
+        queries.require_ai(user)
+    except queries.AiDisabled as exc:
+        raise HTTPException(409, str(exc)) from exc
     st = get_settings()
     if st.captures_engine_for(user) is None:
         raise HTTPException(409, "Tus capturas las procesa tu propio agente por MCP (capturas_pendientes)")

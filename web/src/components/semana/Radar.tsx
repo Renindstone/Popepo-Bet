@@ -16,11 +16,13 @@ export function AlertTag({ alert }: { alert: { name: string; kind: "racha" | "ba
 
 /** Por qué está en el radar: el batacazo o el pinchazo más llamativo, o la suma de las 4 semanas */
 export function reasonText(r: Pick<RadarTeam, "reason" | "score" | "n_matches">): string {
-  const p = r.reason.p_win != null ? pct(r.reason.p_win) : null;
-  if (r.reason.type === "batacazo") return `Batacazo: ${r.reason.label}, con un ${p} de ganar según la casa.`;
-  if (r.reason.type === "pinchazo") return `Pinchazo: ${r.reason.label}, con un ${p} de ganar según la casa.`;
+  const { type, label, date, p_win } = r.reason;
+  const when = date ? ` el ${date.slice(8, 10)}/${date.slice(5, 7)}` : "";
+  const odds = p_win != null ? `, con un ${pct(p_win)} de ganar según la casa` : "";
+  if (type === "batacazo") return `Batacazo: ${label}${when}${odds}.`;
+  if (type === "pinchazo") return `Pinchazo: ${label}${when}${odds}.`;
   const n = r.n_matches === 1 ? "partido" : "partidos";
-  return `Suma ${signedNum(r.score)} en ${r.n_matches} ${n}; el más llamativo, ${r.reason.label}.`;
+  return `Suma ${signedNum(r.score)} en ${r.n_matches} ${n}; el más llamativo, ${label}${when}${odds}.`;
 }
 
 function nextText(matches: NextMatch[]): string {

@@ -560,9 +560,10 @@ function CutTag({ row, short = false }: { row: ValueBet | PastValueBet; short?: 
 
 function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; order: Order }) {
   const [all, setAll] = useState(false);
-  // Fila con el aviso del radar abierto
-  const [open, setOpen] = useState<number | null>(null);
-  const toggle = (i: number) => setOpen(open === i ? null : i);
+  // Apuesta con el aviso del radar abierto, por su identidad (el índice cambia al reordenar o mostrar todas)
+  const [open, setOpen] = useState<string | null>(null);
+  const keyOf = (r: ValueBet | PastValueBet) => `${r.match}|${r.market}|${r.selection}|${r.line}|${"bookmaker" in r ? r.bookmaker : ""}`;
+  const toggle = (r: ValueBet | PastValueBet) => setOpen(open === keyOf(r) ? null : keyOf(r));
   if (input.length === 0) return <Empty>No hay cuotas con valor positivo para este día.</Empty>;
   const rows = sortRows(input, order);
   const shown = all ? rows : rows.slice(0, 12);
@@ -592,8 +593,8 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                 )}
                 {isLive(r) && `, en ${bookmakerName(r.bookmaker)}`}
               </p>
-              {isLive(r) && <AlertTags alerts={r.alerts} open={open === i} onToggle={() => toggle(i)} />}
-              {isLive(r) && open === i && <AlertList alerts={r.alerts} className="mt-2" />}
+              {isLive(r) && <AlertTags alerts={r.alerts} open={open === keyOf(r)} onToggle={() => toggle(r)} />}
+              {isLive(r) && open === keyOf(r) && <AlertList alerts={r.alerts} className="mt-2" />}
               {isLive(r) && (
                 <div className="mt-2">
                   <EdgeBar prob={r.prob} odds={r.odds} compact />
@@ -657,7 +658,7 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                       ) : (
                         r.match
                       )}
-                      {isLive(r) && <AlertTags alerts={r.alerts} open={open === i} onToggle={() => toggle(i)} />}
+                      {isLive(r) && <AlertTags alerts={r.alerts} open={open === keyOf(r)} onToggle={() => toggle(r)} />}
                     </td>
                     <td className={td}>
                       {betLabel(r.market, r.selection, r.line, { home, away })}
@@ -686,7 +687,7 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                       <CutTag row={r} short />
                     </td>
                   </tr>
-                  {isLive(r) && open === i && (
+                  {isLive(r) && open === keyOf(r) && (
                     <tr className="border-b border-regla-suave">
                       <td colSpan={8} className="pt-1 pb-3">
                         <AlertList alerts={r.alerts} />

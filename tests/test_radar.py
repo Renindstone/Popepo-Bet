@@ -130,7 +130,7 @@ def test_avisos_dos_equipos(s):
     alerts = radar.alerts_for_match(s, mt, AS_OF, cached)
     assert [x["side"] for x in alerts] == ["home", "away"]
     assert [x["kind"] for x in alerts] == ["racha", "baja"]
-    assert all(x["note"] == radar.NOTE for x in alerts)
+    assert all(x["caveat"] == radar.NOTE for x in alerts)
 
 
 def test_figura_en_el_once(s):
@@ -211,3 +211,30 @@ def test_un_fallo_del_radar_no_rompe_las_paginas(monkeypatch):
 
     monkeypatch.setattr(radar, "get", boom)
     assert radar.flagged_now() == {}
+
+
+# --------------------------------------------------------------------------- detalles pendientes de la revisión
+
+
+def test_figuras_solo_de_partidos_sorprendentes(s):
+    played, arsenal = build_week(s)
+    played.home_goals, played.away_goals = 0, 1  # Arsenal pierde el partido en que Saka brilló
+    (rival,) = make_teams(s, 1)
+    add_played(s, arsenal, rival, KICKOFF - timedelta(days=2), 1, 0, p_home=5.0, p_draw=4.0, p_away=1.6)  # batacazo
+    s.flush()
+    row = next(x for x in radar.build(s, AS_OF)["racha"] if x["name"] == "Arsenal")
+    assert row["reason"]["type"] == "batacazo"
+    assert "Saka" not in [f["name"] for f in row["figures"]]
+
+
+def test_filas_del_radar_llevan_sus_partidos(s):
+    build_week(s)
+    arsenal = next(x for x in radar.build(s, AS_OF)["racha"] if x["name"] == "Arsenal")
+    assert [x["label"] for x in arsenal["matches"]] == ["Arsenal 2-1 Chelsea"]
+    assert set(arsenal["matches"][0]) == {"match_id", "label", "kickoff_local", "score"}
+
+
+def test_el_aviso_lleva_su_advertencia_aparte_de_la_nota_de_claude(s):
+    a, b = make_teams(s, 2)
+    alert = radar.alerts_for_match(s, upcoming_match(s, a, b), AS_OF, {a.id: radar_row(a, "racha")})[0]
+    assert alert["caveat"] == radar.NOTE and "note" not in alert

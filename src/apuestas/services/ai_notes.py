@@ -22,7 +22,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from apuestas.config import get_settings
 from apuestas.db import models as m
@@ -85,9 +85,13 @@ def after_settle(s: Session, picks: list[m.Pick]) -> int:
 
 def claim(note_id: int) -> bool:
     """La toma para trabajar en ella si sigue pendiente (la API y el worker pueden intentarlo a la vez)."""
+    busy = aliased(m.AiNote)
     with session_scope() as s:
-        res = s.execute(update(m.AiNote).where(m.AiNote.id == note_id, m.AiNote.status == "pendiente")
-                        .values(status="trabajando", updated_at=datetime.now(UTC)))
+        # Una a la vez entre la API y el worker: si otra está en marcha, esta espera a la próxima vuelta del worker
+        res = s.execute(update(m.AiNote).where(
+            m.AiNote.id == note_id, m.AiNote.status == "pendiente",
+            ~select(busy.id).where(busy.status == "trabajando").exists())
+            .values(status="trabajando", updated_at=datetime.now(UTC)))
         return res.rowcount == 1
 
 

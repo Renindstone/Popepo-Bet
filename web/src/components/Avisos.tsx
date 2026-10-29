@@ -36,7 +36,7 @@ export function AlertBox({ alert }: { alert: Alert }) {
       <h4 className="semi text-base leading-snug font-bold">{headline(alert)}</h4>
       <p className="mt-0.5">{reasonText(alert)}</p>
       {figures && <p className="mt-0.5">{figures}</p>}
-      <p className="mt-1 text-nota text-grafito">{alert.note}</p>
+      <p className="mt-1 text-nota text-grafito">{alert.caveat}</p>
     </div>
   );
 }

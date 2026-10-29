@@ -121,8 +121,8 @@ Cuando la **apuesta del día** se liquida como perdida (o medio perdida), se gua
 lo esperado, comparando la **previa guardada** del partido (`prediction.payload`) con lo que pasó
 (`team_match_stats`, `player_match_stats`):
 
-- Goles, remates a puerta y córners de cada equipo frente a lo esperado, con su puntuación (las mismas funciones de
-  `weekly.py`).
+- Resultado, goles y córners de cada equipo frente a lo esperado, con su puntuación (las mismas funciones de
+  `weekly.py`; los remates a puerta del equipo no se puntúan, como en la Semana, porque ninguna casa los cotiza).
 - Los jugadores con mayor puntuación, por arriba y por abajo (como mucho 3).
 - **¿Lo avisaba Sorpresas?**: si alguno de los dos equipos estaba en el radar cuando se generó la apuesta, y si sus
   figuras jugaron.

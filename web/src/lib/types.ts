@@ -565,6 +565,7 @@ export interface RadarTeam {
   n_matches: number;
   reason: { type: "batacazo" | "pinchazo" | "suma"; match_id: number; label: string; date: string; p_win: number | null };
   figures: RadarFigure[];
+  matches?: { match_id: number; label: string; kickoff_local: string; score: number }[];
   next_matches: NextMatch[];
   note?: AiNote | null;
 }
@@ -591,7 +592,7 @@ export interface RadarReport {
 }
 
 /** Aviso de un partido: la ficha del radar de uno de sus equipos, con sus figuras en el once o no */
-export type Alert = Omit<RadarTeam, "note"> & { side: "home" | "away"; note: string };
+export type Alert = Omit<RadarTeam, "note"> & { side: "home" | "away"; caveat: string };
 
 /** El usuario de esta clave y sus ajustes (GET /me) */
 export interface Me {

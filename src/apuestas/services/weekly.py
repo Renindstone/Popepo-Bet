@@ -204,7 +204,7 @@ def _rank_key(row: dict) -> tuple:
     return (-round(row["score"], 3), -round(row["mean"], 3), row["name"])
 
 
-def score_range(s: Session, start: datetime, end: datetime, now: datetime | None = None) -> dict:
+def score_range(s: Session, start: datetime, end: datetime) -> dict:
     """Puntuación de equipos y jugadores en los partidos terminados entre `start` y `end`, ordenados y sin cortar.
 
     La usan la semana y el mes (`recap`) y el radar (`services/radar.py`)."""
@@ -312,7 +312,7 @@ def recap(s: Session, monday: date, now: datetime | None = None, detail: bool = 
     tz = get_settings().tz
     first = monday - timedelta(days=7 * (weeks - 1))
     start, end = week_bounds(first)[0], week_bounds(monday)[1]
-    scored = score_range(s, start, end, now)
+    scored = score_range(s, start, end)
     team_rank, player_rank, cov = scored["teams"], scored["players"], scored["coverage"]
     slots = []
     for line, n in FORMATION:

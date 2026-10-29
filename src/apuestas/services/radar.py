@@ -102,7 +102,7 @@ def build(s: Session, as_of: datetime) -> dict:
     """El radar a la fecha dada: los partidos terminados en los 28 días anteriores."""
     as_of = weekly._aware(as_of)
     start = as_of - timedelta(days=WINDOW_DAYS)
-    scored = weekly.score_range(s, start, as_of, as_of)
+    scored = weekly.score_range(s, start, as_of)
 
     teams: list[dict] = []
     for t in scored["teams"]:
@@ -113,7 +113,8 @@ def build(s: Session, as_of: datetime) -> dict:
         if kind:
             teams.append({**t, "kind": kind})
 
-    by_team_matches = {t["team_id"]: {x["match_id"] for x in t["matches"]} for t in teams}
+    # Figuras: de los partidos en que el equipo sorprendió para bien, no de cualquiera de la ventana
+    by_team_matches = {t["team_id"]: {x["match_id"] for x in t["matches"] if x["score"] > 0} for t in teams}
     figures: dict[int, list[dict]] = {t: [] for t in by_team_matches}
     for p in scored["players"]:
         own = by_team_matches.get(p["team_id"])
@@ -133,6 +134,7 @@ def build(s: Session, as_of: datetime) -> dict:
         figs = sorted(figures.get(t["team_id"], []), key=lambda f: -f["score"])[:MAX_FIGURES] if t["kind"] == "racha" else []
         return {"team_id": t["team_id"], "name": t["name"], "competition": t["competition"], "kind": t["kind"],
                 "score": t["score"], "n_matches": t["n_matches"], "reason": _reason(t, t["kind"]), "figures": figs,
+                "matches": [{k: x[k] for k in ("match_id", "label", "kickoff_local", "score")} for x in t["matches"]],
                 "next_matches": nxt.get(t["team_id"], [])}
 
     def player_row(p: dict) -> dict:
@@ -174,7 +176,7 @@ def alerts_for_match(s: Session, match: m.Match, as_of: datetime, cached: dict[i
         # Sin once publicado de ese equipo no se sabe: no es lo mismo que «fuera del once»
         return xi.get(player_id) if team_id in published else "sin_once"
 
-    return [{**row, "side": side, "note": NOTE,
+    return [{**row, "side": side, "caveat": NOTE,
              "figures": [{**f, "lineup": lineup(row["team_id"], f["player_id"])} for f in row["figures"]]}
             for side, row in rows]
 
