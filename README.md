@@ -1,6 +1,6 @@
 # Popepo-Bet ⚽
 
-Análisis de apuestas de fútbol **prepartido** con modelos estadísticos para la **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1 y Champions League**.
+Análisis de apuestas de fútbol **prepartido** con modelos estadísticos para la **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica) y Champions League**.
 Calcula la probabilidad de cada mercado, la compara con la cuota de la casa (bet365, Betano) y propone una apuesta del día. Se usa desde un **panel web**, desde Claude (u otro agente) por **MCP**, por **API REST** o por **Telegram**.
 
 No promete ganancias: el backtest dice con honestidad dónde el modelo no le gana a la casa (ver [más abajo](#resultado-del-backtest-honesto)).
@@ -9,7 +9,7 @@ No promete ganancias: el backtest dice con honestidad dónde el modelo no le gan
 
 - **Recoge datos gratis**: football-data.co.uk (resultados, estadísticas y cuotas de cierre de bet365), FotMob (datos Opta: estadísticas, alineaciones previstas y confirmadas, lesiones, sanciones, árbitros y estadísticas por jugador; de la Europa League y la Conference solo el árbitro y las estadísticas de equipo de los partidos jugados, sin alineaciones ni jugadores) y Understat (segundo modelo de xG). Opcional: OddsPapi para las cuotas de **Betano** y Pinnacle antes de cada partido. Ver [docs/fuentes.md](docs/fuentes.md).
 - **Valida las fuentes entre sí**: los conteos (remates, córners, tarjetas…) se comparan y se marcan discrepancias; el xG se promedia entre proveedores. Si una fuente se cae, las demás siguen y el panel muestra el motivo.
-- **Modelos**: fuerza de ataque y defensa conjunta para 17 competiciones (las cinco grandes ligas, la Champions, la Europa League, la Conference y nueve ligas más que conectan la escala para rivales europeos y equipos ascendidos), con los ratings implícitos de las cuotas de cierre. Dixon-Coles para goles y binomial negativa para remates, remates a puerta, córners, faltas y tarjetas, con el **factor de árbitro** y el reparto entre los dos equipos guiado por el 1X2 de la casa. Ver [docs/modelos.md](docs/modelos.md).
+- **Modelos**: fuerza de ataque y defensa conjunta para 17 competiciones (las cinco grandes ligas, Portugal, Bélgica, la Champions, la Europa League, la Conference y siete ligas más que conectan la escala para rivales europeos y equipos ascendidos), con los ratings implícitos de las cuotas de cierre. Dixon-Coles para goles y binomial negativa para remates, remates a puerta, córners, faltas y tarjetas, con el **factor de árbitro** y el reparto entre los dos equipos guiado por el 1X2 de la casa. Ver [docs/modelos.md](docs/modelos.md).
 - **Jugadores**: goles, asistencias y «gol o asistencia» como parte de los goles de su equipo; remates, remates a puerta, faltas y tarjetas por jugador, con sus minutos esperados.
 - **Alineaciones y bajas**: compara el once (previsto o confirmado) con el once típico del equipo según el valor de mercado y el rating de cada jugador. Que falte un Szoboszlai baja el ataque y la defensa del Liverpool. El once confirmado se busca 70, 50, 35, 20 y 10 minutos antes del inicio.
 - **Dificultad del rival** para cada equipo (Fácil → Difícil) y **contexto**: descanso, calendario cargado y riesgo de rotación si juega Champions en ≤4 días.
