@@ -185,6 +185,7 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
         return {
             "date": d.isoformat(),
             "pick_of_day": None if pod is None else {
+                "pick_id": pod.id, "match_id": pod.match_id,
                 "match": f"{pod.match.home_team.name} vs {pod.match.away_team.name}", "market": pod.market,
                 "selection": pod.selection, "line": pod.line, "odds": pod.odds, "ev": pod.ev,
                 "result": pod.result, "clv": pod.clv},

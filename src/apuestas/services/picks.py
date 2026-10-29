@@ -365,7 +365,8 @@ def pick_history(days: int = 60, only_pick_of_day: bool = True) -> dict:
             "picks": n, "profit_units": round(pl, 2), "roi": round(pl / n, 4) if n else None,
             "hit_rate": round(wins / n, 3) if n else None,
             "avg_clv": round(sum(clvs) / len(clvs), 4) if clvs else None,
-            "last": [{"date": p.pick_date.isoformat(), "match": f"{p.match.home_team.name} vs {p.match.away_team.name}",
+            "last": [{"pick_id": p.id, "date": p.pick_date.isoformat(),
+                      "match": f"{p.match.home_team.name} vs {p.match.away_team.name}",
                       "market": p.market, "selection": p.selection, "line": p.line, "odds": p.odds,
                       "result": p.result, "clv": p.clv} for p in sorted(picks, key=lambda p: p.pick_date)[-10:]],
         }
