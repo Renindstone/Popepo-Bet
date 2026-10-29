@@ -105,7 +105,7 @@ def lost_pod(s, result="loss"):
     mt = add_played(s, a, b, KICKOFF, 0, 1)
     p = m.Pick(match_id=mt.id, pick_date=date(2026, 10, 20), stage="confirmed", market="1x2", selection="home",
                bookmaker="betano", odds=2.0, model_prob=0.55, fair_odds=1.8, ev=0.1, confidence=0.7, stake_pct=0.02,
-               is_pick_of_day=True, qualifies=True, status="settled", result=result,
+               is_pick_of_day=True, was_pick_of_day=True, qualifies=True, status="settled", result=result,
                created_at=KICKOFF - timedelta(hours=6))
     s.add(p)
     s.flush()

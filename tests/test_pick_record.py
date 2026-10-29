@@ -9,7 +9,7 @@ from apuestas.services.picks import record_from
 
 
 def pick(status, result=None, odds=2.0, created=datetime(2026, 10, 20, 14, tzinfo=UTC), clv=None):
-    return SimpleNamespace(status=status, result=result, odds=odds, created_at=created, clv=clv)
+    return SimpleNamespace(status=status, result=result, odds=odds, announced_odds=odds, created_at=created, clv=clv)
 
 
 def test_empty_record():

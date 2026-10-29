@@ -75,7 +75,7 @@ def auto_enabled(s: Session) -> bool:
 
 def after_settle(s: Session, picks: list[m.Pick]) -> int:
     """Tras liquidar: pide la explicación de cada apuesta del día perdida. Devuelve cuántas pidió."""
-    lost = [p for p in picks if p.is_pick_of_day and p.result in LOST]
+    lost = [p for p in picks if p.was_pick_of_day and p.result in LOST]
     if not lost or not auto_enabled(s):
         return 0
     for p in lost:

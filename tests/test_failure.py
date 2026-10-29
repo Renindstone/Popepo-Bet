@@ -30,7 +30,8 @@ def s(monkeypatch):
 def lost_pick(s, match, result="loss", pod=True):
     p = m.Pick(match_id=match.id, pick_date=date(2026, 10, 20), stage="confirmed", market="1x2", selection="away",
                bookmaker="betano", odds=3.5, model_prob=0.33, fair_odds=3.0, ev=0.15, confidence=0.7, stake_pct=0.02,
-               is_pick_of_day=pod, qualifies=True, status="settled", result=result,
+               is_pick_of_day=pod, was_pick_of_day=pod, qualifies=True, status="settled", result=result,
+               announced_at=KICKOFF - timedelta(hours=6), announced_odds=3.5,
                created_at=KICKOFF - timedelta(hours=6))
     s.add(p)
     s.flush()

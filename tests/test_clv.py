@@ -83,7 +83,8 @@ def test_set_clv_on_a_settled_pick(s):
     odds(s, mt, [("pinnacle", "live", "under", 2.5, 1.80, 14), ("pinnacle", "live", "over", 2.5, 2.00, 14)])
     pick = m.Pick(match_id=mt.id, pick_date=date(2026, 10, 25), stage="confirmed", market="ou_goals_home",
                   selection="under", line=2.5, bookmaker="betano", odds=1.93, model_prob=0.6, fair_odds=1.67,
-                  ev=0.1, confidence=0.8, stake_pct=0.01, qualifies=True, status="settled", result="win")
+                  ev=0.1, confidence=0.8, stake_pct=0.01, qualifies=True, status="settled", result="win",
+                  announced_at=datetime(2026, 10, 25, 9, tzinfo=UTC), announced_odds=1.93)
     s.add(pick)
     s.flush()
     assert picks.set_clv(s, pick)
@@ -101,7 +102,8 @@ def test_settled_without_reference_says_why(s):
     mt = match(s)
     s.add(m.Pick(match_id=mt.id, pick_date=date(2026, 10, 25), stage="confirmed", market="dnb", selection="home",
                  bookmaker="betano", odds=1.5, model_prob=0.7, fair_odds=1.43, ev=0.05, confidence=0.8,
-                 stake_pct=0.01, qualifies=True, status="settled", result="win"))
+                 stake_pct=0.01, qualifies=True, status="settled", result="win",
+                 announced_at=datetime(2026, 10, 25, 9, tzinfo=UTC), announced_odds=1.5))
     s.flush()
     row = picks.qualified_picks(days=10_000)["picks"][0]
     assert row["clv"] is None and row["clv_ref"] is None and "Pinnacle" in row["clv_note"]

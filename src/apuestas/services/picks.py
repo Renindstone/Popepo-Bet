@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, date, datetime, time, timedelta
 
-from sqlalchemy import select, text
+from sqlalchemy import and_, or_, select, text
 from sqlalchemy.orm import Session
 
 from apuestas.betting import odds as oddsmath
@@ -63,10 +63,14 @@ def score(b: BetEval) -> float:
 
 
 def _upsert_pick(s: Session, match: m.Match, b: BetEval, day: date, stage: str) -> m.Pick:
-    pick = s.scalar(select(m.Pick).where(
-        m.Pick.match_id == match.id, m.Pick.market == b.market, m.Pick.selection == b.selection,
-        m.Pick.line.is_(None) if b.line is None else m.Pick.line == b.line,
-        m.Pick.bookmaker == b.bookmaker, m.Pick.status == "open"))
+    same = (m.Pick.match_id == match.id, m.Pick.market == b.market, m.Pick.selection == b.selection,
+            m.Pick.line.is_(None) if b.line is None else m.Pick.line == b.line, m.Pick.bookmaker == b.bookmaker)
+    pick = s.scalar(select(m.Pick).where(*same, m.Pick.status == "open"))
+    if pick is None:  # retirada ese día que recupera el valor: se reabre en lugar de duplicarla
+        pick = s.scalar(select(m.Pick).where(*same, m.Pick.status == "withdrawn", m.Pick.pick_date == day,
+                                             m.Pick.result.is_(None)))
+        if pick is not None:
+            pick.status = "open"
     if pick is None:
         pick = m.Pick(match_id=match.id, pick_date=day, market=b.market, selection=b.selection, line=b.line,
                       bookmaker=b.bookmaker)
@@ -74,7 +78,27 @@ def _upsert_pick(s: Session, match: m.Match, b: BetEval, day: date, stage: str) 
     pick.stage, pick.odds, pick.model_prob, pick.fair_odds = stage, b.odds, b.prob, b.fair_odds
     pick.ev, pick.confidence, pick.stake_pct, pick.reasons = b.ev, b.confidence, b.stake_pct, b.reasons
     pick.qualifies = qualifies(b)
+    if pick.qualifies and pick.announced_at is None:
+        _announce(pick)
     return pick
+
+
+def _announce(pick: m.Pick) -> None:
+    """Copia fija de lo que se vio en Hoy la primera vez que pasó el corte."""
+    pick.announced_at = datetime.now(UTC)
+    pick.announced_odds, pick.announced_prob, pick.announced_ev = pick.odds, pick.model_prob, pick.ev
+
+
+def _announce_pod(pick: m.Pick) -> None:
+    """Marca que fue la apuesta del día (aunque luego el recálculo elija otra o se retire)."""
+    pick.was_pick_of_day = True
+    if pick.announced_at is None:
+        _announce(pick)
+
+
+def taken_odds(p: m.Pick) -> float:
+    """La cuota que se anunció (la que se habría tomado); si no se anunció, la del último cálculo."""
+    return p.announced_odds or p.odds
 
 
 def _lock_day(s: Session, day: date) -> None:
@@ -163,6 +187,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
             if current is not None and current.id != chosen.id:
                 current.is_pick_of_day = False
             chosen.is_pick_of_day = True
+            _announce_pod(chosen)
         else:
             chosen = None
             if current is not None:
@@ -248,7 +273,8 @@ def set_clv(s: Session, row: m.Pick | m.UserBet) -> bool:
     if ref is None:
         return False
     row.closing_odds, book, at = ref
-    row.clv = round(oddsmath.clv(row.odds, row.closing_odds), 4)
+    taken = taken_odds(row) if isinstance(row, m.Pick) else row.odds
+    row.clv = round(oddsmath.clv(taken, row.closing_odds), 4)
     if isinstance(row, m.Pick):
         row.closing_source, row.closing_at = book, at
     return True
@@ -258,7 +284,10 @@ def settle_all() -> dict:
     out = {"picks": 0, "bets": 0}
     with session_scope() as s:
         settled = []
-        for pick in s.scalars(select(m.Pick).where(m.Pick.status == "open")):
+        # Las abiertas y las retiradas que llegaron a anunciarse (cuentan en los contadores con lo anunciado)
+        for pick in s.scalars(select(m.Pick).where(or_(
+                m.Pick.status == "open",
+                and_(m.Pick.status == "withdrawn", m.Pick.announced_at.is_not(None), m.Pick.result.is_(None))))):
             try:
                 res = settle(s, pick.match, pick.market, pick.selection, pick.line)
             except Exception:  # noqa: BLE001 - un dato roto no puede frenar la liquidación de las demás
@@ -266,7 +295,9 @@ def settle_all() -> dict:
                 continue
             if res is None:
                 continue
-            pick.result, pick.status = res, "settled"
+            pick.result = res
+            if pick.status == "open":
+                pick.status = "settled"
             set_clv(s, pick)
             settled.append(pick)
             out["picks"] += 1
@@ -319,17 +350,17 @@ def record_from(rows: list) -> dict:
     liquidadas que tienen referencia (`with_clv`).
     `since` es el día (en Lima) en que el sistema eligió la primera.
     """
-    settled = [p for p in rows if p.status == "settled"]
+    settled = [p for p in rows if p.result is not None]
     hits = sum(1 for p in settled if p.result in HIT_RESULTS)
     misses = sum(1 for p in settled if p.result in MISS_RESULTS)
     pushes = sum(1 for p in settled if p.result in PUSH_RESULTS)
-    pl = sum(profit(p.result, 1.0, p.odds) for p in settled)
+    pl = sum(profit(p.result, 1.0, taken_odds(p)) for p in settled)
     decided = hits + misses
     clvs = [p.clv for p in settled if p.clv is not None]
     return {
         "since": min((p.created_at for p in rows), default=None),
         "settled": len(settled), "hits": hits, "misses": misses, "pushes": pushes,
-        "pending": sum(1 for p in rows if p.status == "open"),
+        "pending": sum(1 for p in rows if p.result is None),
         "hit_rate": round(hits / decided, 3) if decided else None,
         "profit_units": round(pl, 2), "roi": round(pl / len(settled), 4) if settled else None,
         "avg_clv": round(sum(clvs) / len(clvs), 4) if clvs else None, "with_clv": len(clvs),
@@ -349,10 +380,10 @@ def clv_fields(p: m.Pick) -> dict:
 
 
 def pick_record() -> dict:
-    """Aciertos de la apuesta del día desde el primer día del sistema (las retiradas al recalcular no cuentan)."""
+    """Aciertos de la apuesta del día desde el primer día del sistema: todas las que se anunciaron como apuesta del
+    día, con la cuota anunciada, aunque luego se retiraran o el recálculo eligiera otra."""
     with session_scope() as s:
-        rows = list(s.scalars(select(m.Pick).where(
-            m.Pick.is_pick_of_day.is_(True), m.Pick.status.in_(("open", "settled")))))
+        rows = list(s.scalars(select(m.Pick).where(m.Pick.was_pick_of_day.is_(True))))
         out = record_from(rows)
     if out["since"]:
         out["since"] = out["since"].astimezone(get_settings().tz).date().isoformat()
@@ -362,13 +393,12 @@ def pick_record() -> dict:
 def qualified_picks(days: int = 60) -> dict:
     """Todas las que pasaron el corte (no solo la apuesta del día): aciertos desde el inicio y las de los últimos días.
 
-    Cuenta el último cálculo antes del partido: las retiradas o las que dejaron de pasar el corte no cuentan.
+    Cuenta lo anunciado (la primera vez que pasó el corte), aunque luego se retirara o dejara de pasarlo.
     """
     tz = get_settings().tz
     since = today_local() - timedelta(days=days)
     with session_scope() as s:
-        rows = list(s.scalars(select(m.Pick).where(
-            m.Pick.qualifies.is_(True), m.Pick.status.in_(("open", "settled")))))
+        rows = list(s.scalars(select(m.Pick).where(m.Pick.announced_at.is_not(None))))
         record = record_from(rows)
         if record["since"]:
             record["since"] = record["since"].astimezone(tz).date().isoformat()
@@ -380,10 +410,11 @@ def qualified_picks(days: int = 60) -> dict:
             "kickoff_local": p.match.kickoff_utc.astimezone(tz).strftime("%Y-%m-%d %H:%M"),
             "match": f"{p.match.home_team.name} vs {p.match.away_team.name}",
             "market": p.market, "selection": p.selection, "line": p.line, "bookmaker": p.bookmaker,
-            "odds": p.odds, "prob": round(p.model_prob, 3), "ev": round(p.ev, 3),
-            "confidence": round(p.confidence, 2), "is_pick_of_day": p.is_pick_of_day,
+            "odds": taken_odds(p), "prob": round(p.announced_prob or p.model_prob, 3),
+            "ev": round(p.announced_ev if p.announced_ev is not None else p.ev, 3),
+            "confidence": round(p.confidence, 2), "is_pick_of_day": p.was_pick_of_day,
             "status": p.status, "result": p.result, **clv_fields(p),
-            "profit_units": round(profit(p.result, 1.0, p.odds), 2) if p.result else None,
+            "profit_units": round(profit(p.result, 1.0, taken_odds(p)), 2) if p.result else None,
         } for p in recent]}
 
 
@@ -391,12 +422,12 @@ def pick_history(days: int = 60, only_pick_of_day: bool = True) -> dict:
     """Rendimiento histórico de los picks del sistema (stake plano de 1 unidad)."""
     since = today_local() - timedelta(days=days)
     with session_scope() as s:
-        q = select(m.Pick).where(m.Pick.status == "settled", m.Pick.pick_date >= since)
+        q = select(m.Pick).where(m.Pick.result.is_not(None), m.Pick.pick_date >= since)
         if only_pick_of_day:
-            q = q.where(m.Pick.is_pick_of_day.is_(True))
+            q = q.where(m.Pick.was_pick_of_day.is_(True))
         picks = list(s.scalars(q))
         n = len(picks)
-        pl = sum(profit(p.result, 1.0, p.odds) for p in picks)
+        pl = sum(profit(p.result, 1.0, taken_odds(p)) for p in picks)
         wins = sum(1 for p in picks if p.result in ("win", "half_win"))
         clvs = [p.clv for p in picks if p.clv is not None]
         return {
@@ -405,6 +436,6 @@ def pick_history(days: int = 60, only_pick_of_day: bool = True) -> dict:
             "avg_clv": round(sum(clvs) / len(clvs), 4) if clvs else None,
             "last": [{"pick_id": p.id, "date": p.pick_date.isoformat(),
                       "match": f"{p.match.home_team.name} vs {p.match.away_team.name}",
-                      "market": p.market, "selection": p.selection, "line": p.line, "odds": p.odds,
+                      "market": p.market, "selection": p.selection, "line": p.line, "odds": taken_odds(p),
                       "result": p.result, "clv": p.clv} for p in sorted(picks, key=lambda p: p.pick_date)[-10:]],
         }

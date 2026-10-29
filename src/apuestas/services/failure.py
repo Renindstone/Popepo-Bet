@@ -55,6 +55,6 @@ def get(pick_id: int) -> dict:
     """«Por qué falló» de una apuesta del día perdida (o medio perdida)."""
     with session_scope() as s:
         pick = s.get(m.Pick, pick_id)
-        if pick is None or not pick.is_pick_of_day or pick.result not in LOST:
+        if pick is None or not pick.was_pick_of_day or pick.result not in LOST:
             raise queries.NotFound(f"La apuesta {pick_id} no es una apuesta del día perdida")
         return analyze(s, pick)
