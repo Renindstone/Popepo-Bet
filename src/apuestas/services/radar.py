@@ -155,7 +155,10 @@ def status(s: Session, as_of: datetime) -> dict[int, dict]:
     return {t["team_id"]: t for t in r["racha"] + r["baja"]}
 
 
-NOTE = "Es un aviso para mirarlo con más cuidado: no cambia la probabilidad ni el corte."
+# Medido con el historial desde 2023 (experimentos/sorpresas/repiten.py): en el partido siguiente, los equipos en racha
+# ganan un 37,7 % frente al 37,8 % que les daba la casa y los en baja tampoco siguen cayendo
+NOTE = ("Es un aviso para mirarlo con más cuidado, no una señal: desde 2023, quien dio la sorpresa no la repite más de "
+        "lo que espera la casa, así que no cambia la probabilidad ni el corte.")
 LINEUP_WORD = {"confirmed": "confirmado", "predicted": "probable"}
 
 

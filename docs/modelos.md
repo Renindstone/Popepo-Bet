@@ -736,6 +736,12 @@ No cambia el modelo ni las apuestas (no hace falta backtest): resume cada semana
   mucho 8 por lista.
 - **Avisos**: la ficha del radar de cada equipo de un partido próximo, con sus figuras en el once o no. **No cambian
   la probabilidad, la confianza ni el corte**: falta medir si los que dan la sorpresa la repiten.
+- **¿Se repiten las sorpresas? No** (medido el 29-10-2026 con `experimentos/sorpresas/repiten.py`: 11.352 partidos de
+  equipo desde 2023-07 de las seis competiciones, resultado contra el 1X2 sin margen antes del partido). En el
+  partido siguiente, la puntuación del resultado frente a la casa es +0,000 ± 0,013 en racha (n = 3.322; ganan un
+  37,7 % frente al 37,8 % de la casa), +0,000 ± 0,021 en racha con batacazo (30,5 % frente a 31,0 %), −0,003 ± 0,014
+  en baja y +0,034 ± 0,039 en baja con pinchazo (si acaso rebotan, no siguen cayendo). La casa ya lo recoge: el aviso
+  se queda como aviso, sin tocar la confianza, y lo dice.
 - **Por qué falló**: la previa frente a lo que pasó en la apuesta del día perdida, con la misma puntuación, y si el
   radar marcaba a alguno de los equipos cuando se generó la apuesta. Ejemplo real: Sassuolo +1 (3 vías) del 27-10
   perdió 2-6; Lazio estaba en racha tras ganar 0-3 en Turín con un 17 % y su figura Kenneth Taylor jugó.
@@ -749,7 +755,14 @@ No cambia el modelo ni las apuestas (no hace falta backtest): resume cada semana
 - Guardar el historial de onces previstos para calibrar su β por separado.
 - Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
 - Medir la antigüedad de las observaciones del mercado en jornadas en lugar de días, para no perder el mercado durante el parón de verano.
-- Backtest de props cuando haya cuotas guardadas de Betano (OddsPapi).
+- Backtest de props cuando haya cuotas guardadas de Betano: OddsPapi no descarga props de jugador, así que hoy no hay con
+  qué compararlos.
+- **Córners y tarjetas frente a Betano** (medido el 29-10-2026 con `experimentos/validacion/estadisticas_betano.py`, 34
+  partidos con previa y cuotas de Betano): pérdida logarítmica del modelo menos la de Betano sin margen +0,0016 ± 0,0063
+  en córners (1.128 líneas) y +0,0050 ± 0,0134 en tarjetas (576); apostar lo que el modelo ve con valor ≥ 3 % rinde
+  −15 % ± 20 % en córners (204) y +2 % ± 11 % en tarjetas (223), con intervalos optimistas porque las líneas de un
+  partido están correlacionadas. Ni mejor ni peor que Betano de forma clara: siguen fuera de la apuesta del día
+  (`pick_allow_stat_markets=False`). Repetirlo cuando haya unos 150 partidos (hacia diciembre).
 - Faltas con el nivel reciente de cada liga (como los remates y las tarjetas desde el 22-10-2026): mejora las cinco ligas pero empeora las copas, y pasa por el factor del árbitro (sección 7, "Remates de 2026-27").
 - Tarjetas del equipo en 2026-27: con el nivel de cada liga, la Serie A y la Bundesliga quedan en 1,04-1,05 y la Champions en 1,09 (aún algo altas: las tarjetas siguen bajando), y la Premier en 0,94 (en 2026-27 sube, al revés que las demás, y el nivel la contrae hacia el de todas). Volver a medirlo cuando haya más partidos de la temporada.
 - Suplentes del once confirmado: el modelo supone que cada uno sale el 55 % de las veces y juega 22 minutos; de julio a octubre de 2026 salió el 45 % y jugó 20 (todos sus mercados salen algo altos). Y las apuestas a un suplente que no sale se anulan, así que su probabilidad debería ser la de si sale; hoy cuenta que puede no salir («Sí» sale bajo y «No» alto).

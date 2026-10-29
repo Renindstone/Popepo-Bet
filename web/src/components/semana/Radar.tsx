@@ -165,7 +165,7 @@ export function Radar() {
   return (
     <Section
       title="En el radar"
-      intro="Los equipos y jugadores que más se salieron de lo esperado en las últimas 4 semanas, con su próximo partido, para seguirlos de cerca. Un batacazo es ganar cuando la casa daba un 25 % o menos; un pinchazo, perder cuando daba un 60 % o más. Es un aviso: no cambia la probabilidad ni el corte."
+      intro="Los equipos y jugadores que más se salieron de lo esperado en las últimas 4 semanas, con su próximo partido, para seguirlos de cerca. Un batacazo es ganar cuando la casa daba un 25 % o menos; un pinchazo, perder cuando daba un 60 % o más. Es un aviso, no una señal: con el historial desde 2023, quien dio la sorpresa no la repite más de lo que espera la casa."
     >
       {error ? (
         <ErrorNote error={error} onRetry={refresh} />
