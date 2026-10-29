@@ -212,6 +212,15 @@ Limitación: en partidos antiguos el valor de mercado es el de la fecha de desca
 
 - **Probabilidad final** = 25 % modelo + 75 % mercado afilado (Pinnacle/Betfair sin margen) cuando existe. Si no existe, solo el modelo.
 - **Valor esperado** = prob × cuota − 1 (corregido por la probabilidad de devolución en líneas asiáticas).
+- **Mezcla aprendida y probabilidad de valor: medidas y no aplicadas** (29-10-2026, `experimentos/validacion/apilado.py`, 19.241 selecciones candidatas del backtest 2024-26 con Pinnacle). El peso del modelo se aprendió cada mes con los meses anteriores (mínima pérdida logarítmica de la mezcla lineal), por mercado: en 1X2 y hándicap asiático baja a 0 (media 0,08 y 0,11) y en goles 2.5 acaba en 0,27. Ninguna mezcla se distingue de la fija:
+
+  | Mercado | Aprendida − fija | Pinnacle sola − fija | Modelo solo − fija |
+  | --- | --- | --- | --- |
+  | 1X2 | −0,0002 ± 0,0004 | −0,0003 ± 0,0005 | +0,0029 ± 0,0014 |
+  | Más/Menos 2.5 | +0,0001 ± 0,0003 | +0,0002 ± 0,0003 | +0,0006 ± 0,0010 |
+  | Hándicap asiático | −0,0001 ± 0,0006 | −0,0004 ± 0,0006 | +0,0049 ± 0,0019 |
+
+  Pérdida logarítmica por selección, negativo = mejor, margen del 95 % pareado. Con valor ≥ 3 % contra bet365, la aprendida da menos apuestas, pero ninguna regla tiene muestra para decir nada: 1X2, 30 con la fija (rendimiento −30 % ± 47 %, CLV +4,3 %) y 11 con la aprendida (+9 % ± 90 %, CLV +6,0 %); hándicap, 64 y 65 (CLV +1,5 % y −0,9 %). Elegir por la **probabilidad de valor** (P(p > 1/cuota) con la desviación del cierre de bet365 frente a la mezcla en los meses anteriores) tampoco ayuda: en hándicap, con P ≥ 60 %, 133 apuestas con CLV −0,8 % (37 % ganan al cierre), y con P ≥ 75 %, 34 con −38 % ± 28 %. Sin la varianza propia de cada predicción (la daría la fuerza dinámica, sección 1) esta probabilidad es solo el valor dividido por una σ por mercado y ordena casi igual que el valor. Se mantiene el 25 % fijo.
 - **Confianza** (0-1) = alineación (confirmada 1 · prevista 0,85 · solo bajas 0,72; el último once que FotMob da cuando aún no tiene probable cuenta como previsto, y solo el oficial como confirmado) × muestra × tipo de mercado (principal 1 / estadísticas 0,75 / jugador 0,65) × acuerdo modelo-mercado × riesgo de rotación × cobertura del mercado (abajo).
 - **Equipos que el mercado no ha visto** (`analysis.MARKET_COVERED`). Se cuentan los partidos de cada equipo con cuotas de cierre en el último año (`RatingModel.market_matches`). Si alguno de los dos equipos tiene menos de 10:
   - la confianza se multiplica por un factor que baja linealmente hasta 0,6 con 0 partidos;
