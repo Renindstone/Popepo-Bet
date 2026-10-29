@@ -58,9 +58,29 @@ function Investigar({ kind, id, note, onDone }: { kind: "team" | "player"; id: n
   );
 }
 
-function TeamRow({ row, onDone }: { row: RadarTeam; onDone: () => void }) {
+// En el celular cada lista enseña las 3 primeras: el radar entero medía unos 4.000 px
+const MOBILE_ROWS = 3;
+
+function cutClass(i: number, all: boolean): string {
+  return !all && i >= MOBILE_ROWS ? "hidden lg:block" : "";
+}
+
+function ShowAll({ total, all, onToggle }: { total: number; all: boolean; onToggle: () => void }) {
+  if (total <= MOBILE_ROWS) return null;
   return (
-    <li className="py-3">
+    <button
+      type="button"
+      onClick={onToggle}
+      className="mt-1 inline-flex min-h-10 items-center text-interfaz font-bold text-boli underline underline-offset-4 lg:hidden"
+    >
+      {all ? "Mostrar menos" : `Mostrar los ${total}`}
+    </button>
+  );
+}
+
+function TeamRow({ row, onDone, className = "" }: { row: RadarTeam; onDone: () => void; className?: string }) {
+  return (
+    <li className={`py-3 ${className}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="semi text-lg leading-tight font-bold">
@@ -89,9 +109,9 @@ function TeamRow({ row, onDone }: { row: RadarTeam; onDone: () => void }) {
   );
 }
 
-function PlayerRow({ row, onDone }: { row: RadarPlayer; onDone: () => void }) {
+function PlayerRow({ row, onDone, className = "" }: { row: RadarPlayer; onDone: () => void; className?: string }) {
   return (
-    <li className="py-3">
+    <li className={`py-3 ${className}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="semi text-lg leading-tight font-bold">
@@ -120,17 +140,22 @@ export function Radar() {
     refreshInterval: (latest) => (hasPending(latest) ? 15000 : 0),
   });
   const refresh = () => void mutate();
-  const list = (title: string, rows: RadarTeam[], empty: string) => (
+  const [all, setAll] = useState<Record<string, boolean>>({});
+  const toggle = (key: string) => setAll({ ...all, [key]: !all[key] });
+  const list = (key: string, title: string, rows: RadarTeam[], empty: string) => (
     <div>
       <h3 className="cond border-b border-tinta pb-1 text-[1.5rem] leading-none font-black uppercase">{title}</h3>
       {rows.length === 0 ? (
         <Empty>{empty}</Empty>
       ) : (
-        <ul className="divide-y divide-regla-suave">
-          {rows.map((r) => (
-            <TeamRow key={r.team_id} row={r} onDone={refresh} />
-          ))}
-        </ul>
+        <>
+          <ul className="divide-y divide-regla-suave">
+            {rows.map((r, i) => (
+              <TeamRow key={r.team_id} row={r} onDone={refresh} className={cutClass(i, !!all[key])} />
+            ))}
+          </ul>
+          <ShowAll total={rows.length} all={!!all[key]} onToggle={() => toggle(key)} />
+        </>
       )}
     </div>
   );
@@ -146,8 +171,8 @@ export function Radar() {
       ) : (
         <div className="space-y-8">
           <div className="grid gap-x-10 gap-y-8 lg:grid-cols-2">
-            {list("En racha", data.racha, "Ningún equipo en racha en las últimas 4 semanas.")}
-            {list("En baja", data.baja, "Ningún equipo en baja en las últimas 4 semanas.")}
+            {list("racha", "En racha", data.racha, "Ningún equipo en racha en las últimas 4 semanas.")}
+            {list("baja", "En baja", data.baja, "Ningún equipo en baja en las últimas 4 semanas.")}
           </div>
           <div>
             <h3 className="cond border-b border-tinta pb-1 text-[1.5rem] leading-none font-black uppercase">
@@ -156,11 +181,14 @@ export function Radar() {
             {data.jugadores.length === 0 ? (
               <Empty>Aún no hay jugadores en racha: hacen falta partidos con la previa del modelo guardada.</Empty>
             ) : (
-              <ul className="grid gap-x-10 divide-y divide-regla-suave lg:grid-cols-2 lg:divide-y-0">
-                {data.jugadores.map((p) => (
-                  <PlayerRow key={p.player_id} row={p} onDone={refresh} />
-                ))}
-              </ul>
+              <>
+                <ul className="grid gap-x-10 divide-y divide-regla-suave lg:grid-cols-2 lg:divide-y-0">
+                  {data.jugadores.map((p, i) => (
+                    <PlayerRow key={p.player_id} row={p} onDone={refresh} className={cutClass(i, !!all.jugadores)} />
+                  ))}
+                </ul>
+                <ShowAll total={data.jugadores.length} all={!!all.jugadores} onToggle={() => toggle("jugadores")} />
+              </>
             )}
           </div>
         </div>
