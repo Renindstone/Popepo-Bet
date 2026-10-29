@@ -37,7 +37,7 @@ function lineLabel(market: string, selection: string, t: { home?: string; away?:
   return "Línea";
 }
 
-const field = "h-11 w-full border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
+const field = "h-11 w-full border border-regla bg-hoja px-3 text-base text-tinta focus:border-boli";
 const labelCls = "mb-1 block text-nota font-semibold";
 
 export function EvaluarView() {
@@ -422,12 +422,12 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
             {r.match}
           </Link>
         </p>
-        <p className="mt-1 text-[1.3rem] leading-snug font-semibold">
+        <p className="mt-1 text-entradilla leading-snug font-semibold">
           {label} a {odds(r.odds)} en {bookmakerName(r.bookmaker)}
         </p>
         <div className="relative mt-4 inline-block px-3 py-1">
           {r.verdict === "APOSTAR" && <PenMark className="-inset-x-2 -inset-y-1 h-[calc(100%+0.5rem)] w-[calc(100%+1rem)]" />}
-          <p className={`cond text-[2.6rem] leading-none font-extrabold ${v.tone}`}>{v.text}</p>
+          <p className={`cond text-cifra-grande leading-none font-extrabold ${v.tone}`}>{v.text}</p>
         </div>
         {r.verdict === "valor pequeño o poca confianza" && (
           <p className="mt-2 max-w-[60ch] border-l border-tarjeta pl-3 text-interfaz">

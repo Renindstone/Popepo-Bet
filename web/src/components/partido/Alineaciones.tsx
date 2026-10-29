@@ -73,7 +73,7 @@ function TeamHeader({ t }: { t: LineupTeam }) {
         <Crest id={t.team_id} size={24} className="mr-2 -mt-0.5" />
         {t.team}
         <span
-          className={`ml-2 inline-block size-3 rounded-full align-middle ${t.side === "home" ? "bg-hoja ring-1 ring-tinta" : "bg-boli"}`}
+          className={`ml-2 inline-block size-3 rounded-full align-middle ${t.side === "home" ? "bg-ficha ring-1 ring-tinta" : "bg-negro ring-1 ring-tinta"}`}
           title={t.side === "home" ? "Blanco en el campo" : "Azul en el campo"}
           aria-hidden="true"
         />
@@ -115,12 +115,12 @@ function Pitch({ teams, orientation }: { teams: LineupTeam[]; orientation: "hori
             >
               <span
                 className={`relative flex size-8 items-center justify-center rounded-full text-nota font-bold shadow ${
-                  t.side === "home" ? "bg-[#f4f6f2] text-[#1c2624]" : "bg-[#2643c4] text-white"
+                  t.side === "home" ? "bg-ficha text-negro" : "bg-negro text-amarillo ring-1 ring-white/50"
                 }`}
               >
                 {p.shirt ?? ""}
                 {p.rating != null && (
-                  <span className="absolute -top-2 -right-4 bg-[#1c2624] px-1 text-xs leading-4 font-semibold text-white">
+                  <span className="absolute -top-2 -right-4 bg-negro px-1 text-xs leading-4 font-semibold text-white">
                     {p.rating.toFixed(1)}
                   </span>
                 )}

@@ -87,15 +87,26 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
         <Empty>Ninguna cuota de Betano de este partido tiene valor según el modelo.</Empty>
       ) : (
         <div className="space-y-2">
-          {sorted.map(([market, items]) => (
+          {sorted.map(([market, items]) => {
+            const title = marketName(market, teams);
+            return (
             <details key={market} open={!all || ["1x2", "dc", "btts"].includes(market)} className="border border-regla-suave">
               <summary className="cursor-pointer px-3 py-2 font-semibold">
-                {marketName(market, teams)} <span className="font-normal text-grafito">({items.length})</span>
+                {title} <span className="font-normal text-grafito">({items.length})</span>
                 {STAT_MARKETS.test(market) && (
                   <span className="ml-2 text-nota font-normal text-grafito">sin validar con cuotas reales: con cautela</span>
                 )}
               </summary>
-              <table className="w-full text-nota">
+              {/* Mismos anchos en todos los grupos: las columnas quedan alineadas de un mercado a otro */}
+              <table className="w-full table-fixed text-nota">
+                <colgroup>
+                  <col />
+                  <col className="w-16" />
+                  <col className="hidden w-14 sm:table-column" />
+                  <col className="w-20" />
+                  <col className="hidden w-40 sm:table-column" />
+                  <col className="w-24 sm:w-40" />
+                </colgroup>
                 <tbody>
                   {[...items]
                     .sort((a, b) => (a.line ?? 0) - (b.line ?? 0) || a.selection.localeCompare(b.selection))
@@ -105,7 +116,11 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
                         <tr key={`${o.selection}-${o.line}`} className="border-t border-regla-suave">
                           {/* En el celular el veredicto va debajo del nombre y las acciones, una sobre otra */}
                           <td className="py-1.5 pr-3 pl-3">
-                            {o.label}
+                            {/* El nombre del mercado ya está en el grupo: «Galatasaray +1» bajo «Hándicap (3 vías)». En los
+                                de jugador se deja entero, porque lleva el nombre de cada jugador */}
+                            {!market.startsWith("player_") && o.label.includes(": ")
+                              ? o.label.slice(o.label.indexOf(": ") + 2)
+                              : o.label}
                             <span className="mt-1 block sm:hidden">
                               <Tag tone={v.tone}>{v.text}</Tag>
                             </span>
@@ -143,7 +158,8 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
                 </tbody>
               </table>
             </details>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

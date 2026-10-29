@@ -249,7 +249,7 @@ function CaptureQuick() {
   const onUploaded = useCallback((c: Capture) => router.push(`/capturas?nueva=${c.id}`), [router]);
   return (
     <div className="border-t-[3px] border-tinta pt-3">
-      <h2 className="cond mb-2 text-[1.75rem] leading-none font-black uppercase">¿Viste una cuota?</h2>
+      <h2 className="cond mb-2 text-lateral leading-none font-black uppercase">¿Viste una cuota?</h2>
       <p className="mb-3 text-nota text-grafito">
         Sube o pega la captura de Betano o bet365: una IA la lee y el modelo te dice si tiene valor.
       </p>
@@ -261,8 +261,8 @@ function CaptureQuick() {
 // --------------------------------------------------------------------------- apuesta del día
 
 // La apuesta del día es el titular de la portada; sus cifras, la ficha
-const headline = "cond text-[clamp(3rem,7vw,6rem)] leading-[0.88] font-black tracking-[-0.01em] text-balance uppercase";
-const deck = "mt-4 max-w-[62ch] text-[1.25rem] leading-snug font-medium";
+const headline = "cond text-titular leading-[0.88] font-black tracking-[-0.01em] text-balance uppercase";
+const deck = "mt-4 max-w-[62ch] text-entradilla leading-snug font-medium";
 
 function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boolean; bankroll?: number; currency?: string }) {
   const [home, away] = splitMatch(pick.match);
@@ -320,7 +320,7 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
 
       <div className="mt-6 grid grid-cols-2 items-end gap-x-9 gap-y-5 border-t-[3px] border-b border-tinta py-4 sm:flex sm:flex-wrap">
         <div className="col-span-2">
-          <p className="cond num text-[4.5rem] leading-none font-black">
+          <p className="cond num text-cuota leading-none font-black">
             <span className="resalte inline-block px-2 pt-1 leading-[0.85]">{odds(pick.odds)}</span>
           </p>
           <p className="mt-2 text-nota leading-snug text-grafito">cuota{pick.bookmaker ? ` en ${bookmakerName(pick.bookmaker)}` : ""}</p>
@@ -405,7 +405,7 @@ function Jornada({ rows }: { rows: DayMatch[] }) {
   return (
     <section aria-labelledby="jornada">
       <div className="flex items-baseline justify-between gap-4 border-t-[3px] border-tinta pt-3">
-        <h2 id="jornada" className="cond text-[2rem] leading-none font-black uppercase">
+        <h2 id="jornada" className="cond text-seccion leading-none font-black uppercase">
           La jornada
         </h2>
         <span className="text-nota font-semibold text-grafito">1X2 del modelo, en %</span>
@@ -477,7 +477,7 @@ function Jornada({ rows }: { rows: DayMatch[] }) {
                     {p.map((x, i) => (
                       <td
                         key={i}
-                        className={`cond num py-2 text-right text-[1.4rem] leading-none ${x === top ? "font-black" : "font-semibold text-grafito"}`}
+                        className={`cond num py-2 text-right text-destacado leading-none ${x === top ? "font-black" : "font-semibold text-grafito"}`}
                       >
                         {Math.round(x * 100)}
                       </td>
@@ -505,7 +505,7 @@ function Jornada({ rows }: { rows: DayMatch[] }) {
 function MarginNote() {
   return (
     <aside className="border border-regla bg-negro p-5 text-interfaz leading-relaxed text-white/85">
-      <h2 className="cond mb-2 text-[1.75rem] leading-none font-black text-amarillo uppercase">Antes de apostar</h2>
+      <h2 className="cond mb-2 text-lateral leading-none font-black text-amarillo uppercase">Antes de apostar</h2>
       <p>
         El backtest de 2024-25 y 2025-26 muestra que el modelo <strong className="text-white">no le gana a bet365</strong> en
         1X2, goles ni hándicap asiático. Trata estas apuestas como candidatas para revisar, no como ganancia segura.

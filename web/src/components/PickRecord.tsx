@@ -95,7 +95,7 @@ export function PickRecord({
 
   return (
     <section aria-labelledby={`record-${source}`} className="border-t-[3px] border-tinta pt-3">
-      <h2 id={`record-${source}`} className="cond text-[1.75rem] leading-none font-black uppercase">
+      <h2 id={`record-${source}`} className="cond text-lateral leading-none font-black uppercase">
         {src.title}
       </h2>
       <p className="mt-1 mb-4 text-nota text-grafito">

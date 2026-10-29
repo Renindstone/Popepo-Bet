@@ -22,6 +22,9 @@
   --amarillo: #ffd400;
   --negro: #111111;
   --rojo-portada: #d7141a;
+  /* Campo de alineaciones: igual en los dos temas */
+  --cesped: #2e5d45;
+  --ficha: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -57,12 +60,26 @@
   --color-amarillo: var(--amarillo);
   --color-negro: var(--negro);
   --color-rojo-portada: var(--rojo-portada);
+  --color-cesped: var(--cesped);
+  --color-ficha: var(--ficha);
   --font-sans: var(--font-sofia), system-ui, sans-serif;
 
   /* Escala de texto pequeño (text-etiqueta, text-nota, text-interfaz); 12 px es el mínimo absoluto */
   --text-etiqueta: 0.8rem;
   --text-nota: 0.875rem;
   --text-interfaz: 0.95rem;
+
+  /* Escala grande (titulares y cifras en extracondensada; la entradilla en normal) */
+  --text-entradilla: 1.25rem;
+  --text-destacado: 1.5rem;
+  --text-lateral: 1.75rem;
+  --text-seccion: 2rem;
+  --text-cifra: 2.25rem;
+  --text-cifra-grande: 2.75rem;
+  --text-titulo: 3rem;
+  --text-titulo-grande: 4rem;
+  --text-cuota: 4.5rem;
+  --text-titular: clamp(3rem, 7vw, 6rem);
 }
 
 html {
@@ -116,6 +133,7 @@ body {
     color: var(--tinta);
   }
   99% {
+    color: var(--tinta);
     background-color: transparent;
   }
   to {

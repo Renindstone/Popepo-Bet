@@ -16,7 +16,7 @@ export function PitchFrame({
   const horizontal = orientation === "horizontal";
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-[6px] bg-[#2e5d45] ${horizontal ? "aspect-[105/68]" : "mx-auto aspect-[68/105] max-w-[460px]"}`}
+      className={`relative w-full overflow-hidden rounded-[6px] bg-cesped ${horizontal ? "aspect-[105/68]" : "mx-auto aspect-[68/105] max-w-[460px]"}`}
       role="img"
       aria-label={label}
     >
@@ -29,7 +29,7 @@ export function PitchFrame({
 /** Nombre corto bajo la ficha de un jugador, legible sobre el césped */
 export function PitchName({ children }: { children: ReactNode }) {
   return (
-    <span className="mt-0.5 max-w-full truncate rounded-[3px] bg-[#1c2624]/55 px-1 text-center text-xs leading-4 md:text-etiqueta font-medium text-white">
+    <span className="mt-0.5 max-w-full truncate rounded-[3px] bg-negro/55 px-1 text-center text-xs leading-4 md:text-etiqueta font-medium text-white">
       {children}
     </span>
   );
@@ -66,7 +66,7 @@ export function PitchLines({ horizontal }: { horizontal: boolean }) {
 /** Ficha redonda de un jugador sobre el césped (clara, como la del local en las alineaciones) */
 export function PitchDisc({ children }: { children: ReactNode }) {
   return (
-    <span className="relative flex size-9 items-center justify-center rounded-full bg-[#f4f6f2] text-nota font-bold text-[#1c2624] shadow">
+    <span className="relative flex size-9 items-center justify-center rounded-full bg-ficha text-nota font-bold text-negro shadow">
       {children}
     </span>
   );

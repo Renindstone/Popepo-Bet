@@ -49,8 +49,9 @@ casino: nada de neón, dorados, degradados de adorno, confeti ni "¡ganancia seg
 | `amarillo`, `negro`, `rojo-portada` | `#ffd400`, `#111111`, `#d7141a` | iguales | Cabecera, resaltador, etiquetas de señal y la etiqueta «Apuesta del día» |
 
 Reglas:
-- **Nunca hex sueltos en componentes.** Excepción que queda: el césped y las fichas del campo (`components/Pitch.tsx`),
-  que el dueño pidió conservar.
+- **Nunca hex sueltos en componentes.** El campo usa `cesped` y `ficha` (fijos en los dos temas); la ficha del
+  visitante va en negro con número amarillo, como el resto de la portada (decisión del dueño, 29-10-2026).
+- **Nunca tamaños sueltos** (`text-[1.3rem]`): usa la escala de tokens de la tabla de tipografía.
 - **Dos tintas sobre el papel:** amarillo y rojo. El amarillo nunca va como letra sobre blanco (no llega al contraste):
   de día va de fondo; de noche `boli` ya es amarillo.
 - **El color nunca va solo:** valor esperado con signo (`+20.4 %`), corte con palabra («Pasa»), resultado con etiqueta
@@ -71,10 +72,11 @@ cifra en columnas**.
 | Texto de interfaz: botones, filtros, campos, tablas | `text-interfaz` | 0,95 rem | 400 |
 | Lectura / menú | (sin clase) / `text-base` | 1 rem | 400 / 700 |
 | Títulos de tarjeta (`.semi`) | `text-lg` | 1,125 rem | 700 |
-| Títulos de sección (`.cond`, mayúsculas) | | 2 rem (1,75 en la columna lateral) | 900 |
-| Cifras (`.cond`) | | 2,25 rem (2,75 grande; 4,5 la cuota de portada) | 800 |
-| Título de página (`.cond`, mayúsculas) | | 3 rem (4 rem desde `sm`) | 900 |
-| Titular de la apuesta del día (`.cond`, mayúsculas) | | `clamp(3rem, 7vw, 6rem)` | 900 |
+| Títulos de sección (`.cond`, mayúsculas) | `text-seccion` (`text-lateral` en la columna lateral) | 2 rem (1,75) | 900 |
+| Cifras (`.cond`) | `text-cifra`, `text-cifra-grande`, `text-cuota` (portada), `text-destacado` (tablas) | 2,25 / 2,75 / 4,5 / 1,5 rem | 800 |
+| Título de página (`.cond`, mayúsculas) | `text-titulo` y `sm:text-titulo-grande` | 3 rem (4 rem desde `sm`) | 900 |
+| Titular de la apuesta del día (`.cond`, mayúsculas) | `text-titular` | `clamp(3rem, 7vw, 6rem)` | 900 |
+| Entradilla | `text-entradilla` | 1,25 rem | 500 |
 
 ## Formas
 
@@ -139,15 +141,9 @@ ni toques < 24 px) y `paleta.mjs --fallos` no da fallos. La página de un partid
 celular, la de un partido mide como mucho unos 3.500 px y Hoy unos 5.500 un sábado de 22 partidos, con «La jornada» cortada en 8) y el
 menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
 
-- **Tamaños grandes sueltos:** `text-[1.05rem]`, `[1.3rem]`, `[1.35rem]`, `[1.6rem]`, `[1.9rem]`, `[2.2rem]`,
-  `[2.6rem]`, `[3.4rem]` junto a `text-lg`/`xl`/`2xl`/`4xl`: llevarlos a la escala (cifras 1,75 / 2,25 rem, título
-  2,5 / 3 rem) con tokens como los pequeños.
-- **Cuotas de Betano en escritorio:** cada mercado es su propia tabla y las columnas no se alinean entre grupos; y el
-  nombre de cada fila repite el del grupo («Hándicap (3 vías): Galatasaray +1» bajo «Hándicap (3 vías)»).
-- **Hex sueltos** en el campo (`components/Pitch.tsx`, que usan las alineaciones y el once de la semana): las fichas del
-  visitante siguen en el azul del diseño anterior; el dueño pidió conservar el campo tal cual.
-- **Tamaños sueltos nuevos** del rediseño (`text-[1.75rem]`, `[2rem]`, `[4.5rem]`, el `clamp` del titular): pasarlos a
-  tokens de `@theme` junto con los antiguos.
+- Nada pendiente de los que la auditoría no mide (29-10-2026: tamaños pasados a tokens, columnas de las cuotas de Betano
+  alineadas entre grupos y sin repetir el nombre del mercado, campo con tokens y la ficha del visitante al estilo de
+  portada).
 
 Al resolver uno, bórralo de esta lista y añade los nuevos que encuentre la auditoría.
 

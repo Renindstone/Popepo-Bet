@@ -26,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link
                 href="/"
                 aria-label="Popepo-Bet, portada"
-                className="cond shrink-0 text-[2.75rem] leading-[0.8] font-black tracking-[-0.01em] whitespace-nowrap uppercase sm:text-[4rem]"
+                className="cond shrink-0 text-cifra-grande leading-[0.8] font-black tracking-[-0.01em] whitespace-nowrap uppercase sm:text-titulo-grande"
               >
                 Popepo
                 <span aria-hidden className="mx-[0.06em] inline-block size-[0.2em] rounded-full bg-rojo-portada align-[0.1em]" />

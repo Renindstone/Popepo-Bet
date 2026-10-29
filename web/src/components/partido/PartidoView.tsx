@@ -70,7 +70,7 @@ export function PartidoView() {
           </span>
           <Tag tone={a.stage === "confirmed" ? "confirmada" : "neutral"}>{stageText(a.stage)}</Tag>
         </p>
-        <h1 className="cond mt-2 text-[2.6rem] leading-[1.02] font-extrabold tracking-[-0.01em] sm:text-6xl">
+        <h1 className="cond mt-2 text-cifra-grande leading-[1.02] font-extrabold tracking-[-0.01em] sm:text-6xl">
           <Crest id={a.home_id} size={52} className="mr-3 -mt-2" />
           {a.home} <span className="font-medium text-grafito">vs</span>{" "}
           <Crest id={a.away_id} size={52} className="mr-3 -mt-2" />
@@ -138,7 +138,7 @@ function Probabilidades({ a }: { a: MatchAnalysis }) {
       <div className="mt-3 grid grid-cols-3 gap-4">
         {outcomes.map((o, i) => (
           <div key={o.key} className={i === 1 ? "text-center" : i === 2 ? "text-right" : ""}>
-            <div className="cond num text-[2.6rem] leading-none font-bold">{pct(m["1x2"][o.key])}</div>
+            <div className="cond num text-cifra-grande leading-none font-bold">{pct(m["1x2"][o.key])}</div>
             <div className="mt-1 truncate font-semibold">{o.label}</div>
             <div className="num text-nota text-grafito">cuota justa {odds(m.fair_odds_1x2[o.key])}</div>
           </div>
@@ -332,13 +332,13 @@ function Ajuste({ adj }: { adj: LineupAdjustment }) {
     <dl className="mt-3 grid grid-cols-2 gap-4">
       <div>
         <dt className="text-nota text-grafito">Ataque frente a su once habitual</dt>
-        <dd className={`cond num text-[1.75rem] leading-tight font-bold ${att < -0.02 ? "text-rojo" : att > 0.02 ? "text-boli" : ""}`}>
+        <dd className={`cond num text-lateral leading-tight font-bold ${att < -0.02 ? "text-rojo" : att > 0.02 ? "text-boli" : ""}`}>
           {changeText(adj.attack_mult)}
         </dd>
       </div>
       <div>
         <dt className="text-nota text-grafito">Goles que concedería</dt>
-        <dd className={`cond num text-[1.75rem] leading-tight font-bold ${def > 0.02 ? "text-rojo" : def < -0.02 ? "text-boli" : ""}`}>
+        <dd className={`cond num text-lateral leading-tight font-bold ${def > 0.02 ? "text-rojo" : def < -0.02 ? "text-boli" : ""}`}>
           {changeText(adj.defence_mult)}
         </dd>
       </div>

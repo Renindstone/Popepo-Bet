@@ -13,7 +13,7 @@ import { betLabel, bookmakerName } from "@/lib/markets";
 import { useMe } from "@/lib/me";
 import type { Capture, CaptureLine, MatchSummary } from "@/lib/types";
 
-const field = "h-11 w-full border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
+const field = "h-11 w-full border border-regla bg-hoja px-3 text-base text-tinta focus:border-boli";
 const labelCls = "mb-1 block text-nota font-semibold";
 
 const ACTIVE = ["pendiente", "procesando", "evaluada"];

@@ -208,7 +208,7 @@ function Destacado({ kind, per, row }: { kind: "equipo" | "jugador"; per: string
   const player = row && "player_id" in row ? row : null;
   return (
     <section aria-label={title} className="border-t-[3px] border-tinta pt-3">
-      <h2 className="cond text-[1.75rem] leading-none font-black uppercase">{title}</h2>
+      <h2 className="cond text-lateral leading-none font-black uppercase">{title}</h2>
       {!row ? (
         <p className="mt-2 text-nota text-grafito">
           {kind === "equipo"

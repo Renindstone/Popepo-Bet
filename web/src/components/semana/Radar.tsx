@@ -103,7 +103,7 @@ function TeamRow({ row, onDone, className = "" }: { row: RadarTeam; onDone: () =
           )}
           <p className="text-nota text-grafito">{nextText(row.next_matches)}</p>
         </div>
-        <span className={`cond num shrink-0 text-[1.75rem] leading-none font-extrabold ${row.kind === "racha" ? "text-boli" : "text-rojo"}`}>
+        <span className={`cond num shrink-0 text-lateral leading-none font-extrabold ${row.kind === "racha" ? "text-boli" : "text-rojo"}`}>
           {signedNum(row.score)}
         </span>
       </div>
@@ -126,7 +126,7 @@ function PlayerRow({ row, onDone, className = "" }: { row: RadarPlayer; onDone: 
           </p>
           <p className="text-nota text-grafito">{nextText(row.next_matches)}</p>
         </div>
-        <span className="cond num shrink-0 text-[1.75rem] leading-none font-extrabold text-boli">{signedNum(row.score)}</span>
+        <span className="cond num shrink-0 text-lateral leading-none font-extrabold text-boli">{signedNum(row.score)}</span>
       </div>
       <Investigar kind="player" id={row.player_id} note={row.note} onDone={onDone} />
     </li>
@@ -147,7 +147,7 @@ export function Radar() {
   const toggle = (key: string) => setAll({ ...all, [key]: !all[key] });
   const list = (key: string, title: string, rows: RadarTeam[], empty: string) => (
     <div>
-      <h3 className="cond border-b border-tinta pb-1 text-[1.5rem] leading-none font-black uppercase">{title}</h3>
+      <h3 className="cond border-b border-tinta pb-1 text-destacado leading-none font-black uppercase">{title}</h3>
       {rows.length === 0 ? (
         <Empty>{empty}</Empty>
       ) : (
@@ -178,7 +178,7 @@ export function Radar() {
             {list("baja", "En baja", data.baja, "Ningún equipo en baja en las últimas 4 semanas.")}
           </div>
           <div>
-            <h3 className="cond border-b border-tinta pb-1 text-[1.5rem] leading-none font-black uppercase">
+            <h3 className="cond border-b border-tinta pb-1 text-destacado leading-none font-black uppercase">
               Jugadores en racha
             </h3>
             {data.jugadores.length === 0 ? (

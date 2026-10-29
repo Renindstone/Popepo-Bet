@@ -8,7 +8,7 @@ export function PageTitle({ title, sub, actions }: { title: string; sub?: ReactN
   return (
     <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-6">
       <div className="min-w-0">
-        <h1 className="cond text-[3rem] leading-[0.9] font-black tracking-[-0.01em] text-balance uppercase sm:text-[4rem]">{title}</h1>
+        <h1 className="cond text-titulo leading-[0.9] font-black tracking-[-0.01em] text-balance uppercase sm:text-titulo-grande">{title}</h1>
         {sub && <div className="mt-1.5 text-grafito">{sub}</div>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -32,7 +32,7 @@ export function Section({
   return (
     <section id={id} className="border-t-[3px] border-tinta pt-3 pb-10">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <h2 className="cond text-[2rem] leading-none font-black uppercase">{title}</h2>
+        <h2 className="cond text-seccion leading-none font-black uppercase">{title}</h2>
         {actions}
       </div>
       {intro && <p className="-mt-1 mb-4 max-w-[72ch] text-interfaz text-grafito">{intro}</p>}
@@ -160,7 +160,7 @@ export function Figure({
   const color = tone === "boli" ? "text-boli" : tone === "rojo" ? "text-rojo" : "";
   return (
     <div className="min-w-0">
-      <div className={`cond num leading-none font-extrabold ${size === "lg" ? "text-[2.75rem]" : "text-[2.25rem]"} ${color}`}>{value}</div>
+      <div className={`cond num leading-none font-extrabold ${size === "lg" ? "text-cifra-grande" : "text-cifra"} ${color}`}>{value}</div>
       <div className="mt-1 text-nota leading-snug text-grafito">{label}</div>
     </div>
   );

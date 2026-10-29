@@ -171,7 +171,7 @@ function LossMeter({ label, profit, limit, currency }: { label: string; profit: 
     <div>
       <div className="flex items-baseline justify-between gap-4">
         <span className="font-semibold">{label}</span>
-        <span className={`cond num text-[1.6rem] font-bold ${profit > 0 ? "text-boli" : profit < 0 ? "text-rojo" : ""}`}>
+        <span className={`cond num text-lateral font-bold ${profit > 0 ? "text-boli" : profit < 0 ? "text-rojo" : ""}`}>
           {money(profit, currency, true)}
         </span>
       </div>

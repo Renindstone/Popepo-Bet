@@ -102,7 +102,7 @@ export function PartidosView() {
                     >
                       <span className="cond num text-2xl font-bold">{m.kickoff_local.split(" ")[2]}</span>
                       <span className="min-w-0">
-                        <span className="semi block truncate text-[1.05rem] font-semibold">
+                        <span className="semi block truncate text-base font-semibold">
                           <Crest id={m.home_id} size={18} className="mr-1.5 -mt-0.5" />
                           {m.home} <span className="font-normal text-grafito">vs</span>{" "}
                           <Crest id={m.away_id} size={18} className="mr-1.5 -mt-0.5" />

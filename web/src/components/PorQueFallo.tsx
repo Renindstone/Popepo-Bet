@@ -37,7 +37,7 @@ export function PorQueFallo({ pickId }: { pickId: number }) {
   });
   return (
     <section aria-label="Por qué falló" className="mt-6 border-t-[3px] border-tinta pt-3">
-      <h3 className="cond text-[1.75rem] leading-none font-black uppercase">Por qué falló</h3>
+      <h3 className="cond text-lateral leading-none font-black uppercase">Por qué falló</h3>
       {error ? (
         <ErrorNote error={error} onRetry={() => mutate()} />
       ) : !data ? (
