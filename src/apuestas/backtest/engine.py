@@ -314,7 +314,7 @@ def _evaluate_match(r: MatchRow, gm, rho: float, od: dict, res: BacktestResult, 
         if not (odds_range[0] <= o <= odds_range[1]):
             continue
         result = _settle(r, market, sel, line)
-        no_push = max(1e-9, 1 - out.push)
+        no_push = out.decided()  # sin devolución ni medias devoluciones (líneas de cuarto)
         p_m = out.effective_prob()
         ev_m = (p_m * o - 1) * no_push
         if ev_m >= min_ev:

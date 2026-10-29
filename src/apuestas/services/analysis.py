@@ -438,8 +438,9 @@ def evaluate_bet(
     if w_stat < 1.0:
         stat_ref = house_p if house_p is not None else min(0.99, 1 / (odds * (1 + BOOK_MARGIN)))
         prob = w_stat * model_p + (1 - w_stat) * stat_ref
-    no_push = max(1e-9, 1 - out.push)
-    ev = (prob * odds - 1) * no_push
+    # Antes multiplicaba por (1 − devolución) y no descontaba las medias de las líneas de cuarto: su valor salía
+    # inflado un 12-16 % (auditoría del modelo, octubre de 2026)
+    ev = (prob * odds - 1) * out.decided()
     stake = oddsmath.stake_pct(prob, odds, settings.kelly_fraction, settings.max_stake_pct)
     conf = _confidence(market, quality, sharp_p is not None, model_p, sharp_p, rotation)
     reasons = []

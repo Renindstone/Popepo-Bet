@@ -72,6 +72,11 @@ class Outcome:
             return float("inf")
         return 1 + lose / gain
 
+    def decided(self) -> float:
+        """Parte de la apuesta que se gana o se pierde de verdad: sin la devolución ni las medias devoluciones de las
+        líneas de cuarto. (probabilidad equivalente × cuota − 1) × esto = valor esperado exacto."""
+        return max(1e-9, 1 - self.push - (self.half_win + self.half_loss) / 2)
+
     def effective_prob(self) -> float:
         """Probabilidad equivalente sin empates (1 / cuota justa)."""
         fo = self.fair_odds()
