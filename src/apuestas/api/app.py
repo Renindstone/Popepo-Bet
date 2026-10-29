@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from apuestas import __version__
 from apuestas.config import get_settings
 from apuestas.db.session import session_scope
-from apuestas.services import capture_engines, captures, picks, queries, sync, tracker
+from apuestas.services import capture_engines, captures, picks, queries, radar, sync, tracker
 
 log = logging.getLogger(__name__)
 
@@ -222,6 +222,12 @@ def week(day: str | None = None, period: str = "semana", user: str = Depends(cur
     """Equipo, jugador y once de la semana o del mes (4 semanas): quién sorprendió a la casa (equipos) y a nuestro
     modelo (jugadores)."""
     return _wrap(queries.week_recap, day, True, period)
+
+
+@app.get("/radar")
+def radar_now(user: str = Depends(current_user)) -> dict:
+    """Equipos en racha y en baja y jugadores en racha de las últimas 4 semanas, con su próximo partido."""
+    return _wrap(radar.get)
 
 
 @app.get("/picks/qualified")
