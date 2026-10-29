@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     # Casas de OddsPapi (slugs). Cada una cuesta 1 petición al día. betano.pe = Betano Perú; Pinnacle da la
     # referencia del mercado afilado en Champions. Añade ",bet365" para sus cuotas de Champions (+30 al mes)
     oddspapi_bookmakers: str = "betano.pe,pinnacle"
-    # Solo se piden las competiciones con partidos en los próximos N días: la API admite 5 torneos por petición y
-    # con seis competiciones haría falta una segunda petición por casa (en semanas de Champions la hace igual)
+    # Solo se piden las competiciones con partidos en los próximos N días: la API admite 5 torneos por petición y,
+    # si juegan más (con ocho competiciones, casi cada día), hace una segunda petición por casa
     oddspapi_window_days: float = 3.0
     # Descargas de Pinnacle antes del inicio para el CLV de las que pasan el corte (0 = ninguna). Aprobado por el
     # usuario el 2026-10-28: como mucho 3 al día, unas 40-90 peticiones más al mes

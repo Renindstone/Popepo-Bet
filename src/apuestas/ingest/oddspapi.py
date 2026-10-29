@@ -10,9 +10,10 @@ Así se activa:
 El plan gratuito tiene un límite mensual de peticiones (250 en oct-2026) y **cada llamada cuenta**, aunque falle.
 La API solo admite una casa por petición y **como mucho 5 torneos** por petición, así que:
 - una descarga = 1 llamada por casa con las competiciones que juegan en los próximos 3 días
-  (`oddspapi_window_days`; cuenta 1 aunque traiga varios torneos). Si son las seis (semanas de Champions), 2
-  llamadas por casa. Nombres de equipos (participants), torneos y mercados se piden una vez por semana;
-- el worker la lanza una vez al día (08:30) → con 2 casas, unas 60-90 llamadas al mes más ~12 de catálogos;
+  (`oddspapi_window_days`; cuenta 1 aunque traiga varios torneos). Si son más de 5 (con Portugal y Bélgica, casi
+  cada día), 2 llamadas por casa. Nombres de equipos (participants), torneos y mercados se piden una vez por semana;
+- el worker la lanza una vez al día (08:30) → con 2 casas, unas 70-106 llamadas al mes más ~12 de catálogos
+  (con el calendario de 2025-26; antes de Portugal y Bélgica, 38-68);
 - y, para el CLV, una de Pinnacle unos 15 min antes de cada hora de inicio con apuestas abiertas que pasan el
   corte, como mucho `oddspapi_closing_per_day` al día (3: unas 40-90 al mes; `sync_closing`).
 
@@ -44,6 +45,9 @@ TOURNAMENTS = {
     "LAL": ("laliga", "spain"),
     "SA": ("serie-a", "italy"),
     "L1": ("ligue-1", "france"),
+    # Desde el 29-10-2026, con el OK del dueño: unas 26-38 peticiones más al mes (casi cada día juegan 6 o más)
+    "POR": ("liga-portugal", "portugal"),
+    "BEL": ("pro-league", "belgium"),
     "UCL": ("uefa-champions-league", "international-clubs"),
 }
 # La API rechaza más de 5 torneos por petición (400 INVALID_PARAMETER, visto el 22-10-2026 con seis competiciones)
