@@ -20,7 +20,7 @@ OddsPapi (opcional) ─┘        │
    fitting (paquete)     rotación, dificultad)        Parquet + DuckDB
          └──────────┬─────────┘
                     ▼
-   services/  analysis (partido completo) · picks (apuesta del día, liquidación) · predictions (previa) · weekly (semana)
+   services/  analysis (partido completo) · picks (apuesta del día, liquidación) · predictions (previa) · weekly (semana y mes) · radar · failure (por qué falló) · ai_notes (Claude)
               tracker (usuarios, apuestas, banca) · queries (capa común)
                     │
       ┌─────────────┼──────────────┬───────────────┐
@@ -33,7 +33,9 @@ OddsPapi (opcional) ─┘        │
 
 El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia.
 
-**Previa guardada y resumen de la semana** (ADR 0006): `picks.generate` guarda en `prediction` lo que el modelo esperaba de cada partido (una fila por partido, la última antes del inicio y nunca después; `services/predictions.py`). `services/weekly.py` compara cada semana lo que pasó con la casa (equipos) y con esa previa (jugadores), al leerlo: `GET /week`, MCP `resumen_semana`, `apuestas semana` y la página Semana.
+**Previa guardada y resumen de la semana** (ADR 0006): `picks.generate` guarda en `prediction` lo que el modelo esperaba de cada partido (una fila por partido, la última antes del inicio y nunca después; `services/predictions.py`). `services/weekly.py` compara cada semana lo que pasó con la casa (equipos) y con esa previa (jugadores), al leerlo: `GET /week`, MCP `resumen_semana`, `apuestas semana` y la página Sorpresas.
+
+**Sorpresas** (desde el 29-10-2026): `weekly.score_range` puntúa cualquier rango de fechas, así que el mes son 4 semanas. `services/radar.py` saca de los últimos 28 días los equipos en racha o en baja y los jugadores en racha, con caché de 5 minutos, y pone sus avisos en `picks.generate`, `/matches` y el análisis del partido (`alerts`); no tocan la probabilidad ni el corte. `services/failure.py` compara la previa con lo que pasó en la apuesta del día perdida (`GET /picks/{id}/failure`). `services/ai_notes.py` escribe con `claude -p` (suscripción de la PC, aislado como el motor de capturas pero con WebSearch y WebFetch) la explicación en `ai_note`: la pide `settle_all` al perder la apuesta del día y la escribe la tarea `notas_ia` del worker (min 5, 25 y 45), o la API al pulsar «Investigar con Claude» (`POST /radar/investigate`, solo el dueño). `guardar_explicacion` solo existe en el MCP del motor (`APUESTAS_MCP_ENGINE`). Cada usuario tiene su interruptor de la IA (`app_user.ai_enabled`, `GET/PUT /me`).
 
 **Apuestas que pasan el corte:** cada apuesta con valor de un partido que aún no empezó se guarda en `pick` (`picks.generate`) y se actualiza en cada recálculo; `pick.qualifies` dice si pasa el corte de la apuesta del día (`picks.qualifies`: valor, probabilidad, confianza, rango de cuota y, por ahora, solo mercados de goles). Vale el último cálculo antes del partido: si deja de tener valor se retira (`status = "withdrawn"`) y si deja de pasar el corte se desmarca. La liquidación es la de siempre (`picks.settle_all`), y `GET /picks/qualified` da sus aciertos desde el inicio y las de los últimos días.
 

@@ -726,8 +726,23 @@ No cambia el modelo ni las apuestas (no hace falta backtest): resume cada semana
   y lo esperado. Sumar favorece a quien jugó dos partidos. El jugador de la semana suele ser un delantero: tiene más
   datos con recorrido al alza. Una semana buena es en parte suerte: no predice la siguiente.
 
+### Mes, radar y avisos (`services/radar.py`, desde el 29-10-2026)
+
+- **Mes**: las 4 semanas completas que terminan en la semana elegida, con la misma puntuación (`weekly.score_range`).
+  Se abre cuando sus 4 semanas tienen previa (la primera, del 26-10 al 22-11-2026).
+- **Radar**, sobre los últimos 28 días: un equipo está **en racha** con una suma de +1,0 o un **batacazo** (ganar cuando
+  el 1X2 sin margen de la vara daba un 25 % o menos) y **en baja** con −1,0 o un **pinchazo** (perder con un 60 % o
+  más). Jugadores en racha: +1,5 y 90 minutos. Figuras: hasta 2 jugadores del equipo con +1,5 en sus partidos. Como
+  mucho 8 por lista.
+- **Avisos**: la ficha del radar de cada equipo de un partido próximo, con sus figuras en el once o no. **No cambian
+  la probabilidad, la confianza ni el corte**: falta medir si los que dan la sorpresa la repiten.
+- **Por qué falló**: la previa frente a lo que pasó en la apuesta del día perdida, con la misma puntuación, y si el
+  radar marcaba a alguno de los equipos cuando se generó la apuesta. Ejemplo real: Sassuolo +1 (3 vías) del 27-10
+  perdió 2-6; Lazio estaba en racha tras ganar 0-3 en Turín con un 17 % y su figura Kenneth Taylor jugó.
+
 ## Próximas mejoras previstas
 
+- **¿Se repiten las sorpresas?** Con el historial de equipos (desde 2023, con cuotas de cierre), medir si los que dan un batacazo o un pinchazo siguen sorprendiendo en los partidos siguientes o vuelven a la media. Si se repite, proponer que el aviso del radar baje la confianza; si no, que el aviso lo diga.
 - **Propuestas de la auditoría de octubre de 2026** ([auditoria-modelo.md](auditoria-modelo.md), experimentos en `experimentos/auditoria/`), por orden: arreglar el valor de las líneas de cuarto y guardar fija la apuesta anunciada; fuerza de goles dinámica (filtro de Kalman, −0,0047 ± 0,0007 de log-loss frente a `ratings.fit` con los mismos datos, −0,0062 si además observa los remates a puerta); dispersión del total calibrada fuera de muestra en los conteos (+0,004 a +0,006 por partido en remates, córners, faltas y tarjetas); apilado aprendido con el mercado en lugar de `W_MODEL`; y decidir por la probabilidad de valor positivo con Kelly contraído. Todo con datos públicos sin xG ni Pinnacle: cada cambio necesita su `apuestas backtest` con la BD antes de entrar.
 - Un nivel por liga en el modelo de fuerza (nivel de la liga + desviación del equipo) y, si el backtest lo confirma, entrenar con las ligas extra de football-data, que ya se descargan (ver "Copas europeas" arriba).
 - Guardar cuotas de 1X2 de la Champions antes de cada partido (ya se guardan las de OddsPapi desde el 19-10-2026) para medir con resultados el reparto de remates y córners movido por el 1X2 en las copas, que hoy solo se mide en las ligas.

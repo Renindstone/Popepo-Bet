@@ -190,6 +190,14 @@
       "description": "La apuesta del día como titular, con la entradilla y la cuota resaltada.",
       "html": "<article class=\"ds-portada\"><h2>Goles de Milan: Más de 1.5</h2><p class=\"ds-entradilla\"><span class=\"ds-cintillo\">Apuesta del día</span> Milan vs Bologna, Serie A, 12:30. El modelo le da un 59 %; la cuota implica un 51 %.</p><div class=\"ds-ficha\"><div><span class=\"ds-resalte\">1.95</span><small>cuota en Betano</small></div><div><b>+15,7 %</b><small>valor esperado</small></div></div></article>",
       "css": ".ds-portada h2{margin:0;font-family:'Sofia Sans Extra Condensed',sans-serif;font-size:clamp(3rem,7vw,6rem);font-weight:900;line-height:.88;letter-spacing:-.01em;text-transform:uppercase;text-wrap:balance}.ds-entradilla{margin:16px 0 0;max-width:62ch;font-family:'Sofia Sans',sans-serif;font-size:1.25rem;font-weight:500;line-height:1.375}.ds-cintillo{display:inline-block;margin-right:8px;padding:0 8px;background:#d7141a;color:#fff;font-size:.875rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.ds-ficha{display:flex;gap:36px;align-items:flex-end;margin-top:24px;padding:16px 0;border-top:3px solid var(--tinta,#111);border-bottom:1px solid var(--tinta,#111)}.ds-ficha b,.ds-resalte{display:block;font-family:'Sofia Sans Extra Condensed',sans-serif;font-variant-numeric:tabular-nums;line-height:.85}.ds-ficha b{font-size:2.25rem;font-weight:800}.ds-resalte{display:inline-block;padding:4px 8px 0;font-size:4.5rem;font-weight:900;background:#ffd400;color:#111}.ds-ficha small{display:block;margin-top:8px;font-size:.875rem;color:var(--grafito,#5e5e5e)}"
+    },
+    {
+      "name": "Aviso del radar",
+      "kind": "custom",
+      "refersTo": "aviso-radar",
+      "description": "Aviso de un equipo en racha o en baja en una apuesta o partido; no cambia la probabilidad.",
+      "html": "<div class=\"ds-aviso ds-aviso-baja\"><h4>Milan viene de un pinchazo</h4><p>Pinchazo: Milan 2-4 Bologna, con un 58 % de ganar según la casa.</p><small>Es un aviso para mirarlo con más cuidado: no cambia la probabilidad ni el corte.</small></div>",
+      "css": ".ds-aviso{max-width:72ch;border-top:3px solid var(--tinta,#111);background:var(--tarjeta-suave,#fff2b8);padding:10px 12px;font-family:'Sofia Sans',sans-serif;font-size:.95rem}.ds-aviso-baja{border-top-color:var(--rojo,#d7141a);background:var(--rojo-suave,#fff0f0)}.ds-aviso h4{margin:0;font-family:'Sofia Sans Condensed',sans-serif;font-weight:700;font-size:1rem}.ds-aviso p{margin:2px 0 0}.ds-aviso small{display:block;margin-top:4px;font-size:.875rem;color:var(--grafito,#5e5e5e)}"
     }
   ],
   "narrative": {

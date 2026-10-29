@@ -252,6 +252,16 @@ Cabecera amarilla con el logotipo a la izquierda y la fecha de la edición a la 
 ### Titular de portada
 El componente propio de la casa. El titular (h2 visual de 6 rem; el h1 es la tira de la edición) va seguido de la entradilla con la etiqueta roja «Apuesta del día» en línea, el partido con sus escudos y la probabilidad frente a la que implica la cuota. Debajo, la ficha: un filete de 3 px, la cuota de portada con el resaltador y las cifras (probabilidad, cuota justa, valor esperado, confianza y banca), cerrada por una regla de tinta. Luego las razones, con un cuadradito amarillo como viñeta.
 
+### Aviso del radar
+Recuadro con el filete de 3 px arriba: **rojo sobre rojo-suave** si el equipo va en baja y **de tinta sobre
+tarjeta-suave** si va en racha. Título en condensada («Bologna viene de un batacazo»), el porqué con la probabilidad que
+daba la casa, sus figuras con «en el once» o «fuera del once» y, siempre, la nota «Es un aviso…: no cambia la
+probabilidad ni el corte». En las listas va como etiqueta con palabra («Milan en baja»), que abre el recuadro.
+
+### Explicación de Claude
+Recuadro de tinta sobre tarjeta-suave con el título «Explicación de Claude», el texto plano, las fuentes como enlaces y
+la hora a la que se escribió. Nunca lleva cifras propias del recuadro: las cifras van fuera, del modelo.
+
 **The Highlighter Rule.** El resaltador amarillo se usa una vez por página, sobre la cuota de la apuesta del día, y entra con una sola pasada de 650 ms (sin movimiento si se pide reducirlo).
 
 ## Do's and Don'ts

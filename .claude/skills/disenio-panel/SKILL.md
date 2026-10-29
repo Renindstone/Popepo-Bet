@@ -127,7 +127,7 @@ cifra en columnas**.
 
 `web/src/components/ui.tsx`: `PageTitle`, `Section`, `Loading`, `ErrorNote` (pide la clave si falta), `Empty`,
 `Tag` (tonos `neutral`, `boli` = negro con letra amarilla, `rojo`, `tarjeta`, `confirmada` = amarillo), `Figure`, `Button`, `EdgeBar`, `TriBar`,
-`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo, solo en el veredicto de Evaluar), `PitchFrame`, `PitchName` y `PitchDisc` (`components/Pitch.tsx`: el campo con sus líneas, para las alineaciones y el once de la semana), `ComboResult` (combinadas), `PickRecord` (aciertos),
+`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo, solo en el veredicto de Evaluar), `Avisos.tsx` (`AlertBox`, `AlertList` y `AlertTags`: el aviso del radar, con filete arriba rojo si va en baja y de tinta si va en racha), `semana/Radar.tsx` (`AlertTag`, «Equipo en racha/en baja», y el radar con sus listas cortadas en 3 en el celular), `NotaClaude` (explicación de Claude: firmada, con fuentes y como texto plano) y `PorQueFallo`, `PitchFrame`, `PitchName` y `PitchDisc` (`components/Pitch.tsx`: el campo con sus líneas, para las alineaciones y el once de la semana), `ComboResult` (combinadas), `PickRecord` (aciertos),
 `ScrollRow` (fila que se desplaza de lado con difuminado y flecha cuando hay más; la usan el menú y las pestañas) y
 `Tabs` + `useHashTab` (pestañas accesibles, fijas arriba al bajar, con la activa en el ancla de la URL y, si se
 quiere, cuántas filas hay en cada una con `count`).
