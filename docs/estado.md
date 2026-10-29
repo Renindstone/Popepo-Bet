@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 29 de octubre de 2026 (Sorpresas: mes, radar, avisos, «Por qué falló» e interruptor de la IA). Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
+Última actualización: 29 de octubre de 2026 (repaso de pendientes: arreglos de la auditoría de código, mediciones y cifras para decidir). Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
 
 ## Qué funciona hoy
 
@@ -59,7 +59,12 @@
 
 ## Pendiente o por decidir
 
-- **Siguiente paso de Sorpresas**: medir con el historial si los equipos que dan un batacazo o un pinchazo lo repiten (si es así, que el aviso baje la confianza; si no, que lo diga). Detalles pendientes de la revisión final: el texto de «suma» sin fecha ni probabilidad, figuras que pueden salir de un partido no sorprendente, `POST /captures/{id}/process` sin mirar el interruptor, `datos_radar` sin la lista de partidos, los remates a puerta del equipo fuera de «Por qué falló» y que la API y el worker pueden escribir dos notas a la vez.
+- **Cifras del repaso del 29-10-2026, para decidir** (backtest `apuestas backtest`, 34 s; cada rama frente al commit del que salió, con el mismo comando):
+  - *Líneas de cuarto* (rama `claude/lineas-de-cuarto`): su valor salía inflado un 12-16 %. Arreglado, quita unas 55 apuestas de falso valor; modelo+mercado de −17,2 % a −15,8 % (hándicap asiático de −7,8 % a −4,5 %), solo modelo igual (−4,0 %).
+  - *Suplentes del once confirmado*: de 9.701 desde julio salen el 44,3 % y juegan 20,1 min (8,9 min por suplente); el modelo supone 55 % y 22 min (12,1): sus mercados salen ~36 % altos. Arreglo: esas dos constantes en `analysis.py`.
+  - *Ramas de otras sesiones* (log-loss 1X2 del modelo; menos es mejor): `competent-bartik` (nivel por liga) 0,9803 → 0,9800; `focused-newton` 0,9799; `precio-afilado-mercados` igual que la anterior (el backtest no apuesta los mercados que cambia); `eloquent-murdock` (calidad de jugador con el rating de FotMob) deja el modelo igual pero el ajuste por once pasa de 0,9780 a **0,9765** (bet365, 0,9751): la única con mejora clara. Todas salieron el 19-10 y chocan con `main` en `ratings.py`, `fitting.py` y `analysis.py` (murdock solo en el backtest y la documentación).
+  - *¿Se repiten las sorpresas?* No (ver `docs/modelos.md`); *córners y tarjetas frente a Betano*: al nivel de Betano, siguen fuera de la apuesta del día.
+  - *Proyectos del modelo que no se midieron con la BD* (cifras de la auditoría con datos públicos): fuerza dinámica de goles (−0,0047 ± 0,0007 de log-loss), dispersión del total en conteos (+0,004 a +0,006 por partido), apilado con el mercado en vez de `W_MODEL`, elegir por la probabilidad de valor positivo y la copia fija de la apuesta anunciada.
 
 
 - **Auditoría del modelo** (19 al 22-10-2026, rama `claude/auditoria-experimentos`): resultados en `docs/auditoria-modelo.md` y experimentos reproducibles con datos públicos en `experimentos/auditoria/` (`preparar.sh` y `correr.sh`, sin tocar la BD). Confirma con la cuota previa los cambios de conteos del 21 y 22-10 (reparto por el 1X2: remates +0,0151, a puerta +0,0100 y córners +0,0075 por equipo, casi lo mismo que con el cierre). Propone, en orden: valor de las líneas de cuarto (sale inflado 12-16 %), copia fija de la apuesta anunciada (hoy el contador mide el último recálculo), fuerza de goles dinámica, dispersión del total en los conteos, apilado con el mercado en lugar de `W_MODEL` y elegir por la probabilidad de valor positivo. Nada de eso está aplicado: necesita backtest con la BD y el OK del usuario.
