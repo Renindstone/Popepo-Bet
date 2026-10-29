@@ -73,14 +73,17 @@ class MatchModel:
     rho: float
     count_means: dict[str, tuple[float, float]]
     count_dispersion: dict[str, float]
+    count_total_dispersion: dict[str, float] = field(default_factory=dict)  # vacío = suma de independientes
     players: dict[int, PlayerProjection] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.matrix = dist.dixon_coles_matrix(self.lam_home, self.lam_away, self.rho)
         self._pmfs: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        self._totals: dict[str, np.ndarray] = {}
         for stat, (mh, ma) in self.count_means.items():
             a = self.count_dispersion.get(stat, 0.0)
             self._pmfs[stat] = (dist.count_pmf(mh, a), dist.count_pmf(ma, a))
+            self._totals[stat] = dist.count_total_pmf(mh, ma, a, self.count_total_dispersion.get(stat))
 
     # ------------------------------------------------------------------ goles
     def probs_1x2(self) -> dict[str, float]:
@@ -110,7 +113,7 @@ class MatchModel:
                 if q < 1e-10:
                     continue
                 diff[i - j] = diff.get(i - j, 0.0) + p * q
-        total = dist.pmf_to_dict(dist.convolve(ph, pa))
+        total = dist.pmf_to_dict(self._totals[stat])
         return diff, total, dist.pmf_to_dict(ph), dist.pmf_to_dict(pa)
 
     # ------------------------------------------------------------------ varias selecciones del mismo partido

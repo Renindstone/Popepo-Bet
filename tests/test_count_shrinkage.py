@@ -211,3 +211,26 @@ def test_team_league_is_the_last_league_match():
             MatchRow(2, "EPL", TODAY - timedelta(days=30), 1, 3, False, 1, 0, None, {}, {}),
             MatchRow(3, "UCL", TODAY - timedelta(days=5), 1, 4, False, 1, 0, None, {}, {})]
     assert fitting.team_leagues(rows) == {1: "EPL", 2: "ENG2", 3: "EPL"}
+
+
+def test_total_de_corners_con_su_propia_dispersion():
+    # Los córners de los dos equipos se quitan entre sí: el total es más estrecho que sumarlos como independientes
+    fit = fitting.fit_counts(_corners_obs(), "corners", TODAY)
+    assert fit.total_dispersion == fitting.COUNT_TOTAL_DISPERSION["corners"]
+    assert ratings.RatingModel.from_dict(fit.to_dict()).total_dispersion == fit.total_dispersion
+    indep = MatchModel(1, 2, 1.5, 1.1, -0.05, {"corners": (6.0, 4.5)}, {"corners": 0.07})
+    joint = MatchModel(1, 2, 1.5, 1.1, -0.05, {"corners": (6.0, 4.5)}, {"corners": 0.07}, {"corners": 0.017})
+    _, t_indep, home_indep, _ = indep._stat_pmfs("corners")
+    _, t_joint, home_joint, _ = joint._stat_pmfs("corners")
+
+    def mean_var(pmf):
+        m = sum(k * p for k, p in pmf.items())
+        return m, sum((k - m) ** 2 * p for k, p in pmf.items())
+
+    (m1, v1), (m2, v2) = mean_var(t_indep), mean_var(t_joint)
+    assert m1 == pytest.approx(10.5, abs=1e-3) and m2 == pytest.approx(10.5, abs=1e-3)
+    assert v2 == pytest.approx(10.5 + 0.017 * 10.5**2, rel=1e-3)
+    assert v2 < v1
+    assert home_joint == home_indep  # los mercados de cada equipo no cambian
+    old = ratings.RatingModel.from_dict({**fit.to_dict(), "total_dispersion": None})
+    assert old.total_dispersion is None  # paquetes de antes: suma de independientes

@@ -238,9 +238,13 @@ def run(
     for stat, pairs in count_ll.items():
         model_ll = float(np.mean([p[0] for p in pairs]))
         naive_ll = float(np.mean([p[1] for p in pairs]))
-        baseline = "loglik_sin_arbitro" if stat.endswith("+arbitro") else "loglik_league_avg"
+        baseline = ("loglik_sin_arbitro" if stat.endswith("+arbitro") else "loglik_independientes"
+                    if stat.endswith("+total") else "loglik_league_avg")
+        diff = np.array([p[0] - p[1] for p in pairs])
+        margin = 1.96 * float(diff.std(ddof=1)) / math.sqrt(len(diff)) if len(diff) > 1 else float("nan")
         res.count_calibration[stat] = {"matches": len(pairs), "loglik_model": round(model_ll, 4),
-                                       baseline: round(naive_ll, 4), "improvement": round(model_ll - naive_ll, 4)}
+                                       baseline: round(naive_ll, 4), "improvement": round(model_ll - naive_ll, 4),
+                                       "margin_95": round(margin, 4)}
     return res
 
 
@@ -448,14 +452,18 @@ def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None,
         mh, ma = cm.expected(r.home, r.away, r.neutral, r.competition)
         if stat in fitting.COUNT_STRENGTH_PRIOR:
             mh, ma = fitting.strength_shift(cm, mh, ma, delta)
-        a = cm.dispersion
+        a, at = cm.dispersion, cm.total_dispersion
         total = int(vh + va)
-        pmf = dist.convolve(dist.count_pmf(mh, a, 80), dist.count_pmf(ma, a, 80))
+        pmf = dist.count_total_pmf(mh, ma, a, at, 80)
         p_model = pmf[total] if total < len(pmf) else 1e-9
+        if at is not None and not suffix:  # frente a sumar los dos equipos como independientes
+            conv = dist.count_total_pmf(mh, ma, a, None, 80)
+            p_conv = conv[total] if total < len(conv) else 1e-9
+            count_ll[f"{stat}+total"].append((math.log(max(p_model, 1e-9)), math.log(max(p_conv, 1e-9))))
         ref = refs.get(r.referee_id) if r.referee_id else None
         if stat in ("cards", "fouls") and ref and not suffix:
             f = ref["cards_factor"] if stat == "cards" else ref.get("fouls_factor", 1.0)
-            pmf_ref = dist.convolve(dist.count_pmf(mh * f, a, 80), dist.count_pmf(ma * f, a, 80))
+            pmf_ref = dist.count_total_pmf(mh * f, ma * f, a, at, 80)
             p_ref = pmf_ref[total] if total < len(pmf_ref) else 1e-9
             count_ll[f"{stat}+arbitro"].append((math.log(max(p_ref, 1e-9)), math.log(max(p_model, 1e-9))))
         naive_mean = math.exp(cm.mu) * (1 + math.exp(cm.home_adv))

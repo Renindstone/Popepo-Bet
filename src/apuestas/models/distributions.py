@@ -155,6 +155,16 @@ def convolve(pmf_a: np.ndarray, pmf_b: np.ndarray) -> np.ndarray:
     return np.convolve(pmf_a, pmf_b)
 
 
+def count_total_pmf(mh: float, ma: float, dispersion: float, total_dispersion: float | None = None,
+                    max_k: int | None = None) -> np.ndarray:
+    """Total de un conteo de los dos equipos. Con `total_dispersion`, binomial negativa con la dispersión propia del
+    total, que recoge la correlación entre los dos (en córners y remates uno quita al otro; en tarjetas, el partido
+    caliente sube a los dos); sin ella (paquetes antiguos), la suma de los dos como independientes."""
+    if total_dispersion is None:
+        return convolve(count_pmf(mh, dispersion, max_k), count_pmf(ma, dispersion, max_k))
+    return count_pmf(mh + ma, total_dispersion, 2 * max_k if max_k else None)
+
+
 def over(total_pmf: dict[int, float], line: float) -> Outcome:
     return line_outcome(total_pmf, -line)
 

@@ -31,7 +31,8 @@ def analysis(kickoff=NOW + timedelta(hours=2), lam_home=1.6, stage="predicted", 
     }
     model = MatchModel(home_id=10, away_id=20, lam_home=lam_home, lam_away=1.1, rho=-0.01,
                        count_means={"corners": (5.4, 4.1), "shots_on_target": (4.8, 3.6)},
-                       count_dispersion={"corners": 0.074, "shots_on_target": 0.017}, players=players)
+                       count_dispersion={"corners": 0.074, "shots_on_target": 0.017},
+                       count_total_dispersion={"corners": 0.017}, players=players)
     return SimpleNamespace(match=SimpleNamespace(id=match_id, kickoff_utc=kickoff), model=model, stage=stage)
 
 
@@ -39,7 +40,9 @@ def test_one_row_per_match_updated_until_kickoff(s):
     first = predictions.store(s, analysis(), BUNDLE, NOW)
     assert first is not None and first.model_version == "v1@2026-10-24"
     p = first.payload
-    assert p["goals"]["home"] == 1.6 and p["counts"]["corners"] == {"home": 5.4, "away": 4.1, "dispersion": 0.074}
+    assert p["goals"]["home"] == 1.6 and p["counts"]["corners"] == {"home": 5.4, "away": 4.1, "dispersion": 0.074,
+                                                                           "total_dispersion": 0.017}
+    assert p["counts"]["shots_on_target"]["total_dispersion"] is None
     assert [(pl["player_id"], pl["side"]) for pl in p["players"]] == [(1, "home"), (2, "home"), (3, "away")]
     assert p["player_dispersion"]["shots"] == 0.15
 

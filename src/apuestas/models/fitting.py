@@ -312,6 +312,12 @@ COUNT_PRIOR_MATCHES = {"shots": 1.0, "shots_on_target": 1.0, "corners": 5.0, "fo
 # con el backtest 2024-26 y las cuotas de Pinnacle guardadas (docs/modelos.md). En tarjetas y faltas no mejora.
 COUNT_STRENGTH_PRIOR = {"shots": 8.0, "shots_on_target": 8.0, "corners": 20.0}
 
+# Dispersión del total de los dos equipos (binomial negativa, dist.count_total_pmf). Sumarlos como independientes
+# sale demasiado ancho: en remates y córners los residuos del local y el visitante se correlacionan −0,22 y −0,19 (uno
+# quita al otro). Medida fuera de muestra en el backtest 2024-26 (la del propio ajuste sale la mitad de alta en córners
+# y empeora tarjetas); en tarjetas el total sale Poisson. Ver docs/modelos.md.
+COUNT_TOTAL_DISPERSION = {"shots": 0.010, "shots_on_target": 0.003, "corners": 0.017, "fouls": 0.005, "cards": 0.0}
+
 
 def count_strength(goals: RatingModel) -> dict[int, float]:
     """Fuerza de cada equipo en el modelo de goles (ataque + defensa), la referencia de las estadísticas de dominio."""
@@ -448,6 +454,7 @@ def fit_counts(obs: list[MatchObs], stat: str, as_of: date, half_life_days: floa
         cm = ratings.fit(obs, as_of, half_life_days=half_life_days, prior_matches=COUNT_PRIOR_MATCHES[stat])
     if rows is not None and stat in COUNT_LEVEL_STATS:
         count_levels(cm, rows, stat, as_of)
+    cm.total_dispersion = COUNT_TOTAL_DISPERSION.get(stat)
     return cm
 
 

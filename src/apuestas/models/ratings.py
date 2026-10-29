@@ -47,6 +47,9 @@ class RatingModel:
     attack: dict[int, float]
     defence: dict[int, float]
     dispersion: float = 0.0  # alfa de la binomial negativa (0 = Poisson)
+    # Alfa del total de los dos equipos (fitting.COUNT_TOTAL_DISPERSION); None = suma de independientes (goles y
+    # paquetes antiguos)
+    total_dispersion: float | None = None
     n_matches: dict[int, float] = field(default_factory=dict)  # partidos (ponderados) por equipo
     as_of: date | None = None
     # Partidos con cuotas de cierre en el último año (observaciones del mercado). Vacío = no se sabe (paquetes
@@ -85,6 +88,7 @@ class RatingModel:
             "mu": self.mu,
             "home_adv": self.home_adv,
             "dispersion": self.dispersion,
+            "total_dispersion": self.total_dispersion,
             "attack": {str(k): v for k, v in self.attack.items()},
             "defence": {str(k): v for k, v in self.defence.items()},
             "n_matches": {str(k): v for k, v in self.n_matches.items()},
@@ -106,6 +110,7 @@ class RatingModel:
             attack=attack,
             defence={int(k): v for k, v in d["defence"].items()},
             dispersion=d.get("dispersion", 0.0),
+            total_dispersion=d.get("total_dispersion"),
             n_matches={int(k): v for k, v in d.get("n_matches", {}).items()},
             as_of=date.fromisoformat(d["as_of"]) if d.get("as_of") else None,
             market_matches={int(k): int(v) for k, v in d.get("market_matches", {}).items()},
