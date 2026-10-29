@@ -421,6 +421,7 @@ export interface PickHistory {
   hit_rate: number | null;
   avg_clv: number | null;
   last: {
+    pick_id: number;
     date: string;
     match: string;
     market: string;
@@ -430,6 +431,19 @@ export interface PickHistory {
     result: string | null;
     clv: number | null;
   }[];
+}
+
+/** «Por qué falló» una apuesta del día perdida (GET /picks/{id}/failure) */
+export interface FailureReport {
+  pick_id: number;
+  match: string;
+  score: string;
+  result: string;
+  has_preview: boolean;
+  teams: { team: string; side: "home" | "away"; score: number; items: WeekItem[] }[];
+  players: { name: string; team: string; score: number; items: WeekItem[] }[];
+  flagged: { team: string; kind: "racha" | "baja"; reason: RadarTeam["reason"]; figures_played: string[] }[];
+  note: AiNote | null;
 }
 
 // --------------------------------------------------------------------------- resumen de la semana (GET /week)

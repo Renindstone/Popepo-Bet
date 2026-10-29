@@ -7,6 +7,7 @@ import { AlertList, AlertTags } from "@/components/Avisos";
 import { CaptureDrop } from "@/components/capturas/CaptureDrop";
 import { Crest } from "@/components/Crest";
 import { PickRecord } from "@/components/PickRecord";
+import { PorQueFallo } from "@/components/PorQueFallo";
 import { AlertTag } from "@/components/semana/Radar";
 import { Tabs, useHashTab } from "@/components/Tabs";
 import { Button, EdgeBar, Empty, ErrorNote, Figure, Loading, Section, Tag } from "@/components/ui";
@@ -25,6 +26,7 @@ import {
   stageText,
 } from "@/lib/format";
 import { useRemembered, useToday } from "@/lib/hooks";
+import { useMe } from "@/lib/me";
 import { betLabel, bookmakerName } from "@/lib/markets";
 import type { Capture, DayMatch, PastValueBet, Performance, PickOfDay, PicksReport, PropMinOdds, ValueBet } from "@/lib/types";
 
@@ -51,6 +53,7 @@ export function HoyView() {
   const day = params.get("dia") ?? today;
   const { data, error, isLoading, mutate } = useApi<PicksReport>(day ? `/picks?day=${day}` : null);
   const { data: perf } = useApi<Performance>("/performance");
+  const { me } = useMe();
   const [recalc, setRecalc] = useState<{ busy: boolean; error?: ApiError }>({ busy: false });
   const past = !!day && !!today && day < today;
 
@@ -148,7 +151,7 @@ export function HoyView() {
         <div className="min-w-0 space-y-10 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           {matches && <Jornada rows={matches} />}
           <PickRecord />
-          {!past && <CaptureQuick />}
+          {!past && me?.ai_enabled !== false && <CaptureQuick />}
           <MarginNote />
         </div>
 
@@ -338,6 +341,7 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
         </ul>
       )}
       {!past && <AlertList alerts={pick.alerts} className="mt-5" />}
+      {past && pick.pick_id && (pick.result === "loss" || pick.result === "half_loss") && <PorQueFallo pickId={pick.pick_id} />}
       {evaluarHref && !past && (
         <Link href={evaluarHref} className="mt-4 inline-flex min-h-10 items-center text-interfaz font-bold text-boli underline underline-offset-4">
           Comprobar la cuota de Betano

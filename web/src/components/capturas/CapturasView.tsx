@@ -10,6 +10,7 @@ import { Button, EdgeBar, Empty, ErrorNote, Loading, PageTitle, Tag } from "@/co
 import { type ApiError, blobUrl, del, post, put, useApi } from "@/lib/api";
 import { competitionName, odds, pct, signedPct } from "@/lib/format";
 import { betLabel, bookmakerName } from "@/lib/markets";
+import { useMe } from "@/lib/me";
 import type { Capture, CaptureLine, MatchSummary } from "@/lib/types";
 
 const field = "h-11 w-full border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
@@ -20,6 +21,26 @@ const ACTIVE = ["pendiente", "procesando", "evaluada"];
 /** La captura sigue en manos de la IA (y la página debe refrescarse sola) */
 function isActive(c: Capture): boolean {
   return !!c.auto_engine && ACTIVE.includes(c.status);
+}
+
+/** Con la IA apagada para este usuario, Capturas no se usa: se explica dónde encenderla */
+export function CapturasGate() {
+  const { me } = useMe();
+  if (me?.ai_enabled === false) {
+    return (
+      <>
+        <PageTitle title="Capturas" />
+        <p className="max-w-[72ch] border-t-[3px] border-tarjeta bg-tarjeta-suave px-3 py-2 text-interfaz">
+          La IA está apagada para tu usuario: puedes encenderla al final de{" "}
+          <Link href="/datos#ia" className="font-bold underline underline-offset-2">
+            Datos
+          </Link>
+          .
+        </p>
+      </>
+    );
+  }
+  return <CapturasView />;
 }
 
 export function CapturasView() {

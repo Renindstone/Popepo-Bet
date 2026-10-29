@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ScrollRow } from "@/components/ScrollRow";
 import { longDay } from "@/lib/format";
 import { useToday } from "@/lib/hooks";
+import { useMe } from "@/lib/me";
 
 const LINKS = [
   { href: "/", label: "Hoy" },
@@ -18,12 +19,14 @@ const LINKS = [
 
 export function Nav() {
   const path = usePathname();
+  const { me } = useMe();
+  const links = me?.ai_enabled === false ? LINKS.filter((l) => l.href !== "/capturas") : LINKS;
   return (
     <nav aria-label="Secciones">
       {/* En el celular el menú no cabe: se desplaza de lado, con una flecha que lo indica */}
       <ScrollRow activeKey={path} className="-mx-4 sm:mx-0">
         <ul className="flex w-max gap-5 px-4 whitespace-nowrap sm:gap-7 sm:px-0">
-          {LINKS.map((l) => {
+          {links.map((l) => {
             const active = l.href === "/" ? path === "/" : path.startsWith(l.href);
             return (
               <li key={l.href}>

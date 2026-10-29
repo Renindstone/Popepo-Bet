@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ApiKeyForm, Button, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
-import { type ApiError, apiUrl, DIRECT_API_URL, post, useApi } from "@/lib/api";
+import { type ApiError, apiUrl, DIRECT_API_URL, post, put, useApi } from "@/lib/api";
 import { ago, dateTimeLima, int, pct, shortDate, todayLima } from "@/lib/format";
-import type { DataStatus, SyncStatus } from "@/lib/types";
+import { useMe } from "@/lib/me";
+import type { DataStatus, Me, SyncStatus } from "@/lib/types";
 
 const SOURCES: Record<string, { name: string; what: string }> = {
   fdco: { name: "football-data.co.uk", what: "Resultados, estadísticas y cuotas de bet365, Pinnacle y Betfair" },
@@ -200,7 +201,61 @@ export function DatosView() {
         </>
       )}
       <Conexion />
+      <Inteligencia />
     </>
+  );
+}
+
+/** Interruptor de la IA de este usuario: capturas y explicaciones de Claude */
+function Inteligencia() {
+  const { me, mutate } = useMe();
+  const [state, setState] = useState<{ busy: boolean; error?: ApiError }>({ busy: false });
+  async function set(on: boolean) {
+    setState({ busy: true });
+    try {
+      await mutate(await put<Me>("/me", { ai_enabled: on }), { revalidate: false });
+      setState({ busy: false });
+    } catch (e) {
+      setState({ busy: false, error: e as ApiError });
+    }
+  }
+  const option = (on: boolean, label: string) => {
+    const active = me?.ai_enabled === on;
+    return (
+      <button
+        type="button"
+        aria-pressed={active}
+        disabled={!me || state.busy}
+        onClick={() => set(on)}
+        className={`h-10 border px-4 text-interfaz font-bold transition-colors disabled:opacity-60 ${
+          active ? "border-tinta bg-tinta text-papel" : "border-tinta bg-hoja text-tinta hover:bg-tinta hover:text-papel"
+        }`}
+      >
+        {label}
+      </button>
+    );
+  };
+  return (
+    <Section
+      id="ia"
+      title="Inteligencia artificial"
+      intro="Cada usuario decide si usa la IA en el panel. Los números del modelo no cambian: la IA nunca los calcula."
+    >
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <p className="text-interfaz font-bold">Usar IA en el panel</p>
+        <div role="group" aria-label="Usar IA en el panel" className="flex">
+          {option(true, "Encendida")}
+          {option(false, "Apagada")}
+        </div>
+      </div>
+      {state.error && <ErrorNote error={state.error} />}
+      <p className="mt-4 text-interfaz">Si la apagas:</p>
+      <ul className="mt-1 max-w-[72ch] list-disc space-y-1 pl-5 text-interfaz text-grafito">
+        <li>desaparecen «Capturas» del menú y «¿Viste una cuota?» de Hoy;</li>
+        <li>«Por qué falló» y «Sorpresas» muestran solo los números, sin la explicación de Claude;</li>
+        <li>no se procesan tus capturas pendientes.</li>
+      </ul>
+    </Section>
   );
 }
 

@@ -3,7 +3,8 @@
 import type { EChartsCoreOption } from "echarts/core";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, Fragment, useMemo, useState } from "react";
+import { PorQueFallo } from "@/components/PorQueFallo";
 import { baseOption, Chart, type ChartTheme, useChartTheme } from "@/components/Chart";
 import { PickRecord } from "@/components/PickRecord";
 import { Button, Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
@@ -735,7 +736,25 @@ function CorteHistorial() {
   );
 }
 
+const LOST = new Set(["loss", "half_loss"]);
+
+/** «Por qué falló»: botón en las perdidas que abre el análisis debajo de la fila */
+function WhyButton({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="ml-3 inline-flex min-h-6 items-center text-nota font-bold text-boli underline underline-offset-2"
+    >
+      {open ? "Ocultar" : "Por qué falló"}
+    </button>
+  );
+}
+
 function Historial({ h }: { h: PickHistory }) {
+  const [open, setOpen] = useState<number | null>(null);
+  const toggle = (id: number) => setOpen(open === id ? null : id);
   if (h.picks === 0) {
     return (
       <Empty>
@@ -772,7 +791,9 @@ function Historial({ h }: { h: PickHistory }) {
               <p className="num mt-1.5 flex flex-wrap items-center gap-x-4 text-nota">
                 <Tag tone={r.result ? RESULT_TONE[r.result] ?? "neutral" : "tarjeta"}>{resultText(r.result)}</Tag>
                 {r.clv != null && <span className="text-grafito">CLV {signedPct(r.clv)}</span>}
+                {r.result && LOST.has(r.result) && <WhyButton open={open === r.pick_id} onToggle={() => toggle(r.pick_id)} />}
               </p>
+              {open === r.pick_id && <PorQueFallo pickId={r.pick_id} />}
             </li>
           );
         })}
@@ -793,16 +814,26 @@ function Historial({ h }: { h: PickHistory }) {
             {[...h.last].reverse().map((r, i) => {
               const [home, away] = splitMatch(r.match);
               return (
-                <tr key={i} className="border-b border-regla-suave">
+                <Fragment key={i}>
+                <tr className="border-b border-regla-suave">
                   <td className="num py-2 pr-4">{shortDate(r.date)}</td>
                   <td className="py-2 pr-4">{r.match}</td>
                   <td className="py-2 pr-4">{betLabel(r.market, r.selection, r.line, { home, away })}</td>
                   <td className="cond num py-2 pr-4 text-right text-lg font-bold">{odds(r.odds)}</td>
                   <td className="py-2 pr-4">
                     <Tag tone={r.result ? RESULT_TONE[r.result] ?? "neutral" : "tarjeta"}>{resultText(r.result)}</Tag>
+                    {r.result && LOST.has(r.result) && <WhyButton open={open === r.pick_id} onToggle={() => toggle(r.pick_id)} />}
                   </td>
                   <td className="num py-2 text-right">{signedPct(r.clv)}</td>
                 </tr>
+                {open === r.pick_id && (
+                  <tr className="border-b border-regla-suave">
+                    <td colSpan={6} className="pb-4">
+                      <PorQueFallo pickId={r.pick_id} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
