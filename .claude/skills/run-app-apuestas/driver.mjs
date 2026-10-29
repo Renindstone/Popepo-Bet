@@ -34,6 +34,7 @@ const PAGES = {
   // Las otras pestañas de Hoy, el día del primer partido próximo (hoy puede no haber partidos y salir vacías)
   "hoy-valor": { path: null, hash: "#valor", ready: "Otras apuestas con valor" },
   "hoy-props": { path: null, hash: "#props", ready: "Props con cuota mínima" },
+  "hoy-precio": { path: null, hash: "#precio", ready: "Betano frente a Pinnacle" },
   partidos: { path: "/partidos", ready: "vs" },
   // El primer partido de la lista, una entrada por pestaña (la pestaña va en el ancla de la URL)
   partido: { path: null, ready: "Alineación y bajas" },

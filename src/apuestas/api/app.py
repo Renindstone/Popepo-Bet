@@ -228,6 +228,12 @@ def pick_record(user: str = Depends(current_user)) -> dict:
     return picks.pick_record()
 
 
+@app.get("/compare")
+def compare(day: str | None = None, min_edge: float | None = None, user: str = Depends(current_user)) -> dict:
+    """Cuotas de Betano que pagan más que la justa (sin margen) de Pinnacle, sin modelo."""
+    return _wrap(queries.price_comparison, day, min_edge)
+
+
 @app.get("/week")
 def week(day: str | None = None, period: str = "semana", user: str = Depends(current_user)) -> dict:
     """Equipo, jugador y once de la semana o del mes (4 semanas): quién sorprendió a la casa (equipos) y a nuestro

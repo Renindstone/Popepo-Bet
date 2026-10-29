@@ -55,6 +55,30 @@ export interface PropMinOdds {
   match?: string;
 }
 
+/** Una cuota de Betano por encima de la justa (sin margen) de Pinnacle (`GET /compare`) */
+export interface PriceEdge {
+  match_id: number;
+  match: string;
+  competition: string;
+  kickoff_local: string;
+  market: string;
+  selection: string;
+  line: number | null;
+  group: "goles" | "estadísticas";
+  odds: number;
+  fair_odds: number;
+  edge: number;
+  odds_at: string;
+  fair_at: string;
+}
+
+export interface PriceComparison {
+  date: string;
+  min_edge: number;
+  note: string;
+  rows: PriceEdge[];
+}
+
 export interface PickOfDay {
   alerts?: Alert[];
   pick_id?: number;

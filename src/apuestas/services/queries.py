@@ -173,6 +173,14 @@ def week_recap(day: str | None = None, detail: bool = True, period: str = "seman
     return weekly.week_recap(date.fromisoformat(day) if day else None, detail=detail, period=period)
 
 
+def price_comparison(day: str | None = None, min_edge: float | None = None) -> dict:
+    """Cuotas de Betano por encima de la justa de Pinnacle en los partidos del día que aún no empezaron."""
+    from apuestas.services import compare
+
+    return compare.day_edges(date.fromisoformat(day) if day else None,
+                             compare.MIN_EDGE if min_edge is None else min_edge)
+
+
 def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
     d = date.fromisoformat(day) if day else picks.today_local()
     if refresh or d >= picks.today_local():

@@ -37,6 +37,7 @@ class MatchObs:
     neutral: bool = False
     weight: float = 1.0
     market: bool = False
+    competition: str | None = None  # para la ventaja local de cada competición (`home_l2` en `fit`)
 
 
 @dataclass
@@ -64,6 +65,8 @@ class RatingModel:
     cup_level: dict[str, float] = field(default_factory=dict)
     # True: en una copa con nivel propio solo cuenta ese (tarjetas: la Champions no sigue a las ligas de sus equipos)
     cup_alone: bool = False
+    # Desvío de la ventaja local de cada competición frente a home_adv (goles, `fit(home_l2=...)`); vacío = una sola
+    home_by_comp: dict[str, float] = field(default_factory=dict)
 
     def level_for(self, home: int, away: int, competition: str | None = None) -> float:
         """Log del factor que el nivel reciente aplica a los dos equipos: media del de sus ligas (en un partido de
@@ -79,7 +82,7 @@ class RatingModel:
         del árbitro con partidos de hace años)."""
         ah, aa = self.attack.get(home, 0.0), self.attack.get(away, 0.0)
         dh, da = self.defence.get(home, 0.0), self.defence.get(away, 0.0)
-        h = 0.0 if neutral else self.home_adv
+        h = 0.0 if neutral else self.home_adv + self.home_by_comp.get(competition, 0.0)
         lv = self.level_for(home, away, competition) if level and (self.level or self.cup_level) else 0.0
         return float(np.exp(self.mu + lv + h + ah - da)), float(np.exp(self.mu + lv + aa - dh))
 
@@ -98,6 +101,7 @@ class RatingModel:
             "level": {str(k): v for k, v in self.level.items()},
             "cup_level": dict(self.cup_level),
             "cup_alone": self.cup_alone,
+            "home_by_comp": dict(self.home_by_comp),
         }
 
     @classmethod
@@ -118,6 +122,7 @@ class RatingModel:
             level={int(k): v for k, v in d.get("level", {}).items()},
             cup_level=dict(d.get("cup_level", {})),
             cup_alone=bool(d.get("cup_alone", False)),
+            home_by_comp=dict(d.get("home_by_comp", {})),
         )
 
 
@@ -139,6 +144,7 @@ def fit(
     market_half_life_days: float | None = None,
     prior_matches: float | None = None,
     strength: dict[int, float] | None = None,
+    home_l2: float | None = None,
 ) -> RatingModel:
     """`prior_matches`: contracción hacia la media expresada en partidos (ponderados) "promedio" en vez de una L2
     fija. Cada partido aporta a la curvatura del ataque o la defensa de un equipo tanto como su media (~1,4 en
@@ -150,7 +156,10 @@ def fit(
     de hacia 0. Dentro de una liga casi no cambia nada (la desviación absorbe lo que se ve), pero entre ligas que
     apenas se cruzan (en córners, solo por la Champions) el nivel de cada liga lo da la fuerza y no la L2, que
     supone que todas las ligas son igual de fuertes. El modelo devuelto guarda en attack/defence la suma, así que se
-    usa igual con o sin fuerza."""
+    usa igual con o sin fuerza.
+
+    `home_l2`: ventaja local propia de cada competición de las observaciones (`MatchObs.competition`), como desvío de
+    la general con esta L2. None = una sola ventaja para todas."""
     obs = [o for o in obs if 0 <= (as_of - o.day).days <= max_age_days]
     if not obs:
         raise ValueError("Sin partidos para ajustar el modelo")
@@ -165,6 +174,10 @@ def fit(
     real = np.array([not o.market for o in obs])
     days = np.array([o.day for o in obs])
     ow = np.array([o.weight for o in obs])
+    comps = sorted({o.competition for o in obs if o.competition}) if home_l2 is not None else []
+    nc = len(comps)
+    cpos = {c: k for k, c in enumerate(comps)}
+    ci = np.array([cpos.get(o.competition, nc) for o in obs])  # nc = sin desvío propio
     w = time_weights(days, as_of, half_life_days) * ow
     if market_half_life_days and not real.all():
         # El mercado apenas tiene ruido: puede pesar más lo reciente que en los partidos reales
@@ -176,18 +189,20 @@ def fit(
     center = float(np.mean(known)) if known else 0.0
     xs = np.array([strength[t] - center if t in strength else 0.0 for t in teams])
 
-    def unpack(theta: np.ndarray) -> tuple[float, float, np.ndarray, np.ndarray, float, float]:
-        """mu, local, desviaciones de ataque y defensa, y coeficientes b de la fuerza (ataque, defensa)."""
-        return theta[0], theta[1], theta[2 : 2 + n], theta[2 + n : 2 + 2 * n], theta[-2], theta[-1]
+    def unpack(theta: np.ndarray) -> tuple[float, float, np.ndarray, np.ndarray, np.ndarray, float, float]:
+        """mu, local, desviaciones de ataque y defensa, desvíos del local por competición y coeficientes b de la
+        fuerza (ataque, defensa)."""
+        return (theta[0], theta[1], theta[2 : 2 + n], theta[2 + n : 2 + 2 * n], theta[2 + 2 * n : 2 + 2 * n + nc],
+                theta[-2], theta[-1])
 
     def objective(theta: np.ndarray) -> tuple[float, np.ndarray]:
-        mu, home, da, dd, ba, bd = unpack(theta)
+        mu, home, da, dd, hd, ba, bd = unpack(theta)
         att, de = da + ba * xs, dd + bd * xs
-        eta_h = mu + home * hm + att[hi] - de[ai]
+        eta_h = mu + (home + np.append(hd, 0.0)[ci]) * hm + att[hi] - de[ai]
         eta_a = mu + att[ai] - de[hi]
         lh, la = np.exp(eta_h), np.exp(eta_a)
         nll = np.sum(w * (lh - yh * eta_h)) + np.sum(w * (la - ya * eta_a))
-        nll += 0.5 * l2 * (np.sum(da**2) + np.sum(dd**2))
+        nll += 0.5 * l2 * (np.sum(da**2) + np.sum(dd**2)) + 0.5 * (home_l2 or 0.0) * np.sum(hd**2)
         rh, ra = w * (lh - yh), w * (la - ya)  # derivadas respecto a eta
         g = np.zeros_like(theta)
         g[0] = rh.sum() + ra.sum()
@@ -196,21 +211,22 @@ def fit(
         g_def = -np.bincount(ai, weights=rh, minlength=n) - np.bincount(hi, weights=ra, minlength=n)
         g[2 : 2 + n] = g_att + l2 * da
         g[2 + n : 2 + 2 * n] = g_def + l2 * dd
+        g[2 + 2 * n : 2 + 2 * n + nc] = np.bincount(ci, weights=rh * hm, minlength=nc + 1)[:nc] + (home_l2 or 0.0) * hd
         g[-2], g[-1] = g_att @ xs, g_def @ xs
         return nll, g
 
     mean_y = max(float(np.average(np.concatenate([yh, ya]), weights=np.concatenate([w, w]))), 1e-3)
     if prior_matches is not None:
         l2 = prior_matches * mean_y
-    theta0 = np.zeros(4 + 2 * n)
+    theta0 = np.zeros(4 + 2 * n + nc)
     theta0[0] = np.log(mean_y)
     theta0[1] = 0.1
     res = minimize(objective, theta0, jac=True, method="L-BFGS-B", options={"maxiter": 2000})
-    mu, home, da, dd, ba, bd = unpack(res.x)
+    mu, home, da, dd, hd, ba, bd = unpack(res.x)
     att, de = da + ba * xs, dd + bd * xs
 
     # Sobredispersión (alfa de NB) por momentos: Var = m + alfa m^2 (solo con partidos reales)
-    lh = np.exp(mu + home * hm + att[hi] - de[ai])
+    lh = np.exp(mu + (home + np.append(hd, 0.0)[ci]) * hm + att[hi] - de[ai])
     la = np.exp(mu + att[ai] - de[hi])
     y = np.concatenate([yh[real], ya[real]])
     mm = np.concatenate([lh[real], la[real]])
@@ -233,4 +249,5 @@ def fit(
         as_of=as_of,
         market_matches={t: int(market_n[i]) for t, i in idx.items()} if market_n is not None else {},
         strength_coef=(float(ba), float(bd)) if known else None,
+        home_by_comp={c: float(hd[k]) for c, k in cpos.items()},
     )
