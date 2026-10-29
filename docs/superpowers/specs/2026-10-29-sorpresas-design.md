@@ -50,7 +50,9 @@ el once.
 
 - Repositorio público, reglas de AGENTS.md. Hora de Lima en todo lo visible.
 - Diseño del panel: `DESIGN.md` (portada de diario deportivo) y la skill `disenio-panel`. Avisos con el filete arriba,
-  nunca con borde lateral grueso; etiquetas con palabra, nunca solo color.
+  nunca con borde lateral grueso; etiquetas con palabra, nunca solo color. El dueño aprobó este diseño (29-10) con una
+  condición: que todo lo nuevo siga el mismo patrón del rediseño hecho con impeccable (`DESIGN.md`,
+  `.impeccable/design.json` y el contrato de la portada en `.impeccable/surfaces/`), con su revisión de diseño al final.
 - Claude se lanza como ya se hace con las capturas (`services/capture_engines.py`, `claude -p` con la suscripción de
   la PC, aislado y sin archivos ni terminal).
 - Los jugadores solo tienen sorpresa desde el 24-10-2026 (la previa se empezó a guardar ese día). Los equipos tienen
