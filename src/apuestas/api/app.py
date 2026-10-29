@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,7 +19,17 @@ from pydantic import BaseModel
 from apuestas import __version__
 from apuestas.config import get_settings
 from apuestas.db.session import session_scope
-from apuestas.services import capture_engines, captures, failure, picks, queries, radar, sync, tracker
+from apuestas.services import (
+    ai_notes,
+    capture_engines,
+    captures,
+    failure,
+    picks,
+    queries,
+    radar,
+    sync,
+    tracker,
+)
 
 log = logging.getLogger(__name__)
 
@@ -226,14 +236,32 @@ def week(day: str | None = None, period: str = "semana", user: str = Depends(cur
 
 @app.get("/picks/{pick_id}/failure")
 def pick_failure(pick_id: int, user: str = Depends(current_user)) -> dict:
-    """«Por qué falló» una apuesta del día perdida: la previa del modelo frente a lo que pasó."""
-    return _wrap(failure.get, pick_id)
+    """«Por qué falló» una apuesta del día perdida: la previa del modelo frente a lo que pasó, y la explicación de
+    Claude si el usuario usa la IA."""
+    out = _wrap(failure.get, pick_id)
+    return {**out, "note": ai_notes.note_for("fallo", f"pick:{pick_id}", user)}
 
 
 @app.get("/radar")
 def radar_now(user: str = Depends(current_user)) -> dict:
-    """Equipos en racha y en baja y jugadores en racha de las últimas 4 semanas, con su próximo partido."""
-    return _wrap(radar.get)
+    """Equipos en racha y en baja y jugadores en racha de las últimas 4 semanas, con su próximo partido y la
+    explicación de Claude de hoy si la hay."""
+    data = _wrap(radar.get)
+    return ai_notes.with_notes({**data, **{k: list(data[k]) for k in ("racha", "baja", "jugadores")}}, user)
+
+
+class InvestigateIn(BaseModel):
+    kind: Literal["team", "player"]
+    id: int
+
+
+@app.post("/radar/investigate")
+def radar_investigate(body: InvestigateIn, user: str = Depends(current_user)) -> dict:
+    """Pide a Claude que investigue un equipo o jugador del radar (solo el dueño, con la IA encendida)."""
+    try:
+        return _wrap(ai_notes.investigate, user, body.kind, body.id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
 
 
 @app.get("/picks/qualified")

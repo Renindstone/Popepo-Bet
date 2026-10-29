@@ -278,6 +278,16 @@ def job_closing_odds() -> None:
 POST_MATCH_HOURS = 3  # desde el inicio: el partido ya terminó y FotMob tiene el resultado y las estadísticas
 
 
+@_safe("notas de Claude", network=0)
+def job_ai_notes() -> None:
+    """Escribe con Claude las explicaciones pendientes (por qué falló la apuesta del día), de una en una."""
+    from apuestas.services import ai_notes
+
+    n = ai_notes.process_pending()
+    if n:
+        log.info("Notas de Claude escritas: %d", n)
+
+
 @_safe("liquidación tras el partido", network=0)
 def job_post_match() -> None:
     """Liquida poco después de cada partido, sin esperar a las 05:30 (solo descarga si hay algo que liquidar)."""
@@ -381,6 +391,7 @@ def run() -> None:
     sched.add_job(job_closing_odds, "cron", minute=f"*/{LINEUP_EVERY_MIN}", id="closing_odds")
     sched.add_job(job_post_match, "cron", minute="15,45", id="post_match")
     sched.add_job(job_odds, "cron", hour="*/3", minute=10, id="odds")
+    sched.add_job(job_ai_notes, "cron", minute="5,25,45", id="ai_notes")
     sched.add_job(catch_up, "date", run_date=datetime.now(tz) + timedelta(seconds=10), id="catch_up")
     log.info("Worker iniciado (%s). Tareas: %s", tz, [j.id for j in sched.get_jobs()])
     sched.start()

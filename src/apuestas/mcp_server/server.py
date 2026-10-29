@@ -20,7 +20,7 @@ from mcp.server.mcpserver.utilities.types import Image
 
 from apuestas.config import get_settings
 from apuestas.db.session import session_scope
-from apuestas.services import captures, queries, tracker
+from apuestas.services import ai_notes, captures, queries, tracker
 
 log = logging.getLogger(__name__)
 
@@ -180,6 +180,26 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
         Con periodo="mes", las 4 semanas completas que terminan en esa semana (por defecto, la última completa).
         Resume lo que pasó: no predice la semana siguiente."""
         return _safe(queries.week_recap, semana, False, periodo)
+
+    @server.tool()
+    def datos_fallo(ref: str) -> str:
+        """Números de «Por qué falló» de una apuesta del día perdida (ref="pick:<id>"): lo que esperaba el modelo en la
+        previa frente a lo que pasó, los jugadores que más se salieron de lo esperado y si el radar de Sorpresas ya
+        marcaba a alguno de los dos equipos."""
+        return _safe(ai_notes.fallo_data, ref)
+
+    @server.tool()
+    def datos_radar(ref: str) -> str:
+        """Ficha del radar de Sorpresas de un equipo (ref="team:<id>") o jugador (ref="player:<id>"): por qué está en
+        racha o en baja en las últimas 4 semanas, sus figuras y sus próximos partidos."""
+        return _safe(ai_notes.radar_data, ref)
+
+    if get_settings().mcp_engine and not http:
+
+        @server.tool()
+        def guardar_explicacion(ref: str, texto: str, fuentes: list[dict]) -> str:
+            """Guarda la explicación escrita (de 3 a 6 frases) para `ref`, con las fuentes usadas: [{titulo, url}]."""
+            return _safe(ai_notes.save, ref, texto, fuentes)
 
     @server.tool()
     def capturas_pendientes() -> str:

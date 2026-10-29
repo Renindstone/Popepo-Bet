@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     captures_api_model: str = "claude-sonnet-5-5"
     # Usuario con el que actúa el servidor MCP en modo stdio (vacío = default_user)
     mcp_user: str = ""
+    # Solo para el MCP que lanza el motor de notas de Claude: habilita guardar_explicacion
+    mcp_engine: bool = False
+    ai_notes_timeout_s: int = 300
 
     @property
     def tz(self) -> ZoneInfo:

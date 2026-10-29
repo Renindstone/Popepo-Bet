@@ -228,15 +228,20 @@ def set_clv(s: Session, row: m.Pick | m.UserBet) -> bool:
 
 
 def settle_all() -> dict:
+    from apuestas.services import ai_notes  # aquí: ai_notes importa queries, que importa este módulo
+
     out = {"picks": 0, "bets": 0}
     with session_scope() as s:
+        settled = []
         for pick in s.scalars(select(m.Pick).where(m.Pick.status == "open")):
             res = settle(s, pick.match, pick.market, pick.selection, pick.line)
             if res is None:
                 continue
             pick.result, pick.status = res, "settled"
             set_clv(s, pick)
+            settled.append(pick)
             out["picks"] += 1
+        out["notes"] = ai_notes.after_settle(s, settled)
         for bet in s.scalars(select(m.UserBet).where(m.UserBet.result.is_(None))):
             if bet.market == "combo":
                 for leg in bet.legs:
