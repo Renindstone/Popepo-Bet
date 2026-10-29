@@ -64,7 +64,7 @@ _lock = threading.Lock()
 def submit(capture_id: int, username: str, engine: str | None = None) -> bool:
     """Encola la captura si este usuario tiene motor automático. `engine` fuerza otro motor (p.ej. releerla con
     Claude). Devuelve si se encoló."""
-    if get_settings().captures_engine_for(username) is None:
+    if get_settings().captures_engine_for(username) is None or not queries.ai_enabled(username):
         return False
     with _lock:
         if capture_id in _queued:

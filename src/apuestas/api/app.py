@@ -297,6 +297,22 @@ def set_bankroll(body: BankrollIn, user: str = Depends(current_user)) -> dict:
     return _wrap(queries.set_bankroll, user, body.bankroll, body.currency)
 
 
+class MeIn(BaseModel):
+    ai_enabled: bool
+
+
+@app.get("/me")
+def get_me(user: str = Depends(current_user)) -> dict:
+    """El usuario de esta clave y sus ajustes: si usa la IA y si puede pedir explicaciones a Claude."""
+    return queries.me(user)
+
+
+@app.put("/me")
+def put_me(body: MeIn, user: str = Depends(current_user)) -> dict:
+    """Enciende o apaga la IA para este usuario (capturas y explicaciones de Claude)."""
+    return queries.set_me(user, body.ai_enabled)
+
+
 @app.get("/performance")
 def performance(days: int | None = None, user: str = Depends(current_user)) -> dict:
     return queries.performance(user, days)
@@ -310,6 +326,10 @@ async def upload_capture(file: Annotated[UploadFile, File()], match: Annotated[s
                          bookmaker: Annotated[str | None, Form()] = None, note: Annotated[str | None, Form()] = None,
                          user: str = Depends(current_user)) -> dict:
     """Sube una captura de cuotas. Si el usuario tiene motor automático, una IA la lee en segundo plano."""
+    try:
+        queries.require_ai(user)
+    except queries.AiDisabled as exc:
+        raise HTTPException(409, str(exc)) from exc
     limit = int(get_settings().captures_max_mb * 1024 * 1024)
     data = await file.read(limit + 1)
     cap = _wrap(captures.create, user, data, match, bookmaker, note)

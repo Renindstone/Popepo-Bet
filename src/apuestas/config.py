@@ -99,12 +99,15 @@ class Settings(BaseSettings):
     def captures_dir(self) -> Path:
         return self.var_dir / "capturas"
 
+    def engine_users(self) -> set[str]:
+        """Usuarios que pueden usar los motores de esta PC (capturas y Claude): por defecto, solo el dueño."""
+        return {u.strip() for u in self.captures_engine_users.split(",") if u.strip()} or {self.default_user}
+
     def captures_engine_for(self, username: str) -> str | None:
         """Motor automático que procesa las capturas de este usuario (None = las procesa su propio agente)."""
         if self.captures_engine == "none":
             return None
-        allowed = {u.strip() for u in self.captures_engine_users.split(",") if u.strip()} or {self.default_user}
-        return self.captures_engine if username in allowed else None
+        return self.captures_engine if username in self.engine_users() else None
 
     def captures_fallback_for(self, username: str) -> str | None:
         """Motor alternativo (p.ej. Claude) para releer una captura que el motor local no leyó bien."""

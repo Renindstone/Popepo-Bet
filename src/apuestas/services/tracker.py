@@ -27,6 +27,22 @@ def get_or_create_user(s: Session, username: str) -> m.User:
     return user
 
 
+def ai_enabled(s: Session, username: str) -> bool:
+    """Si este usuario usa la IA del panel (un usuario sin fila aún la tiene encendida)."""
+    user = s.scalar(select(m.User).where(m.User.username == username))
+    return True if user is None else bool(user.ai_enabled)
+
+
+def set_ai_enabled(s: Session, username: str, on: bool) -> None:
+    get_or_create_user(s, username).ai_enabled = on
+
+
+def can_investigate(s: Session, username: str) -> bool:
+    """Puede pedir explicaciones a Claude: tiene la IA encendida y usa los motores de esta PC (la suscripción del
+    dueño)."""
+    return ai_enabled(s, username) and username in get_settings().engine_users()
+
+
 def create_api_key(s: Session, username: str) -> str:
     """Genera una clave nueva (solo se muestra una vez) para que un usuario conecte su agente."""
     user = get_or_create_user(s, username)

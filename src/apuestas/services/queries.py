@@ -506,6 +506,35 @@ def performance(username: str, days: int | None = None) -> dict:
 CURRENCIES = ("PEN", "USD", "EUR")
 
 
+class AiDisabled(RuntimeError):
+    """El usuario apagó la IA (al final de Datos)."""
+
+
+AI_OFF = "La IA está apagada para tu usuario: puedes encenderla al final de Datos."
+
+
+def me(username: str) -> dict:
+    with session_scope() as s:
+        return {"username": username, "ai_enabled": tracker.ai_enabled(s, username),
+                "can_investigate": tracker.can_investigate(s, username)}
+
+
+def set_me(username: str, ai_enabled: bool) -> dict:
+    with session_scope() as s:
+        tracker.set_ai_enabled(s, username, ai_enabled)
+    return me(username)
+
+
+def ai_enabled(username: str) -> bool:
+    with session_scope() as s:
+        return tracker.ai_enabled(s, username)
+
+
+def require_ai(username: str) -> None:
+    if not ai_enabled(username):
+        raise AiDisabled(AI_OFF)
+
+
 def set_bankroll(username: str, bankroll: float, currency: str = "PEN") -> dict:
     """Fija la banca inicial: base del stake sugerido y de los límites de pérdida."""
     currency = currency.upper()
