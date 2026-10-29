@@ -108,6 +108,13 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
         return _safe(queries.pick_of_day, fecha, recalcular)
 
     @server.tool()
+    def comparar_casas(fecha: str | None = None, ventaja_minima: float = 0.02) -> str:
+        """Cuotas de Betano que pagan más que la cuota justa (sin margen) de Pinnacle en los partidos del día que
+        aún no empezaron, sin modelo: comparar precios. Desde el 19-10-2026 pasa sobre todo en córners y tarjetas, y
+        Pinnacle no se movió después hacia Betano; con pocas semanas, no es una apuesta segura. fecha AAAA-MM-DD."""
+        return _safe(queries.price_comparison, fecha, ventaja_minima)
+
+    @server.tool()
     def evaluar_cuota(partido: str, mercado: str, seleccion: str, cuota: float, linea: float | None = None,
                       casa: str = "betano", jugador: str | None = None) -> str:
         """Evalúa una cuota concreta que el usuario ve en Betano/bet365: probabilidad, cuota justa,

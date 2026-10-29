@@ -113,6 +113,8 @@ def backtest(
                                                  "--no-count-market = el modelo anterior al 22-10-2026"),
     count_level: bool = typer.Option(True, help="Remates y a puerta con el nivel reciente de cada liga; "
                                                 "--no-count-level = el modelo anterior al 22-10-2026"),
+    home_by_league: bool = typer.Option(True, help="Ventaja local propia de cada competición en el modelo de goles; "
+                                                   "--no-home-by-league = una sola, como antes del 29-10-2026"),
     ligas: str = typer.Option(None, help="Ligas con cuotas a evaluar, separadas por comas (por defecto las completas: "
                                          "EPL,BUN,LAL,SA,L1; EPL,BUN,LAL = las de antes del 21-10-2026)"),
     out: str = "",
@@ -129,7 +131,7 @@ def backtest(
                      xg_weight=xg_weight, min_ev=min_ev, w_model=w_model, market_weight=market_weight,
                      lineups=lineups, extra_competitions=("UCL", "UEL", "UECL") if europa else (),
                      count_l2=count_l2, count_strength=count_strength, count_market=count_market,
-                     count_level=count_level)
+                     count_level=count_level, home_by_league=home_by_league)
     summary = res.summary()
     if out:
         with open(out, "w") as fh:

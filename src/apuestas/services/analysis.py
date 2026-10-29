@@ -483,7 +483,7 @@ def evaluate_bet(
 
 def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
     home, away = match.home_team_id, match.away_team_id
-    base_h, base_a = bundle.goals.expected(home, away, match.neutral_venue)
+    base_h, base_a = bundle.goals.expected(home, away, match.neutral_venue, match.competition.code)
 
     adj_h = lu.adjustment(s, match, home)
     adj_a = lu.adjustment(s, match, away)

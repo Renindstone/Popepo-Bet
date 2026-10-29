@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useCallback, useState } from "react";
 import { AlertList, AlertTags } from "@/components/Avisos";
 import { CaptureDrop } from "@/components/capturas/CaptureDrop";
+import { Comparador } from "@/components/hoy/Comparador";
 import { Crest } from "@/components/Crest";
 import { PickRecord } from "@/components/PickRecord";
 import { PorQueFallo } from "@/components/PorQueFallo";
@@ -28,7 +29,17 @@ import {
 import { useRemembered, useToday } from "@/lib/hooks";
 import { useMe } from "@/lib/me";
 import { betLabel, bookmakerName } from "@/lib/markets";
-import type { Capture, DayMatch, PastValueBet, Performance, PickOfDay, PicksReport, PropMinOdds, ValueBet } from "@/lib/types";
+import type {
+  Capture,
+  DayMatch,
+  PastValueBet,
+  Performance,
+  PickOfDay,
+  PicksReport,
+  PriceComparison,
+  PropMinOdds,
+  ValueBet,
+} from "@/lib/types";
 
 function dayTitle(day: string, today: string): string {
   if (day === today) return "Hoy";
@@ -42,6 +53,7 @@ function dayTitle(day: string, today: string): string {
 const TABS = [
   { id: "valor", label: "Con valor" },
   { id: "props", label: "Props" },
+  { id: "precio", label: "Frente a Pinnacle" },
 ] as const;
 
 const dayLink =
@@ -56,6 +68,8 @@ export function HoyView() {
   const { me } = useMe();
   const [recalc, setRecalc] = useState<{ busy: boolean; error?: ApiError }>({ busy: false });
   const past = !!day && !!today && day < today;
+  // Comparar precios solo tiene sentido con partidos por jugar
+  const compare = useApi<PriceComparison>(day && today && !past ? `/compare?day=${day}` : null);
 
   // Los días pasados solo guardan las apuestas con valor: sin partidos ni props no hacen falta pestañas
   const matches = !past ? data?.matches : undefined;
@@ -63,6 +77,7 @@ export function HoyView() {
   const counts: Record<string, number | undefined> = {
     valor: data?.value_bets.length,
     props: props?.length,
+    precio: compare.data?.rows.length ?? (compare.error ? 0 : undefined),
   };
   const tabs = TABS.filter((t) => t.id === "valor" || counts[t.id] != null).map((t) => ({ ...t, count: counts[t.id] }));
   const [tab, setTab] = useHashTab(tabs);
@@ -167,6 +182,9 @@ export function HoyView() {
                   >
                     <Props rows={props} />
                   </Section>
+                )}
+                {tab === "precio" && (
+                  <Comparador data={compare.data} error={compare.error} onRetry={() => compare.mutate()} />
                 )}
               </Tabs>
             ) : (

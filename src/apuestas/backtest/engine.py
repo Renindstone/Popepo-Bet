@@ -156,6 +156,8 @@ def run(
     count_strength: bool = True,
     count_market: bool = True,
     count_level: bool = True,
+    home_by_league: bool = True,
+    home_l2: float | None = None,
 ) -> BacktestResult:
     """`extra_competitions`: competiciones donde solo se mide el modelo (sin cuotas ni apuestas).
     `count_l2`: L2 fija de los modelos de conteo (1,0 = la de antes del 21-10-2026) en vez de COUNT_PRIOR_MATCHES.
@@ -163,17 +165,20 @@ def run(
     `count_market`: el reparto de remates y córners se mueve hacia la diferencia de fuerza del 1X2 de cierre del
     partido (fitting.strength_shift; False = como antes del 22-10-2026). Solo donde hay cuotas de cierre: las ligas.
     `count_level`: remates y a puerta con el nivel reciente de cada liga (fitting.count_levels; False = como antes
-    del 22-10-2026)."""
+    del 22-10-2026).
+    `home_by_league`: ventaja local propia de cada competición en el modelo de goles, con `home_l2` (por defecto
+    fitting.GOALS_HOME_L2); False = una sola para todas."""
     from apuestas.db.session import _factory
 
     market_weight = fitting.MARKET_WEIGHT if market_weight is None else market_weight
     market_half_life = fitting.MARKET_HALF_LIFE if market_half_life is None else market_half_life
+    home_l2 = (fitting.GOALS_HOME_L2 if home_l2 is None else home_l2) if home_by_league else None
     res = BacktestResult(params={"start": start.isoformat(), "end": end.isoformat(), "half_life": half_life_days,
                                  "xg_weight": xg_weight, "min_ev": min_ev, "odds_range": odds_range,
                                  "competitions": competitions, "w_model": w_model, "market_weight": market_weight,
                                  "market_half_life": market_half_life, "extra_competitions": extra_competitions,
                                  "count_l2": count_l2, "count_strength": count_strength,
-                                 "count_market": count_market, "count_level": count_level})
+                                 "count_market": count_market, "count_level": count_level, "home_l2": home_l2})
     s = _factory()()
     try:
         before = datetime.combine(end, datetime.min.time(), UTC) + timedelta(days=1)
@@ -202,7 +207,7 @@ def run(
         test = [r for r in all_rows if cur <= r.day < nxt and r.competition in evaluated]
         if test and len(train) > 500:
             gm = ratings.fit(goals_obs(train, xg_weight) + market_obs(train, implied, market_weight), cur,
-                             half_life_days=half_life_days, market_half_life_days=market_half_life)
+                             half_life_days=half_life_days, market_half_life_days=market_half_life, home_l2=home_l2)
             rho = fit_rho([r for r in train if (cur - r.day).days < 730], gm, set(competitions))
             cms = {}
             strength = fitting.count_strength(gm) if count_strength else None
@@ -219,7 +224,7 @@ def run(
                                 model_only=not main)
                 delta = 0.0
                 if count_market and r.match_id in implied and r.home in gm.attack and r.away in gm.attack:
-                    delta = fitting.strength_delta(implied[r.match_id], gm.expected(r.home, r.away, r.neutral))
+                    delta = fitting.strength_delta(implied[r.match_id], gm.expected(r.home, r.away, r.neutral, r.competition))
                 _evaluate_counts(r, cms, count_ll, refs, "" if main else f":{r.competition}", leagues, delta)
                 if lineups:
                     _evaluate_lineup(r, gm, rho, odds.get(r.match_id, {}), xi_hist, xi_idx, ll_lu, lu_rows)
@@ -252,7 +257,7 @@ def _evaluate_match(r: MatchRow, gm, rho: float, od: dict, res: BacktestResult, 
                     w_model: float = W_MODEL, model_only: bool = False) -> None:
     if r.home not in gm.attack or r.away not in gm.attack:
         return
-    lh, la = gm.expected(r.home, r.away, r.neutral)
+    lh, la = gm.expected(r.home, r.away, r.neutral, r.competition)
     mat = dist.dixon_coles_matrix(lh, la, rho)
     p_model = [float(np.tril(mat, -1).sum()), float(np.trace(mat)), float(np.triu(mat, 1).sum())]
     outcome_idx = 0 if r.hg > r.ag else (1 if r.hg == r.ag else 2)
@@ -357,7 +362,7 @@ def _evaluate_lineup(r: MatchRow, gm, rho: float, od: dict, xi_hist: dict, xi_id
             return
         deltas.append((xi.attack - base.attack, xi.defence - base.defence))
     (dah, ddh), (daa, dda) = deltas
-    lh, la = gm.expected(r.home, r.away, r.neutral)
+    lh, la = gm.expected(r.home, r.away, r.neutral, r.competition)
     # (partido, media del modelo, Δataque propio, Δdefensa rival, goles, xG)
     lu_rows.append((r.match_id, lh, dah, dda, r.hg, r.stats_h.get("xg")))
     lu_rows.append((r.match_id, la, daa, ddh, r.ag, r.stats_a.get("xg")))

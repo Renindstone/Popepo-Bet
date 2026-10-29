@@ -203,6 +203,11 @@ def load_matches(s: Session, before: datetime, since: datetime) -> list[MatchRow
     return rows
 
 
+# Ventaja local propia de cada competición en el modelo de goles: desvío de la general con esta L2 (ratings.fit,
+# `home_l2`); None = una sola para todas. Ver docs/modelos.md.
+GOALS_HOME_L2: float | None = 1000.0
+
+
 def goals_obs(rows: list[MatchRow], xg_weight: float = GOALS_XG_WEIGHT) -> list[MatchObs]:
     out = []
     for r in rows:
@@ -212,7 +217,7 @@ def goals_obs(rows: list[MatchRow], xg_weight: float = GOALS_XG_WEIGHT) -> list[
             ya = (1 - xg_weight) * r.ag + xg_weight * xa
         else:
             yh, ya = float(r.hg), float(r.ag)
-        out.append(MatchObs(r.home, r.away, r.day, yh, ya, r.neutral))
+        out.append(MatchObs(r.home, r.away, r.day, yh, ya, r.neutral, competition=r.competition))
     return out
 
 
@@ -292,8 +297,8 @@ def market_obs(rows: list[MatchRow], implied: dict[int, tuple[float, float]],
                weight: float = MARKET_WEIGHT) -> list[MatchObs]:
     if weight <= 0:
         return []
-    return [MatchObs(r.home, r.away, r.day, *implied[r.match_id], r.neutral, weight=weight, market=True)
-            for r in rows if r.match_id in implied]
+    return [MatchObs(r.home, r.away, r.day, *implied[r.match_id], r.neutral, weight=weight, market=True,
+                     competition=r.competition) for r in rows if r.match_id in implied]
 
 
 # Contracción de los modelos de conteo hacia la media, en partidos ponderados "promedio" (`ratings.fit`,
@@ -474,7 +479,7 @@ def fit_rho(rows: list[MatchRow], model: RatingModel, full_codes: set[str]) -> f
     sample = [r for r in rows if r.competition in full_codes]
     if len(sample) < 100:
         return -0.05
-    lam = [model.expected(r.home, r.away, r.neutral) for r in sample]
+    lam = [model.expected(r.home, r.away, r.neutral, r.competition) for r in sample]
     lh = np.array([x[0] for x in lam])
     la = np.array([x[1] for x in lam])
     hg = np.array([r.hg for r in sample])
@@ -717,7 +722,7 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
         players, priors = fit_players(s, before=as_of)
     log.info("Ajustando modelos con %d partidos (%d con cuotas de cierre)", len(rows), len(implied))
     goals = ratings.fit(goals_obs(rows) + market_obs(rows, implied), as_of.date(), half_life_days=half_life_days,
-                        market_half_life_days=MARKET_HALF_LIFE)
+                        market_half_life_days=MARKET_HALF_LIFE, home_l2=GOALS_HOME_L2)
     rho = fit_rho([r for r in rows if (as_of.date() - r.day).days < 730], goals, full_codes)
     counts = {}
     strength = count_strength(goals)

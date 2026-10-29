@@ -82,3 +82,28 @@ def test_extra_leagues_only_in_model_when_enabled(monkeypatch):
     assert {"EPL", "SA", "UCL", "UECL"} <= set(codes) and not {"NOR", "AUT", "SUI"} & set(codes)
     monkeypatch.setattr(fitting, "get_settings", lambda: SimpleNamespace(extra_leagues_in_model=True))
     assert {"NOR", "AUT", "SUI", "EPL"} <= set(fitting.model_codes())
+
+
+def test_ventaja_local_propia_de_cada_liga():
+    # Dos ligas iguales salvo la ventaja local: en "A" el local marca 1,8 y en "B" 1,2 (los visitantes, 1,1)
+    rng = np.random.default_rng(3)
+    day0 = date(2026, 1, 1)
+    obs = []
+    for k in range(4000):
+        comp, base = ("A", 1.8) if k % 2 else ("B", 1.2)
+        i, j = (k // 2) % 10, (k // 2 + 1 + (k // 20) % 9) % 10  # todos contra todos, en casa y fuera
+        if (k // 4) % 2:
+            i, j = j, i
+        home, away = (i, j) if comp == "A" else (10 + i, 10 + j)
+        obs.append(MatchObs(home, away, day0 - timedelta(days=k % 300), float(rng.poisson(base)),
+                            float(rng.poisson(1.1)), competition=comp))
+    one = ratings.fit(obs, day0)
+    own = ratings.fit(obs, day0, home_l2=1.0)
+    shrunk = ratings.fit(obs, day0, home_l2=fitting.GOALS_HOME_L2)
+    assert one.home_by_comp == {} and set(own.home_by_comp) == {"A", "B"}
+    gap = own.home_by_comp["A"] - own.home_by_comp["B"]
+    assert gap == pytest.approx(np.log(1.8 / 1.2), abs=0.08)
+    assert 0 < shrunk.home_by_comp["A"] - shrunk.home_by_comp["B"] < gap  # contraída hacia la ventaja común
+    assert own.expected(0, 3, competition="A")[0] > own.expected(0, 3, competition="B")[0]
+    assert own.expected(0, 3, neutral=True, competition="A") == own.expected(0, 3, neutral=True)
+    assert ratings.RatingModel.from_dict(own.to_dict()).home_by_comp == own.home_by_comp

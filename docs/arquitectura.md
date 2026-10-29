@@ -20,7 +20,7 @@ OddsPapi (opcional) ─┘        │
    fitting (paquete)     rotación, dificultad)        Parquet + DuckDB
          └──────────┬─────────┘
                     ▼
-   services/  analysis (partido completo) · picks (apuesta del día, liquidación) · predictions (previa) · weekly (semana y mes) · radar · failure (por qué falló) · ai_notes (Claude)
+   services/  analysis (partido completo) · picks (apuesta del día, liquidación) · predictions (previa) · weekly (semana y mes) · radar · failure (por qué falló) · ai_notes (Claude) · compare (Betano frente a Pinnacle)
               tracker (usuarios, apuestas, banca) · queries (capa común)
                     │
       ┌─────────────┼──────────────┬───────────────┐
