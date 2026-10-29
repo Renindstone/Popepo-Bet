@@ -19,7 +19,7 @@ import {
   useSlip,
 } from "@/lib/slip";
 
-const field = "h-10 w-full rounded-[3px] border border-regla bg-papel px-3 text-interfaz text-tinta focus:border-boli";
+const field = "h-10 w-full border border-regla bg-papel px-3 text-interfaz text-tinta focus:border-boli";
 const labelCls = "mb-1 block text-nota font-semibold";
 
 function blockOdds(slip: Slip, legs: SlipLeg[]): number {
@@ -55,7 +55,7 @@ export function Cupon() {
 
   if (registered && slip.legs.length === 0) {
     return (
-      <section aria-labelledby="cupon-titulo" className="rounded-[4px] border border-boli/50 bg-hoja px-5 py-4">
+      <section aria-labelledby="cupon-titulo" className="border border-boli/50 bg-hoja px-5 py-4">
         <h2 id="cupon-titulo" className="semi text-lg font-bold">
           Combinada registrada (n.º {registered.bet_id})
         </h2>
@@ -93,7 +93,7 @@ export function Cupon() {
   const nMatches = blocks.length;
 
   return (
-    <section aria-labelledby="cupon-titulo" className="rounded-[4px] border border-regla bg-hoja">
+    <section aria-labelledby="cupon-titulo" className="border border-regla bg-hoja">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 pt-4 sm:px-6">
         <h2 id="cupon-titulo" className="semi text-lg font-bold">
           Tu cupón
@@ -112,7 +112,7 @@ export function Cupon() {
           const first = b.legs[0];
           const builder = b.legs.length > 1;
           return (
-            <li key={b.matchId} className="rounded-[3px] border border-regla-suave px-3 py-2.5">
+            <li key={b.matchId} className="border border-regla-suave px-3 py-2.5">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                 <p className="font-semibold">
                   {first.match}
@@ -130,7 +130,7 @@ export function Cupon() {
                         type="button"
                         onClick={() => removeLeg(l.id)}
                         aria-label={`Quitar ${l.label}`}
-                        className="flex size-7 items-center justify-center rounded-[3px] text-grafito hover:bg-papel hover:text-rojo"
+                        className="flex size-7 items-center justify-center text-grafito hover:bg-papel hover:text-rojo"
                       >
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4">
                           <path d="M6 6l12 12M18 6 6 18" />
@@ -191,7 +191,7 @@ export function Cupon() {
                 type="button"
                 aria-pressed={slip.bookmaker === value}
                 onClick={() => updateSlip((s) => ({ ...s, bookmaker: value }))}
-                className={`h-10 rounded-[3px] border px-3 text-interfaz font-semibold ${
+                className={`h-10 border px-3 text-interfaz font-semibold ${
                   slip.bookmaker === value ? "border-tinta bg-tinta text-papel" : "border-regla bg-papel text-grafito hover:text-tinta"
                 }`}
               >

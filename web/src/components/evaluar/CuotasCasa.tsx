@@ -74,7 +74,7 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
               type="button"
               aria-pressed={all === value}
               onClick={() => setAll(value as boolean)}
-              className={`h-9 rounded-[3px] border px-3 text-interfaz font-semibold ${
+              className={`h-9 border px-3 text-interfaz font-semibold ${
                 all === value ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
               }`}
             >
@@ -88,7 +88,7 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
       ) : (
         <div className="space-y-2">
           {sorted.map(([market, items]) => (
-            <details key={market} open={!all || ["1x2", "dc", "btts"].includes(market)} className="rounded-[3px] border border-regla-suave">
+            <details key={market} open={!all || ["1x2", "dc", "btts"].includes(market)} className="border border-regla-suave">
               <summary className="cursor-pointer px-3 py-2 font-semibold">
                 {marketName(market, teams)} <span className="font-normal text-grafito">({items.length})</span>
                 {STAT_MARKETS.test(market) && (

@@ -19,7 +19,7 @@ const TABS = [
 ] as const;
 
 const navLink =
-  "inline-flex h-10 items-center rounded-[3px] border border-regla bg-hoja px-3 text-interfaz font-semibold hover:border-grafito";
+  "inline-flex h-10 items-center border border-regla bg-hoja px-3 text-interfaz font-semibold hover:border-grafito";
 
 /** Resumen de la semana: quién superó lo que esperaban la casa (equipos) y el modelo (jugadores) */
 export function SemanaView() {
@@ -73,7 +73,7 @@ export function SemanaView() {
         </div>
       ) : (
         <>
-          <p className="mb-3 max-w-[72ch] border-l-[3px] border-tarjeta bg-tarjeta-suave px-3 py-2 text-interfaz">{data.note}</p>
+          <p className="mb-3 max-w-[72ch] border-t-[3px] border-tarjeta bg-tarjeta-suave px-3 py-2 text-interfaz">{data.note}</p>
           <Coverage data={data} />
           {data.coverage.played === 0 ? (
             <div className="pb-10">
@@ -137,7 +137,7 @@ function Destacado({ kind, row }: { kind: "equipo" | "jugador"; row: WeekTeam | 
   const title = kind === "equipo" ? "Equipo de la semana" : "Jugador de la semana";
   const player = row && "player_id" in row ? row : null;
   return (
-    <section aria-label={title} className="rounded-[4px] border border-regla bg-hoja p-5">
+    <section aria-label={title} className="border border-regla bg-hoja p-5">
       <h2 className="semi text-base font-bold">{title}</h2>
       {!row ? (
         <p className="mt-2 text-nota text-grafito">

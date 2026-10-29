@@ -63,7 +63,7 @@ export function RendimientoView() {
                 type="button"
                 aria-pressed={days === o.value}
                 onClick={() => setDays(o.value)}
-                className={`h-9 rounded-[3px] border px-3 text-interfaz font-semibold ${
+                className={`h-9 border px-3 text-interfaz font-semibold ${
                   days === o.value ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
                 }`}
               >
@@ -234,7 +234,7 @@ function Banca({ b, onSaved }: { b: Bankroll; onSaved: () => void }) {
         <LossMeter label="Esta semana" profit={b.week_profit} limit={b.weekly_loss_limit} currency={b.currency} />
       </div>
       {b.warnings.map((w) => (
-        <p key={w} role="alert" className="mt-4 border-l-[3px] border-rojo bg-rojo-suave px-3 py-2 font-semibold">
+        <p key={w} role="alert" className="mt-4 border-t-[3px] border-rojo bg-rojo-suave px-3 py-2 font-semibold">
           {w}
         </p>
       ))}
@@ -289,7 +289,7 @@ function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => voi
             }}
             aria-invalid={!!state.error}
             aria-describedby={state.error ? "banca-error" : undefined}
-            className="num h-10 min-w-0 flex-1 rounded-[3px] border border-regla bg-hoja px-3 text-tinta focus:border-boli"
+            className="num h-10 min-w-0 flex-1 border border-regla bg-hoja px-3 text-tinta focus:border-boli"
           />
           <label htmlFor="banca-moneda" className="sr-only">
             Moneda
@@ -298,7 +298,7 @@ function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => voi
             id="banca-moneda"
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            className="h-10 rounded-[3px] border border-regla bg-hoja px-2 text-tinta focus:border-boli"
+            className="h-10 border border-regla bg-hoja px-2 text-tinta focus:border-boli"
           >
             {CURRENCIES.map(([code, name]) => (
               <option key={code} value={code}>

@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-29T04:03:31+00:00",
+  "title": "Design System: Popepo-Bet",
+  "extensions": {
+    "colorMeta": {
+      "amarillo": {
+        "role": "primary",
+        "displayName": "Amarillo de portada",
+        "tonalRamp": [
+          "#3b3200",
+          "#5c4d00",
+          "#806b00",
+          "#a88c00",
+          "#d1ae00",
+          "#ffd400",
+          "#ffe466",
+          "#fff2b8"
+        ]
+      },
+      "rojo-portada": {
+        "role": "secondary",
+        "displayName": "Rojo de portada",
+        "tonalRamp": [
+          "#3d1a1a",
+          "#6b0f12",
+          "#9c1015",
+          "#d7141a",
+          "#ff4a4f",
+          "#ff6b6b",
+          "#ffb3b3",
+          "#fff0f0"
+        ]
+      },
+      "tarjeta": {
+        "role": "tertiary",
+        "displayName": "Ocre de aviso",
+        "tonalRamp": [
+          "#3a2a10",
+          "#5c4300",
+          "#8c6500",
+          "#b88600",
+          "#ffb13b",
+          "#ffc970",
+          "#ffe0a8",
+          "#fff2b8"
+        ]
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "tonalRamp": [
+          "#111111",
+          "#1a1a1a",
+          "#262626",
+          "#3a3a3a",
+          "#5e5e5e",
+          "#a6a6a6",
+          "#cfcfcf",
+          "#e6e6e6"
+        ]
+      },
+      "papel": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "tonalRamp": [
+          "#111111",
+          "#1a1a1a",
+          "#5e5e5e",
+          "#a6a6a6",
+          "#cfcfcf",
+          "#e6e6e6",
+          "#f2f2f2",
+          "#ffffff"
+        ]
+      },
+      "boli": {
+        "role": "primary",
+        "displayName": "Lo que el modelo señala (tinta de día, amarillo de noche)"
+      }
+    },
+    "typographyMeta": {
+      "titular": {
+        "displayName": "Titular",
+        "purpose": "Solo la apuesta del día en la portada de Hoy."
+      },
+      "logotipo": {
+        "displayName": "Logotipo",
+        "purpose": "POPEPO●BET en la cabecera amarilla."
+      },
+      "titulo-seccion": {
+        "displayName": "Título de sección",
+        "purpose": "Bajo el filete de 3 px que abre cada sección."
+      },
+      "cifra": {
+        "displayName": "Cifra",
+        "purpose": "Cuotas, porcentajes y valor esperado, con números tabulares."
+      },
+      "cuota-portada": {
+        "displayName": "Cuota de portada",
+        "purpose": "La cuota de la apuesta del día, con el resaltador."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "resaltador",
+        "value": "background-size 0%→100%, 650ms 200ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Una sola pasada del resaltador amarillo sobre la cuota de la apuesta del día; sin movimiento con prefers-reduced-motion."
+      },
+      {
+        "name": "color",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Cambios de color en hover y foco."
+      },
+      {
+        "name": "esqueleto",
+        "value": "1.4s ease-in-out infinite",
+        "purpose": "Brillo de carga con la forma de lo que va a aparecer."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Cabecera",
+      "kind": "nav",
+      "refersTo": "cabecera",
+      "description": "Banda amarilla con el logotipo y la fecha de la edición, cerrada por un filete negro de 4 px.",
+      "html": "<header class=\"ds-cabecera\"><a class=\"ds-logo\" href=\"#\">Popepo<span class=\"ds-punto\"></span>Bet</a><p class=\"ds-fecha\">Miércoles, 28 de octubre<br>Fútbol prepartido</p></header>",
+      "css": ".ds-cabecera{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;background:#ffd400;color:#111;padding:24px 24px 12px;border-bottom:4px solid #111}.ds-logo{font-family:'Sofia Sans Extra Condensed',sans-serif;font-weight:900;font-size:4rem;line-height:.8;text-transform:uppercase;color:#111;text-decoration:none;white-space:nowrap}.ds-logo:focus-visible{outline:2px solid #111;outline-offset:2px}.ds-punto{display:inline-block;width:.2em;height:.2em;border-radius:9999px;background:#d7141a;margin:0 .06em;vertical-align:.1em}.ds-fecha{font-family:'Sofia Sans',sans-serif;font-size:.875rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-align:right;margin:0}"
+    },
+    {
+      "name": "Botón principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Una acción principal por vista.",
+      "html": "<button class=\"ds-btn-principal\">Registrar apuesta</button>",
+      "css": ".ds-btn-principal{height:40px;padding:0 16px;background:var(--boli,#111);color:var(--papel,#fff);border:1px solid var(--boli,#111);border-radius:0;font-family:'Sofia Sans',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;transition:opacity 150ms cubic-bezier(.4,0,.2,1)}.ds-btn-principal:hover{opacity:.9}.ds-btn-principal:focus-visible{outline:2px solid var(--boli,#111);outline-offset:2px}"
+    },
+    {
+      "name": "Botón secundario",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Papel con borde de tinta que se invierte al pasar el ratón.",
+      "html": "<button class=\"ds-btn-secundario\">Día siguiente</button>",
+      "css": ".ds-btn-secundario{height:40px;padding:0 16px;background:var(--hoja,#fff);color:var(--tinta,#111);border:1px solid var(--tinta,#111);border-radius:0;font-family:'Sofia Sans',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;transition:background-color 150ms cubic-bezier(.4,0,.2,1),color 150ms cubic-bezier(.4,0,.2,1)}.ds-btn-secundario:hover{background:var(--tinta,#111);color:var(--papel,#fff)}.ds-btn-secundario:focus-visible{outline:2px solid var(--boli,#111);outline-offset:2px}"
+    },
+    {
+      "name": "Etiqueta de señal",
+      "kind": "chip",
+      "refersTo": "etiqueta-senal",
+      "description": "«Pasa el corte», «Ganada»: negro con letra amarilla.",
+      "html": "<span class=\"ds-tag-senal\">Pasa el corte</span>",
+      "css": ".ds-tag-senal{display:inline-flex;align-items:center;padding:1px 6px;background:#111;color:#ffd400;border:1px solid #111;border-radius:0;font-family:'Sofia Sans',sans-serif;font-size:.8rem;font-weight:700;line-height:1.25rem;white-space:nowrap}"
+    },
+    {
+      "name": "Etiqueta confirmada",
+      "kind": "chip",
+      "refersTo": "etiqueta-confirmada",
+      "description": "«Alineación confirmada»: amarillo con letra negra.",
+      "html": "<span class=\"ds-tag-confirmada\">Alineación confirmada</span>",
+      "css": ".ds-tag-confirmada{display:inline-flex;align-items:center;padding:1px 6px;background:#ffd400;color:#111;border:1px solid #ffd400;border-radius:0;font-family:'Sofia Sans',sans-serif;font-size:.8rem;font-weight:700;line-height:1.25rem;white-space:nowrap}"
+    },
+    {
+      "name": "Título de sección",
+      "kind": "custom",
+      "refersTo": "titulo-seccion",
+      "description": "Filete negro de 3 px y título extracondensado en mayúsculas.",
+      "html": "<section class=\"ds-seccion\"><h2>Otras apuestas con valor</h2><p>Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota.</p></section>",
+      "css": ".ds-seccion{border-top:3px solid var(--tinta,#111);padding-top:12px}.ds-seccion h2{margin:0 0 16px;font-family:'Sofia Sans Extra Condensed',sans-serif;font-size:2rem;font-weight:900;line-height:1;text-transform:uppercase}.ds-seccion p{margin:0;max-width:72ch;font-family:'Sofia Sans',sans-serif;font-size:.95rem;color:var(--grafito,#5e5e5e)}"
+    },
+    {
+      "name": "Titular de portada",
+      "kind": "custom",
+      "refersTo": "resalte",
+      "description": "La apuesta del día como titular, con la entradilla y la cuota resaltada.",
+      "html": "<article class=\"ds-portada\"><h2>Goles de Milan: Más de 1.5</h2><p class=\"ds-entradilla\"><span class=\"ds-cintillo\">Apuesta del día</span> Milan vs Bologna, Serie A, 12:30. El modelo le da un 59 %; la cuota implica un 51 %.</p><div class=\"ds-ficha\"><div><span class=\"ds-resalte\">1.95</span><small>cuota en Betano</small></div><div><b>+15,7 %</b><small>valor esperado</small></div></div></article>",
+      "css": ".ds-portada h2{margin:0;font-family:'Sofia Sans Extra Condensed',sans-serif;font-size:clamp(3rem,7vw,6rem);font-weight:900;line-height:.88;letter-spacing:-.01em;text-transform:uppercase;text-wrap:balance}.ds-entradilla{margin:16px 0 0;max-width:62ch;font-family:'Sofia Sans',sans-serif;font-size:1.25rem;font-weight:500;line-height:1.375}.ds-cintillo{display:inline-block;margin-right:8px;padding:0 8px;background:#d7141a;color:#fff;font-size:.875rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.ds-ficha{display:flex;gap:36px;align-items:flex-end;margin-top:24px;padding:16px 0;border-top:3px solid var(--tinta,#111);border-bottom:1px solid var(--tinta,#111)}.ds-ficha b,.ds-resalte{display:block;font-family:'Sofia Sans Extra Condensed',sans-serif;font-variant-numeric:tabular-nums;line-height:.85}.ds-ficha b{font-size:2.25rem;font-weight:800}.ds-resalte{display:inline-block;padding:4px 8px 0;font-size:4.5rem;font-weight:900;background:#ffd400;color:#111}.ds-ficha small{display:block;margin-top:8px;font-size:.875rem;color:var(--grafito,#5e5e5e)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "La portada del diario deportivo",
+    "overview": "El panel se lee como la portada de un diario deportivo peruano de quiosco: una banda amarilla con el logotipo, papel blanco, tinta negra y filetes gruesos que abren cada sección. La apuesta del día es el titular, en mayúsculas extracondensadas a todo lo ancho; sus cifras forman la ficha de debajo, y los partidos del día son «La jornada», la tabla de la columna lateral. Es una herramienta para decidir con calma en la PC, no un casino: el periódico informa, no empuja a apostar.\n\nLa densidad es una virtud cuando está ordenada por reglas y por el ancho de la letra, no por cajas. El color tiene pocos trabajos y los hace siempre igual: amarillo para la marca y para lo que el modelo resalta, rojo para la etiqueta de portada y para las pérdidas, negro para todo lo demás.",
+    "keyCharacteristics": [
+      "Banda amarilla de cabecera con POPEPO●BET en extracondensada 900 y un punto rojo.",
+      "Titulares y cifras en Sofia Sans Extra Condensed; lectura en Sofia Sans.",
+      "Filete negro de 3 px que abre cada sección; reglas finas entre filas.",
+      "Esquinas rectas en todo salvo puntos, escudos y el campo de alineaciones.",
+      "La cuota de la apuesta del día, pasada por el resaltador amarillo."
+    ],
+    "rules": [
+      {
+        "name": "The Two Inks Rule",
+        "body": "Solo dos tintas de color sobre el papel: amarillo y rojo. Cualquier otro color nuevo necesita un trabajo que ninguna de las dos pueda hacer.",
+        "section": "colors"
+      },
+      {
+        "name": "The Never Alone Rule",
+        "body": "El color nunca va solo: el valor esperado lleva su signo, el corte dice «Pasa» o «No llega» y el resultado dice «Ganada» o «Perdida».",
+        "section": "colors"
+      },
+      {
+        "name": "The Width Ladder Rule",
+        "body": "La jerarquía la da el ancho y el peso de la letra, no el color: si un título necesita destacar, sube un peldaño de ancho o de peso.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Toda cifra que se compara en columna usa números tabulares.",
+        "section": "typography"
+      },
+      {
+        "name": "The Rule Opens Rule",
+        "body": "Cada sección empieza con un filete negro de 3 px y el título justo debajo; entre filas, reglas finas de 1 px. Las cajas con borde quedan para campos, el soltador de capturas y los grupos de cuotas.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Highlighter Rule",
+        "body": "El resaltador amarillo se usa una vez por página, sobre la cuota de la apuesta del día, y entra con una sola pasada de 650 ms (sin movimiento si se pide reducirlo).",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** abrir cada sección con el filete de 3 px y el título en extracondensada mayúscula.",
+      "**Do** escribir las cifras en extracondensada con números tabulares y el valor esperado con su signo.",
+      "**Do** poner en negrita la probabilidad favorita del 1X2 y en grafito las otras dos.",
+      "**Do** mantener la caja «Antes de apostar» y la frase de que el modelo no le gana a bet365 donde se proponen apuestas."
+    ],
+    "donts": [
+      "**Don't** usar etiquetas pequeñas encima de un título: la etiqueta de portada va dentro de la entradilla, debajo del titular.",
+      "**Don't** usar bordes laterales gruesos en avisos o filas: los avisos llevan el filete arriba.",
+      "**Don't** añadir sombras, degradados de adorno, neón, dorados ni esquinas redondeadas a cajas y botones.",
+      "**Don't** usar verde para «ganar» ni pares rojo/verde: el valor positivo es tinta (amarillo de noche) y el negativo, rojo.",
+      "**Don't** usar el amarillo como color de texto sobre papel blanco: no llega al contraste; de día va siempre de fondo."
+    ]
+  }
+}

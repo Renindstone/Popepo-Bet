@@ -120,7 +120,7 @@ function Pitch({ teams, orientation }: { teams: LineupTeam[]; orientation: "hori
               >
                 {p.shirt ?? ""}
                 {p.rating != null && (
-                  <span className="absolute -top-2 -right-4 rounded-[3px] bg-[#1c2624] px-1 text-xs leading-4 font-semibold text-white">
+                  <span className="absolute -top-2 -right-4 bg-[#1c2624] px-1 text-xs leading-4 font-semibold text-white">
                     {p.rating.toFixed(1)}
                   </span>
                 )}

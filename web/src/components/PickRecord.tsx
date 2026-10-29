@@ -44,7 +44,7 @@ export function PickRecord({
   if (variant === "line") {
     const pending = r.pending === 1 ? "1 por jugarse" : `${int(r.pending)} por jugarse`;
     return (
-      <p className="mb-4 border-l-[3px] border-boli bg-hoja px-3 py-2 text-interfaz">
+      <p className="mb-4 border-t-[3px] border-boli bg-hoja px-3 py-2 text-interfaz">
         {r.settled === 0 ? (
           <>Las que pasan el corte se guardan y se liquidan solas: aún no terminó ninguna ({pending}). </>
         ) : (
@@ -94,11 +94,11 @@ export function PickRecord({
   }
 
   return (
-    <section aria-labelledby={`record-${source}`} className="rounded-[4px] border border-regla bg-hoja p-5">
-      <h2 id={`record-${source}`} className="semi text-base font-bold text-tinta">
+    <section aria-labelledby={`record-${source}`} className="border-t-[3px] border-tinta pt-3">
+      <h2 id={`record-${source}`} className="cond text-[1.75rem] leading-none font-black uppercase">
         {src.title}
       </h2>
-      <p className="mb-4 text-nota text-grafito">
+      <p className="mt-1 mb-4 text-nota text-grafito">
         {src.who}, {since}.
       </p>
       {r.settled === 0 ? (

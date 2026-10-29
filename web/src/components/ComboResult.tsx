@@ -22,7 +22,7 @@ export function ComboResult({ combo }: { combo: CaptureCombo }) {
       </p>
       <ul className="space-y-2">
         {combo.blocks.map((b, i) => (
-          <li key={i} className="rounded-[3px] border border-regla-suave px-3 py-2.5">
+          <li key={i} className="border border-regla-suave px-3 py-2.5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <p className="font-semibold">
                 {b.match}

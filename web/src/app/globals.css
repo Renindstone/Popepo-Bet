@@ -1,39 +1,43 @@
 @import "tailwindcss";
 
 /*
-  Hoja de análisis marcada a bolígrafo: papel gris verdoso, tinta oscura y un único azul de
-  bolígrafo para lo que el modelo señala (valor, enlaces, foco). Rojo para pérdidas o valor
-  negativo y amarillo tarjeta para avisos.
+  Portada de diario deportivo: papel blanco, tinta negra, filetes gruesos y la banda amarilla de la
+  cabecera. «boli» es lo que el modelo señala (valor, enlaces, foco, botón principal): tinta negra de
+  día y amarillo de noche; «boli-suave», el resaltador amarillo. Rojo para pérdidas o valor negativo y
+  «tarjeta» para avisos. «amarillo», «negro» y «rojo-portada» no cambian con el tema.
 */
 :root {
-  --papel: #eef1ec;
-  --hoja: #fafbf8;
-  --tinta: #1c2624;
-  --grafito: #5a6764;
-  --regla: #d3dad4;
-  --regla-suave: #e3e8e3;
-  --boli: #2643c4;
-  --boli-suave: #dfe4f8;
-  --rojo: #ad3e29;
-  --rojo-suave: #f4e0da;
-  --tarjeta: #ad800d;
-  --tarjeta-suave: #f7ecca;
+  --papel: #ffffff;
+  --hoja: #ffffff;
+  --tinta: #111111;
+  --grafito: #5e5e5e;
+  --regla: #cfcfcf;
+  --regla-suave: #e6e6e6;
+  --boli: #111111;
+  --boli-suave: #ffd400;
+  --rojo: #d7141a;
+  --rojo-suave: #fff0f0;
+  --tarjeta: #8c6500;
+  --tarjeta-suave: #fff2b8;
+  --amarillo: #ffd400;
+  --negro: #111111;
+  --rojo-portada: #d7141a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --papel: #131816;
-    --hoja: #1b2220;
-    --tinta: #e3e9e5;
-    --grafito: #97a39f;
-    --regla: #2f3936;
-    --regla-suave: #252e2b;
-    --boli: #93a6ff;
-    --boli-suave: #232c4f;
-    --rojo: #f08a72;
-    --rojo-suave: #3d2621;
-    --tarjeta: #f0c552;
-    --tarjeta-suave: #3a321c;
+    --papel: #111111;
+    --hoja: #1a1a1a;
+    --tinta: #f2f2f2;
+    --grafito: #a6a6a6;
+    --regla: #3a3a3a;
+    --regla-suave: #262626;
+    --boli: #ffd400;
+    --boli-suave: #3b3200;
+    --rojo: #ff6b6b;
+    --rojo-suave: #3d1a1a;
+    --tarjeta: #ffb13b;
+    --tarjeta-suave: #3a2a10;
   }
 }
 
@@ -50,7 +54,10 @@
   --color-rojo-suave: var(--rojo-suave);
   --color-tarjeta: var(--tarjeta);
   --color-tarjeta-suave: var(--tarjeta-suave);
-  --font-sans: var(--font-archivo), system-ui, sans-serif;
+  --color-amarillo: var(--amarillo);
+  --color-negro: var(--negro);
+  --color-rojo-portada: var(--rojo-portada);
+  --font-sans: var(--font-sofia), system-ui, sans-serif;
 
   /* Escala de texto pequeño (text-etiqueta, text-nota, text-interfaz); 12 px es el mínimo absoluto */
   --text-etiqueta: 0.8rem;
@@ -60,25 +67,25 @@
 
 html {
   color-scheme: light dark;
+  scrollbar-color: var(--grafito) var(--papel);
+  accent-color: var(--boli);
 }
 
 body {
   background: var(--papel);
   color: var(--tinta);
-  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-family: var(--font-sofia), system-ui, sans-serif;
   font-size: 1rem;
   line-height: 1.5;
 }
 
-/* El ancho de la tipografía marca la jerarquía: estrecha para cifras y nombres, normal para leer */
+/* El ancho de la letra marca la jerarquía: extracondensada para titulares y cifras, condensada para
+   títulos de sección y de tarjeta, normal para leer */
 .cond {
-  font-stretch: 72%;
+  font-family: var(--font-sofia-xc), var(--font-sofia), sans-serif;
 }
 .semi {
-  font-stretch: 86%;
-}
-.ancha {
-  font-stretch: 112%;
+  font-family: var(--font-sofia-c), var(--font-sofia), sans-serif;
 }
 .num {
   font-variant-numeric: tabular-nums;
@@ -91,10 +98,23 @@ body {
 }
 
 ::selection {
-  background: var(--boli-suave);
+  background: var(--amarillo);
+  color: var(--negro);
 }
 
-/* Trazo de bolígrafo que rodea la cuota de la apuesta del día */
+/* Resaltador: una pasada de amarillo detrás de la cuota de la apuesta del día */
+.resalte {
+  background: linear-gradient(var(--amarillo), var(--amarillo)) no-repeat left / 100% 100%;
+  color: var(--negro);
+  animation: resaltar 650ms 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes resaltar {
+  from {
+    background-size: 0% 100%;
+  }
+}
+
+/* Trazo de bolígrafo (veredicto «Apostar» en Evaluar) */
 .trazo {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
@@ -126,6 +146,9 @@ body {
     stroke-dashoffset: 0;
   }
   .esqueleto {
+    animation: none;
+  }
+  .resalte {
     animation: none;
   }
 }

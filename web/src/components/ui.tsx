@@ -8,7 +8,7 @@ export function PageTitle({ title, sub, actions }: { title: string; sub?: ReactN
   return (
     <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-6">
       <div className="min-w-0">
-        <h1 className="cond text-[2.5rem] leading-[1.05] font-extrabold tracking-[-0.01em] sm:text-5xl">{title}</h1>
+        <h1 className="cond text-[3rem] leading-[0.9] font-black tracking-[-0.01em] text-balance uppercase sm:text-[4rem]">{title}</h1>
         {sub && <div className="mt-1.5 text-grafito">{sub}</div>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -30,12 +30,12 @@ export function Section({
   actions?: ReactNode;
 }) {
   return (
-    <section id={id} className="border-t border-regla pt-5 pb-10">
+    <section id={id} className="border-t-[3px] border-tinta pt-3 pb-10">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-        <h2 className="semi text-xl font-bold">{title}</h2>
+        <h2 className="cond text-[2rem] leading-none font-black uppercase">{title}</h2>
         {actions}
       </div>
-      {intro && <p className="-mt-2 mb-4 max-w-[68ch] text-interfaz text-grafito">{intro}</p>}
+      {intro && <p className="-mt-1 mb-4 max-w-[72ch] text-interfaz text-grafito">{intro}</p>}
       {children}
     </section>
   );
@@ -46,7 +46,7 @@ export function Loading({ lines = 3, label = "Cargando…" }: { lines?: number; 
     <div role="status" aria-live="polite" className="space-y-2.5 py-2">
       <span className="sr-only">{label}</span>
       {Array.from({ length: lines }, (_, i) => (
-        <div key={i} className="esqueleto h-4 rounded-sm" style={{ width: `${92 - i * 17}%` }} />
+        <div key={i} className="esqueleto h-4" style={{ width: `${92 - i * 17}%` }} />
       ))}
     </div>
   );
@@ -58,7 +58,7 @@ export function ErrorNote({ error, onRetry }: { error: ApiError | Error; onRetry
   const retryable = status === 0 || status >= 500;
   if (status === 401) {
     return (
-      <div role="alert" className="max-w-[68ch] border-l-[3px] border-boli bg-boli-suave/60 px-4 py-3">
+      <div role="alert" className="max-w-[68ch] border-t-[3px] border-boli bg-boli-suave/60 px-4 py-3">
         <p className="font-semibold">{error.message}</p>
         <p className="mt-0.5 mb-3 text-interfaz">Escribe la clave que te pasaron. Se guarda solo en este navegador.</p>
         <ApiKeyForm onSaved={() => window.location.reload()} />
@@ -66,7 +66,7 @@ export function ErrorNote({ error, onRetry }: { error: ApiError | Error; onRetry
     );
   }
   return (
-    <div role="alert" className="max-w-[68ch] border-l-[3px] border-rojo bg-rojo-suave/60 px-4 py-3">
+    <div role="alert" className="max-w-[68ch] border-t-[3px] border-rojo bg-rojo-suave/60 px-4 py-3">
       <p className="font-semibold">No se pudo cargar</p>
       <p className="mt-0.5 text-interfaz">{error.message}</p>
       {onRetry && retryable && (
@@ -111,7 +111,7 @@ export function ApiKeyForm({ label = "Clave de acceso", onSaved }: { label?: str
               setSaved(false);
             }}
             placeholder="apk_…"
-            className="h-11 w-full rounded-[3px] border border-regla bg-hoja px-3 text-tinta focus:border-boli"
+            className="h-11 w-full border border-regla bg-hoja px-3 text-tinta focus:border-boli"
           />
         </div>
         <Button type="submit">Guardar clave</Button>
@@ -129,16 +129,17 @@ type Tone = "neutral" | "boli" | "rojo" | "tarjeta" | "confirmada";
 
 const TONES: Record<Tone, string> = {
   neutral: "border-regla text-grafito",
-  boli: "border-boli/40 bg-boli-suave text-boli",
+  // Lo que el modelo señala: etiqueta negra con letra amarilla, como en la portada
+  boli: "border-negro bg-negro text-amarillo font-bold",
   rojo: "border-rojo/40 bg-rojo-suave text-rojo",
   tarjeta: "border-tarjeta/50 bg-tarjeta-suave text-tinta",
-  // Alineación confirmada: relleno azul claro que se distingue de un vistazo (igual en tema claro y oscuro)
-  confirmada: "border-[#93c5fd] bg-[#dbeafe] text-[#1e3a8a] font-semibold",
+  // Alineación confirmada: es noticia, va en amarillo de portada (igual en tema claro y oscuro)
+  confirmada: "border-amarillo bg-amarillo text-negro font-bold",
 };
 
 export function Tag({ tone = "neutral", className = "", children }: { tone?: Tone; className?: string; children: ReactNode }) {
   return (
-    <span className={`inline-flex items-center rounded-sm border px-1.5 py-px text-etiqueta leading-5 font-medium whitespace-nowrap ${TONES[tone]} ${className}`}>
+    <span className={`inline-flex items-center border px-1.5 py-px text-etiqueta leading-5 font-semibold whitespace-nowrap ${TONES[tone]} ${className}`}>
       {children}
     </span>
   );
@@ -159,7 +160,7 @@ export function Figure({
   const color = tone === "boli" ? "text-boli" : tone === "rojo" ? "text-rojo" : "";
   return (
     <div className="min-w-0">
-      <div className={`cond num leading-none font-bold ${size === "lg" ? "text-4xl" : "text-[1.75rem]"} ${color}`}>{value}</div>
+      <div className={`cond num leading-none font-extrabold ${size === "lg" ? "text-[2.75rem]" : "text-[2.25rem]"} ${color}`}>{value}</div>
       <div className="mt-1 text-nota leading-snug text-grafito">{label}</div>
     </div>
   );
@@ -180,14 +181,14 @@ export function Button({
 }) {
   const styles =
     variant === "primary"
-      ? "bg-boli text-hoja border-boli hover:opacity-90"
-      : "bg-hoja text-tinta border-regla hover:border-grafito";
+      ? "bg-boli text-papel border-boli hover:opacity-90"
+      : "bg-hoja text-tinta border-tinta hover:bg-tinta hover:text-papel";
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex h-10 items-center justify-center gap-2 rounded-[3px] border px-4 text-interfaz font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles}`}
+      className={`inline-flex h-10 items-center justify-center gap-2 border px-4 text-interfaz font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${styles}`}
     >
       {children}
     </button>
@@ -257,7 +258,7 @@ export function TriBar({
   return (
     <div className="w-full">
       <div
-        className={`flex w-full gap-[2px] overflow-hidden rounded-[2px] ${size === "lg" ? "h-3" : "h-1.5"}`}
+        className={`flex w-full gap-[2px] overflow-hidden ${size === "lg" ? "h-3" : "h-1.5"}`}
         role="img"
         aria-label={`${home} ${pct(probs.home)}, empate ${pct(probs.draw)}, ${away} ${pct(probs.away)}`}
       >

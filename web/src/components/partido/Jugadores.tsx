@@ -66,7 +66,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
               type="button"
               aria-pressed={filter === v}
               onClick={() => setFilter(v)}
-              className={`h-9 rounded-[3px] border px-3 text-interfaz font-semibold ${
+              className={`h-9 border px-3 text-interfaz font-semibold ${
                 filter === v ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
               }`}
             >

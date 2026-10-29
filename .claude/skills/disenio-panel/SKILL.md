@@ -27,84 +27,81 @@ auditoría automática. Rutas relativas a la raíz del repositorio. Antes de toc
    consola). Mira las cuatro variantes de cada página tocada; el tema oscuro y el celular son donde más se rompe.
 5. `cd web && npm run lint && npx tsc --noEmit`, commit en español con el porqué.
 
-## Identidad: "hoja de análisis marcada a bolígrafo"
+## Identidad: "portada del diario deportivo"
 
-Papel gris verdoso, tinta oscura y **un único azul de bolígrafo** para lo que el modelo señala. Es una herramienta
-de análisis honesta, no un casino: nada de neón, dorados, degradados llamativos, confeti ni "¡ganancia segura!".
-La jerarquía la dan el ancho de la letra, el peso y el espacio, no el color.
+Rediseño del 28-10-2026 (elegido por el dueño entre tres propuestas). El sistema completo, con tokens y reglas, está
+en **`DESIGN.md`** (raíz) y su complemento `.impeccable/design.json`; el contrato de la portada, en
+`.impeccable/surfaces/`. Resumen: banda amarilla de cabecera con el logotipo POPEPO●BET, papel blanco, tinta negra,
+filetes de 3 px que abren cada sección y la apuesta del día como titular. Es una herramienta de análisis honesta, no un
+casino: nada de neón, dorados, degradados de adorno, confeti ni "¡ganancia segura!".
 
 ## Paleta (`web/src/app/globals.css`)
 
 | Token | Claro | Oscuro | Para qué |
 |---|---|---|---|
-| `papel` | `#eef1ec` | `#131816` | Fondo de la página |
-| `hoja` | `#fafbf8` | `#1b2220` | Tarjetas, tablas, campos |
-| `tinta` | `#1c2624` | `#e3e9e5` | Texto principal |
-| `grafito` | `#5a6764` | `#97a39f` | Texto secundario, metadatos |
-| `regla` / `regla-suave` | `#d3dad4` / `#e3e8e3` | `#2f3936` / `#252e2b` | Bordes y separadores |
-| `boli` / `boli-suave` | `#2643c4` / `#dfe4f8` | `#93a6ff` / `#232c4f` | Lo que el modelo señala: valor positivo, enlaces, foco, selección, botón principal |
-| `rojo` / `rojo-suave` | `#ad3e29` / `#f4e0da` | `#f08a72` / `#3d2621` | Pérdida, valor negativo, error |
-| `tarjeta` / `tarjeta-suave` | `#ad800d` / `#f7ecca` | `#f0c552` / `#3a321c` | Avisos y precaución (como una tarjeta amarilla) |
+| `papel` / `hoja` | `#ffffff` / `#ffffff` | `#111111` / `#1a1a1a` | Fondo de la página / campos y tablas |
+| `tinta` | `#111111` | `#f2f2f2` | Texto principal y filetes |
+| `grafito` | `#5e5e5e` | `#a6a6a6` | Texto secundario, metadatos |
+| `regla` / `regla-suave` | `#cfcfcf` / `#e6e6e6` | `#3a3a3a` / `#262626` | Bordes y separadores |
+| `boli` / `boli-suave` | `#111111` / `#ffd400` | `#ffd400` / `#3b3200` | Lo que el modelo señala: valor positivo, enlaces, foco, botón principal / resaltador |
+| `rojo` / `rojo-suave` | `#d7141a` / `#fff0f0` | `#ff6b6b` / `#3d1a1a` | Pérdida, valor negativo, error |
+| `tarjeta` / `tarjeta-suave` | `#8c6500` / `#fff2b8` | `#ffb13b` / `#3a2a10` | Avisos y precaución |
+| `amarillo`, `negro`, `rojo-portada` | `#ffd400`, `#111111`, `#d7141a` | iguales | Cabecera, resaltador, etiquetas de señal y la etiqueta «Apuesta del día» |
 
 Reglas:
-- **Nunca hex sueltos en componentes.** Excepciones que hoy existen y conviene pasar a tokens: el césped del campo
-  de alineaciones (`#2e5d45`) y la etiqueta de alineación confirmada (azul claro `#dbeafe`/`#1e3a8a`).
-- **Un solo acento por pantalla:** si todo es azul, nada destaca. Botón principal (`bg-boli`) uno por vista.
-- **El color nunca va solo:** valor esperado con signo (`+20.4 %`), veredicto con palabra («Apostar»), resultado
-  con etiqueta («Ganada»). Pensado también para daltónicos (rojo/verde no se usan como par).
-- Al cambiar un color: `paleta.mjs` debe decir "Todas las combinaciones usadas cumplen" en los dos temas (texto
-  4,5:1; texto grande y gráficos 3:1). `tarjeta` en claro es un ocre oscuro para que el borde de aviso llegue a 3:1
-  sobre `papel` y `hoja`; el amarillo de verdad lo pone `tarjeta-suave` de fondo.
+- **Nunca hex sueltos en componentes.** Excepción que queda: el césped y las fichas del campo (`components/Pitch.tsx`),
+  que el dueño pidió conservar.
+- **Dos tintas sobre el papel:** amarillo y rojo. El amarillo nunca va como letra sobre blanco (no llega al contraste):
+  de día va de fondo; de noche `boli` ya es amarillo.
+- **El color nunca va solo:** valor esperado con signo (`+20.4 %`), corte con palabra («Pasa»), resultado con etiqueta
+  («Ganada»). Sin pares rojo/verde.
+- Al cambiar un color: `paleta.mjs` debe decir "Todas las combinaciones usadas cumplen" en los dos temas.
 
 ## Tipografía
 
-**Archivo** (Google Fonts con eje de ancho, `next/font` en `layout.tsx`). El **ancho** marca la jerarquía:
-- `.cond` (72 %): cifras grandes, cuotas, títulos de página y nombres de equipo en cabeceras.
-- `.semi` (86 %): títulos de sección y de tarjeta.
-- normal: todo lo que se lee de corrido.
-- `.num`: **toda cifra en columnas** (cuotas, porcentajes, importes), para que se alineen.
-
-Escala a usar. Los tamaños pequeños son tokens de `globals.css` (`--text-*` en `@theme`): úsalos por su nombre y
-no escribas `text-[0.9rem]` ni parecidos.
+**Sofia Sans** en tres anchos (`next/font` en `layout.tsx`): `.cond` = Sofia Sans Extra Condensed (titulares, títulos de
+página y sección, cifras), `.semi` = Sofia Sans Condensed (menú, títulos de tarjeta) y normal para leer. `.num`: **toda
+cifra en columnas**.
 
 | Uso | Clase | Tamaño | Peso |
 |---|---|---|---|
 | Solo nombres y notas sobre el campo de alineaciones | `text-xs` | 0,75 rem (12 px), **mínimo absoluto** | 500 |
-| Etiquetas (`Tag`), leyendas bajo barras | `text-etiqueta` | 0,8 rem (12,8 px) | 500 |
-| Metadatos, notas en `grafito`, etiquetas de formulario, celdas densas, cabeceras de tabla | `text-nota` | 0,875 rem (14 px) | 400 (600 en etiquetas) |
-| Texto de interfaz: botones, filtros, campos, tablas principales, menú | `text-interfaz` | 0,95 rem (15,2 px) | 400 |
-| Lectura | (sin clase) | 1 rem | 400 |
+| Etiquetas (`Tag`), leyendas bajo barras | `text-etiqueta` | 0,8 rem | 600 |
+| Metadatos, notas, etiquetas de formulario, cabeceras de tabla | `text-nota` | 0,875 rem | 400 (600 en etiquetas) |
+| Texto de interfaz: botones, filtros, campos, tablas | `text-interfaz` | 0,95 rem | 400 |
+| Lectura / menú | (sin clase) / `text-base` | 1 rem | 400 / 700 |
 | Títulos de tarjeta (`.semi`) | `text-lg` | 1,125 rem | 700 |
-| Títulos de sección (`.semi`) | `text-xl` | 1,25 rem | 700 |
-| Cifras destacadas (`.cond`) | | 1,75 / 2,25 rem | 700 |
-| Título de página (`.cond`) | | 2,5 rem (3 rem desde `sm`) | 800 |
-
-Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el logotipo.
+| Títulos de sección (`.cond`, mayúsculas) | | 2 rem (1,75 en la columna lateral) | 900 |
+| Cifras (`.cond`) | | 2,25 rem (2,75 grande; 4,5 la cuota de portada) | 800 |
+| Título de página (`.cond`, mayúsculas) | | 3 rem (4 rem desde `sm`) | 900 |
+| Titular de la apuesta del día (`.cond`, mayúsculas) | | `clamp(3rem, 7vw, 6rem)` | 900 |
 
 ## Formas
 
-- **Radios pequeños, de papel:** 3 px en botones, campos y etiquetas; 4 px en tarjetas; 6 px máximo (campo de
-  alineaciones). `rounded-full` solo para puntos, escudos y fichas de jugador.
-- **Bordes, no sombras:** las superficies se separan con `border-regla` y fondo `hoja`. Sombra solo en las fichas
-  de jugador sobre el césped.
-- **Separadores:** `border-t border-regla` entre secciones (`Section`), `divide-regla-suave` en listas.
-- **Iconos:** SVG en línea, trazo 2, `currentColor`, `aria-hidden`. El trazo de bolígrafo (`PenMark`) es la marca
-  de la casa: solo para la apuesta del día y el veredicto «Apostar».
+- **Esquinas rectas** en botones, campos, etiquetas, cajas y tablas. `rounded-full` solo para puntos, escudos, el punto
+  del logotipo y las fichas de jugador; el campo de alineaciones conserva sus 6 px.
+- **Filetes, no cajas:** cada `Section` abre con `border-t-[3px] border-tinta`; entre filas, `divide-regla-suave`. Los
+  avisos llevan el filete arriba (`border-t-[3px] border-tarjeta bg-tarjeta-suave`), **nunca un borde lateral grueso**.
+- **Sin sombras**, salvo las fichas de jugador sobre el césped.
+- **Nada de etiquetas pequeñas encima de un título:** la etiqueta roja «Apuesta del día» va dentro de la entradilla.
+- **Iconos:** SVG en línea, trazo 2, `currentColor`, `aria-hidden`.
 
 ## Movimiento
 
 - Con propósito: confirmar una acción, mostrar que algo carga o guiar la vista. Nada decorativo en bucle.
 - **Duraciones:** 150 ms para color en hover y foco (`transition-colors`); 200-250 ms para abrir y cerrar;
-  900 ms para el trazo de bolígrafo (`.trazo`). Curva estándar `cubic-bezier(0.4, 0, 0.2, 1)`.
+  650 ms para la pasada del resaltador sobre la cuota de la apuesta del día (`.resalte`, una vez por página) y 900 ms
+  para el trazo de bolígrafo que queda en el veredicto de Evaluar (`.trazo`). Curva estándar `cubic-bezier(0.4, 0, 0.2, 1)`.
 - **Carga:** `.esqueleto` (brillo de 1,4 s) mientras llegan los datos, con la forma de lo que va a aparecer.
-- **Siempre** con su regla `@media (prefers-reduced-motion: reduce)` en `globals.css` (hoy la tienen `.trazo` y
-  `.esqueleto`). La auditoría comprueba que exista.
+- **Siempre** con su regla `@media (prefers-reduced-motion: reduce)` en `globals.css` (hoy la tienen `.resalte`,
+  `.trazo` y `.esqueleto`). La auditoría comprueba que exista.
 - Nada de rebotes, números que cuentan solos con dinero ni animaciones al hacer scroll.
 
 ## UI/UX y usabilidad
 
-- **Estructura de página:** `PageTitle` → contenido principal → `Section`s con `border-t`. Ancho máximo 1180 px,
-  márgenes `px-4 sm:px-6`. Lo más importante arriba (la apuesta del día en Hoy, el veredicto en Evaluar).
+- **Estructura de página:** `PageTitle` → contenido principal → `Section`s con su filete. Ancho máximo 1280 px,
+  márgenes `px-4 sm:px-6`. Lo más importante arriba (la apuesta del día en Hoy, el veredicto en Evaluar). Hoy no lleva
+  `PageTitle`: una tira con el día y sus botones, y la apuesta del día como titular.
 - **Páginas largas:** si una página mezcla temas y pasa de unos 4.000 px en el celular, repártela en `Tabs` (como la
   de un partido) y monta solo la pestaña activa; las listas largas se cortan en 12 filas con «Mostrar las N».
 - **Celular primero:** cero desborde horizontal de la página. Las tablas de consulta anchas van dentro de
@@ -129,17 +126,17 @@ Interlineado 1,5 para leer, 1,05-1,2 para títulos `.cond`. Peso 900 solo en el 
 ## Componentes que ya existen (reutilizar antes de crear)
 
 `web/src/components/ui.tsx`: `PageTitle`, `Section`, `Loading`, `ErrorNote` (pide la clave si falta), `Empty`,
-`Tag` (tonos `neutral`, `boli`, `rojo`, `tarjeta`, `confirmada`), `Figure`, `Button`, `EdgeBar`, `TriBar`,
-`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo), `PitchFrame`, `PitchName` y `PitchDisc` (`components/Pitch.tsx`: el campo con sus líneas, para las alineaciones y el once de la semana), `ComboResult` (combinadas), `PickRecord` (aciertos),
+`Tag` (tonos `neutral`, `boli` = negro con letra amarilla, `rojo`, `tarjeta`, `confirmada` = amarillo), `Figure`, `Button`, `EdgeBar`, `TriBar`,
+`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo, solo en el veredicto de Evaluar), `PitchFrame`, `PitchName` y `PitchDisc` (`components/Pitch.tsx`: el campo con sus líneas, para las alineaciones y el once de la semana), `ComboResult` (combinadas), `PickRecord` (aciertos),
 `ScrollRow` (fila que se desplaza de lado con difuminado y flecha cuando hay más; la usan el menú y las pestañas) y
 `Tabs` + `useHashTab` (pestañas accesibles, fijas arriba al bajar, con la activa en el ancla de la URL y, si se
 quiere, cuántas filas hay en cada una con `count`).
 
-## Pendientes conocidos (auditoría del 21-10-2026, revisada el mismo día)
+## Pendientes conocidos (auditoría del 28-10-2026, tras el rediseño)
 
-La auditoría `--schemes light,dark` sale limpia en las 52 variantes (sin desborde, texto < 12 px, contraste bajo
+La auditoría `--schemes light,dark` sale limpia en las 64 variantes (sin desborde, texto < 12 px, contraste bajo
 ni toques < 24 px) y `paleta.mjs --fallos` no da fallos. La página de un partido y la de Hoy van en pestañas (en el
-celular, la de un partido mide como mucho unos 3.500 px y Hoy unos 4.200 un sábado de 14 partidos, antes 7.800) y el
+celular, la de un partido mide como mucho unos 3.500 px y Hoy unos 5.500 un sábado de 22 partidos, con «La jornada» cortada en 8) y el
 menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
 
 - **Tamaños grandes sueltos:** `text-[1.05rem]`, `[1.3rem]`, `[1.35rem]`, `[1.6rem]`, `[1.9rem]`, `[2.2rem]`,
@@ -147,7 +144,10 @@ menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
   2,5 / 3 rem) con tokens como los pequeños.
 - **Cuotas de Betano en escritorio:** cada mercado es su propia tabla y las columnas no se alinean entre grupos; y el
   nombre de cada fila repite el del grupo («Hándicap (3 vías): Galatasaray +1» bajo «Hándicap (3 vías)»).
-- **Hex sueltos** en el campo (`components/Pitch.tsx`, que usan las alineaciones y el once de la semana) y en la etiqueta «Confirmadas» (ver Reglas de la paleta).
+- **Hex sueltos** en el campo (`components/Pitch.tsx`, que usan las alineaciones y el once de la semana): las fichas del
+  visitante siguen en el azul del diseño anterior; el dueño pidió conservar el campo tal cual.
+- **Tamaños sueltos nuevos** del rediseño (`text-[1.75rem]`, `[2rem]`, `[4.5rem]`, el `clamp` del titular): pasarlos a
+  tokens de `@theme` junto con los antiguos.
 
 Al resolver uno, bórralo de esta lista y añade los nuevos que encuentre la auditoría.
 

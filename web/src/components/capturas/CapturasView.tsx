@@ -12,7 +12,7 @@ import { competitionName, odds, pct, signedPct } from "@/lib/format";
 import { betLabel, bookmakerName } from "@/lib/markets";
 import type { Capture, CaptureLine, MatchSummary } from "@/lib/types";
 
-const field = "h-11 w-full rounded-[3px] border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
+const field = "h-11 w-full border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
 const labelCls = "mb-1 block text-nota font-semibold";
 
 const ACTIVE = ["pendiente", "procesando", "evaluada"];
@@ -83,7 +83,7 @@ export function CapturasView() {
               {["betano", "bet365"].map((b) => (
                 <label
                   key={b}
-                  className={`flex h-10 flex-1 cursor-pointer items-center justify-center rounded-[3px] border text-interfaz font-semibold ${
+                  className={`flex h-10 flex-1 cursor-pointer items-center justify-center border text-interfaz font-semibold ${
                     bookmaker === b ? "border-boli bg-boli-suave text-boli" : "border-regla bg-hoja"
                   }`}
                 >
@@ -138,7 +138,7 @@ export function CapturasView() {
 
 function Explicacion({ engine }: { engine: Capture["auto_engine"] | undefined }) {
   return (
-    <div className="border-l-2 border-regla pl-4 text-nota text-grafito">
+    <div className="border-l border-regla pl-4 text-nota text-grafito">
       <p>
         La IA solo <strong className="text-tinta">lee</strong> la imagen. La probabilidad, el valor y el veredicto los calcula el
         mismo modelo que en Evaluar cuota. Revisa que las cuotas leídas coincidan con tu captura: si alguna no, corrígela.
@@ -242,9 +242,9 @@ function CaptureCard({
   ].filter(Boolean);
 
   return (
-    <article className="rounded-[4px] border border-regla bg-hoja">
+    <article className="border border-regla bg-hoja">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-4 px-4 py-3 text-left">
-        <div className="size-14 shrink-0 overflow-hidden rounded-[3px] border border-regla bg-papel">
+        <div className="size-14 shrink-0 overflow-hidden border border-regla bg-papel">
           {/* eslint-disable-next-line @next/next/no-img-element -- imagen local protegida por clave (blob) */}
           {img && <img src={img} alt="" className="size-full object-cover object-top" />}
         </div>
@@ -288,15 +288,15 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
         {img ? (
           <a href={img} target="_blank" rel="noreferrer" title="Ver la captura completa">
             {/* eslint-disable-next-line @next/next/no-img-element -- imagen local protegida por clave (blob) */}
-            <img src={img} alt="Captura de cuotas subida" className="max-h-[420px] w-full rounded-[3px] border border-regla object-contain object-top" />
+            <img src={img} alt="Captura de cuotas subida" className="max-h-[420px] w-full border border-regla object-contain object-top" />
           </a>
         ) : (
-          <div className="esqueleto h-48 rounded-[3px]" />
+          <div className="esqueleto h-48" />
         )}
       </div>
       <div className="min-w-0 space-y-4">
         {active && (
-          <div className="rounded-[3px] border border-regla-suave p-4">
+          <div className="border border-regla-suave p-4">
             <Loading
               lines={3}
               label={c.status === "pendiente" ? "En cola" : c.status === "procesando" ? "Leyendo la captura" : "Resumiendo"}
@@ -317,13 +317,13 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
           </Empty>
         )}
         {c.status === "error" && (
-          <div role="alert" className="border-l-[3px] border-rojo bg-rojo-suave/60 px-4 py-3">
+          <div role="alert" className="border-t-[3px] border-rojo bg-rojo-suave/60 px-4 py-3">
             <p className="font-semibold">No se pudo leer la captura</p>
             <p className="mt-0.5 text-interfaz">{c.error}</p>
           </div>
         )}
         {c.status === "no_evaluable" && (
-          <div className="border-l-[3px] border-tarjeta bg-tarjeta-suave px-4 py-3">
+          <div className="border-t-[3px] border-tarjeta bg-tarjeta-suave px-4 py-3">
             <p className="font-semibold">Claude leyó la captura, pero el modelo no puede evaluarla</p>
             {c.verdict && <p className="mt-1 max-w-[75ch] text-interfaz whitespace-pre-line">{c.verdict}</p>}
           </div>
@@ -333,7 +333,7 @@ function CaptureBody({ c, img, onChanged }: { c: Capture; img: string | null; on
             <h3 className="semi text-interfaz font-bold">Resumen <span className="font-normal text-grafito">· leída por {engineName(c.engine)}</span></h3>
             <p className="mt-1 max-w-[75ch] whitespace-pre-line">{c.verdict}</p>
             {c.edited && (
-              <p className="mt-2 border-l-[3px] border-tarjeta pl-3 text-nota">
+              <p className="mt-2 border-l border-tarjeta pl-3 text-nota">
                 Corregiste cuotas a mano: este resumen es anterior a la corrección. Los números de la tabla sí están al día.
               </p>
             )}
@@ -568,7 +568,7 @@ function EditLines({
       </p>
       <ul className="space-y-2">
         {parsed.map((r, i) => (
-          <li key={i} className={`flex flex-wrap items-end gap-3 rounded-[3px] border border-regla-suave px-3 py-2 ${r.keep ? "" : "opacity-50"}`}>
+          <li key={i} className={`flex flex-wrap items-end gap-3 border border-regla-suave px-3 py-2 ${r.keep ? "" : "opacity-50"}`}>
             <span className="min-w-48 flex-1 font-medium">{lineLabel(c, r.ln)}</span>
             {r.ln.line != null && (
               <label className="text-nota text-grafito">

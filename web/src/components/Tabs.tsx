@@ -88,7 +88,7 @@ export function Tabs({
                 >
                   {t.label}
                   {t.count != null && <>{" "}<span className="num ml-0.5 font-normal text-grafito">{t.count}</span></>}
-                  {active &&<span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-boli" />}
+                  {active &&<span className="absolute inset-x-0 bottom-0 h-1 bg-tinta" />}
                 </button>
               );
             })}

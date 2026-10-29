@@ -37,7 +37,7 @@ function lineLabel(market: string, selection: string, t: { home?: string; away?:
   return "Línea";
 }
 
-const field = "h-11 w-full rounded-[3px] border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
+const field = "h-11 w-full border border-regla bg-hoja px-3 text-[1rem] text-tinta focus:border-boli";
 const labelCls = "mb-1 block text-nota font-semibold";
 
 export function EvaluarView() {
@@ -366,7 +366,7 @@ function Choice({
         {options.map((o) => (
           <label
             key={o.value}
-            className={`flex h-10 cursor-pointer items-center rounded-[3px] border px-3 text-interfaz font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-boli ${
+            className={`flex h-10 cursor-pointer items-center border px-3 text-interfaz font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-boli ${
               value === o.value ? "border-tinta bg-tinta text-papel" : "border-regla bg-hoja text-grafito hover:text-tinta"
             }`}
           >
@@ -388,7 +388,7 @@ function Choice({
 
 function Explicacion() {
   return (
-    <div className="max-w-[60ch] border-l-2 border-regla pl-5 text-grafito">
+    <div className="max-w-[60ch] border-l border-regla pl-5 text-grafito">
       <h2 className="semi mb-2 text-lg font-bold text-tinta">Cómo se decide</h2>
       <p>
         La cuota implica una probabilidad (1 entre la cuota). Si nuestra estimación es mayor, hay valor. En 1X2, goles y
@@ -415,7 +415,7 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
   const [home, away] = splitMatch(r.match);
   const label = betLabel(r.market, r.selection, r.line, { home, away, player });
   return (
-    <article aria-live="polite" className="rounded-[4px] border border-regla bg-hoja">
+    <article aria-live="polite" className="border border-regla bg-hoja">
       <div className="px-5 pt-5 sm:px-6">
         <p className="text-interfaz text-grafito">
           <Link href={`/partidos/${matchId}`} className="hover:text-boli hover:underline">
@@ -430,7 +430,7 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
           <p className={`cond text-[2.6rem] leading-none font-extrabold ${v.tone}`}>{v.text}</p>
         </div>
         {r.verdict === "valor pequeño o poca confianza" && (
-          <p className="mt-2 max-w-[60ch] border-l-[3px] border-tarjeta pl-3 text-interfaz">
+          <p className="mt-2 max-w-[60ch] border-l border-tarjeta pl-3 text-interfaz">
             Tiene valor positivo, pero no pasa el corte que se exige a una apuesta del día (rango de cuota, probabilidad,
             valor y confianza).
           </p>
@@ -579,7 +579,7 @@ function Banca({ b, children }: { b: Performance["bankroll"]; children?: ReactNo
         {b.pending_bets} ({money(b.pending_stake, b.currency)}).
       </p>
       {b.warnings.map((w) => (
-        <p key={w} className="mt-2 border-l-[3px] border-rojo bg-rojo-suave px-3 py-2 font-semibold">
+        <p key={w} className="mt-2 border-t-[3px] border-rojo bg-rojo-suave px-3 py-2 font-semibold">
           {w}
         </p>
       ))}

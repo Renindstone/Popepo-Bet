@@ -28,3 +28,9 @@ node_modules/
 
 # docs
 docs/adr
+
+# Impeccable (diseño): se suben DESIGN.md, PRODUCT.md, design.json y los contratos de superficie;
+# los bocetos, las capturas de revisión y las cachés son de trabajo
+.impeccable/*
+!.impeccable/design.json
+!.impeccable/surfaces/

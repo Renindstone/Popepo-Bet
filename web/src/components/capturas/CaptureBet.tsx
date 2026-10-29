@@ -7,7 +7,7 @@ import { type ApiError, post, useApi } from "@/lib/api";
 import { money, odds } from "@/lib/format";
 import type { Performance, RegisteredBet } from "@/lib/types";
 
-const field = "h-10 w-full rounded-[3px] border border-regla bg-papel px-3 text-interfaz text-tinta focus:border-boli";
+const field = "h-10 w-full border border-regla bg-papel px-3 text-interfaz text-tinta focus:border-boli";
 
 /**
  * Registrar como apuesta una cuota de la captura (`line`) o su combinada entera, sin ir a Evaluar cuota.
@@ -72,7 +72,7 @@ export function CaptureBet({
   }
 
   return (
-    <div className="max-w-md space-y-3 rounded-[3px] border border-regla-suave p-3">
+    <div className="max-w-md space-y-3 border border-regla-suave p-3">
       <p className="text-nota text-grafito">
         Solo si ya la apostaste{price ? ` a ${odds(price)}` : ""}. Se liquida sola cuando termine y cuenta para tu ROI.
       </p>

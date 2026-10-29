@@ -87,7 +87,7 @@ export function CaptureDrop({
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className={`rounded-[4px] border-2 border-dashed text-center transition-colors ${
+        className={`border-2 border-dashed text-center transition-colors ${
           dragging ? "border-boli bg-boli-suave" : "border-regla bg-hoja"
         } ${compact ? "px-4 py-5" : "px-5 py-10"}`}
       >
@@ -95,14 +95,14 @@ export function CaptureDrop({
           {busy > 0 ? "Subiendo…" : "Arrastra aquí la captura"}
         </p>
         <p className="mt-1 text-nota text-grafito">
-          o pégala con <kbd className="rounded-sm border border-regla px-1 text-nota">Ctrl</kbd>+
-          <kbd className="rounded-sm border border-regla px-1 text-nota">V</kbd> en esta página
+          o pégala con <kbd className="border border-regla px-1 text-nota">Ctrl</kbd>+
+          <kbd className="border border-regla px-1 text-nota">V</kbd> en esta página
         </p>
         <button
           type="button"
           onClick={() => input.current?.click()}
           disabled={busy > 0}
-          className="mt-3 inline-flex h-10 items-center rounded-[3px] border border-regla bg-papel px-4 text-interfaz font-semibold hover:border-grafito disabled:opacity-50"
+          className="mt-3 inline-flex h-10 items-center border border-regla bg-papel px-4 text-interfaz font-semibold hover:border-grafito disabled:opacity-50"
         >
           Elegir imagen
         </button>

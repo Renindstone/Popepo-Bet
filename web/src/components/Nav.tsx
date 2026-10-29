@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ScrollRow } from "@/components/ScrollRow";
+import { longDay } from "@/lib/format";
+import { useToday } from "@/lib/hooks";
 
 const LINKS = [
   { href: "/", label: "Hoy" },
@@ -28,12 +30,12 @@ export function Nav() {
                 <Link
                   href={l.href}
                   aria-current={active ? "page" : undefined}
-                  className={`semi relative block py-3 text-interfaz font-semibold transition-colors ${
+                  className={`semi relative block py-3 text-base font-bold transition-colors ${
                     active ? "text-tinta" : "text-grafito hover:text-tinta"
                   }`}
                 >
                   {l.label}
-                  {active && <span className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-boli" />}
+                  {active && <span className="absolute inset-x-0 bottom-0 h-1 bg-tinta" />}
                 </Link>
               </li>
             );
@@ -41,5 +43,22 @@ export function Nav() {
         </ul>
       </ScrollRow>
     </nav>
+  );
+}
+
+/** Fecha de la edición en la cabecera, en hora de Lima */
+export function EditionDate() {
+  const today = useToday();
+  // «miércoles, 28 de octubre»: en el celular, el día de la semana y la fecha en dos líneas
+  const [weekday, date] = today ? longDay(today).split(", ") : ["", ""];
+  return (
+    <p className="min-w-0 pb-0.5 text-right text-nota leading-tight font-bold tracking-[0.06em] uppercase">
+      <span className="block min-h-[1.25em]">
+        {weekday}
+        <span className="hidden sm:inline">{date && `, ${date}`}</span>
+      </span>
+      <span className="block sm:hidden">{date}</span>
+      <span className="hidden font-semibold sm:block">Fútbol prepartido</span>
+    </p>
   );
 }

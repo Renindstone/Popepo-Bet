@@ -193,7 +193,7 @@ function Dificultad({ a }: { a: MatchAnalysis }) {
                 return (
                   <li key={l} className="min-w-0">
                     <div
-                      className={`h-2.5 rounded-[2px] ${isAdj ? "bg-tinta" : "bg-regla"} ${
+                      className={`h-2.5 ${isAdj ? "bg-tinta" : "bg-regla"} ${
                         isBase && !isAdj ? "outline-2 outline-offset-1 outline-grafito outline-dashed" : ""
                       }`}
                     />
@@ -253,7 +253,7 @@ function Bajas({ a }: { a: MatchAnalysis }) {
             {adj.notes.length > 0 && (
               <ul className="mt-3 space-y-1 text-interfaz">
                 {adj.notes.map((n) => (
-                  <li key={n} className="border-l-[3px] border-tarjeta pl-3">
+                  <li key={n} className="border-l border-tarjeta pl-3">
                     {n}
                   </li>
                 ))}
@@ -457,10 +457,10 @@ function Estadisticas({ a }: { a: MatchAnalysis }) {
     >
       <div className="flex flex-wrap gap-x-5 gap-y-1 pb-2 text-nota">
         <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded-[2px] bg-tinta" /> {a.home}
+          <span className="size-3 bg-tinta" /> {a.home}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded-[2px] bg-regla" /> {a.away}
+          <span className="size-3 bg-regla" /> {a.away}
         </span>
       </div>
       <Chart option={option} height={keys.length * 46 + 10} label="Reparto esperado de remates, córners, faltas y tarjetas" />
