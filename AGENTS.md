@@ -50,6 +50,7 @@ Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga,
 - Entorno: `.venv/bin/...` (Python 3.14, sin uv). Instalar: `.venv/bin/pip install -e ".[dev]"`
 - BD: `scripts/db.sh start|stop|status|psql` (cluster propio en 127.0.0.1:5433, datos en `~/.local/share/apuestas/pgdata`)
 - CLI: `.venv/bin/apuestas --help` (ingest, train, picks, analyze, evaluate, backtest, mcp, api, bot, worker, archive, user, capturas, equipos)
+- Instalar desde cero o actualizar: `scripts/instalar.sh` (Linux, Mac y Windows con WSL; guía por sistema en `docs/instalacion.md`). Sin systemd (Mac): `scripts/arrancar.sh` lo arranca todo en una terminal.
 - Servicios (systemd de usuario): `scripts/install-services.sh --with-web` instala apuestas-db, -worker, -api (:8000) y -web (:3000). Estado: `systemctl --user status 'apuestas-*'`; registros: `journalctl --user -u apuestas-worker -f`
 - **Ver el panel sin ventana:** `node .claude/skills/run-app-apuestas/driver.mjs shots|shot|audit` (Brave sin ventana con `playwright-core`; capturas en `/tmp/apuestas-shots/`). Instrucciones en la skill `run-app-apuestas`.
 - **Diseño:** antes de tocar el aspecto del panel, sigue la skill `disenio-panel` (paleta, tipografía, formas, movimiento, UX, auditoría y pendientes conocidos).

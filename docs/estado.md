@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 28 de octubre de 2026 (rediseño del panel: portada de diario deportivo). Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
+Última actualización: 28 de octubre de 2026 (instalación por sistema: Linux, Mac y Windows). Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
 
 ## Qué funciona hoy
 
@@ -21,6 +21,7 @@
 - **Escudos de los equipos** junto a sus nombres en Hoy, Partidos, el partido y las alineaciones (de FotMob, en caché).
 - **Banca inicial editable** en Mis apuestas (`PUT /bankroll`), con la banca actual al lado.
 - **Servidor MCP** para Claude, **API REST** y **bot de Telegram** (este último sin configurar).
+- **Instalación en otras máquinas** (desde el 2026-10-28): `scripts/instalar.sh` lo hace todo con un comando (entorno de Python, base de datos propia, tablas, panel y, la primera vez, historial y modelos; se puede repetir y sirve para actualizar) y `docs/instalacion.md` va por sistema: Arch, Fedora, Debian, Ubuntu, Mac y Windows (con WSL). En Mac, sin systemd, `scripts/arrancar.sh` arranca todo en una terminal y Ctrl+C lo para. `scripts/db.sh` encuentra PostgreSQL fuera del `PATH` (Debian, Ubuntu y Homebrew) y funciona en Mac. Probado en Linux con una copia limpia; en Fedora, Debian, Ubuntu, Mac y Windows aún no.
 - Servicios systemd de usuario: `apuestas-db`, `apuestas-worker`, `apuestas-api` y `apuestas-web`. Si el equipo estuvo apagado a la hora de una tarea diaria, el worker la recupera al arrancar (desde el 2026-10-20). Si al encender no hay internet todavía, las tareas que descargan lo esperan (hasta 10 min) y, si sigue sin haber, la recuperación vuelve a probar a los 15 min sin darlas por hechas (desde el 2026-10-23). El worker solo funciona de 05:00 a 20:00 (temporizadores de systemd; desde el 2026-10-26).
 
 ## Decisiones del usuario (no las cambies sin preguntarle)
@@ -51,6 +52,7 @@
 | 2026-10-26 | La descarga de datos (el worker) se apaga a las 20:00 y no arranca antes de las 05:00, para no gastar recursos por la noche; la API, el panel y la base de datos siguen encendidos. |
 | 2026-10-28 | CLV de las que pasan el corte frente a Pinnacle sin margen: una petición de Pinnacle por OddsPapi unos 15 min antes de cada hora de inicio con apuestas abiertas que pasan el corte, como mucho 3 al día (unas 40-90 más al mes; con las de las 08:30 quedan unas 130-170 de 250). |
 | 2026-10-28 | Rediseño del panel: entre tres propuestas (portada de diario deportivo, programa de carreras y tablero de salidas) el usuario eligió la **portada de diario deportivo**. Pidió conservar la claridad de los números y el campo de alineaciones, y evitar que parezca un casino o una app de fútbol más. Los partidos del día salen de las pestañas de Hoy a «La jornada», al lado del titular, como en el boceto elegido. |
+| 2026-10-28 | La guía de instalación va por sistema (Mac, Linux y Windows), juntando los pasos iguales («Arch, Fedora, Debian, Ubuntu y Windows»), con los pasos más sencillos posibles. |
 
 ## Pendiente o por decidir
 

@@ -24,22 +24,21 @@ No promete ganancias: el backtest dice con honestidad dónde el modelo no le gan
 
 ## Puesta en marcha
 
-Guía completa, con requisitos, servicios, actualización y problemas frecuentes: **[docs/instalacion.md](docs/instalacion.md)**. Resumen:
+Funciona en Linux (Arch, Fedora, Debian, Ubuntu…), Mac y Windows (con WSL). La guía con los pasos de cada sistema, la actualización y los problemas frecuentes está en **[docs/instalacion.md](docs/instalacion.md)**. Resumen:
+
+1. Instala Git, Python 3.12 o superior, PostgreSQL y Node.js 20.9 o superior (el comando de tu sistema está en la guía).
+2. Descarga e instala; la primera vez tarda 3 o 4 horas porque baja el historial:
 
 ```bash
 git clone https://github.com/Renindstone/Popepo-Bet.git && cd Popepo-Bet
-python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-scripts/db.sh init                      # crea un PostgreSQL propio del proyecto (puerto 5433) y el .env
-.venv/bin/alembic upgrade head          # crea las tablas
-.venv/bin/apuestas ingest all --seasons 3 --backfill 8000   # historial (tarda ~3-4 h la primera vez)
-.venv/bin/apuestas train                # entrena los modelos
-.venv/bin/apuestas picks                # apuestas con valor de hoy
+scripts/instalar.sh
 ```
 
-Servicios permanentes en tu PC (systemd de usuario), con panel web incluido:
+3. Arráncalo y abre el panel en http://localhost:3000:
 
 ```bash
-scripts/install-services.sh --with-web   # BD + worker + API + panel en http://localhost:3000
+scripts/install-services.sh --with-web   # Linux y Windows: BD, worker, API y panel quedan funcionando solos
+scripts/arrancar.sh                      # Mac: todo en esa terminal; Ctrl+C lo para
 ```
 
 ## Uso diario
