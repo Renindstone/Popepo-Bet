@@ -593,6 +593,56 @@ Alineaciones: con las cinco ligas, la regresión da β ataque 0,13 ± 0,04 y β 
 
 Reproducir: `apuestas backtest --lineups --europa` con el código de antes y el de ahora (`--ligas EPL,BUN,LAL`) sobre la base de datos de antes y la de después (salidas por partido en `var/backtests/ligue1_serie_a_{antes3,antes5,despues5}_2024_2026.json`).
 
+**Portugal y Bélgica como ligas completas** (29-10-2026, a petición del dueño). Como la Serie A y la Ligue 1 una semana antes: eran ligas ligeras que entraban en el modelo con el resultado, los conteos de football-data y las cuotas de cierre, pero sin xG, sin árbitro, sin alineaciones y sin jugadores. Ahora tienen los detalles de FotMob (xG, estadísticas Opta, árbitro, once y jugadores) de los 2.018 partidos jugados desde 2023-24; Understat no cubre estas dos ligas. A diferencia de la Serie A y la Ligue 1, FotMob no las bajaba ni siquiera como ligeras: los 2.014 partidos que había los había creado football-data, y FotMob los reutiliza en lugar de duplicarlos (`store.upsert_fotmob_match`; nueve equipos necesitaron una variante en `names._TEAM_SEEDS`, como "OH Leuven" frente a "Oud-Heverlee Leuven"). Bélgica juega fase regular y playoffs (con los puntos divididos a la mitad, que no afecta al modelo de goles): FotMob y football-data traen los dos, y FotMob suma la final del playoff europeo de cada temporada. En 2026-27 FotMob la da con 18 equipos y 34 jornadas. Walk-forward de siempre (2024-25 y 2025-26) sobre la copia de la base de datos de antes y la de después, con el código de `main` del 29-10-2026 (ventaja local por competición incluida). `apuestas backtest` evalúa ahora por defecto las siete ligas; `--ligas EPL,BUN,LAL,SA,L1` repite las cifras anteriores.
+
+Log-loss 1X2 del modelo, en los mismos partidos (diferencia pareada después − antes; negativo = mejor):
+
+| Competición | Partidos | Antes | Después | Diferencia |
+|---|---|---|---|---|
+| Portugal | 608 | 0,9185 | 0,9191 | +0,0006 ± 0,0010 |
+| Bélgica | 613 | 1,0038 | 1,0029 | −0,0009 ± 0,0009 |
+| Las cinco de antes | 3.495 | 0,9745 | 0,9745 | 0,0000 ± 0,0000 |
+| Copas (UCL, UEL, UECL) | 1.030 | 0,9621 | 0,9621 | 0,0000 ± 0,0002 |
+
+Ese "antes" ya evalúa las siete ligas. Lo que cambia en producción es además que ρ (Dixon-Coles) se estima con siete ligas en vez de cinco: frente al backtest de cinco ligas, las cinco de antes +0,0001 ± 0,0001 (Premier +0,0003 ± 0,0002, Ligue 1 −0,0003 ± 0,0003) y la Champions −0,0010 ± 0,0003 (copas −0,0007 ± 0,0002). El xG de FotMob casi no mueve el 1X2 de las dos ligas porque el modelo ya seguía sus cuotas de cierre (sección 1).
+
+Frente a las casas (partidos con cuotas de bet365 y Pinnacle; diferencia pareada del modelo frente a bet365):
+
+| Log-loss 1X2 | Modelo antes | Modelo después | bet365 | Pinnacle | Mezcla 25/75 | Modelo − bet365 |
+|---|---|---|---|---|---|---|
+| Portugal (588) | 0,9135 | 0,9145 | 0,9173 | 0,9176 | 0,9157 | −0,0028 ± 0,0036 |
+| Bélgica (587) | 1,0049 | 1,0041 | 1,0065 | 1,0100 | 1,0062 | −0,0024 ± 0,0034 |
+| Las siete (4.563) | 0,9700 | 0,9700 | 0,9682 | 0,9684 | 0,9677 | +0,0018 ± 0,0014 |
+
+En las dos ligas nuevas el modelo queda **a la par** de bet365: va algo por delante, pero a menos de un error estándar, igual que antes del cambio. En Bélgica, Pinnacle (hasta 2025-26) predice peor que bet365. Apuestas del backtest (solo modelo, valor ≥ 3 %): Portugal, de 347 apuestas con ROI +6,1 % a 352 con +4,2 % (CLV +1,7 % → +1,4 %); Bélgica, de 307 con −0,1 % a 264 con +1,4 % (CLV +1,3 % → +1,5 %). Con unas 300 apuestas a cuota ~2 el error estándar del ROI es de unos 6 puntos: **no es una ventaja demostrada**. Las siete ligas juntas: 2.966 apuestas, ROI −4,0 %, CLV +0,9 %.
+
+Estadísticas (mejora de la log-verosimilitud por partido frente a la media de la liga, después; el árbitro, frente al mismo modelo sin árbitro):
+
+| Después | Portugal | Bélgica |
+|---|---|---|
+| Córners por equipo | +0,286 | +0,070 |
+| Remates por equipo | +0,482 | +0,271 |
+| A puerta por equipo | +0,323 | +0,187 |
+| Faltas por equipo | +0,419 | +0,122 |
+| Tarjetas por equipo | +0,066 | +0,048 |
+| Árbitro en tarjetas | +0,013 ± 0,004 | +0,007 ± 0,003 |
+| Árbitro en faltas | +0,007 ± 0,006 | +0,004 ± 0,007 |
+
+Mejoran a la media de la liga como las demás ligas (antes, con los conteos de football-data, casi lo mismo: remates por equipo +0,482 y +0,270, córners +0,285 y +0,068). Lo nuevo es el árbitro, que ayuda en las tarjetas de las dos. La comparación pareada de las estadísticas de estas dos ligas no sirve, porque cambia lo observado: ahora mandan las cifras de FotMob (como en las demás ligas), que en Portugal difieren de las de football-data en el 31 % de las filas de remates (FotMob +0,4 por equipo), el 19 % de a puerta y el 12 % de faltas; en Bélgica, en el 13 % de los remates; en la Serie A, en el 4,5 %. En las cinco ligas de siempre las estadísticas no cambian (por equipo, ±0,0004 como mucho).
+
+Jugadores, fuera de muestra (modelo entrenado hasta el corte; partidos con once confirmado de los 90 días siguientes; esperado / real y log-loss frente a la tasa media):
+
+| Corte | Liga | Jugador-partidos | Gol | Asistencia | Remates | Log-loss del gol |
+|---|---|---|---|---|---|---|
+| 15-01-2026 | Portugal | 4.231 | 234 / 255 | 166 / 177 | 2.466 / 2.546 | 0,1882 (media 0,2277) |
+| | Bélgica | 3.911 | 237 / 242 | 182 / 165 | 2.421 / 2.516 | 0,2005 (media 0,2321) |
+| 23-07-2026 | Portugal | 2.583 | 141 / 137 | 97 / 99 | 1.386 / 1.383 | 0,1681 (media 0,2074) |
+| | Bélgica | 2.320 | 144 / 159 | 108 / 114 | 1.431 / 1.604 | 0,2120 (media 0,2498) |
+
+Calibrados como en las demás ligas (en las siete, goles 2.040 / 2.130 y 1.256 / 1.318), y mejor que la tasa media en todos los mercados. Los remates de Bélgica en julio (0,89) se quedan cortos como los de las otras ligas en 2026-27 (sección 3, nivel reciente de cada liga; este corte deja el modelo fijo 91 días).
+
+Gasto de OddsPapi, con el calendario real de agosto de 2025 a noviembre de 2026: la API admite 5 competiciones por petición y con ocho casi cada día juegan más de 5 en los próximos 3 días, así que la descarga diaria de Betano y Pinnacle pasa de 38-68 a 70-106 peticiones al mes; con los catálogos y el CLV, unas 120-210 de 250. El dueño lo aprobó el 29-10-2026. Reproducir: scripts `bt.py`, `cmp.py`, `frente_casas.py`, `ligas_conteos.py`, `players.py` y `gasto_oddspapi.py` en las notas de la sesión del 29-10-2026 (no están en el repositorio).
+
 **Córners del local grande en la Champions frente a Pinnacle** (22-10-2026). Con la fuerza de goles como guía y las estadísticas de las copas, el modelo seguía dando al local unos 0,7 córners menos que Pinnacle en Betis-Feyenoord (4,6-4,7 frente a 5,3-4,1; Betano 5,4-4,1) y Bayern-Arsenal (4,8-4,1 frente a 5,5-4,2; Betano 5,7-4,1). Ya estaban descartados el nivel por liga, más contracción (K 40) y un sesgo del local en toda la Champions.
 
 *De dónde sale cada número.* Bayern-Arsenal: 4,79 = exp(media 1,457 + local 0,202 + ataque del Bayern 0,500 − defensa del Arsenal 0,593). El Arsenal es el equipo que menos córners concede (2,8 en casa y 3,8 fuera en la Premier) y, en el modelo de goles, más fuerte que el Bayern (1,83 frente a 1,62; 1X2 del modelo 38/24/38, Pinnacle 43/26/32). Betis-Feyenoord: solo con la fuerza de goles salía 5,2-4,3; las desviaciones de cada equipo lo llevaban a 4,6-4,7, porque el Betis saca en LaLiga menos córners de los que le tocan por su fuerza (−0,08 de dominio) y el Feyenoord en la Eredivisie más (+0,13). Su fuerza de goles es casi igual (0,63 y 0,67), así que el modelo los veía parejos, y Pinnacle no (1X2 60/20/20).
