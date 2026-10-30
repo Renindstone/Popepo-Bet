@@ -276,6 +276,9 @@ class OddsSnapshot(Base):
     kind: Mapped[str] = mapped_column(String(8), default="live")  # live | opening | closing
     source: Mapped[str] = mapped_column(String(16))
     captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Última descarga en que salió con este precio (desde el 29-10-2026; antes, vacío): una línea que no vuelve a salir
+    # ya no se ofrece, aunque su precio siga siendo el último guardado
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # --------------------------------------------------------------------------- modelo y picks

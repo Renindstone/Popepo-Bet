@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -373,16 +373,27 @@ def _player_projections(
     return projections
 
 
+# Una línea que no salió en la última descarga de su casa ya no se ofrece (`OddsSnapshot.last_seen_at`). Las 12 horas
+# dejan dentro la descarga de las 08:30 cuando después llega la de Pinnacle de antes del partido.
+ODDS_FRESH = timedelta(hours=12)
+
+
 def _latest_odds(s: Session, match_id: int) -> list[m.OddsSnapshot]:
+    """La última cuota de cada (casa, mercado, selección, línea), sin las líneas que la casa ya no ofrece. Las filas de
+    antes del 29-10-2026 no saben cuándo se vieron por última vez y cuentan como vigentes."""
     rows = s.scalars(
         select(m.OddsSnapshot)
         .where(m.OddsSnapshot.match_id == match_id, m.OddsSnapshot.kind != "closing")
         .order_by(m.OddsSnapshot.captured_at)
     ).all()
     latest: dict[tuple, m.OddsSnapshot] = {}
+    newest: dict[str, datetime] = {}
     for r in rows:
         latest[(r.bookmaker, r.market, r.selection, r.line)] = r
-    return list(latest.values())
+        if r.last_seen_at is not None:
+            newest[r.bookmaker] = max(newest.get(r.bookmaker, r.last_seen_at), r.last_seen_at)
+    return [r for r in latest.values()
+            if r.last_seen_at is None or r.last_seen_at >= newest[r.bookmaker] - ODDS_FRESH]
 
 
 def _sharp_prob(odds_rows: list[m.OddsSnapshot], market: str, selection: str, line: float | None) -> float | None:

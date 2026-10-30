@@ -2,13 +2,16 @@
 
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from itertools import count
+from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session
 
 from apuestas.betting import odds as oddsmath
 from apuestas.db import models as m
+from apuestas.ingest.store import store_odds
 from apuestas.services import compare, picks
 
 KICKOFF = datetime(2026, 10, 31, 20, tzinfo=UTC)
@@ -18,6 +21,12 @@ KICKOFF = datetime(2026, 10, 31, 20, tzinfo=UTC)
 def s(monkeypatch):
     engine = create_engine("sqlite://")
     m.Base.metadata.create_all(engine)
+    ids = count(1000)
+
+    def give_id(_mapper, _conn, row):  # en SQLite las claves BigInteger no se autoincrementan
+        row.id = row.id or next(ids)
+
+    event.listen(m.OddsSnapshot, "before_insert", give_id)
     with Session(engine) as session:
 
         @contextmanager
@@ -26,6 +35,7 @@ def s(monkeypatch):
 
         monkeypatch.setattr(compare, "session_scope", scope)
         yield session
+    event.remove(m.OddsSnapshot, "before_insert", give_id)
 
 
 def match(s, status="scheduled", kickoff=KICKOFF):
@@ -76,19 +86,22 @@ def test_betano_por_encima_de_pinnacle(s):
     assert compare.match_edges(s, mt, min_edge=0.10) == []
 
 
-def test_solo_la_ultima_descarga_de_cada_casa(s):
+def download(s, mt, rows, hours):
+    """Una descarga de OddsPapi por la ingesta real: solo guarda los precios que cambian y apunta los que vuelve a ver."""
+    store_odds(s, mt, [SimpleNamespace(bookmaker=b, market=mk, selection=sel, line=ln, price=p, kind="live")
+                       for b, mk, sel, ln, p in rows], "oddspapi", captured_at=KICKOFF - timedelta(hours=hours))
+
+
+def test_solo_lineas_que_la_casa_sigue_ofreciendo(s):
     mt = match(s)
-    odds(s, mt, [("pinnacle", "ou_cards", "over", 4.5, 1.90), ("pinnacle", "ou_cards", "under", 4.5, 1.95),
-                 ("betano", "ou_cards", "over", 4.5, 2.30), ("betano", "ou_cards", "over", 5.5, 1.20)], hours=34)
-    # En la descarga del día siguiente Betano ya no ofrece Más de 4.5 (solo la 5.5): ese precio viejo no se compara
-    s.add(m.OddsSnapshot(id=99, match_id=mt.id, bookmaker="betano", market="ou_cards", selection="over", line=5.5,
-                         price=1.25, kind="live", source="oddspapi", captured_at=KICKOFF - timedelta(hours=10)))
-    s.flush()
-    assert compare.match_edges(s, mt) == []
-    # La de Pinnacle de antes del partido (solo un mercado, 8 horas después) no deja fuera la de la mañana
-    odds(s, mt, [("pinnacle", "btts", "yes", None, 1.80), ("pinnacle", "btts", "no", None, 2.05),
-                 ("betano", "btts", "no", None, 2.30)], hours=10)
-    odds(s, mt, [("pinnacle", "1x2", "home", None, 2.0)], hours=2)
+    pin = [("pinnacle", "ou_cards", "over", 4.5, 1.90), ("pinnacle", "ou_cards", "under", 4.5, 1.95),
+           ("pinnacle", "btts", "yes", None, 1.80), ("pinnacle", "btts", "no", None, 2.05)]
+    download(s, mt, pin + [("betano", "ou_cards", "over", 4.5, 2.30), ("betano", "btts", "no", None, 2.30)], hours=34)
+    # Al día siguiente, los mismos precios (no se guarda fila nueva) salvo que Betano ya no ofrece Más de 4.5
+    download(s, mt, pin + [("betano", "btts", "no", None, 2.30)], hours=10)
+    assert [r["market"] for r in compare.match_edges(s, mt)] == ["btts"]  # sin cambiar de precio, sigue vigente
+    # La de Pinnacle de antes del partido (solo el 1X2) no deja fuera lo visto por la mañana
+    download(s, mt, [("pinnacle", "1x2", "home", None, 2.0)], hours=2)
     assert [r["market"] for r in compare.match_edges(s, mt)] == ["btts"]
 
 
@@ -114,3 +127,16 @@ def test_el_mcp_tiene_comparar_casas():
     from apuestas.mcp_server.server import build
 
     assert "comparar_casas" in {t.name for t in build()._tool_manager.list_tools()}
+
+
+def test_el_analisis_tampoco_usa_cuotas_que_ya_no_se_ofrecen(s):
+    # «Con valor» y la apuesta del día leen las cuotas con `_latest_odds`
+    from apuestas.services import analysis
+
+    mt = match(s)
+    download(s, mt, [("betano", "ou_corners", "over", 8.5, 1.60), ("betano", "ou_corners", "over", 9.5, 2.00)], hours=34)
+    download(s, mt, [("betano", "ou_corners", "over", 9.5, 2.00)], hours=10)  # la 8.5 ya no sale
+    odds(s, mt, [("bet365", "1x2", "home", None, 1.90)], hours=60)  # fila de antes del 29-10: sin last_seen_at
+    rows = analysis._latest_odds(s, mt.id)
+    assert sorted((r.bookmaker, r.line, r.price) for r in rows) == [("bet365", None, 1.90), ("betano", 9.5, 2.00)]
+    assert s.query(m.OddsSnapshot).filter_by(bookmaker="betano").count() == 2  # la 9.5 no se guardó dos veces

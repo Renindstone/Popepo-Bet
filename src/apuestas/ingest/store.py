@@ -472,32 +472,34 @@ def update_availability(s: Session, team: m.Team, reported: Iterable, seen_on: d
 
 
 def store_odds(s: Session, match: m.Match, odds: Iterable, source: str, captured_at: datetime | None = None) -> int:
-    """Inserta solo cuando el precio cambia respecto al último guardado (ahorra ~90% de espacio)."""
+    """Inserta solo cuando el precio cambia respecto al último guardado (ahorra ~90% de espacio); si no cambia, apunta
+    que se volvió a ver (`last_seen_at`)."""
     captured_at = captured_at or datetime.now(UTC)
-    last: dict[tuple, float] = {}
+    last: dict[tuple, m.OddsSnapshot] = {}
     for row in s.scalars(
         select(m.OddsSnapshot).where(m.OddsSnapshot.match_id == match.id).order_by(m.OddsSnapshot.captured_at)
     ):
-        last[(row.bookmaker, row.market, row.selection, row.line, row.kind)] = row.price
+        last[(row.bookmaker, row.market, row.selection, row.line, row.kind)] = row
     added = 0
     for o in odds:
         key = (o.bookmaker, o.market, o.selection, o.line, o.kind)
-        if last.get(key) == o.price:
+        if key in last and last[key].price == o.price:
+            last[key].last_seen_at = captured_at
             continue
-        s.add(
-            m.OddsSnapshot(
-                match_id=match.id,
-                bookmaker=o.bookmaker,
-                market=o.market,
-                selection=o.selection,
-                line=o.line,
-                price=o.price,
-                kind=o.kind,
-                source=source,
-                captured_at=captured_at,
-            )
+        row = m.OddsSnapshot(
+            match_id=match.id,
+            bookmaker=o.bookmaker,
+            market=o.market,
+            selection=o.selection,
+            line=o.line,
+            price=o.price,
+            kind=o.kind,
+            source=source,
+            captured_at=captured_at,
+            last_seen_at=captured_at,
         )
-        last[key] = o.price
+        s.add(row)
+        last[key] = row
         added += 1
     s.flush()
     return added
