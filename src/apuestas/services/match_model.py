@@ -51,6 +51,10 @@ class PlayerProjection:
     expected_minutes: float
     start_prob: float
     lam: dict[str, float]  # tasa esperada en el partido para cada estadística
+    # Probabilidad de que juegue. Las apuestas a un jugador que no sale se anulan, así que sus mercados van con lam /
+    # play_prob (lo que hace si juega); lam sigue siendo la media con los partidos en que no sale, la que reparte lo del
+    # equipo
+    play_prob: float = 1.0
 
     def to_dict(self) -> dict:
         return {
@@ -80,10 +84,13 @@ class MatchModel:
         self.matrix = dist.dixon_coles_matrix(self.lam_home, self.lam_away, self.rho)
         self._pmfs: dict[str, tuple[np.ndarray, np.ndarray]] = {}
         self._totals: dict[str, np.ndarray] = {}
+        self._diff_pmfs: dict[str, tuple[np.ndarray, np.ndarray]] = {}  # para la diferencia (hándicaps)
         for stat, (mh, ma) in self.count_means.items():
-            a = self.count_dispersion.get(stat, 0.0)
+            a, at = self.count_dispersion.get(stat, 0.0), self.count_total_dispersion.get(stat)
             self._pmfs[stat] = (dist.count_pmf(mh, a), dist.count_pmf(ma, a))
-            self._totals[stat] = dist.count_total_pmf(mh, ma, a, self.count_total_dispersion.get(stat))
+            self._totals[stat] = dist.count_total_pmf(mh, ma, a, at)
+            ad = a if at is None else dist.count_diff_dispersion(mh, ma, a, at)
+            self._diff_pmfs[stat] = self._pmfs[stat] if ad == a else (dist.count_pmf(mh, ad), dist.count_pmf(ma, ad))
 
     # ------------------------------------------------------------------ goles
     def probs_1x2(self) -> dict[str, float]:
@@ -105,11 +112,12 @@ class MatchModel:
 
     def _stat_pmfs(self, stat: str) -> tuple[dict[int, float], dict[int, float], dict[int, float], dict[int, float]]:
         ph, pa = self._pmfs[stat]
+        dh, da = self._diff_pmfs[stat]
         diff: dict[int, float] = {}
-        for i, p in enumerate(ph):
+        for i, p in enumerate(dh):
             if p < 1e-10:
                 continue
-            for j, q in enumerate(pa):
+            for j, q in enumerate(da):
                 if q < 1e-10:
                     continue
                 diff[i - j] = diff.get(i - j, 0.0) + p * q
@@ -202,8 +210,8 @@ class MatchModel:
         team_lam = max(team_lam, 1e-6)
 
         def shares(pp: PlayerProjection, kinds: tuple[str, ...]) -> tuple[float, float]:
-            g = min(MAX_SHARE, pp.lam.get("goals", 0.0) / team_lam) if "goals" in kinds else 0.0
-            a = min(MAX_SHARE, pp.lam.get("assists", 0.0) / team_lam) if "assists" in kinds else 0.0
+            g = min(MAX_SHARE, pp.lam.get("goals", 0.0) / pp.play_prob / team_lam) if "goals" in kinds else 0.0
+            a = min(MAX_SHARE, pp.lam.get("assists", 0.0) / pp.play_prob / team_lam) if "assists" in kinds else 0.0
             return g, a
 
         if len(legs) == 1 and legs[0][2] is not None and legs[0][2] > 0.5:
@@ -299,13 +307,13 @@ class MatchModel:
             raise ValueError("Jugador sin proyección para este partido")
         pp = self.players[player_id]
         if market in PLAYER_MARKETS:
-            lam = pp.lam[PLAYER_MARKETS[market]]
+            lam = pp.lam[PLAYER_MARKETS[market]] / pp.play_prob
             pmf = dist.pmf_to_dict(dist.count_pmf(lam, PLAYER_COUNT_DISPERSION))
             ln = 0.5 if line is None else line
             return dist.over(pmf, ln) if selection == "over" else dist.under(pmf, ln)
         if market in PLAYER_INVOLVEMENT:
             # Goles, asistencias o la suma de ambas: Poisson con la tasa esperada en el partido
-            lam = sum(pp.lam.get(kind, 0.0) for kind in PLAYER_INVOLVEMENT[market])
+            lam = sum(pp.lam.get(kind, 0.0) for kind in PLAYER_INVOLVEMENT[market]) / pp.play_prob
             pmf = dist.pmf_to_dict(dist.count_pmf(lam, 0.0))
             ln = 0.5 if line is None else line
             return dist.over(pmf, ln) if selection in YES else dist.under(pmf, ln)
@@ -313,7 +321,7 @@ class MatchModel:
             # La λ ya es la probabilidad de que vea tarjeta: sale de si vio tarjeta o no en cada partido (como mucho
             # una por partido en FotMob, fitting._player_volume). Con 1 − e^(−λ), como si pudiera ver varias, salía
             # un ~7 % baja (docs/modelos.md, sección 4)
-            p = min(pp.lam["yellow_cards"], MAX_CARD_PROB)
+            p = min(pp.lam["yellow_cards"] / pp.play_prob, MAX_CARD_PROB)
         else:
             raise ValueError(f"Mercado de jugador no soportado: {market}")
         return dist.prob_outcome(p if selection in ("yes", "si", "sí") else 1 - p)

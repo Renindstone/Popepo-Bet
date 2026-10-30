@@ -123,3 +123,20 @@ def finished():
 def test_settle_goal_and_assist_markets(goals, assists, market, sel, line, expected):
     row = SimpleNamespace(goals=goals, assists=assists, yellow_cards=0, red_cards=0)
     assert settle(FakeSession(row), finished(), market, sel, line, player_id=KANE) == expected
+
+
+def test_suplente_condicionado_a_que_juegue():
+    # Si un suplente no sale, la apuesta se anula: sus mercados son los de si juega (lam / play_prob)
+    from apuestas.services.analysis import SUB_PLAY_RATE
+
+    mm = model()
+    sub = PlayerProjection(77, "Suplente", 1, "FW", 8.9, 0.0, {"goals": 0.10, "assists": 0.05, "shots": 0.6,
+                                                               "shots_on_target": 0.25, "yellow_cards": 0.04},
+                           play_prob=SUB_PLAY_RATE)
+    mm.players[77] = sub
+    assert alone(mm, "player_goal", 77) == pytest.approx(1 - np.exp(-0.10 / SUB_PLAY_RATE), abs=1e-6)
+    assert alone(mm, "player_card", 77) == pytest.approx(0.04 / SUB_PLAY_RATE, abs=1e-6)
+    p_shot = mm.outcome("player_shots", "over", 0.5, 77).effective_prob()
+    sub.play_prob = 1.0
+    assert p_shot > mm.outcome("player_shots", "over", 0.5, 77).effective_prob()
+    assert alone(mm, "player_goal", KANE) == pytest.approx(1 - np.exp(-0.75), abs=1e-6)  # titular: igual que antes

@@ -89,11 +89,20 @@ def test_cup_offset_shrinks_with_few_matches():
     assert 0 < cm_few.cup_level["UCL"] < cm_all.cup_level["UCL"]
 
 
-def test_level_only_in_shots_shots_on_target_and_cards():
-    assert fitting.COUNT_LEVEL_STATS == ("shots", "shots_on_target", "cards")
+def test_level_only_in_shots_shots_on_target_cards_and_fouls():
+    assert fitting.COUNT_LEVEL_STATS == ("shots", "shots_on_target", "cards", "fouls")
     rows = _rows()
     cm = fitting.fit_counts(fitting.count_obs(rows, "corners"), "corners", TODAY, rows=rows)
     assert cm.level == {} and cm.cup_level == {}
+
+
+def test_fouls_level_only_in_leagues(monkeypatch):
+    # Las faltas llevan el nivel de su liga, pero en las copas ninguno (con él, empeoraban)
+    monkeypatch.setitem(fitting.COUNT_LEVEL_PARAMS, "shots", fitting.COUNT_LEVEL_PARAMS["fouls"])
+    rows = _rows(cup_factor=1.25)
+    cm = fitting.fit_counts(fitting.count_obs(rows, "shots"), "shots", TODAY, rows=rows)
+    assert cm.level[EPL[0]] > 0.05
+    assert cm.level_for(EPL[0], BUN[0], "UCL") == 0.0 and cm.level_for(EPL[0], EPL[1], "EPL") == cm.level[EPL[0]]
     assert cm.level_for(EPL[0], BUN[0], "UCL") == 0.0
 
 

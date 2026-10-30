@@ -165,6 +165,14 @@ def count_total_pmf(mh: float, ma: float, dispersion: float, total_dispersion: f
     return count_pmf(mh + ma, total_dispersion, 2 * max_k if max_k else None)
 
 
+def count_diff_dispersion(mh: float, ma: float, dispersion: float, total_dispersion: float) -> float:
+    """Dispersión de cada equipo para la diferencia entre los dos (hándicaps de estadísticas), con la correlación que
+    implica la dispersión del total: Var(local − visitante) = 2 (Var local + Var visitante) − Var total."""
+    m2 = mh**2 + ma**2
+    var_diff = 2 * (mh + ma + dispersion * m2) - (mh + ma + total_dispersion * (mh + ma) ** 2)
+    return max(0.0, (var_diff - mh - ma) / m2)
+
+
 def over(total_pmf: dict[int, float], line: float) -> Outcome:
     return line_outcome(total_pmf, -line)
 

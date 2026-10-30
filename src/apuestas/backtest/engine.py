@@ -150,6 +150,7 @@ def run(
     w_model: float = W_MODEL,
     market_weight: float | None = None,
     market_half_life: float | None = None,
+    market_matchdays: bool | None = None,
     lineups: bool = False,
     extra_competitions: tuple[str, ...] = (),
     count_l2: float | None = None,
@@ -172,11 +173,13 @@ def run(
 
     market_weight = fitting.MARKET_WEIGHT if market_weight is None else market_weight
     market_half_life = fitting.MARKET_HALF_LIFE if market_half_life is None else market_half_life
+    market_matchdays = fitting.MARKET_MATCHDAYS if market_matchdays is None else market_matchdays
     home_l2 = (fitting.GOALS_HOME_L2 if home_l2 is None else home_l2) if home_by_league else None
     res = BacktestResult(params={"start": start.isoformat(), "end": end.isoformat(), "half_life": half_life_days,
                                  "xg_weight": xg_weight, "min_ev": min_ev, "odds_range": odds_range,
                                  "competitions": competitions, "w_model": w_model, "market_weight": market_weight,
-                                 "market_half_life": market_half_life, "extra_competitions": extra_competitions,
+                                 "market_half_life": market_half_life, "market_matchdays": market_matchdays,
+                                 "extra_competitions": extra_competitions,
                                  "count_l2": count_l2, "count_strength": count_strength,
                                  "count_market": count_market, "count_level": count_level, "home_l2": home_l2})
     s = _factory()()
@@ -207,7 +210,8 @@ def run(
         test = [r for r in all_rows if cur <= r.day < nxt and r.competition in evaluated]
         if test and len(train) > 500:
             gm = ratings.fit(goals_obs(train, xg_weight) + market_obs(train, implied, market_weight), cur,
-                             half_life_days=half_life_days, market_half_life_days=market_half_life, home_l2=home_l2)
+                             half_life_days=half_life_days, market_half_life_days=market_half_life, home_l2=home_l2,
+                             market_matchdays=market_matchdays)
             rho = fit_rho([r for r in train if (cur - r.day).days < 730], gm, set(competitions))
             cms = {}
             strength = fitting.count_strength(gm) if count_strength else None
@@ -244,7 +248,7 @@ def run(
         model_ll = float(np.mean([p[0] for p in pairs]))
         naive_ll = float(np.mean([p[1] for p in pairs]))
         baseline = ("loglik_sin_arbitro" if stat.endswith("+arbitro") else "loglik_independientes"
-                    if stat.endswith("+total") else "loglik_league_avg")
+                    if stat.endswith(("+total", "+diferencia")) else "loglik_league_avg")
         diff = np.array([p[0] - p[1] for p in pairs])
         margin = 1.96 * float(diff.std(ddof=1)) / math.sqrt(len(diff)) if len(diff) > 1 else float("nan")
         res.count_calibration[stat] = {"matches": len(pairs), "loglik_model": round(model_ll, 4),
@@ -465,6 +469,9 @@ def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None,
             conv = dist.count_total_pmf(mh, ma, a, None, 80)
             p_conv = conv[total] if total < len(conv) else 1e-9
             count_ll[f"{stat}+total"].append((math.log(max(p_model, 1e-9)), math.log(max(p_conv, 1e-9))))
+            ad = dist.count_diff_dispersion(mh, ma, a, at)
+            count_ll[f"{stat}+diferencia"].append((_diff_logpmf(int(vh - va), mh, ma, ad),
+                                                    _diff_logpmf(int(vh - va), mh, ma, a)))
         ref = refs.get(r.referee_id) if r.referee_id else None
         if stat in ("cards", "fouls") and ref and not suffix:
             f = ref["cards_factor"] if stat == "cards" else ref.get("fouls_factor", 1.0)
@@ -483,6 +490,14 @@ def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None,
         for g in groups:
             count_ll[f"{stat}{g}"].append((math.log(max(p_model, 1e-9)), math.log(max(p_naive, 1e-9))))
             count_ll[f"{stat} por equipo{g}"].append((side_model, side_naive))
+
+
+def _diff_logpmf(d: int, mh: float, ma: float, dispersion: float) -> float:
+    """Log-probabilidad de la diferencia local − visitante con los dos equipos independientes."""
+    ph, pa = dist.count_pmf(mh, dispersion, 80), dist.count_pmf(ma, dispersion, 80)
+    pmf = np.convolve(ph, pa[::-1])  # posición i = diferencia i − 80
+    k = d + len(pa) - 1
+    return math.log(max(pmf[k] if 0 <= k < len(pmf) else 0.0, 1e-9))
 
 
 def _count_logpmf(k: int, mean: float, dispersion: float) -> float:

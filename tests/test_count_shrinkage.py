@@ -234,3 +234,23 @@ def test_total_de_corners_con_su_propia_dispersion():
     assert home_joint == home_indep  # los mercados de cada equipo no cambian
     old = ratings.RatingModel.from_dict({**fit.to_dict(), "total_dispersion": None})
     assert old.total_dispersion is None  # paquetes de antes: suma de independientes
+
+
+def test_handicap_de_corners_con_la_correlacion_del_total():
+    # Si un equipo saca córners, el otro no: la diferencia es más ancha que con dos equipos independientes
+    indep = MatchModel(1, 2, 1.5, 1.1, -0.05, {"corners": (6.0, 4.5)}, {"corners": 0.07})
+    joint = MatchModel(1, 2, 1.5, 1.1, -0.05, {"corners": (6.0, 4.5)}, {"corners": 0.07}, {"corners": 0.017})
+
+    def mean_var(pmf):
+        m = sum(k * p for k, p in pmf.items())
+        return m, sum((k - m) ** 2 * p for k, p in pmf.items())
+
+    (m1, v1), (m2, v2) = mean_var(indep._stat_pmfs("corners")[0]), mean_var(joint._stat_pmfs("corners")[0])
+    var_h, var_a, var_tot = 6.0 + 0.07 * 36, 4.5 + 0.07 * 20.25, 10.5 + 0.017 * 10.5**2
+    assert m1 == pytest.approx(1.5, abs=1e-3) and m2 == pytest.approx(1.5, abs=1e-3)
+    assert v2 == pytest.approx(2 * (var_h + var_a) - var_tot, rel=1e-2)
+    assert v2 > v1
+    # Tarjetas: el total ya es Poisson y los equipos también, así que la diferencia no cambia
+    cards = MatchModel(1, 2, 1.5, 1.1, -0.05, {"cards": (2.0, 2.3)}, {"cards": 0.0}, {"cards": 0.0})
+    plain = MatchModel(1, 2, 1.5, 1.1, -0.05, {"cards": (2.0, 2.3)}, {"cards": 0.0})
+    assert cards._stat_pmfs("cards")[0] == plain._stat_pmfs("cards")[0]

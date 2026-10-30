@@ -145,6 +145,7 @@ def fit(
     prior_matches: float | None = None,
     strength: dict[int, float] | None = None,
     home_l2: float | None = None,
+    market_matchdays: bool = False,
 ) -> RatingModel:
     """`prior_matches`: contracción hacia la media expresada en partidos (ponderados) "promedio" en vez de una L2
     fija. Cada partido aporta a la curvatura del ataque o la defensa de un equipo tanto como su media (~1,4 en
@@ -159,7 +160,10 @@ def fit(
     usa igual con o sin fuerza.
 
     `home_l2`: ventaja local propia de cada competición de las observaciones (`MatchObs.competition`), como desvío de
-    la general con esta L2. None = una sola ventaja para todas."""
+    la general con esta L2. None = una sola ventaja para todas.
+
+    `market_matchdays`: la vida media del mercado cuenta días con partidos (de las observaciones reales) en vez de
+    días de calendario, así que no corre en el parón de verano."""
     obs = [o for o in obs if 0 <= (as_of - o.day).days <= max_age_days]
     if not obs:
         raise ValueError("Sin partidos para ajustar el modelo")
@@ -181,7 +185,14 @@ def fit(
     w = time_weights(days, as_of, half_life_days) * ow
     if market_half_life_days and not real.all():
         # El mercado apenas tiene ruido: puede pesar más lo reciente que en los partidos reales
-        w = np.where(real, w, time_weights(days, as_of, market_half_life_days) * ow)
+        if market_matchdays:
+            ords = np.array([d.toordinal() for d in days])
+            played = np.unique(ords[real])
+            age = len(played) - np.searchsorted(played, ords, side="right")  # días con partidos desde entonces
+            mw = np.power(0.5, age / market_half_life_days) * ow
+        else:
+            mw = time_weights(days, as_of, market_half_life_days) * ow
+        w = np.where(real, w, mw)
 
     # Centrada en los equipos que la tienen, para que mu siga siendo la media (los que no la tienen quedan en 0)
     strength = strength or {}

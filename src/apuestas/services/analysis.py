@@ -327,9 +327,12 @@ def _player_projections(
             rates[st] = (obs90 * mins90 + prior.get(st, 0.0) * k) / (mins90 + k)
         avg_start_min = (pr or {}).get("avg_starter_minutes") or 78.0
         exp_min = minutes
+        play_prob = 1.0  # shortcut: sin alineación no se sabe si juega; la media de minutos ya cuenta los ceros
         if exp_min is None:
             exp_min = expected_minutes(start_prob, avg_start_min, lineup)
             sub_extra = (1 - start_prob) * (SUB_PLAY_RATE if lineup else 0.0)  # en tarjetas, con unos minutos más
+            if lineup:
+                play_prob = start_prob + sub_extra
         else:  # sin alineación: los partidos recientes de su equipo en los que salió de suplente
             sub_extra = (pr or {}).get("recent_sub_rate", 0.0)
         if exp_min < 5:
@@ -369,7 +372,7 @@ def _player_projections(
                 k_vol = VOLUME_SHARE_PRIOR_MATCHES[st] * prior.get(f"{st}_team90", 0.0)
                 share = (obs * exposure + prior[f"{st}_share"] * k_vol) / (exposure + k_vol) if exposure + k_vol else 0.0
                 lam[st] = share * (f_card if st == "yellow_cards" else f) * count_means[team_st][0 if is_home else 1]
-        projections.append(PlayerProjection(pid, name, team_id, pos, exp_min, start_prob, lam))
+        projections.append(PlayerProjection(pid, name, team_id, pos, exp_min, start_prob, lam, play_prob))
     return projections
 
 

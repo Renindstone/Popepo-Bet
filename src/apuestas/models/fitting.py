@@ -226,6 +226,8 @@ def goals_obs(rows: list[MatchRow], xg_weight: float = GOALS_XG_WEIGHT) -> list[
 # peso 64-512 y vida media 7-14; 14 días aguanta mejor el arranque de temporada, tras el parón de verano).
 MARKET_WEIGHT = 128.0
 MARKET_HALF_LIFE = 14.0
+# True: MARKET_HALF_LIFE cuenta días con partidos en vez de días de calendario (ratings.fit, `market_matchdays`)
+MARKET_MATCHDAYS = False
 MARKET_BOOKS = ("pinnacle", "bet365")  # por orden de preferencia
 MARKET_MAX_RMSE = 0.02  # descarta cuotas que el modelo Dixon-Coles no puede reproducir (errores, mercados raros)
 
@@ -370,14 +372,16 @@ def strength_shift(cm: RatingModel, mh: float, ma: float, delta: float,
 # 1,68 en 2026-27) y el modelo se pasaba un 5 % en las ligas y un 8 % en la Champions. Con K = 20 y, en las copas, solo
 # el nivel de la copa (la Champions no sigue a las ligas de sus equipos: con su media empeoraba). El factor del árbitro
 # se ajusta frente al modelo sin nivel (fit_referees).
-COUNT_LEVEL_STATS = ("shots", "shots_on_target", "cards")
+COUNT_LEVEL_STATS = ("shots", "shots_on_target", "cards", "fouls")
 COUNT_LEVEL_HALF_LIFE = 30.0  # días
 COUNT_LEVEL_PRIOR = 10.0  # partidos "promedio" de contracción hacia el nivel de todas las competiciones
 COUNT_CUP_LEVEL_HALF_LIFE = 120.0
 COUNT_CUP_LEVEL_PRIOR = 30.0  # partidos de contracción del desvío de cada copa hacia 0
 COUNT_LEVEL_MAX_DAYS = 400
 # Vida media y K propios de una estadística, si no son los de arriba; cup_alone: en una copa, solo su nivel
-COUNT_LEVEL_PARAMS: dict[str, dict[str, float | bool]] = {"cards": {"prior": 20.0, "cup_alone": True}}
+# Faltas (desde el 29-10-2026): 60 días y solo en las ligas, porque en las copas empeoraba (docs/modelos.md)
+COUNT_LEVEL_PARAMS: dict[str, dict[str, float | bool]] = {"cards": {"prior": 20.0, "cup_alone": True},
+                                                          "fouls": {"half_life": 60.0, "leagues_only": True}}
 
 
 def _is_cup(code: str) -> bool:
@@ -404,7 +408,8 @@ def count_levels(cm: RatingModel, rows: list[MatchRow], stat: str, as_of: date) 
     COUNT_LEVEL_MAX_DAYS días, con vida media COUNT_LEVEL_HALF_LIFE, m el total de un partido medio y g el nivel de
     todas las competiciones juntas (la K lo contrae hacia g). Un equipo sin liga en los datos (rivales europeos de
     ligas que no se descargan) toma g. Desvío de una copa = (real + K·m) / (esperado con el nivel de las ligas + K·m),
-    con su propia vida media y K. COUNT_LEVEL_PARAMS cambia esas vidas medias y K en una estadística."""
+    con su propia vida media y K. COUNT_LEVEL_PARAMS cambia esas vidas medias y K en una estadística, y con
+    `leagues_only` deja las copas sin nivel."""
     prm = {"half_life": COUNT_LEVEL_HALF_LIFE, "prior": COUNT_LEVEL_PRIOR, "cup_half_life": COUNT_CUP_LEVEL_HALF_LIFE,
            "cup_prior": COUNT_CUP_LEVEL_PRIOR, "cup_alone": False, **COUNT_LEVEL_PARAMS.get(stat, {})}
     cm.level, cm.cup_level, cm.cup_alone = {}, {}, bool(prm["cup_alone"])
@@ -441,6 +446,8 @@ def count_levels(cm: RatingModel, rows: list[MatchRow], stat: str, as_of: date) 
             cup_den[r.competition] = cup_den.get(r.competition, 0.0) + w * exp_ * lv
     kc = prm["cup_prior"] * m
     cm.cup_level = {c: math.log((cup_num[c] + kc) / (cup_den[c] + kc)) for c in cup_num}
+    if prm.get("leagues_only"):  # en las copas, ningún nivel
+        cm.cup_alone, cm.cup_level = True, {c: 0.0 for c in COMPETITIONS if _is_cup(c)}
     return cm
 
 
@@ -722,7 +729,8 @@ def fit_all(as_of: datetime | None = None, half_life_days: float = 240.0) -> Mod
         players, priors = fit_players(s, before=as_of)
     log.info("Ajustando modelos con %d partidos (%d con cuotas de cierre)", len(rows), len(implied))
     goals = ratings.fit(goals_obs(rows) + market_obs(rows, implied), as_of.date(), half_life_days=half_life_days,
-                        market_half_life_days=MARKET_HALF_LIFE, home_l2=GOALS_HOME_L2)
+                        market_half_life_days=MARKET_HALF_LIFE, home_l2=GOALS_HOME_L2,
+                        market_matchdays=MARKET_MATCHDAYS)
     rho = fit_rho([r for r in rows if (as_of.date() - r.day).days < 730], goals, full_codes)
     counts = {}
     strength = count_strength(goals)
