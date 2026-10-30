@@ -187,6 +187,7 @@ export function EvaluarView() {
                     {ms.map((m) => (
                       <option key={m.match_id} value={m.match_id}>
                         {m.kickoff_local.split(" ")[2]} {m.home} vs {m.away} ({competitionName(m.competition)})
+                        {m.rivalry ? ` · ${m.rivalry}` : ""}
                       </option>
                     ))}
                   </optgroup>

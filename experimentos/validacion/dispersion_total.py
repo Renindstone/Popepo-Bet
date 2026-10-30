@@ -22,7 +22,7 @@ rec = defaultdict(list)
 orig = engine._evaluate_counts
 
 
-def spy(r, cms, count_ll, refs=None, suffix="", leagues=None, delta=0.0):
+def spy(r, cms, count_ll, refs=None, suffix="", leagues=None, delta=0.0, derby=False):
     """Guarda las medias fuera de muestra de cada partido de liga y sigue con la evaluación de siempre."""
     if not suffix:
         for stat, cm in cms.items():
@@ -33,7 +33,7 @@ def spy(r, cms, count_ll, refs=None, suffix="", leagues=None, delta=0.0):
             if stat in fitting.COUNT_STRENGTH_PRIOR:
                 mh, ma = fitting.strength_shift(cm, mh, ma, delta)
             rec[stat].append((r.day, mh, ma, vh, va, cm.dispersion))
-    return orig(r, cms, count_ll, refs, suffix, leagues, delta)
+    return orig(r, cms, count_ll, refs, suffix, leagues, delta, derby)
 
 
 def mom(y, m) -> float:

@@ -17,7 +17,7 @@ from apuestas.core.competitions import FULL
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.models.fitting import load_bundle
-from apuestas.services import analysis, picks, radar, tracker
+from apuestas.services import analysis, picks, radar, rivalries, tracker
 
 
 class NotFound(LookupError):
@@ -123,11 +123,13 @@ def upcoming(days: int = 3, competition: str | None = None) -> list[dict]:
             return f"{dias[loc.weekday()]} {loc:%d/%m %H:%M}"
 
         flagged = radar.flagged_now()
+        derbies = rivalries.index(s)
         return [{"match_id": r.id, "competition": r.competition.code,
                  "kickoff_local": local(r.kickoff_utc),
                  "home": r.home_team.name, "away": r.away_team.name,
                  "home_id": r.home_team_id, "away_id": r.away_team_id,
                  "referee": r.referee.name if r.referee else None, "lineups": r.lineup_status,
+                 "rivalry": derbies.get(frozenset((r.home_team_id, r.away_team_id))),
                  "alerts": radar.alerts_for_match(s, r, now, flagged)} for r in rows]
 
 

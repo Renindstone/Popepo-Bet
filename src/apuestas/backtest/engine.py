@@ -160,6 +160,7 @@ def run(
     count_level: bool = True,
     home_by_league: bool = True,
     home_l2: float | None = None,
+    derby: bool = True,
 ) -> BacktestResult:
     """`extra_competitions`: competiciones donde solo se mide el modelo (sin cuotas ni apuestas).
     `count_l2`: L2 fija de los modelos de conteo (1,0 = la de antes del 21-10-2026) en vez de COUNT_PRIOR_MATCHES.
@@ -194,6 +195,7 @@ def run(
         # (train); en los conteos (count_market), la del propio partido, como las de antes del partido en el análisis
         implied = load_market_goals(s, before=before, since=since) if market_weight > 0 or count_market else {}
         xi_hist = lu.xi_history(s) if lineups else {}
+        derbies = {frozenset(p) for p in s.execute(select(m.Rivalry.team_a_id, m.Rivalry.team_b_id))} if derby else set()
     finally:
         s.close()
 
@@ -230,7 +232,8 @@ def run(
                 delta = 0.0
                 if count_market and r.match_id in implied and r.home in gm.attack and r.away in gm.attack:
                     delta = fitting.strength_delta(implied[r.match_id], gm.expected(r.home, r.away, r.neutral, r.competition))
-                _evaluate_counts(r, cms, count_ll, refs, "" if main else f":{r.competition}", leagues, delta)
+                _evaluate_counts(r, cms, count_ll, refs, "" if main else f":{r.competition}", leagues, delta,
+                                 frozenset((r.home, r.away)) in derbies)
                 if lineups:
                     _evaluate_lineup(r, gm, rho, odds.get(r.match_id, {}), xi_hist, xi_idx, ll_lu, lu_rows)
         cur = nxt
@@ -249,7 +252,8 @@ def run(
         model_ll = float(np.mean([p[0] for p in pairs]))
         naive_ll = float(np.mean([p[1] for p in pairs]))
         baseline = ("loglik_sin_arbitro" if stat.endswith("+arbitro") else "loglik_independientes"
-                    if stat.endswith(("+total", "+diferencia")) else "loglik_league_avg")
+                    if stat.endswith(("+total", "+diferencia")) else "loglik_sin_clasico"
+                    if stat.endswith("+clasico") else "loglik_league_avg")
         diff = np.array([p[0] - p[1] for p in pairs])
         margin = 1.96 * float(diff.std(ddof=1)) / math.sqrt(len(diff)) if len(diff) > 1 else float("nan")
         res.count_calibration[stat] = {"matches": len(pairs), "loglik_model": round(model_ll, 4),
@@ -443,11 +447,12 @@ FEW_COUNT_MATCHES = 10
 
 
 def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None, suffix: str = "",
-                     leagues: dict[int, str] | None = None, delta: float = 0.0) -> None:
+                     leagues: dict[int, str] | None = None, delta: float = 0.0, derby: bool = False) -> None:
     """Log-verosimilitud del total y de cada equipo (`<stat> por equipo`) frente a la media de la liga. En las
     copas (`suffix` = ":UCL") se separan los partidos con un equipo de pocos datos (rivales de ligas sin descargar)
     y, entre los demás, los de equipos de dos ligas distintas (`leagues`: liga de cada equipo). `delta`: fuerza que
-    la casa suma al local frente al modelo de goles (fitting.strength_delta), para las estadísticas de dominio."""
+    la casa suma al local frente al modelo de goles (fitting.strength_delta), para las estadísticas de dominio.
+    `derby`: clásico o derbi (fitting.DERBY_FACTOR en faltas y tarjetas; `<stat>+clasico` lo compara con sin él)."""
     refs = refs or {}
     leagues = leagues or {}
     for stat, cm in cms.items():
@@ -464,6 +469,15 @@ def _evaluate_counts(r: MatchRow, cms: dict, count_ll, refs: dict | None = None,
             mh, ma = fitting.strength_shift(cm, mh, ma, delta)
         a, at = cm.dispersion, cm.total_dispersion
         total = int(vh + va)
+        k_derby = fitting.DERBY_FACTOR.get(stat, 1.0) if derby else 1.0
+        if k_derby != 1.0 and not suffix:
+            ref = refs.get(r.referee_id) if r.referee_id else None
+            f = (ref["cards_factor"] if stat == "cards" else ref.get("fouls_factor", 1.0)) if ref else 1.0
+            with_k = dist.count_total_pmf(mh * f * k_derby, ma * f * k_derby, a, at, 80)
+            without = dist.count_total_pmf(mh * f, ma * f, a, at, 80)
+            count_ll[f"{stat}+clasico"].append((math.log(max(with_k[total] if total < len(with_k) else 0, 1e-9)),
+                                                 math.log(max(without[total] if total < len(without) else 0, 1e-9))))
+        mh, ma = mh * k_derby, ma * k_derby
         pmf = dist.count_total_pmf(mh, ma, a, at, 80)
         p_model = pmf[total] if total < len(pmf) else 1e-9
         if at is not None and not suffix:  # frente a sumar los dos equipos como independientes

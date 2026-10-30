@@ -17,6 +17,7 @@ from apuestas.features import lineup as lu
 from apuestas.models import fitting
 from apuestas.models.distributions import Outcome
 from apuestas.models.fitting import ModelBundle
+from apuestas.services import rivalries
 from apuestas.services.match_model import MatchModel, PlayerProjection, parse_market
 
 MY_BOOKS = ("bet365", "betano")
@@ -199,6 +200,7 @@ class MatchAnalysis:
     data_quality: dict
     bets: list[BetEval]
     min_odds_props: list[dict]
+    rivalry: dict | None = None  # clásico o derbi: nombre e historial (services/rivalries.py)
 
     def to_dict(self) -> dict:
         mt = self.match
@@ -217,6 +219,7 @@ class MatchAnalysis:
             "lineups_and_absences": self.adjustments,
             "context": self.context,
             "referee": self.referee,
+            "rivalry": self.rivalry,
             "data_quality": self.data_quality,
             "value_bets": [
                 {**b.to_dict(), "label": b.label(mt.home_team.name, mt.away_team.name,
@@ -520,6 +523,7 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
                                          if r.market == "1x2" or (r.market == "ou_goals" and r.line == 2.5)})
     delta = fitting.strength_delta(mkt[1:], (lam_h, lam_a)) if mkt else 0.0
 
+    derby = rivalries.name_for(s, home, away)
     count_means: dict[str, tuple[float, float]] = {}
     dispersion: dict[str, float] = {}
     total_dispersion: dict[str, float] = {}
@@ -536,6 +540,9 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
             mh, ma = mh * ref_cards, ma * ref_cards
         elif stat == "fouls":
             mh, ma = mh * ref_fouls, ma * ref_fouls
+        if derby:  # en los clásicos se ven más faltas y tarjetas, también con el árbitro
+            k = fitting.DERBY_FACTOR.get(stat, 1.0)
+            mh, ma = mh * k, ma * k
         count_means[stat] = (mh, ma)
         dispersion[stat] = cm.dispersion
         if cm.total_dispersion is not None:
@@ -655,6 +662,8 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         data_quality=quality,
         bets=bets,
         min_odds_props=min_odds[:25],
+        rivalry=({"name": derby, "factor": fitting.DERBY_FACTOR,
+                  **rivalries.history(s, home, away, match.kickoff_utc)} if derby else None),
     )
 
 

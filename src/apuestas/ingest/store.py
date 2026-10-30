@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from apuestas.core import names
 from apuestas.core.competitions import COMPETITIONS, season_label
+from apuestas.core.rivalries import RIVALRIES
 from apuestas.db import models as m
 from apuestas.ingest.fotmob import FMDetails, FMMatch
 
@@ -38,7 +39,25 @@ def ensure_competitions(s: Session) -> dict[str, m.Competition]:
         elif existing[code].tier != comp.tier:  # p. ej. la Serie A, la Ligue 1, Portugal, Bélgica y Turquía: de "light" a "full"
             existing[code].tier = comp.tier
     s.flush()
+    ensure_rivalries(s)
     return existing
+
+
+def ensure_rivalries(s: Session) -> int:
+    """Copia a la tabla `rivalry` los clásicos de `core/rivalries.py` cuyos dos equipos ya existen."""
+    names_ = {n for a, b, _ in RIVALRIES for n in (a, b)}
+    ids = dict(s.execute(select(m.Team.name, m.Team.id).where(m.Team.name.in_(names_))).all())
+    have = set(s.execute(select(m.Rivalry.team_a_id, m.Rivalry.team_b_id)).all())
+    added = 0
+    for a, b, name in RIVALRIES:
+        if a in ids and b in ids:
+            pair = tuple(sorted((ids[a], ids[b])))
+            if pair not in have:
+                s.add(m.Rivalry(team_a_id=pair[0], team_b_id=pair[1], name=name))
+                have.add(pair)
+                added += 1
+    s.flush()
+    return added
 
 
 def get_season(s: Session, comp: m.Competition, start_year: int) -> m.Season:

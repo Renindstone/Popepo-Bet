@@ -9,6 +9,7 @@ import { Comparador } from "@/components/hoy/Comparador";
 import { Crest } from "@/components/Crest";
 import { PickRecord } from "@/components/PickRecord";
 import { PorQueFallo } from "@/components/PorQueFallo";
+import { RivalryTag } from "@/components/Rivalry";
 import { AlertTag } from "@/components/semana/Radar";
 import { Tabs, useHashTab } from "@/components/Tabs";
 import { Button, EdgeBar, Empty, ErrorNote, Figure, Loading, Section, Tag } from "@/components/ui";
@@ -483,9 +484,10 @@ function Jornada({ rows }: { rows: DayMatch[] }) {
                           {m.away}
                         </span>
                       </Link>
-                      {(m.stage === "confirmed" || !!m.alerts?.length) && (
+                      {(m.stage === "confirmed" || !!m.alerts?.length || !!m.rivalry) && (
                         <span className="mt-1 flex flex-wrap gap-1">
                           {m.stage === "confirmed" && <Tag tone="confirmada">{stageText(m.stage)}</Tag>}
+                          <RivalryTag name={m.rivalry} />
                           {m.alerts?.map((a) => (
                             <AlertTag key={a.team_id} alert={a} />
                           ))}
@@ -611,6 +613,11 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                 )}
                 {isLive(r) && `, en ${bookmakerName(r.bookmaker)}`}
               </p>
+              {isLive(r) && r.rivalry && (
+                <span className="mt-1 flex">
+                  <RivalryTag name={r.rivalry} />
+                </span>
+              )}
               {isLive(r) && <AlertTags alerts={r.alerts} open={open === keyOf(r)} onToggle={() => toggle(r)} />}
               {isLive(r) && open === keyOf(r) && <AlertList alerts={r.alerts} className="mt-2" />}
               {isLive(r) && (
@@ -675,6 +682,11 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                         </Link>
                       ) : (
                         r.match
+                      )}
+                      {isLive(r) && r.rivalry && (
+                        <span className="mt-1 flex">
+                          <RivalryTag name={r.rivalry} />
+                        </span>
                       )}
                       {isLive(r) && <AlertTags alerts={r.alerts} open={open === keyOf(r)} onToggle={() => toggle(r)} />}
                     </td>

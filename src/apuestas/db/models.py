@@ -78,6 +78,17 @@ class Team(Base, TimestampMixin):
     country: Mapped[str | None] = mapped_column(String(40))
 
 
+class Rivalry(Base):
+    """Clásico o derbi entre dos equipos (de `core/rivalries.py`; `team_a_id` < `team_b_id`)."""
+
+    __tablename__ = "rivalry"
+    __table_args__ = (UniqueConstraint("team_a_id", "team_b_id"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    team_a_id: Mapped[int] = mapped_column(ForeignKey("team.id", ondelete="CASCADE"))
+    team_b_id: Mapped[int] = mapped_column(ForeignKey("team.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(60))
+
+
 class Player(Base, TimestampMixin):
     __tablename__ = "player"
     id: Mapped[int] = mapped_column(primary_key=True)

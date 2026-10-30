@@ -13,6 +13,28 @@ export interface MatchSummary {
   away_id?: number;
   referee: string | null;
   lineups: "predicted" | "confirmed" | null;
+  rivalry?: string | null;
+}
+
+/** Clásico o derbi del partido (`rivalry` del análisis): los últimos enfrentamientos, local-visitante */
+export interface RivalryMeeting {
+  match_id: number;
+  date: string;
+  competition: string;
+  home: string;
+  away: string;
+  score: string;
+  fouls: [number | null, number | null];
+  cards: [number | null, number | null];
+  shots: [number | null, number | null];
+  offsides: [number | null, number | null];
+}
+
+export interface RivalryInfo {
+  name: string;
+  factor: Record<string, number>;
+  matches: RivalryMeeting[];
+  averages: Record<"fouls" | "cards" | "shots" | "offsides", number | null>;
 }
 
 export type Probs1x2 = { home: number; draw: number; away: number };
@@ -36,6 +58,7 @@ export interface BetEval {
 
 export interface ValueBet extends BetEval {
   alerts?: Alert[];
+  rivalry?: string | null;
   match_id: number;
   label: string;
   match: string;
@@ -107,6 +130,7 @@ export interface PickOfDay {
 
 export interface DayMatch {
   alerts?: Alert[];
+  rivalry?: string | null;
   match_id: number;
   competition: Competicion;
   kickoff_local: string; // "14:00"
@@ -213,6 +237,7 @@ export interface PlayerProjection {
 
 export interface MatchAnalysis {
   alerts?: Alert[];
+  rivalry?: RivalryInfo | null;
   match_id: number;
   competition: string;
   kickoff_utc: string;

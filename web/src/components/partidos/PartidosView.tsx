@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Crest } from "@/components/Crest";
+import { RivalryTag } from "@/components/Rivalry";
 import { Empty, ErrorNote, Loading, PageTitle, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { AlertTag } from "@/components/semana/Radar";
@@ -109,9 +110,10 @@ export function PartidosView() {
                           {m.away}
                         </span>
                         <span className="block text-nota text-grafito">{competitionName(m.competition)}</span>
-                        {!!m.alerts?.length && (
+                        {(!!m.alerts?.length || !!m.rivalry) && (
                           <span className="mt-1 flex flex-wrap gap-1">
-                            {m.alerts.map((a) => (
+                            <RivalryTag name={m.rivalry} />
+                            {m.alerts?.map((a) => (
                               <AlertTag key={a.team_id} alert={a} />
                             ))}
                           </span>

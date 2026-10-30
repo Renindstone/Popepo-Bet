@@ -325,6 +325,11 @@ COUNT_STRENGTH_PRIOR = {"shots": 8.0, "shots_on_target": 8.0, "corners": 20.0}
 # y empeora tarjetas); en tarjetas el total sale Poisson. Ver docs/modelos.md.
 COUNT_TOTAL_DISPERSION = {"shots": 0.010, "shots_on_target": 0.003, "corners": 0.017, "fouls": 0.005, "cards": 0.0}
 
+# Clásicos y derbis (core/rivalries.py): más faltas y tarjetas de lo que espera el modelo, ya con el árbitro. Medido con
+# los 182 de 2024-08 a 2026-10 de las ocho ligas; con el de 2024-25 aplicado a los de después, el total mejora +0,07
+# en faltas y +0,15 en tarjetas por partido. Remates, córners, goles y offsides no se distinguen. Ver docs/modelos.md.
+DERBY_FACTOR = {"fouls": 1.08, "cards": 1.25}
+
 
 def count_strength(goals: RatingModel) -> dict[int, float]:
     """Fuerza de cada equipo en el modelo de goles (ataque + defensa), la referencia de las estadísticas de dominio."""

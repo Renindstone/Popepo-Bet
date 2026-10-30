@@ -28,7 +28,7 @@ def run(params: dict | None) -> dict:
     out: dict = {}
     orig = engine._evaluate_counts
 
-    def spy(r, cms, count_ll, refs=None, suffix="", leagues=None, delta=0.0):
+    def spy(r, cms, count_ll, refs=None, suffix="", leagues=None, delta=0.0, derby=False):
         cm = cms.get("fouls")
         vh, va = r.stats_h.get("fouls"), r.stats_a.get("fouls")
         if cm is not None and vh is not None and va is not None:
@@ -39,7 +39,7 @@ def run(params: dict | None) -> dict:
             pmf = dist.count_total_pmf(mh * f, ma * f, cm.dispersion, cm.total_dispersion, 80)
             k = int(vh + va)
             out[r.match_id] = (r.day, "copas" if suffix else "ligas", team, math.log(max(pmf[k] if k < len(pmf) else 0, 1e-9)))
-        return orig(r, cms, count_ll, refs, suffix, leagues, delta)
+        return orig(r, cms, count_ll, refs, suffix, leagues, delta, derby)
 
     stats, prm = fitting.COUNT_LEVEL_STATS, dict(fitting.COUNT_LEVEL_PARAMS)
     if params is not None:

@@ -146,6 +146,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                 "home_id": mt.home_team_id, "away_id": mt.away_team_id,
                 "difficulty": {"home": an.difficulty["home"]["ajustada"], "away": an.difficulty["away"]["ajustada"]},
                 "1x2": an.model.summary()["1x2"],
+                "rivalry": an.rivalry["name"] if an.rivalry else None,
             })
             for b in an.bets:
                 if b.ev <= 0:
@@ -158,6 +159,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                     report["value_bets"].append({**b.to_dict(), "match_id": mt.id,
                                                  "label": b.label(mt.home_team.name, mt.away_team.name),
                                                  "match": f"{mt.home_team.name} vs {mt.away_team.name}",
+                                                 "rivalry": an.rivalry["name"] if an.rivalry else None,
                                                  "qualifies": qualifies(b)})
                 if qualifies(b) and not started:
                     candidates.append((an, b))

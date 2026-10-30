@@ -7,6 +7,7 @@ import { Chart, useChartTheme } from "@/components/Chart";
 import { Crest } from "@/components/Crest";
 import { Tabs, useHashTab } from "@/components/Tabs";
 import { AlertList } from "@/components/Avisos";
+import { RivalrySection, RivalryTag } from "@/components/Rivalry";
 import { Empty, ErrorNote, Figure, Loading, PageTitle, Section, Tag, TriBar } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { int, num, odds, pct, shortDate, signedPct, stageText } from "@/lib/format";
@@ -69,6 +70,7 @@ export function PartidoView() {
             {shortDate(date)}, {time}
           </span>
           <Tag tone={a.stage === "confirmed" ? "confirmada" : "neutral"}>{stageText(a.stage)}</Tag>
+          <RivalryTag name={a.rivalry?.name} />
         </p>
         <h1 className="cond mt-2 text-cifra-grande leading-[1.02] font-extrabold tracking-[-0.01em] sm:text-6xl">
           <Crest id={a.home_id} size={52} className="mr-3 -mt-2" />
@@ -103,6 +105,7 @@ export function PartidoView() {
         )}
         {tab === "estadisticas" && (
           <>
+            {a.rivalry && <RivalrySection r={a.rivalry} />}
             <Estadisticas a={a} />
             <ArbitroYContexto a={a} />
           </>
