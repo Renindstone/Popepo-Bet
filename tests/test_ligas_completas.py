@@ -1,4 +1,4 @@
-"""Serie A y Ligue 1 (21-10-2026), Portugal y Bélgica (29-10-2026) como ligas completas: fuentes, cuotas de
+"""Serie A y Ligue 1 (21-10-2026), Portugal y Bélgica (29-10-2026) y Turquía (30-10-2026) como ligas completas: fuentes, cuotas de
 OddsPapi, backtest y consultas."""
 
 from contextlib import contextmanager
@@ -26,8 +26,8 @@ def s():
 
 
 def test_serie_a_and_ligue_1_are_full_with_all_sources():
-    assert [c.code for c in FULL] == ["EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "UCL"]
-    assert not {"SA", "L1", "POR", "BEL"} & {c.code for c in LIGHT}
+    assert [c.code for c in FULL] == ["EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR", "UCL"]
+    assert not {"SA", "L1", "POR", "BEL", "TUR"} & {c.code for c in LIGHT}
     sa, l1 = COMPETITIONS["SA"], COMPETITIONS["L1"]
     assert (sa.fd_code, sa.understat, sa.fotmob_id) == ("I1", "Serie_A", 55)
     assert (l1.fd_code, l1.understat, l1.fotmob_id) == ("F1", "Ligue_1", 53)
@@ -35,10 +35,12 @@ def test_serie_a_and_ligue_1_are_full_with_all_sources():
     por, bel = COMPETITIONS["POR"], COMPETITIONS["BEL"]
     assert (por.fd_code, por.understat, por.fotmob_id) == ("P1", None, 61)
     assert (bel.fd_code, bel.understat, bel.fotmob_id) == ("B1", None, 40)
+    tur = COMPETITIONS["TUR"]
+    assert (tur.fd_code, tur.understat, tur.fotmob_id) == ("T1", None, 71)
 
 
-def test_backtest_evaluates_the_seven_leagues_by_default():
-    assert engine.LEAGUES == ("EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL")
+def test_backtest_evaluates_the_eight_leagues_by_default():
+    assert engine.LEAGUES == ("EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR")
 
 
 def test_backtest_logloss_by_competition():
@@ -61,7 +63,7 @@ def test_light_league_becomes_full_in_the_database(s):
     ("text", "code"),
     [("SA", "SA"), ("serie a", "SA"), ("Serie A", "SA"), ("ligue 1", "L1"), ("l1", "L1"),
      ("Premier League", "EPL"), ("laliga", "LAL"), ("ucl", "UCL"), ("Primeira Liga", "POR"), ("por", "POR"),
-     ("Pro League", "BEL"), ("bel", "BEL")],
+     ("Pro League", "BEL"), ("bel", "BEL"), ("Süper Lig", "TUR"), ("super lig", "TUR")],
 )
 def test_competition_code_accepts_code_or_name(text, code):
     assert queries.competition_code(text) == code
@@ -148,8 +150,10 @@ def test_fotmob_adopts_the_football_data_match_of_a_league_that_was_light(s):
     [("AVS", "AVS Futebol SAD"), ("Estrela", "Estrela da Amadora"), ("Beerschot VA", "Beerschot"),
      ("Dender", "FCV Dender EH"), ("Mechelen", "KV Mechelen"), ("Oud-Heverlee Leuven", "OH Leuven"),
      ("RWD Molenbeek", "RWDM Brussels"), ("Standard", "Standard Liège"), ("Waregem", "Zulte Waregem"),
-     ("Royal Charleroi SC", "Sporting Charleroi"), ("Charleroi", "Sporting Charleroi")],
+     ("Royal Charleroi SC", "Sporting Charleroi"), ("Charleroi", "Sporting Charleroi"),
+     ("Ad. Demirspor", "Adana Demirspor"), ("Amedspor", "Amed Sportif"), ("Bodrumspor", "Bodrum FK"),
+     ("Karagumruk", "Fatih Karagümrük")],
 )
-def test_portuguese_and_belgian_names_match_fotmob(other, fotmob):
+def test_portuguese_belgian_and_turkish_names_match_fotmob(other, fotmob):
     """Nombres de football-data y OddsPapi que no llegaban al umbral de `store.resolve_team` (90)."""
     assert names.similarity(other, fotmob) >= 90

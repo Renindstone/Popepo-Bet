@@ -1,8 +1,8 @@
 """Competiciones que maneja el sistema y sus códigos en cada fuente.
 
 - Nivel "full": se analizan a fondo (estadísticas de partido, jugadores, alineaciones, árbitros, picks). La Serie A y
-  la Ligue 1 lo son desde el 21-10-2026, y Portugal y Bélgica desde el 29-10-2026; antes eran "light" y ya daban sus
-  resultados y cuotas de cierre al modelo. Understat no cubre Portugal ni Bélgica: su xG es solo el de FotMob.
+  la Ligue 1 lo son desde el 21-10-2026, Portugal y Bélgica desde el 29-10-2026 y Turquía desde el 30-10-2026; antes eran "light" y ya daban sus
+  resultados y cuotas de cierre al modelo. Understat no cubre Portugal, Bélgica ni Turquía: su xG es solo el de FotMob.
 - Nivel "light": solo resultados/xG para conectar la escala de fuerza entre ligas (rivales de
   Champions, equipos ascendidos, fichajes que llegan de otras ligas). No generan picks.
 
@@ -48,10 +48,10 @@ COMPETITIONS: dict[str, Competition] = {
         Competition("POR", "Primeira Liga", "Portugal", "full", fd_code="P1", fotmob_id=61),
         # Fase regular y playoffs (los puntos se dividen a la mitad): FotMob y football-data traen los dos
         Competition("BEL", "Pro League", "Belgium", "full", fd_code="B1", fotmob_id=40),
+        Competition("TUR", "Süper Lig", "Turkey", "full", fd_code="T1", fotmob_id=71),
         Competition("UCL", "Champions League", "Europe", "full", is_cup=True, fotmob_id=42),
         # --- Solo para la escala de fuerza ---
         Competition("NED", "Eredivisie", "Netherlands", "light", fd_code="N1"),
-        Competition("TUR", "Süper Lig", "Turkey", "light", fd_code="T1"),
         Competition("SCO", "Premiership", "Scotland", "light", fd_code="SC0"),
         Competition("GRE", "Super League", "Greece", "light", fd_code="G1"),
         Competition("ENG2", "Championship", "England", "light", fd_code="E1"),

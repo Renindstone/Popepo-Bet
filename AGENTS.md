@@ -12,7 +12,7 @@ Este archivo es para cualquier IA que trabaje en el repositorio (Claude Code, Co
 
 ## El proyecto
 
-Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica) y Champions League. Descarga datos gratuitos, estima con un modelo estadístico la probabilidad de cada mercado, la compara con la cuota de la casa y propone una apuesta del día. Se usa desde un panel web, desde Claude (servidor MCP), desde una API REST y desde Telegram.
+Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía) y Champions League. Descarga datos gratuitos, estima con un modelo estadístico la probabilidad de cada mercado, la compara con la cuota de la casa y propone una apuesta del día. Se usa desde un panel web, desde Claude (servidor MCP), desde una API REST y desde Telegram.
 
 ## Con quién trabajas
 
