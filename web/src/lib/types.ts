@@ -196,6 +196,14 @@ export interface LineupAdjustment {
   notes: string[];
 }
 
+/** Partido de antes o de después de un equipo: rival y si es grande o chico en su competición */
+export interface NearbyMatch {
+  opponent: string;
+  competition: string;
+  days: number;
+  tier: "grande" | "medio" | "chico" | "Champions" | null;
+}
+
 export interface TeamContext {
   rest_days: number | null;
   matches_last_14d: number;
@@ -203,6 +211,9 @@ export interface TeamContext {
   next_match_competition: string | null;
   rotation_risk: "baja" | "media" | "alta";
   notes: string[];
+  prev_match?: NearbyMatch | null;
+  next_match?: NearbyMatch | null;
+  opponent_tier?: "grande" | "medio" | "chico" | null;
 }
 
 export interface RefereeInMatch {

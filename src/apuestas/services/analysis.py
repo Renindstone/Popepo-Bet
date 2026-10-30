@@ -560,8 +560,9 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         "away": {"base": ctx.difficulty_label(base_a - base_h), "ajustada": ctx.difficulty_label(lam_a - lam_h),
                  "goal_diff": round(lam_a - lam_h, 2)},
     }
-    c_h = ctx.team_context(s, match, home, lam_h - lam_a)
-    c_a = ctx.team_context(s, match, away, lam_a - lam_h)
+    strength = {t: bundle.goals.attack[t] + bundle.goals.defence.get(t, 0.0) for t in bundle.goals.attack}
+    c_h = ctx.team_context(s, match, home, lam_h - lam_a, strength)
+    c_a = ctx.team_context(s, match, away, lam_a - lam_h, strength)
     rotation = max((c_h.rotation_risk, c_a.rotation_risk), key=["baja", "media", "alta"].index)
 
     lineup_status = "confirmed" if adj_h.source == adj_a.source == "confirmed" else (
@@ -649,7 +650,8 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         return {"rest_days": round(c.rest_days, 1) if c.rest_days is not None else None,
                 "matches_last_14d": c.matches_last_14d, "next_match_days": c.next_match_days,
                 "next_match_competition": c.next_match_competition, "rotation_risk": c.rotation_risk,
-                "notes": c.notes}
+                "notes": c.notes, "prev_match": c.prev_match, "next_match": c.next_match,
+                "opponent_tier": c.opponent_tier}
 
     return MatchAnalysis(
         match=match,

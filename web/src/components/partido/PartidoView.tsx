@@ -15,6 +15,7 @@ import { betLabel, bookmakerName } from "@/lib/markets";
 import type {
   LineupAdjustment,
   MatchAnalysis,
+  NearbyMatch,
   RefereeInMatch,
   RefereeProfile,
   TeamAbsences,
@@ -417,19 +418,44 @@ function Arbitro({ referee }: { referee: RefereeInMatch | null }) {
 
 const ROTATION_TONE = { baja: "neutral", media: "tarjeta", alta: "rojo" } as const;
 
+/** «Barcelona, en 3,0 días · Champions»: el rival de antes o de después y si es grande en su competición */
+function Nearby({ g, when }: { g?: NearbyMatch | null; when: "hace" | "en" }) {
+  if (!g) return <span className="font-semibold">—</span>;
+  return (
+    <>
+      <span className="font-semibold">{g.opponent}</span>
+      <span className="num text-grafito">
+        , {when} {num(g.days, 1)} días
+      </span>
+      {(g.tier === "grande" || g.tier === "Champions") && (
+        <Tag tone="neutral" className="ml-1.5 align-middle">
+          {g.tier === "Champions" ? "Champions" : "grande"}
+        </Tag>
+      )}
+    </>
+  );
+}
+
 function Contexto({ team, c }: { team: string; c: TeamContext }) {
   return (
     <div>
       <h3 className="semi text-lg font-bold">{team}</h3>
-      <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-interfaz">
+      <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-interfaz">
         <dt className="text-grafito">Días de descanso</dt>
         <dd className="num text-right font-semibold">{c.rest_days != null ? num(c.rest_days, 1) : "—"}</dd>
         <dt className="text-grafito">Partidos en 14 días</dt>
         <dd className="num text-right font-semibold">{c.matches_last_14d}</dd>
+        <dt className="text-grafito">Partido anterior</dt>
+        <dd className="text-right">
+          <Nearby g={c.prev_match} when="hace" />
+        </dd>
         <dt className="text-grafito">Siguiente partido</dt>
-        <dd className="num text-right font-semibold">
-          {c.next_match_days != null ? `en ${num(c.next_match_days, 1)} días` : "—"}
-          {c.next_match_competition && <span className="font-normal text-grafito"> ({c.next_match_competition})</span>}
+        <dd className="text-right">
+          {c.next_match ? (
+            <Nearby g={c.next_match} when="en" />
+          ) : (
+            <span className="num font-semibold">{c.next_match_days != null ? `en ${num(c.next_match_days, 1)} días` : "—"}</span>
+          )}
         </dd>
         <dt className="text-grafito">Riesgo de rotación</dt>
         <dd className="text-right">

@@ -6,6 +6,7 @@ import { type FormEvent, type ReactNode, useState } from "react";
 import { Cupon } from "@/components/evaluar/Cupon";
 import { CuotasCasa } from "@/components/evaluar/CuotasCasa";
 import { PenMark } from "@/components/PenMark";
+import { RivalryTag } from "@/components/Rivalry";
 import { Button, EdgeBar, ErrorNote, Figure, Loading, PageTitle, Section } from "@/components/ui";
 import { type ApiError, post, useApi } from "@/lib/api";
 import { competitionName, money, odds, pct, signedPct, splitMatch, stageText } from "@/lib/format";
@@ -64,7 +65,8 @@ export function EvaluarView() {
 
   const matches = useApi<MatchSummary[]>("/matches?days=7");
   const selected = matches.data?.find((m) => String(m.match_id) === matchId);
-  const analysis = useApi<MatchAnalysis>(market.player && matchId ? `/matches/${matchId}/analysis` : null);
+  // También sin props: trae el clásico y los avisos de calendario del partido elegido
+  const analysis = useApi<MatchAnalysis>(matchId ? `/matches/${matchId}/analysis` : null);
   const teams = { home: selected?.home, away: selected?.away };
 
   function chooseMarket(value: string) {
@@ -195,6 +197,7 @@ export function EvaluarView() {
                 {matchId && matches.data && !selected && <option value={matchId}>Partido {matchId}</option>}
               </select>
             )}
+            <MatchNotes a={analysis.data} />
           </div>
 
           <div>
@@ -585,6 +588,30 @@ function Banca({ b, children }: { b: Performance["bankroll"]; children?: ReactNo
         </p>
       ))}
       {children}
+    </div>
+  );
+}
+
+/** Lo que conviene saber del partido elegido antes de evaluar una línea: si es un clásico y los avisos de calendario */
+function MatchNotes({ a }: { a?: MatchAnalysis }) {
+  if (!a) return null;
+  const notes = (["home", "away"] as const).flatMap((side) =>
+    a.context[side].notes.map((n) => `${side === "home" ? a.home : a.away}: ${n}`),
+  );
+  if (!a.rivalry && notes.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1 text-nota">
+      {a.rivalry && (
+        <p>
+          <RivalryTag name={a.rivalry.name} />{" "}
+          <span className="text-grafito">se esperan más faltas y tarjetas que en un partido normal.</span>
+        </p>
+      )}
+      {notes.map((n) => (
+        <p key={n} className="text-grafito">
+          {n}
+        </p>
+      ))}
     </div>
   );
 }
