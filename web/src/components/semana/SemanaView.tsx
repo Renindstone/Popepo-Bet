@@ -145,7 +145,7 @@ function RecapBody({
           {data.coverage.played === 0 ? (
             <>
               <div className="pb-8">
-                <Empty>{`${month ? "En este mes" : "Esta semana"} aún no se jugó ningún partido de las ocho competiciones.`}</Empty>
+                <Empty>{`${month ? "En este mes" : "Esta semana"} aún no se jugó ningún partido de las nueve competiciones.`}</Empty>
               </div>
               {/* El radar mira los últimos 28 días: no depende de que la semana elegida tenga partidos */}
               <Radar />

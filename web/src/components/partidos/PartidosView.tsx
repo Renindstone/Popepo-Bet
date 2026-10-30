@@ -48,7 +48,7 @@ export function PartidosView() {
 
   return (
     <>
-      <PageTitle title="Partidos" sub="Próximos partidos de las ocho competiciones. Elige uno para ver el análisis completo." />
+      <PageTitle title="Partidos" sub="Próximos partidos de las nueve competiciones. Elige uno para ver el análisis completo." />
 
       <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pb-6">
         <TeamSearch value={query} onChange={search} />

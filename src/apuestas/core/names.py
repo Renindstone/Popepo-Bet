@@ -64,6 +64,9 @@ _TEAM_SEEDS = {
     "avs": "avs futebol sad", "estrela": "estrela da amadora", "beerschot va": "beerschot", "dender": "fcv dender eh",
     "mechelen": "kv mechelen", "oud heverlee leuven": "oh leuven", "rwd molenbeek": "rwdm brussels",
     "standard": "standard liege", "waregem": "zulte waregem", "royal charleroi": "sporting charleroi",
+    # Turquía: football-data (izquierda) frente a FotMob (derecha), 30-10-2026
+    "ad demirspor": "adana demirspor", "amedspor": "amed sportif", "bodrumspor": "bodrum",
+    "karagumruk": "fatih karagumruk",
     # Ligas extra de football-data (izquierda) frente a FotMob (derecha)
     "rapid": "rapid wien", "copenhagen": "kobenhavn", "aarhus": "agf", "jagiellonia": "jagiellonia bialystok",
     "legia": "legia warszawa", "rakow": "rakow czestochowa", "univ craiova": "universitatea craiova",

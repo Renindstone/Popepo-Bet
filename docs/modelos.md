@@ -646,6 +646,24 @@ Calibrados como en las demás ligas (en las siete, goles 2.040 / 2.130 y 1.256 /
 
 Gasto de OddsPapi, con el calendario real de agosto de 2025 a noviembre de 2026: la API admite 5 competiciones por petición y con ocho casi cada día juegan más de 5 en los próximos 3 días, así que la descarga diaria de Betano y Pinnacle pasa de 38-68 a 70-106 peticiones al mes; con los catálogos y el CLV, unas 120-210 de 250. El dueño lo aprobó el 29-10-2026. Reproducir: scripts `bt.py`, `cmp.py`, `frente_casas.py`, `ligas_conteos.py`, `players.py` y `gasto_oddspapi.py` en las notas de la sesión del 29-10-2026 (no están en el repositorio).
 
+**Turquía como liga completa** (30-10-2026, a petición del dueño), igual que Portugal y Bélgica: los 1.109 partidos de football-data desde 2023-24 pasan a tener los detalles de FotMob (xG, estadísticas, árbitro, once y jugadores; Understat no la cubre). Walk-forward 2024-26 sobre la copia de antes y la de después, con el código de `main` del 30-10-2026; `apuestas backtest` evalúa por defecto las ocho ligas.
+
+| Log-loss 1X2 (mismos partidos) | Partidos | Antes | Después | Diferencia |
+|---|---|---|---|---|
+| Turquía | 643 | 0,9523 | 0,9517 | −0,0006 ± 0,0010 |
+| Las siete de antes | 4.719 | 0,9710 | 0,9710 | 0,0000 ± 0,0000 |
+| Copas | 1.030 | 0,9627 | 0,9623 | −0,0004 ± 0,0002 |
+
+Con ρ estimada con ocho ligas en vez de siete (lo que cambia además en producción), las siete de antes −0,0002 ± 0,0001 y las copas +0,0003 ± 0,0003.
+
+**En Turquía el modelo predice peor que las casas**: log-loss 0,9497 frente a 0,9378 de bet365 y 0,9365 de Pinnacle (625 partidos con las dos; modelo − bet365 +0,0119 ± 0,0045, antes del cambio +0,0122 ± 0,0044). Es lo mismo que en la Bundesliga (+0,0105 ± 0,0036) y algo más que en LaLiga (+0,0071 ± 0,0037). Apuestas del backtest (solo modelo, valor ≥ 3 %): de 326 con ROI −13,7 % a 337 con −9,6 % (CLV +2,1 % → +2,6 %); con la mezcla con el mercado, 30 apuestas con −22,8 % (muestra muy pequeña).
+
+Estadísticas (mejora por partido frente a la media de la liga, después): córners por equipo +0,112, remates +0,307, a puerta +0,230, faltas +0,246, tarjetas +0,037. El árbitro pesa más que en ninguna otra liga: tarjetas +0,019 ± 0,005 y faltas +0,027 ± 0,007. FotMob y football-data difieren en el 25 % de los remates por equipo (FotMob +0,2) y en el 13 % de las faltas; manda FotMob.
+
+Jugadores fuera de muestra (como en Portugal y Bélgica): corte del 15-01-2026, 4.497 jugador-partidos, goles 269 esperados / 254 reales, asistencias 195 / 186, remates 2.820 / 2.693, log-loss del gol 0,1778 (tasa media 0,2172); corte del 23-07-2026, 2.036, goles 129 / 116, asistencias 89 / 81, remates 1.313 / 1.431, log-loss del gol 0,1816 (0,2186). Los goles salen algo altos (1,06-1,11), en línea con un modelo de goles que en Turquía va por detrás de las casas.
+
+OddsPapi: con ocho competiciones ya eran 2 peticiones por casa casi cada día y la API admite 5 torneos por petición, así que la novena añade de 0 a 10 al mes (70-112 con el calendario de 2025-26). Lo aprobó el dueño el 30-10-2026.
+
 **Córners del local grande en la Champions frente a Pinnacle** (22-10-2026). Con la fuerza de goles como guía y las estadísticas de las copas, el modelo seguía dando al local unos 0,7 córners menos que Pinnacle en Betis-Feyenoord (4,6-4,7 frente a 5,3-4,1; Betano 5,4-4,1) y Bayern-Arsenal (4,8-4,1 frente a 5,5-4,2; Betano 5,7-4,1). Ya estaban descartados el nivel por liga, más contracción (K 40) y un sesgo del local en toda la Champions.
 
 *De dónde sale cada número.* Bayern-Arsenal: 4,79 = exp(media 1,457 + local 0,202 + ataque del Bayern 0,500 − defensa del Arsenal 0,593). El Arsenal es el equipo que menos córners concede (2,8 en casa y 3,8 fuera en la Premier) y, en el modelo de goles, más fuerte que el Bayern (1,83 frente a 1,62; 1X2 del modelo 38/24/38, Pinnacle 43/26/32). Betis-Feyenoord: solo con la fuerza de goles salía 5,2-4,3; las desviaciones de cada equipo lo llevaban a 4,6-4,7, porque el Betis saca en LaLiga menos córners de los que le tocan por su fuerza (−0,08 de dominio) y el Feyenoord en la Eredivisie más (+0,13). Su fuerza de goles es casi igual (0,63 y 0,67), así que el modelo los veía parejos, y Pinnacle no (1X2 60/20/20).

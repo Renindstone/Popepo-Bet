@@ -45,7 +45,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Apuestas fútbol", version=__version__, lifespan=lifespan,
               description="Análisis de apuestas: Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga, "
-                          "Pro League (Bélgica) y Champions League")
+                          "Pro League (Bélgica), Süper Lig (Turquía) y Champions League")
 
 # Panel web (web/, Next.js) en desarrollo local
 app.add_middleware(

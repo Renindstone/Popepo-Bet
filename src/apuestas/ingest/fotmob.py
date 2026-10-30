@@ -239,6 +239,8 @@ def parse_match_details(data: dict) -> FMDetails:
         det.team_info[team_fid] = {"formation": side.get("formation"), "coach": coach.get("name")}
         for group, starter in (("starters", True), ("subs", False)):
             for p in side.get(group, []) or []:
+                if not int(p.get("id") or 0):  # sin ficha en FotMob (canteranos): todos llegan con id 0
+                    continue
                 perf = p.get("performance") or {}
                 layout = p.get("verticalLayout") or {}
                 det.players.append(
@@ -256,6 +258,8 @@ def parse_match_details(data: dict) -> FMDetails:
                     )
                 )
         for p in side.get("unavailable", []) or []:
+            if not int(p.get("id") or 0):
+                continue
             un = p.get("unavailability") or {}
             kind = (un.get("type") or "other").lower()
             if kind not in ("injury", "suspension"):
@@ -292,6 +296,8 @@ def parse_match_details(data: dict) -> FMDetails:
 
     # Estadísticas por jugador
     for pid, p in (content.get("playerStats") or {}).items():
+        if not int(pid):
+            continue
         row: dict[str, Any] = {"team_fotmob_id": int(p.get("teamId") or 0), "name": p.get("name")}
         for grp in p.get("stats", []) or []:
             for s in (grp.get("stats") or {}).values():

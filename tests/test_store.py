@@ -119,5 +119,19 @@ def test_last_starting_xi_is_stored_as_predicted_until_the_official_one(s):
     assert match.lineup_status == "confirmed"
     assert set(s.scalars(select(m.Lineup.status))) == {"confirmed"}
 
+def test_players_without_fotmob_id_are_skipped(s):
+    """FotMob da id 0 a los jugadores sin ficha (canteranos de Turquía, 30-10-2026): antes se ataban todos a un mismo
+    jugador y dos en el mismo once rompían la clave única de la alineación."""
+    payload = _upcoming_payload("predicted")
+    payload["content"]["lineup"]["homeTeam"]["subs"] = [{"id": 0, "name": "Oguz Arslan"}, {"id": 0, "name": "Kartal Yigit"}]
+    payload["content"]["lineup"]["homeTeam"]["unavailable"] = [{"id": 0, "name": "Sin ficha"}]
+    payload["content"]["playerStats"] = {"0": {"teamId": 1, "name": "Sin ficha"}, "100": {"teamId": 1, "name": "Titular 0"}}
+    det = fotmob.parse_match_details(payload)
+    assert len(det.players) == 11 and not det.unavailable and list(det.player_stats) == [100]
+    store.apply_fotmob_details(s, _cup_match(s, "UCL"), det)
+    s.flush()
+    assert s.scalar(select(func.count(m.Lineup.id))) == 11
+
+
 def test_europa_and_conference_bring_stats():
     assert [c.code for c in LIGHT if c.fotmob_stats] == ["UEL", "UECL"]

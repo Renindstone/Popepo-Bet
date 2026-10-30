@@ -161,6 +161,7 @@ export const COMPETITIONS: Record<string, string> = {
   L1: "Ligue 1",
   POR: "Primeira Liga",
   BEL: "Pro League",
+  TUR: "Süper Lig",
   UCL: "Champions League",
 };
 
