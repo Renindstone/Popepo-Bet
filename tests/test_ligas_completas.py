@@ -70,7 +70,7 @@ def test_competition_code_accepts_code_or_name(text, code):
 
 
 def test_oddspapi_requests_per_bookmaker_with_eight_competitions(s, monkeypatch):
-    """Cada llamada cuenta 1 en el cupo y admite 5 torneos: hasta 5 competiciones, 1 por casa; de 6 a 8, 2."""
+    """Cada llamada cuenta 1 en el cupo y admite 5 torneos: hasta 5 competiciones, 1 por casa; de 6 a 9, 2."""
     tournaments = [
         {"tournamentId": 17, "tournamentSlug": "premier-league", "categorySlug": "england"},
         {"tournamentId": 35, "tournamentSlug": "bundesliga", "categorySlug": "germany"},
@@ -79,6 +79,7 @@ def test_oddspapi_requests_per_bookmaker_with_eight_competitions(s, monkeypatch)
         {"tournamentId": 34, "tournamentSlug": "ligue-1", "categorySlug": "france"},
         {"tournamentId": 238, "tournamentSlug": "liga-portugal", "categorySlug": "portugal"},
         {"tournamentId": 38, "tournamentSlug": "pro-league", "categorySlug": "belgium"},
+        {"tournamentId": 52, "tournamentSlug": "super-lig", "categorySlug": "turkiye"},
         {"tournamentId": 7, "tournamentSlug": "uefa-champions-league", "categorySlug": "international-clubs"},
         {"tournamentId": 99, "tournamentSlug": "serie-b", "categorySlug": "italy"},
         {"tournamentId": 239, "tournamentSlug": "liga-portugal-2", "categorySlug": "portugal"},
@@ -97,7 +98,7 @@ def test_oddspapi_requests_per_bookmaker_with_eight_competitions(s, monkeypatch)
     monkeypatch.setattr(oddspapi, "bookmakers", lambda: ["betano.pe", "pinnacle"])
     monkeypatch.setattr(oddspapi, "session_scope", same_session)
     assert oddspapi.tournament_ids() == {"EPL": 17, "BUN": 35, "LAL": 8, "SA": 23, "L1": 34, "POR": 238, "BEL": 38,
-                                         "UCL": 7}
+                                         "TUR": 52, "UCL": 7}
 
     # Fin de semana: juegan las cinco ligas y no la Champions
     monkeypatch.setattr(oddspapi, "playing_soon", lambda days, now=None: {"EPL", "BUN", "LAL", "SA", "L1"})
@@ -107,12 +108,13 @@ def test_oddspapi_requests_per_bookmaker_with_eight_competitions(s, monkeypatch)
     assert [p["bookmaker"] for p in odds_calls] == ["betano.pe", "pinnacle"]
     assert all(p["tournamentIds"] == "17,35,8,23,34" for p in odds_calls)
 
-    # Fin de semana con las siete ligas: dos peticiones por casa
-    monkeypatch.setattr(oddspapi, "playing_soon", lambda days, now=None: {"EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL"})
+    # Fin de semana con las ocho ligas: dos peticiones por casa
+    eight = {"EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR"}
+    monkeypatch.setattr(oddspapi, "playing_soon", lambda days, now=None: eight)
     calls.clear()
     oddspapi.sync_upcoming()
     odds_calls = [p["tournamentIds"] for path, p in calls if path == "odds-by-tournaments"]
-    assert odds_calls == ["17,35,8,23,34", "238,38", "17,35,8,23,34", "238,38"]
+    assert odds_calls == ["17,35,8,23,34", "238,38,52", "17,35,8,23,34", "238,38,52"]
 
     # Semana de Champions con liga entre semana: seis, en dos peticiones por casa
     monkeypatch.setattr(oddspapi, "playing_soon", lambda days, now=None: {"EPL", "BUN", "LAL", "SA", "L1", "UCL"})
