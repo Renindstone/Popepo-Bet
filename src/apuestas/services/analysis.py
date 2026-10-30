@@ -320,6 +320,7 @@ def _player_projections(
         cards_ratio = count_means["cards"][0 if is_home else 1] / _team_avg(bundle.counts["cards"], team_id, is_home)
 
     projections = []
+    recent = lu.recent_starts(s, team_id, match.kickoff_utc) if lineup else None  # solo con once publicado
     for pid, name, pos, start_prob, minutes in candidates:
         pr = bundle.players.get(pid)
         prior = bundle.priors.get(pos or "MF") or bundle.priors.get("MF") or {}
@@ -375,7 +376,8 @@ def _player_projections(
                 k_vol = VOLUME_SHARE_PRIOR_MATCHES[st] * prior.get(f"{st}_team90", 0.0)
                 share = (obs * exposure + prior[f"{st}_share"] * k_vol) / (exposure + k_vol) if exposure + k_vol else 0.0
                 lam[st] = share * (f_card if st == "yellow_cards" else f) * count_means[team_st][0 if is_home else 1]
-        projections.append(PlayerProjection(pid, name, team_id, pos, exp_min, start_prob, lam, play_prob))
+        projections.append(PlayerProjection(pid, name, team_id, pos, exp_min, start_prob, lam, play_prob,
+                                            None if recent is None else recent.get(pid, 0)))
     return projections
 
 
@@ -638,7 +640,7 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
             if 0.5 <= p <= 0.85 or (market in ("player_card", "player_goal_assist") and p >= 0.35):
                 min_odds.append({"market": market, "selection": sel, "line": ln, "player_id": pp.player_id,
                                  "player": pp.name, "prob": round(p, 3), "fair_odds": round(1 / p, 2),
-                                 "min_odds": round(1.05 / p, 2)})
+                                 "min_odds": round(1.05 / p, 2), "recent_starts": pp.recent_starts})
     min_odds.sort(key=lambda x: -x["prob"])
 
     def adj_dict(a: lu.LineupAdjustment) -> dict:

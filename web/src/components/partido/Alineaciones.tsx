@@ -2,6 +2,7 @@
 
 import { Crest } from "@/components/Crest";
 import { PitchFrame, PitchName } from "@/components/Pitch";
+import { UNUSUAL_NOTE, UnusualTag, isUnusual } from "@/components/Unusual";
 import { Empty, ErrorNote, Loading, Section, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { shortName } from "@/lib/format";
@@ -138,6 +139,21 @@ function Bench({ t, confirmed }: { t: LineupTeam; confirmed: boolean }) {
   return (
     <div className="min-w-0">
       <h3 className="semi font-bold">{t.team}</h3>
+      {t.starters.some((p) => isUnusual(p.recent_starts)) && (
+        <>
+          <h4 className="mt-2 text-nota font-semibold">Titulares poco habituales</h4>
+          <ul className="mt-1 text-nota">
+            {t.starters
+              .filter((p) => isUnusual(p.recent_starts))
+              .map((p) => (
+                <li key={p.player_id} className="flex flex-wrap items-center gap-x-2 py-0.5">
+                  {p.name} <UnusualTag recent={p.recent_starts} />
+                </li>
+              ))}
+          </ul>
+          <p className="mt-1 text-nota text-grafito">{UNUSUAL_NOTE}</p>
+        </>
+      )}
       <h4 className="mt-2 text-nota font-semibold">Suplentes</h4>
       {t.subs.length === 0 ? (
         <p className="text-nota text-grafito">

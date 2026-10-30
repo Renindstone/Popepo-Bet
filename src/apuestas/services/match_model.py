@@ -55,6 +55,7 @@ class PlayerProjection:
     # play_prob (lo que hace si juega); lam sigue siendo la media con los partidos en que no sale, la que reparte lo del
     # equipo
     play_prob: float = 1.0
+    recent_starts: int | None = None  # titular en cuántos de los 10 partidos anteriores (features.lineup)
 
     def to_dict(self) -> dict:
         return {
@@ -64,6 +65,7 @@ class PlayerProjection:
             "position": self.position,
             "expected_minutes": round(self.expected_minutes, 1),
             "start_prob": round(self.start_prob, 2),
+            "recent_starts": self.recent_starts,
             "expected": {k: round(v, 3) for k, v in self.lam.items()},
         }
 

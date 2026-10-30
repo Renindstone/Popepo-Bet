@@ -16,6 +16,7 @@ from apuestas.core import names
 from apuestas.core.competitions import FULL
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
+from apuestas.features import lineup as lu_feat
 from apuestas.models.fitting import load_bundle
 from apuestas.services import analysis, picks, radar, rivalries, tracker
 
@@ -332,10 +333,12 @@ def match_lineups(match_ref: str | int) -> dict:
         teams = []
         for side, team in (("home", match.home_team), ("away", match.away_team)):
             mine = [(lu, p) for lu, p in rows if lu.team_id == team.id]
+            recent = lu_feat.recent_starts(s, team.id, match.kickoff_utc)
 
-            def player(lu: m.Lineup, p: m.Player) -> dict:
+            def player(lu: m.Lineup, p: m.Player, recent=recent) -> dict:
                 return {"player_id": p.id, "name": p.name, "shirt": lu.shirt_number, "position": lu.position,
-                        "x": lu.pos_x, "y": lu.pos_y, "rating": lu.season_rating}
+                        "x": lu.pos_x, "y": lu.pos_y, "rating": lu.season_rating,
+                        "recent_starts": None if recent is None else recent.get(p.id, 0)}
 
             starters = sorted((player(lu, p) for lu, p in mine if lu.is_starter),
                               key=lambda d: (d["y"] if d["y"] is not None else 9, d["x"] or 0))

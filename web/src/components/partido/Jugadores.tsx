@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useState } from "react";
 import useSWR from "swr";
+import { UnusualTag } from "@/components/Unusual";
 import { ErrorNote, Loading } from "@/components/ui";
 import { api, useApi } from "@/lib/api";
 import { num, pct } from "@/lib/format";
@@ -109,6 +110,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
                       <span className="block text-nota text-grafito">
                         {[p.position, side === "home" ? a.home : side === "away" ? a.away : null].filter(Boolean).join(", ")}
                       </span>
+                      {p.start_prob >= 0.85 && <UnusualTag recent={p.recent_starts} />}
                     </td>
                     <td className={`${td} font-semibold`}>{num(p.expected.shots, 2)}</td>
                     <td className={td}>{num(p.expected.shots_on_target, 2)}</td>

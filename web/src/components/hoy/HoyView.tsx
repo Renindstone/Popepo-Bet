@@ -10,6 +10,7 @@ import { Crest } from "@/components/Crest";
 import { PickRecord } from "@/components/PickRecord";
 import { PorQueFallo } from "@/components/PorQueFallo";
 import { RivalryTag } from "@/components/Rivalry";
+import { UnusualTag } from "@/components/Unusual";
 import { AlertTag } from "@/components/semana/Radar";
 import { Tabs, useHashTab } from "@/components/Tabs";
 import { Button, EdgeBar, Empty, ErrorNote, Figure, Loading, Section, Tag } from "@/components/ui";
@@ -753,6 +754,7 @@ function Props({ rows }: { rows: PropMinOdds[] }) {
             <li key={i} className="flex items-start justify-between gap-4 py-3">
               <div className="min-w-0">
                 <p className="font-semibold">{betLabel(r.market, r.selection, r.line, { home, away, player: r.player })}</p>
+                <UnusualTag recent={r.recent_starts} />
                 <p className="mt-0.5 text-nota text-grafito">
                   {r.match}. Probabilidad {pct(r.prob)}, cuota justa {odds(r.fair_odds)}
                 </p>
@@ -790,7 +792,14 @@ function Props({ rows }: { rows: PropMinOdds[] }) {
                       r.match
                     )}
                   </td>
-                  <td className={td}>{betLabel(r.market, r.selection, r.line, { home, away, player: r.player })}</td>
+                  <td className={td}>
+                    {betLabel(r.market, r.selection, r.line, { home, away, player: r.player })}
+                    {r.recent_starts != null && (
+                      <span className="ml-1.5">
+                        <UnusualTag recent={r.recent_starts} />
+                      </span>
+                    )}
+                  </td>
                   <td className={`${td} num text-right`}>{pct(r.prob)}</td>
                   <td className={`${td} num text-right text-grafito`}>{odds(r.fair_odds)}</td>
                   <td className={`${td} num cond text-right text-xl font-extrabold text-boli`}>{odds(r.min_odds)}</td>

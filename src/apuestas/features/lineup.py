@@ -72,6 +72,30 @@ def _lineup_players(s: Session, match_id: int, team_id: int) -> tuple[list[dict]
     ], status
 
 
+# Titular poco habitual: en 2 o menos de los 10 partidos anteriores de su equipo (con al menos 5 onces). Rematan
+# algo menos que en sus titularidades anteriores, pero el modelo ya lo recoge al contraer su ritmo hacia su posición
+# (experimentos/validacion/titulares.py y titulares_modelo.py): solo es un aviso
+RECENT_MATCHES, UNUSUAL_MAX_STARTS, RECENT_MIN_MATCHES = 10, 2, 5
+
+
+def recent_starts(s: Session, team_id: int, before: datetime, n: int = RECENT_MATCHES) -> dict[int, int] | None:
+    """Cuántas veces fue titular cada jugador en los últimos `n` onces confirmados del equipo; None si hay menos de
+    RECENT_MIN_MATCHES."""
+    match_ids = s.scalars(
+        select(m.Match.id).join(m.Lineup, m.Lineup.match_id == m.Match.id)
+        .where(m.Lineup.team_id == team_id, m.Lineup.status == "confirmed", m.Match.kickoff_utc < before,
+               m.Match.status == "finished")
+        .group_by(m.Match.id).order_by(m.Match.kickoff_utc.desc()).limit(n)
+    ).all()
+    if len(match_ids) < RECENT_MIN_MATCHES:
+        return None
+    out: dict[int, int] = {}
+    for pid in s.scalars(select(m.Lineup.player_id).where(
+            m.Lineup.match_id.in_(match_ids), m.Lineup.team_id == team_id, m.Lineup.is_starter.is_(True))):
+        out[pid] = out.get(pid, 0) + 1
+    return out
+
+
 def baseline(s: Session, team_id: int, before: datetime, n: int = BASELINE_MATCHES) -> tuple[XIStrength, dict[int, float]]:
     """Alineación típica del equipo y frecuencia de titularidad de cada jugador."""
     match_ids = s.scalars(

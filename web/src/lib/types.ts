@@ -66,6 +66,7 @@ export interface ValueBet extends BetEval {
 }
 
 export interface PropMinOdds {
+  recent_starts?: number | null;
   market: string;
   selection: string;
   line: number | null;
@@ -235,6 +236,7 @@ export interface PlayerProjection {
   position: string | null;
   expected_minutes: number;
   start_prob: number;
+  recent_starts?: number | null;
   expected: {
     shots: number;
     shots_on_target: number;
@@ -792,6 +794,8 @@ export interface LineupPlayer {
   x: number | null;
   y: number | null;
   rating: number | null;
+  /** Titular en cuántos de los 10 partidos anteriores de su equipo; null si hay menos de 5 onces */
+  recent_starts?: number | null;
 }
 
 export interface LineupTeam {

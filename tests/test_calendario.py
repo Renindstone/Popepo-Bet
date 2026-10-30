@@ -55,3 +55,29 @@ def test_rival_chico_entre_grandes(s):
     # El rival chico no ve el aviso (su rival es grande), y sin fuerzas no se marca nada
     assert not any("Rival chico" in n for n in ctx.team_context(s, today, small.id, -0.8, strength).notes)
     assert ctx.team_context(s, today, villa.id, 0.8).opponent_tier is None
+
+
+def test_titular_poco_habitual(s):
+    from apuestas.features import lineup as lu
+
+    comp = m.Competition(code="EPL", name="EPL", country="x", tier="full")
+    s.add(comp)
+    s.flush()
+    season = m.Season(competition_id=comp.id, start_year=2026, label="2026/2027")
+    team, rival = m.Team(name="Fulham"), m.Team(name="Rival")
+    fijo, nuevo = m.Player(name="Fijo"), m.Player(name="Nuevo")
+    s.add_all([season, team, rival, fijo, nuevo])
+    s.flush()
+    for i in range(12):  # 12 onces confirmados: el fijo siempre, el nuevo solo en el más antiguo
+        mt = m.Match(competition_id=comp.id, season_id=season.id, kickoff_utc=KO - timedelta(days=7 * (i + 1)),
+                     home_team_id=team.id, away_team_id=rival.id, status="finished")
+        s.add(mt)
+        s.flush()
+        s.add(m.Lineup(match_id=mt.id, team_id=team.id, player_id=fijo.id, is_starter=True, status="confirmed"))
+        if i == 11:
+            s.add(m.Lineup(match_id=mt.id, team_id=team.id, player_id=nuevo.id, is_starter=True, status="confirmed"))
+    s.flush()
+    recent = lu.recent_starts(s, team.id, KO)
+    assert recent == {fijo.id: 10}  # solo cuentan los 10 últimos: el nuevo, 0
+    assert recent.get(nuevo.id, 0) <= lu.UNUSUAL_MAX_STARTS
+    assert lu.recent_starts(s, rival.id, KO) is None  # sin onces suficientes, no se sabe
