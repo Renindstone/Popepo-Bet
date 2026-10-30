@@ -14,7 +14,7 @@ from apuestas.models.distributions import Outcome
 
 STAT_ALIASES = {"sot": "shots_on_target", "remates": "shots", "corners": "corners", "cards": "cards",
                 "tarjetas": "cards", "fouls": "fouls", "faltas": "fouls", "shots": "shots",
-                "shots_on_target": "shots_on_target"}
+                "shots_on_target": "shots_on_target", "offsides": "offsides", "fueras": "offsides"}
 PLAYER_MARKETS = {"player_shots": "shots", "player_sot": "shots_on_target", "player_fouls": "fouls_committed"}
 # Mercados que dependen de los goles del equipo del jugador: qué parte de esos goles marca o asiste
 PLAYER_INVOLVEMENT = {"player_goal": ("goals",), "player_assist": ("assists",),

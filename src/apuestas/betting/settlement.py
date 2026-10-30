@@ -10,7 +10,7 @@ from apuestas.models import distributions as dist
 
 RESULT_PROFIT = {"win": 1.0, "half_win": 0.5, "push": 0.0, "void": 0.0, "half_loss": -0.5, "loss": -1.0}
 STAT_COLUMNS = {"goals": "goals", "shots": "shots", "sot": "shots_on_target", "shots_on_target": "shots_on_target",
-                "corners": "corners", "fouls": "fouls", "cards": "cards"}
+                "corners": "corners", "fouls": "fouls", "cards": "cards", "offsides": "offsides"}
 PLAYER_COLUMNS = {"player_shots": ("shots",), "player_sot": ("shots_on_target",), "player_fouls": ("fouls_committed",),
                   "player_goal": ("goals",), "player_assist": ("assists",), "player_goal_assist": ("goals", "assists"),
                   "player_card": ("yellow_cards",)}

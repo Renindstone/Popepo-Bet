@@ -108,6 +108,7 @@ export const STAT_NAMES: Record<string, string> = {
   corners: "Córners",
   fouls: "Faltas",
   cards: "Tarjetas",
+  offsides: "Offsides",
 };
 
 /**

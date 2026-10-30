@@ -11,6 +11,7 @@ const STATS: Record<string, string> = {
   corners: "Córners",
   cards: "Tarjetas",
   fouls: "Faltas",
+  offsides: "Offsides",
 };
 
 const PLAYER: Record<string, string> = {
@@ -142,6 +143,7 @@ export const MARKET_OPTIONS: MarketOption[] = [
   { value: "ou_shots", label: "Remates: más/menos", group: "Estadísticas", sel: "ou", line: 24.5, scope: true },
   { value: "ou_sot", label: "Remates a puerta: más/menos", group: "Estadísticas", sel: "ou", line: 8.5, scope: true },
   { value: "ou_fouls", label: "Faltas: más/menos", group: "Estadísticas", sel: "ou", line: 22.5, scope: true },
+  { value: "ou_offsides", label: "Offsides: más/menos", group: "Estadísticas", sel: "ou", line: 3.5, scope: true },
   { value: "ah_corners", label: "Hándicap de córners", group: "Estadísticas", sel: "ha", line: -1.5 },
   { value: "ah_cards", label: "Hándicap de tarjetas", group: "Estadísticas", sel: "ha", line: -0.5 },
   { value: "1x2_corners", label: "Más córners (1X2)", group: "Estadísticas", sel: "1x2" },

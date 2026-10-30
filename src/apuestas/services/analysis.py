@@ -33,6 +33,9 @@ def expected_minutes(start_prob: float, avg_start_min: float, lineup: bool) -> f
     return start_prob * avg_start_min + (1 - start_prob) * (SUB_PLAY_RATE if lineup else 0.0) * SUB_MINUTES
 
 
+# Desde cuánto se avisa de la trampa del fuera de juego: el rival cae en offside 1,6 veces la media o más (en 2025-26,
+# el Barcelona 2,5, Westerlo 2,3, Aston Villa 2,1, Athletic 1,9, Betis 1,8 y City 1,7; se repite entre temporadas)
+OFFSIDE_TRAP = 1.6
 W_MODEL = 0.25  # peso del modelo frente al mercado afilado: el backtest muestra que el mercado sabe más
 MAIN_MARKETS = ("1x2", "ou_goals", "ah", "btts", "dnb", "dc")
 
@@ -565,6 +568,12 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
     strength = {t: bundle.goals.attack[t] + bundle.goals.defence.get(t, 0.0) for t in bundle.goals.attack}
     c_h = ctx.team_context(s, match, home, lam_h - lam_a, strength)
     c_a = ctx.team_context(s, match, away, lam_a - lam_h, strength)
+    if "offsides" in bundle.counts:  # la trampa del fuera de juego: cuánto hace caer cada equipo al rival
+        off = bundle.counts["offsides"]
+        for c, team in ((c_h, home), (c_a, away)):
+            k = math.exp(-off.defence.get(team, 0.0))
+            if k >= OFFSIDE_TRAP:
+                c.notes.append(f"Hace caer al rival en fuera de juego {k:.1f} veces la media (defensa adelantada)")
     rotation = max((c_h.rotation_risk, c_a.rotation_risk), key=["baja", "media", "alta"].index)
 
     lineup_status = "confirmed" if adj_h.source == adj_a.source == "confirmed" else (

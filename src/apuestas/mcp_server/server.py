@@ -36,7 +36,7 @@ Mercados (parámetro `mercado`) y selecciones:
 - 1x2 (home/draw/away), dc (1x/x2/12), dnb (home/away), btts (yes/no)
 - ah = hándicap asiático (home/away + linea, p.ej. -0.75), eh = hándicap europeo (home/draw/away + linea del local)
 - ou_goals, ou_goals_home, ou_goals_away (over/under + linea)
-- ou_shots, ou_sot, ou_corners, ou_cards, ou_fouls (+ _home / _away para un equipo) (over/under + linea)
+- ou_shots, ou_sot, ou_corners, ou_cards, ou_fouls, ou_offsides (+ _home / _away para un equipo) (over/under + linea)
 - ah_corners, ah_cards, 1x2_corners ... (hándicap / ganador de una estadística)
 - player_shots, player_sot, player_fouls (over/under + linea + jugador), player_goal, player_assist,
   player_goal_assist (gol o asistencia), player_card (yes/no + jugador; player_goal over 1.5 = 2 o más goles)

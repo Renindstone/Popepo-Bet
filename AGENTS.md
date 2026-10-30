@@ -70,7 +70,7 @@ Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga,
 
 - Fechas en UTC en la BD; se muestran en hora de Lima (America/Lima).
 - Cuotas decimales. Valor esperado = probabilidad × cuota − 1. Stake con Kelly fraccional.
-- Mercados: `1x2`, `dc`, `dnb`, `btts`, `ah`, `eh`, `ou_<stat>[_home|_away]`, `ah_<stat>`, `1x2_<stat>`, `player_shots|player_sot|player_fouls|player_goal|player_assist|player_goal_assist|player_card`. Stats: goals, shots, sot, corners, cards, fouls.
+- Mercados: `1x2`, `dc`, `dnb`, `btts`, `ah`, `eh`, `ou_<stat>[_home|_away]`, `ah_<stat>`, `1x2_<stat>`, `player_shots|player_sot|player_fouls|player_goal|player_assist|player_goal_assist|player_card`. Stats: goals, shots, sot, corners, cards, fouls, offsides.
 
 ## Conceptos que se confunden
 

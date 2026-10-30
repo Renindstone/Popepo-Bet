@@ -44,7 +44,7 @@ GOALS_XG_WEIGHT = 0.85  # elegido por backtest 2024-26 (mejor log-loss que 0, 0.
 # estadísticas de FotMob desde el 21-10-2026 para los modelos de conteo. Con su xG, la log-loss 1X2 de la Champions
 # empeoraba (+0,0062 ± 0,0025 por partido, backtest 2024-26) y la de las ligas no cambiaba.
 GOALS_XG_SKIP = frozenset(code for code, c in COMPETITIONS.items() if c.fotmob_stats)
-COUNT_STATS = ("shots", "shots_on_target", "corners", "fouls", "cards")
+COUNT_STATS = ("shots", "shots_on_target", "corners", "fouls", "cards", "offsides")
 PLAYER_STATS = ("shots", "shots_on_target", "goals", "xg", "assists", "xa", "fouls_committed", "yellow_cards")
 # Goles y asistencias también como parte de los goles de su equipo en los minutos que jugó (para repartirlos)
 SHARE_STATS = ("goals", "xg", "assists", "xa")
@@ -183,6 +183,7 @@ def load_matches(s: Session, before: datetime, since: datetime) -> list[MatchRow
                 "corners": t.corners,
                 "fouls": t.fouls,
                 "cards": cards,
+                "offsides": t.offsides,
             }
 
         rows.append(
@@ -309,7 +310,9 @@ def market_obs(rows: list[MatchRow], implied: dict[int, tuple[float, float]],
 # córners contra Stuttgart y Bayern) salía con ×1,8 de ataque en córners y Aston Villa-Viking, con 14,7 córners
 # esperados frente a 10,5 de Pinnacle. Elegido con el backtest 2024-26 (walk-forward, ligas y Champions; ver
 # docs/modelos.md): más contracción donde los equipos se parecen más entre sí (tarjetas) y menos en remates.
-COUNT_PRIOR_MATCHES = {"shots": 1.0, "shots_on_target": 1.0, "corners": 5.0, "fouls": 5.0, "cards": 10.0}
+# Offsides (desde el 30-10-2026): K = 10, algo mejor que 5 en el backtest (experimentos/validacion/offsides.py)
+COUNT_PRIOR_MATCHES = {"shots": 1.0, "shots_on_target": 1.0, "corners": 5.0, "fouls": 5.0, "cards": 10.0,
+                       "offsides": 10.0}
 
 # Estadísticas de dominio: se contraen hacia lo que predice la fuerza del equipo en el modelo de goles (`strength` en
 # `ratings.fit`) en vez de hacia la media, con esta K. Las ligas solo se cruzan en córners y remates por la
