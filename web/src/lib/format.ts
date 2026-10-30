@@ -159,6 +159,8 @@ export const COMPETITIONS: Record<string, string> = {
   LAL: "LaLiga",
   SA: "Serie A",
   L1: "Ligue 1",
+  POR: "Primeira Liga",
+  BEL: "Pro League",
   UCL: "Champions League",
 };
 

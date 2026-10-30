@@ -25,7 +25,8 @@ from apuestas.services import ai_notes, captures, queries, tracker
 log = logging.getLogger(__name__)
 
 INSTRUCTIONS = """\
-Sistema de análisis de apuestas de fútbol (Premier League, Bundesliga, LaLiga, Serie A, Ligue 1 y Champions League).
+Sistema de análisis de apuestas de fútbol (Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga,
+Pro League (Bélgica) y Champions League).
 Los números (probabilidades, cuotas justas, valor esperado) los calcula un modelo estadístico; tu papel
 es interpretarlos, explicarlos y combinarlos con información cualitativa (noticias, ruedas de prensa).
 
@@ -90,8 +91,8 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
 
     @server.tool()
     def partidos_proximos(dias: int = 3, competicion: str | None = None) -> str:
-        """Lista los próximos partidos (EPL, BUN, LAL, SA, L1, UCL) con hora de Lima, árbitro y estado de
-        alineaciones. `competicion`: el código o el nombre ("Serie A", "Ligue 1")."""
+        """Lista los próximos partidos (EPL, BUN, LAL, SA, L1, POR, BEL, UCL) con hora de Lima, árbitro y estado
+        de alineaciones. `competicion`: el código o el nombre ("Serie A", "Primeira Liga", "Pro League")."""
         return _safe(queries.upcoming, dias, competicion)
 
     @server.tool()

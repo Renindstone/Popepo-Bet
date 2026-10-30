@@ -116,7 +116,7 @@ def backtest(
     home_by_league: bool = typer.Option(True, help="Ventaja local propia de cada competición en el modelo de goles; "
                                                    "--no-home-by-league = una sola, como antes del 29-10-2026"),
     ligas: str = typer.Option(None, help="Ligas con cuotas a evaluar, separadas por comas (por defecto las completas: "
-                                         "EPL,BUN,LAL,SA,L1; EPL,BUN,LAL = las de antes del 21-10-2026)"),
+                                         "EPL,BUN,LAL,SA,L1,POR,BEL; EPL,BUN,LAL,SA,L1 = las de antes del 29-10-2026)"),
     out: str = "",
 ) -> None:
     """Backtest walk-forward contra cuotas históricas de bet365."""
