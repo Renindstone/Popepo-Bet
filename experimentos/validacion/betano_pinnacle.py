@@ -25,7 +25,7 @@ from sqlalchemy import select, text
 from apuestas.betting.settlement import RESULT_PROFIT, settle
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
-from apuestas.services import compare, weekly
+from apuestas.services import weekly
 from apuestas.services.analysis import book_fair_prob
 
 THRESHOLDS = (0.0, 0.02, 0.05)
@@ -34,16 +34,13 @@ LAG = timedelta(minutes=15)
 
 
 def latest(rows: list[m.OddsSnapshot], until) -> list[m.OddsSnapshot]:
-    """La última foto de cada (mercado, selección, línea) hasta `until`, solo de las 12 horas antes de la última
-    descarga (como `compare._last_batch`: lo que no volvió a salir ya no se ofrece)."""
+    """La última foto de cada (mercado, selección, línea) hasta `until`. Solo se guarda una foto cuando el precio
+    cambia, así que no se sabe si una línea dejó de ofrecerse (`last_seen_at` lo apunta desde el 29-10-2026)."""
     out: dict[tuple, m.OddsSnapshot] = {}
     for r in sorted(rows, key=lambda r: weekly._aware(r.captured_at)):
         if weekly._aware(r.captured_at) <= until:
             out[(r.market, r.selection, r.line)] = r
-    if not out:
-        return []
-    last = max(weekly._aware(r.captured_at) for r in out.values())
-    return [r for r in out.values() if weekly._aware(r.captured_at) >= last - compare.FRESH]
+    return list(out.values())
 
 
 def main() -> None:

@@ -9,7 +9,7 @@ menudo y Pinnacle no se mueve después hacia Betano; en goles casi nunca.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -19,7 +19,6 @@ from apuestas.db.session import session_scope
 from apuestas.services import analysis, picks
 
 MIN_EDGE = 0.02
-FRESH = timedelta(hours=12)
 REFERENCE = "pinnacle"
 GOAL_MARKETS = ("1x2", "dc", "dnb", "btts", "ah", "eh", "ou_goals", "ou_goals_home", "ou_goals_away")
 NOTE = ("Desde el 19-10-2026, en córners y tarjetas Betano pagó por encima de Pinnacle a menudo y Pinnacle no se movió "
@@ -27,36 +26,31 @@ NOTE = ("Desde el 19-10-2026, en córners y tarjetas Betano pagó por encima de 
         "segura.")
 
 
-def _last_batch(rows: list[m.OddsSnapshot]) -> list[m.OddsSnapshot]:
-    """Solo las cuotas vistas en las 12 horas antes de la última descarga de la casa: lo que no volvió a salir en la
-    descarga del día ya no se ofrece. Las 12 horas dejan dentro la de las 08:30 cuando después llega la de antes del
-    partido, que solo trae algunos mercados."""
-    if not rows:
-        return []
-    last = max(r.captured_at for r in rows)
-    return [r for r in rows if r.captured_at >= last - FRESH]
+def _seen(r: m.OddsSnapshot):
+    """Cuándo se vio ese precio por última vez (antes del 29-10-2026, cuándo se guardó)."""
+    return r.last_seen_at or r.captured_at
 
 
 def match_edges(s: Session, match: m.Match, min_edge: float = MIN_EDGE) -> list[dict]:
     """Las selecciones de Betano con valor ≥ `min_edge` frente a Pinnacle sin margen, de mayor a menor."""
-    rows = analysis._latest_odds(s, match.id)
-    ref = _last_batch([r for r in rows if r.bookmaker == REFERENCE])
+    rows = analysis._latest_odds(s, match.id)  # solo lo que cada casa sigue ofreciendo
+    ref = [r for r in rows if r.bookmaker == REFERENCE]
     if not ref:
         return []
     home, away = match.home_team.name, match.away_team.name
     out = []
-    for b in _last_batch([r for r in rows if r.bookmaker.startswith("betano")]):
+    for b in (r for r in rows if r.bookmaker.startswith("betano")):
         p = analysis.book_fair_prob(ref, REFERENCE, b.market, b.selection, b.line)
         if not p:
             continue
         edge = b.price * p - 1  # con devolución posible (líneas enteras) es el valor de la parte que se decide
         if edge >= min_edge:
-            seen = max(r.captured_at for r in ref if r.market == b.market)
+            seen = max(_seen(r) for r in ref if r.market == b.market)
             out.append({"match_id": match.id, "market": b.market, "selection": b.selection, "line": b.line,
                         "label": analysis.bet_label(b.market, b.selection, b.line, home, away),
                         "group": "goles" if b.market in GOAL_MARKETS else "estadísticas",
                         "odds": b.price, "fair_odds": round(1 / p, 3), "edge": round(edge, 4),
-                        "odds_at": b.captured_at, "fair_at": seen})
+                        "odds_at": _seen(b), "fair_at": seen})
     return sorted(out, key=lambda x: -x["edge"])
 
 
