@@ -9,7 +9,7 @@ import { PenMark } from "@/components/PenMark";
 import { RivalryTag } from "@/components/Rivalry";
 import { Button, EdgeBar, ErrorNote, Figure, Loading, PageTitle, Section } from "@/components/ui";
 import { type ApiError, post, useApi } from "@/lib/api";
-import { competitionName, money, odds, pct, signedPct, splitMatch, stageText } from "@/lib/format";
+import { COMPETITIONS, competitionName, money, odds, pct, signedPct, splitMatch, stageText } from "@/lib/format";
 import { tr } from "@/lib/i18n";
 import { betLabel, bookmakerName, marketOptions, type MarketOption, selectionsFor } from "@/lib/markets";
 import { addLeg, updateSlip, useSlip } from "@/lib/slip";
@@ -63,6 +63,10 @@ export function EvaluarView() {
 
   const matches = useApi<MatchSummary[]>("/matches?days=7");
   const selected = matches.data?.find((m) => String(m.match_id) === matchId);
+  // Liga para acortar la lista de partidos ("" = todas). Si se llega con un partido en la dirección, la suya
+  const [leagueChoice, setLeague] = useState<string | null>(null);
+  const linked = matches.data?.find((m) => String(m.match_id) === params.get("partido"));
+  const league = leagueChoice ?? linked?.competition ?? "";
   // También sin props: trae el clásico y los avisos de calendario del partido elegido
   const analysis = useApi<MatchAnalysis>(matchId ? `/matches/${matchId}/analysis` : null);
   const teams = { home: selected?.home, away: selected?.away };
@@ -168,8 +172,11 @@ export function EvaluarView() {
   }
 
   // Agrupar partidos por día para el desplegable
+  const leagues = Object.keys(COMPETITIONS)
+    .map((code) => ({ code, n: matches.data?.filter((m) => m.competition === code).length ?? 0 }))
+    .filter((l) => l.n > 0);
   const byDay = new Map<string, MatchSummary[]>();
-  for (const m of matches.data ?? []) {
+  for (const m of (matches.data ?? []).filter((x) => !league || x.competition === league)) {
     const k = m.kickoff_local.split(" ").slice(0, 2).join(" ");
     byDay.set(k, [...(byDay.get(k) ?? []), m]);
   }
@@ -185,6 +192,32 @@ export function EvaluarView() {
       />
       <div className="grid gap-x-12 gap-y-10 pb-10 lg:grid-cols-[400px_minmax(0,1fr)]">
         <form onSubmit={submit} className="space-y-5" noValidate>
+          <div>
+            <label htmlFor="liga" className={labelCls}>
+              {tr("Liga", "League")}
+            </label>
+            <select
+              id="liga"
+              className={field}
+              value={league}
+              onChange={(e) => {
+                setLeague(e.target.value);
+                if (selected && e.target.value && selected.competition !== e.target.value) {
+                  setMatchId("");
+                  setResult(null);
+                }
+              }}
+              disabled={!matches.data}
+            >
+              <option value="">{`${tr("Todas las ligas", "All leagues")} (${matches.data?.length ?? 0})`}</option>
+              {leagues.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {`${competitionName(l.code)} (${l.n})`}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label htmlFor="partido" className={labelCls}>
               {tr("Partido", "Match")}
@@ -207,7 +240,8 @@ export function EvaluarView() {
                   <optgroup key={day} label={day}>
                     {ms.map((m) => (
                       <option key={m.match_id} value={m.match_id}>
-                        {m.kickoff_local.split(" ")[2]} {m.home} vs {m.away} ({competitionName(m.competition)})
+                        {m.kickoff_local.split(" ")[2]} {m.home} vs {m.away}
+                        {league ? "" : ` (${competitionName(m.competition)})`}
                         {m.rivalry ? ` · ${m.rivalry}` : ""}
                       </option>
                     ))}
