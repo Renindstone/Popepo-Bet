@@ -8,7 +8,9 @@ Este archivo es para cualquier IA que trabaje en el repositorio (Claude Code, Co
 - [`docs/fuentes.md`](docs/fuentes.md): de dónde salen los datos y cómo se validan.
 - [`docs/instalacion.md`](docs/instalacion.md): instalación desde cero y servicios.
 - [`docs/adr/`](docs/adr/): decisiones de arquitectura y su porqué.
-- [`web/AGENTS.md`](web/AGENTS.md): antes de tocar el panel (Next.js 16 tiene cambios incompatibles con lo que conoces).
+- `web/AGENTS.md` (lo genera `next dev`): antes de tocar el panel (Next.js 16 tiene cambios incompatibles con lo que conoces).
+
+Las skills de la IA (`.claude/`), el contexto de diseño (`DESIGN.md`, `PRODUCT.md`, `.impeccable/`) y `CLAUDE.md` no se publican: son herramientas locales del dueño (están en `.gitignore` y `.worktreeinclude` las copia a cada worktree). Si no las tienes, sigue el estilo del código que tocas.
 
 ## El proyecto
 

@@ -29,11 +29,16 @@ node_modules/
 # docs
 docs/adr
 
-# Impeccable (diseño): se suben DESIGN.md, PRODUCT.md, design.json y los contratos de superficie;
-# los bocetos, las capturas de revisión y las cachés son de trabajo
-.impeccable/*
-!.impeccable/design.json
-!.impeccable/surfaces/
+# Instrucciones, skills y contexto de diseño de la IA: no se publican (decisión del dueño, 31-10-2026). Copia
+# privada en ~/Proyectos/Claude/popepo-ia; .worktreeinclude los copia a cada worktree nuevo. AGENTS.md sí se publica
+.claude/
+.impeccable/
+CLAUDE.md
+DESIGN.md
+PRODUCT.md
+web/AGENTS.md
+docs/superpowers/
+.worktreeinclude
 
 # Bocetos de las conversaciones de diseño (superpowers)
 .superpowers/
