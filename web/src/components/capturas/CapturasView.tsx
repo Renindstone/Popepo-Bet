@@ -27,6 +27,7 @@ function isActive(c: Capture): boolean {
 /** Con la IA apagada para este usuario, Capturas no se usa: se explica dónde encenderla */
 export function CapturasGate() {
   const { me } = useMe();
+  const params = useSearchParams();
   if (me?.ai_enabled === false) {
     return (
       <>
@@ -41,7 +42,8 @@ export function CapturasGate() {
       </>
     );
   }
-  return <CapturasView />;
+  // Con ?nueva= (la captura recién subida desde Hoy) se vuelve a montar para abrirla: Next conserva la página al navegar
+  return <CapturasView key={params.get("nueva") ?? ""} />;
 }
 
 export function CapturasView() {

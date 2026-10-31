@@ -39,7 +39,16 @@ function lineLabel(market: string, selection: string, t: { home?: string; away?:
 const field = "h-11 w-full border border-regla bg-hoja px-3 text-base text-tinta focus:border-boli";
 const labelCls = "mb-1 block text-nota font-semibold";
 
+/**
+ * Next 16 conserva la página al navegar (Activity) y el formulario lee la dirección solo al montarse: con la dirección
+ * como clave, al llegar con otra apuesta (desde Hoy) se vuelve a montar con ella en vez de seguir con lo de antes.
+ */
 export function EvaluarView() {
+  const params = useSearchParams();
+  return <Evaluar key={params.toString()} />;
+}
+
+function Evaluar() {
   const params = useSearchParams();
   const initial = parseMarket(params.get("mercado"));
   const [matchId, setMatchId] = useState(params.get("partido") ?? "");
