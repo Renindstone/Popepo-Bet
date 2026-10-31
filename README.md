@@ -31,7 +31,7 @@ No promete ganancias: el backtest dice con honestidad dónde el modelo no le gan
 - **Sorpresas**: el equipo, el jugador y el once de la semana o del mes que más superaron lo esperado, el radar de los que van en racha o en baja, avisos en las apuestas cuando juega uno de ellos y «Por qué falló» cuando se pierde la apuesta del día.
 - **Cuotas mínimas** para props (remates, tarjetas, córners, jugadores): la cuota a partir de la cual vale la pena en Betano.
 - **Seguimiento** de tus apuestas: liquidación automática, ROI, CLV, banca, rendimiento por mercado, competición y casa, y límites de pérdida.
-- **Almacenamiento por niveles** (temporada actual / historial / archivo Parquet) con resúmenes de temporada. Ver [docs/adr/0003-almacenamiento-por-niveles.md](docs/adr/0003-almacenamiento-por-niveles.md).
+- **Almacenamiento por niveles** (temporada actual / historial / archivo Parquet) con resúmenes de temporada.
 
 ## Puesta en marcha
 
@@ -82,7 +82,7 @@ apuestas mcp --http --port 8765         # servidor MCP con autenticación por cl
 
 Cada usuario añade el servidor con su clave como `Authorization: Bearer apk_...`, y sus apuestas y su rendimiento quedan separados de los demás. Por ejemplo, en Claude Code:
 `claude mcp add --transport http apuestas https://TU_HOST/mcp --header "Authorization: Bearer apk_..."`.
-Para exponerlo fuera de tu red usa un túnel (Cloudflare Tunnel o Tailscale Funnel). Ver [docs/adr/0004-mcp-y-multiusuario.md](docs/adr/0004-mcp-y-multiusuario.md).
+Para exponerlo fuera de tu red usa un túnel (Cloudflare Tunnel o Tailscale Funnel).
 
 ### Panel web
 
@@ -144,7 +144,6 @@ Con **Leer con Claude** (o `APUESTAS_CAPTURES_ENGINE=claude_code`) la lee Claude
 - Por defecto solo se procesan automáticamente **tus** capturas (`APUESTAS_DEFAULT_USER`), porque la suscripción es personal. Los demás usuarios conectan su propio agente al MCP y le piden «procesa mis capturas pendientes».
 - Para pasar a la API de Claude (de pago, por captura): `.venv/bin/pip install -e ".[api]"`, y en `.env` pon `APUESTAS_CAPTURES_ENGINE=api` y `APUESTAS_ANTHROPIC_API_KEY=...`. Ese motor está preparado pero **aún no se ha probado con una clave real**.
 - Desde la terminal: `apuestas capturas lista` y `apuestas capturas procesar <id>`.
-- Detalles y alternativas: [docs/adr/0005-capturas-con-ia.md](docs/adr/0005-capturas-con-ia.md).
 
 ### Telegram (opcional)
 
@@ -176,7 +175,7 @@ Hay además una auditoría con datos públicos de 14 ligas (octubre de 2026), co
 
 ## Arquitectura
 
-Monolito modular más un worker (tareas programadas). Ver [docs/arquitectura.md](docs/arquitectura.md) y las [decisiones (ADR)](docs/adr/).
+Monolito modular más un worker (tareas programadas). Ver [docs/arquitectura.md](docs/arquitectura.md).
 
 Si trabajas en el código con una IA (Claude Code, Codex, Cursor…), [AGENTS.md](AGENTS.md) explica cómo debe trabajar y [docs/estado.md](docs/estado.md) en qué punto está el proyecto.
 
