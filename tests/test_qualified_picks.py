@@ -150,9 +150,25 @@ def test_retirada_que_vuelve_se_reabre_sin_duplicar(s):
 def test_la_apuesta_del_dia_queda_marcada_aunque_la_cambien(s):
     mt = match(s)
     p = picks._upsert_pick(s, mt, bet(), date(2026, 10, 20), "pre_lineup")
-    picks._announce_pod(p)
+    picks._announce_pod(s, p, 0.08)
     p.is_pick_of_day = False  # el recálculo eligió otra
     assert p.was_pick_of_day is True
+
+
+def test_cuenta_solo_la_mejor_apuesta_del_dia(s):
+    """El 30-10 hubo 4 apuestas del día por los recálculos: cuenta una, la de más valor por confianza, gane o pierda."""
+    day = date(2026, 10, 20)
+    mt = match(s)
+    a = picks._upsert_pick(s, mt, bet(selection="over"), day, "pre_lineup")
+    b = picks._upsert_pick(s, mt, bet(selection="under"), day, "confirmed")
+    other_day = picks._upsert_pick(s, mt, bet(line=3.5), date(2026, 10, 21), "pre_lineup")
+    picks._announce_pod(s, other_day, 0.01)
+    picks._announce_pod(s, a, 0.05)
+    picks._announce_pod(s, b, 0.08)  # el recálculo elige otra mejor: pasa a contar esa
+    assert (a.was_pick_of_day, b.was_pick_of_day, other_day.was_pick_of_day) == (False, True, True)
+    picks._announce_pod(s, a, 0.03)  # vuelve a ser la del día, pero peor que b: sigue contando b
+    assert (a.was_pick_of_day, b.was_pick_of_day, a.pod_score) == (False, True, 0.05)
+    assert picks.pick_record()["pending"] == 2  # una por día
 
 
 def test_el_contador_cuenta_la_anunciada_aunque_se_retire(s, monkeypatch):
@@ -160,7 +176,7 @@ def test_el_contador_cuenta_la_anunciada_aunque_se_retire(s, monkeypatch):
     monkeypatch.setattr(picks, "closing_reference", lambda *a: (1.9, "pinnacle", datetime(2026, 10, 20, 18, tzinfo=UTC)))
     mt = match(s)  # 2-1: Más de 2.5 gana
     p = picks._upsert_pick(s, mt, bet(odds=2.0), date(2026, 10, 20), "pre_lineup")
-    picks._announce_pod(p)
+    picks._announce_pod(s, p, 0.08)
     p.is_pick_of_day = True
     s.flush()
     picks._upsert_pick(s, mt, bet(odds=1.7), date(2026, 10, 20), "confirmed")

@@ -352,7 +352,10 @@ class Pick(Base):
     announced_odds: Mapped[float | None] = mapped_column(Float)
     announced_prob: Mapped[float | None] = mapped_column(Float)
     announced_ev: Mapped[float | None] = mapped_column(Float)
+    # La apuesta del día que cuenta para los aciertos: una por día, la de mayor `pod_score` (valor esperado × confianza
+    # al elegirla como apuesta del día, el mayor si lo fue varias veces). Las demás que lo fueron lo tienen sin marcar
     was_pick_of_day: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), index=True)
+    pod_score: Mapped[float | None] = mapped_column(Float)
     closing_odds: Mapped[float | None] = mapped_column(Float)  # cuota justa (sin margen) de la referencia del CLV
     clv: Mapped[float | None] = mapped_column(Float)
     closing_source: Mapped[str | None] = mapped_column(String(16))  # casa de la referencia (pinnacle, bet365...)

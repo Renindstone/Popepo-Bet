@@ -193,7 +193,8 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
         rows = sorted(s.scalars(select(m.Pick).where(m.Pick.pick_date == d,
                                                      m.Pick.odds >= get_settings().value_list_min_odds)),
                       key=lambda p: (not (p.qualifies and p.status != "withdrawn"), -p.ev))
-        pod = next((p for p in rows if p.is_pick_of_day), None)
+        # La que cuenta para los aciertos (una por día), no la última que se enseñó
+        pod = next((p for p in rows if p.was_pick_of_day), None)
         return {
             "date": d.isoformat(),
             "pick_of_day": None if pod is None else {
@@ -205,7 +206,7 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
                             "selection": p.selection, "line": p.line, "odds": p.odds, "ev": round(p.ev, 3),
                             "prob": round(p.model_prob, 3), "confidence": round(p.confidence, 2),
                             "status": p.status, "result": p.result, "qualifies": p.qualifies,
-                            "is_pick_of_day": p.is_pick_of_day, "clv": p.clv} for p in rows],
+                            "is_pick_of_day": p.was_pick_of_day, "clv": p.clv} for p in rows],
         }
 
 

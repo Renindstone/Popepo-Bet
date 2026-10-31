@@ -164,6 +164,9 @@ PATTERNS: list[tuple[str, str | Callable[[re.Match[str]], str]]] = [
      "it was not confirmed; shots and goals, no change"),
     (r"Hace caer al rival en fuera de juego (?P<k>[\d.]+) veces la media \(defensa adelantada\)",
      "Catches opponents offside {k} times the average (high defensive line)"),
+    (r"Para los aciertos cuenta «(?P<bet_t>.+?)» en (?P<match>.+): la de más valor por confianza de las que hoy fueron "
+     r"apuesta del día\.",
+     "The record counts “{bet_t}” in {match}: the highest value-times-confidence of today's bets of the day."),
     # Banca (tracker.py)
     (r"Llegaste al límite de pérdida diario \((?P<x>[^)]+)\)\. Para por hoy\.",
      "You hit the daily loss limit ({x}). Stop for today."),

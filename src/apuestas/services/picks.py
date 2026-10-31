@@ -20,7 +20,14 @@ from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.models.fitting import ModelBundle, load_bundle
 from apuestas.services import predictions, radar
-from apuestas.services.analysis import BetEval, MatchAnalysis, analyze, book_fair_prob, is_goal_market
+from apuestas.services.analysis import (
+    BetEval,
+    MatchAnalysis,
+    analyze,
+    bet_label,
+    book_fair_prob,
+    is_goal_market,
+)
 
 log = logging.getLogger(__name__)
 
@@ -89,11 +96,17 @@ def _announce(pick: m.Pick) -> None:
     pick.announced_odds, pick.announced_prob, pick.announced_ev = pick.odds, pick.model_prob, pick.ev
 
 
-def _announce_pod(pick: m.Pick) -> None:
-    """Marca que fue la apuesta del día (aunque luego el recálculo elija otra o se retire)."""
-    pick.was_pick_of_day = True
+def _announce_pod(s: Session, pick: m.Pick, sc: float) -> None:
+    """Fue la apuesta del día con valor por confianza `sc`. Durante el día puede cambiar, pero para los aciertos cuenta
+    una sola: la de mayor valor por confianza de las que lo fueron, aunque luego se retirara (sin mirar el resultado)."""
     if pick.announced_at is None:
         _announce(pick)
+    pick.pod_score = sc if pick.pod_score is None else max(pick.pod_score, sc)
+    s.flush()
+    rivals = list(s.scalars(select(m.Pick).where(m.Pick.pick_date == pick.pick_date, m.Pick.pod_score.is_not(None))))
+    best = max(rivals, key=lambda p: p.pod_score)
+    for p in rivals:
+        p.was_pick_of_day = p is best
 
 
 def taken_odds(p: m.Pick) -> float:
@@ -177,6 +190,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                 pick.status = "withdrawn"
                 if pick.is_pick_of_day:
                     report["notes"].append("La apuesta del día anterior se retiró: perdió valor con la nueva información")
+                    pick.is_pick_of_day = False  # si no, quedaban dos marcadas el mismo día
 
         # Elegir apuesta del día
         current = s.scalar(select(m.Pick).where(m.Pick.pick_date == day, m.Pick.is_pick_of_day.is_(True),
@@ -189,7 +203,9 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
             if current is not None and current.id != chosen.id:
                 current.is_pick_of_day = False
             chosen.is_pick_of_day = True
-            _announce_pod(chosen)
+            # Un día que aún no llega solo enseña una candidata: se calculaba la víspera, sin alineaciones
+            if day == today_local():
+                _announce_pod(s, chosen, score(best))
         else:
             chosen = None
             if current is not None:
@@ -198,6 +214,13 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                 "Hoy no hay apuesta del día: ninguna apuesta supera los umbrales de valor y confianza. "
                 "No apostar también es una decisión rentable.")
         s.flush()
+        counted = s.scalar(select(m.Pick).where(m.Pick.pick_date == day, m.Pick.was_pick_of_day.is_(True)))
+        if counted is not None and counted is not chosen:
+            cm = counted.match
+            label = bet_label(counted.market, counted.selection, counted.line, cm.home_team.name, cm.away_team.name)
+            report["notes"].append(
+                f"Para los aciertos cuenta «{label}» en {cm.home_team.name} vs {cm.away_team.name}: la de más valor por "
+                "confianza de las que hoy fueron apuesta del día.")
         if chosen is not None:
             mt = chosen.match
             report["pick_of_day"] = {
@@ -382,8 +405,8 @@ def clv_fields(p: m.Pick) -> dict:
 
 
 def pick_record() -> dict:
-    """Aciertos de la apuesta del día desde el primer día del sistema: todas las que se anunciaron como apuesta del
-    día, con la cuota anunciada, aunque luego se retiraran o el recálculo eligiera otra."""
+    """Aciertos de la apuesta del día desde el primer día del sistema: una por día (la de más valor por confianza de
+    las que fueron apuesta del día), con la cuota anunciada, aunque luego se retirara o el recálculo eligiera otra."""
     with session_scope() as s:
         rows = list(s.scalars(select(m.Pick).where(m.Pick.was_pick_of_day.is_(True))))
         out = record_from(rows)
