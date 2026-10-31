@@ -1,9 +1,20 @@
 # Popepo-Bet ⚽
 
-Análisis de apuestas de fútbol **prepartido** con modelos estadísticos para la **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía) y Champions League**.
-Calcula la probabilidad de cada mercado, la compara con la cuota de la casa (bet365, Betano) y propone una apuesta del día. Se usa desde un **panel web**, desde Claude (u otro agente) por **MCP**, por **API REST** o por **Telegram**.
+**Español** · [English](#english)
 
-No promete ganancias: el backtest dice con honestidad dónde el modelo no le gana a la casa (ver [más abajo](#resultado-del-backtest-honesto)).
+[![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-yellow.svg)](LICENSE)
+
+**Un modelo de apuestas de fútbol que te dice cuándo no apostar.** La mayoría de los proyectos de apuestas prometen ganar. Este mide con backtest dónde su modelo no le gana a la casa, lo publica, y solo propone una apuesta del día cuando pasa un corte de valor y confianza. Algunos días la respuesta es «hoy no hay apuesta».
+
+![Milan-Inter, el Derby della Madonnina: alineaciones previstas en el campo, con el rating de cada jugador](docs/img/partido-derbi.png)
+
+Análisis **prepartido** de la **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía) y Champions League**. Calcula la probabilidad de cada mercado (goles, hándicaps, remates, córners, faltas, tarjetas, offsides y jugadores), la compara con la cuota de la casa (bet365, Betano) y con el precio justo de Pinnacle. Se usa desde un **panel web**, desde Claude (u otro agente) por **MCP**, por **API REST** o por **Telegram**. Todo con datos gratuitos.
+
+| Estadísticas esperadas de cada equipo | Sorpresas de la semana |
+|---|---|
+| ![Barcelona-Alavés: remates, córners, faltas, tarjetas y offsides esperados de cada equipo](docs/img/estadisticas.png) | ![Equipo y jugador de la semana: quién superó lo que esperaban la casa y el modelo](docs/img/sorpresas.png) |
+
+No promete ganancias: el backtest dice con honestidad dónde el modelo no le gana a la casa (ver [más abajo](#resultado-del-backtest-honesto)). ¿Ideas, fallos o una liga que falta? Abre un *issue*, en español o en inglés.
 
 ## Qué hace
 
@@ -169,6 +180,42 @@ Monolito modular más un worker (tareas programadas). Ver [docs/arquitectura.md]
 
 Si trabajas en el código con una IA (Claude Code, Codex, Cursor…), [AGENTS.md](AGENTS.md) explica cómo debe trabajar y [docs/estado.md](docs/estado.md) en qué punto está el proyecto.
 
+## Licencia
+
+[MIT](LICENSE): puedes usar, copiar, modificar y distribuir el código, también con fines comerciales, manteniendo el aviso de copyright.
+
 ## Aviso
 
 Herramienta de análisis para uso personal. Ningún modelo garantiza ganancias: apuesta solo lo que puedas permitirte perder. Los datos de fuentes no oficiales se usan con ritmo moderado y no se redistribuyen.
+
+---
+
+## English
+
+**A football betting model that tells you when *not* to bet.** Most betting projects promise profits. This one backtests where its model does *not* beat the bookmaker, publishes it, and only suggests a "bet of the day" when a bet clears a value and confidence threshold. Some days the answer is "no bet today".
+
+Pre-match analysis for the **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga, Belgian Pro League, Süper Lig and the Champions League**, built only on free data (football-data.co.uk, FotMob, Understat; optionally Betano and Pinnacle odds through OddsPapi). Use it from a **web dashboard**, from Claude or any agent through **MCP**, from a **REST API** or from **Telegram**.
+
+### What it does
+
+- **Probabilities for every market**: Dixon-Coles for goals (1X2, handicaps, over/under, both teams to score) and negative binomial models for shots, shots on target, corners, fouls, cards and offsides, with a **referee factor**, derby effects (more fouls and cards in 46 rivalries such as El Clásico) and the bookmaker's 1X2 guiding how dominance splits between the teams. Player markets too: goals, assists, shots and cards, with expected minutes.
+- **Line-ups and absences**: compares the confirmed or predicted XI with each team's usual XI and adjusts the model; the confirmed line-up is checked 70, 50, 35, 20 and 10 minutes before kick-off.
+- **Value against the market**: blends the model with Pinnacle's no-vig price and compares it with bet365 and Betano. A separate model-free tool lists Betano prices above Pinnacle's fair odds.
+- **Bet of the day**, automatic settlement, ROI, CLV and bankroll tracking, plus **odds screenshots** read by a local AI (Ollama) and evaluated by the model.
+- **Surprises**: team, player and XI of the week, a radar of teams on a hot or cold streak, and "why it failed" when the bet of the day loses.
+
+### Honest results
+
+On the 2024-25 and 2025-26 seasons the model **does not beat bet365** on 1X2, over/under 2.5 or Asian handicap, even with the market's implied ratings (log-loss close to bet365's, but never below it). The stat models (shots, fouls, cards, corners, offsides) clearly beat league averages, but there are no free historical odds to measure their ROI. Every model change in this repository is justified with a walk-forward backtest; the numbers live in [docs/modelos.md](docs/modelos.md) (in Spanish).
+
+### Getting started
+
+The installation guide for Linux, macOS and Windows (WSL) is [docs/instalacion.md](docs/instalacion.md) (in Spanish; the commands are the same in any language). In short: install Git, Python 3.12+, PostgreSQL and Node.js 20.9+, then run `scripts/instalar.sh`. The first run downloads the match history (since 2023-24) and takes 3-4 hours. With Claude Code, the repository's `.mcp.json` exposes the `apuestas` MCP server: ask Claude to analyse a match or evaluate the odds you see.
+
+### Contributing
+
+Issues and pull requests are welcome, in English or Spanish. Good places to start: a new league or data source, a market the model doesn't cover yet, or a translation. If you work on the code with an AI agent, read [AGENTS.md](AGENTS.md) first: it explains the rules of the project (no scraping around anti-bot protections, every model change needs a backtest, no secrets in the repository).
+
+### License and disclaimer
+
+[MIT](LICENSE). This is an analysis tool for personal use. No model guarantees profits: only bet what you can afford to lose.

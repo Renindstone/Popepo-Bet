@@ -5,8 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "apuestas"
 version = "0.1.0"
-description = "Análisis de apuestas de fútbol (Premier, Bundesliga, LaLiga, Champions) con modelos estadísticos y servidor MCP."
+description = "Análisis de apuestas de fútbol prepartido (ocho ligas europeas y la Champions) con modelos estadísticos, panel web y servidor MCP."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = [
     "sqlalchemy>=2.0",
