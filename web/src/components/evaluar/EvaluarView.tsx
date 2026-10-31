@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { Cupon } from "@/components/evaluar/Cupon";
 import { CuotasCasa } from "@/components/evaluar/CuotasCasa";
 import { PenMark } from "@/components/PenMark";
@@ -125,10 +125,8 @@ export function EvaluarView() {
     }
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    if (!valid) return;
-    await evaluate({
+  function evaluateForm() {
+    return evaluate({
       market: marketCode,
       selection,
       odds: priceNum,
@@ -137,6 +135,23 @@ export function EvaluarView() {
       player: market.player ? player.trim() : null,
     });
   }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!valid) return;
+    await evaluateForm();
+  }
+
+  // Desde Hoy (la apuesta del día o una que pasa el corte) llega con la cuota: se evalúa al abrir y se baja hasta el
+  // resultado, que es donde se registra
+  const fromHoy = useRef(!!params.get("cuota"));
+  const scrollToResult = useRef(false);
+  useEffect(() => {
+    if (!fromHoy.current || !valid) return;
+    fromHoy.current = false;
+    scrollToResult.current = true;
+    void evaluateForm();
+  });
 
   /** Una cuota guardada de Betano: se copia al formulario y se evalúa */
   function pickBookOdd(o: BookOdd) {
@@ -352,7 +367,16 @@ export function EvaluarView() {
           ) : busy ? (
             <Loading lines={5} label={tr("Evaluando la cuota", "Checking the odds")} />
           ) : result ? (
-            <Resultado r={result.r} matchId={result.matchId} player={result.player} />
+            <div
+              ref={(el) => {
+                if (el && scrollToResult.current) {
+                  scrollToResult.current = false;
+                  el.scrollIntoView({ block: "nearest" });
+                }
+              }}
+            >
+              <Resultado r={result.r} matchId={result.matchId} player={result.player} />
+            </div>
           ) : slip.legs.length ? null : (
             <Explicacion />
           )}

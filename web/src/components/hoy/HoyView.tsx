@@ -294,6 +294,21 @@ function CaptureQuick() {
   );
 }
 
+/**
+ * Evaluar cuota con la apuesta ya rellena. Con la cuota y la casa, Evaluar la calcula al abrir y deja registrarla ahí
+ * mismo; sin ellas, sirve para escribir la cuota de otra casa.
+ */
+function evaluarHref(matchId: number, market: string, selection: string, line: number | null, odds?: number, bookmaker?: string) {
+  const q = new URLSearchParams({ partido: String(matchId), mercado: market, seleccion: selection });
+  if (line != null) q.set("linea", String(line));
+  if (odds != null) q.set("cuota", String(odds));
+  if (bookmaker) q.set("casa", bookmaker);
+  return `/evaluar?${q}`;
+}
+
+// La apuesta en sí lleva a registrarla; los equipos, al análisis del partido
+const betLink = "underline decoration-regla underline-offset-4 hover:decoration-tinta";
+
 // --------------------------------------------------------------------------- apuesta del día
 
 // La apuesta del día es el titular de la portada; sus cifras, la ficha
@@ -304,9 +319,9 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
   const [home, away] = splitMatch(pick.match);
   const label = betLabel(pick.market, pick.selection, pick.line, { home, away });
   const reasons = (pick.reasons ?? []).filter((r) => !r.startsWith("pick_id="));
-  const evaluarHref = pick.match_id
-    ? `/evaluar?partido=${pick.match_id}&mercado=${pick.market}&seleccion=${pick.selection}${pick.line != null ? `&linea=${pick.line}` : ""}`
-    : null;
+  const checkHref = pick.match_id ? evaluarHref(pick.match_id, pick.market, pick.selection, pick.line) : null;
+  const registerHref =
+    pick.match_id && !past ? evaluarHref(pick.match_id, pick.market, pick.selection, pick.line, pick.odds, pick.bookmaker) : null;
   const figures: { value: string; label: string; tone?: "boli" | "rojo" }[] = [
     ...(pick.prob != null ? [{ value: pct(pick.prob), label: tr("probabilidad", "probability") }] : []),
     ...(pick.fair_odds != null ? [{ value: odds(pick.fair_odds), label: tr("cuota justa", "fair odds") }] : []),
@@ -330,7 +345,17 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
     <article aria-labelledby="apuesta-del-dia">
       <h2 id="apuesta-del-dia" className={headline}>
         <span className="sr-only">{tr("Apuesta del día: ", "Bet of the day: ")}</span>
-        {label}
+        {registerHref ? (
+          <Link
+            href={registerHref}
+            title={tr("Evaluar y registrar esta apuesta", "Check and record this bet")}
+            className="underline decoration-regla decoration-4 underline-offset-8 hover:decoration-tinta"
+          >
+            {label}
+          </Link>
+        ) : (
+          label
+        )}
       </h2>
       <p className={deck}>
         <span className="mr-2 inline-block bg-rojo-portada px-2 align-[0.12em] text-nota leading-6 font-extrabold tracking-[0.08em] text-white uppercase">
@@ -382,8 +407,8 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
       )}
       {!past && <AlertList alerts={pick.alerts} className="mt-5" />}
       {past && pick.pick_id && (pick.result === "loss" || pick.result === "half_loss") && <PorQueFallo pickId={pick.pick_id} />}
-      {evaluarHref && !past && (
-        <Link href={evaluarHref} className="mt-4 inline-flex min-h-10 items-center text-interfaz font-bold text-boli underline underline-offset-4">
+      {checkHref && !past && (
+        <Link href={checkHref} className="mt-4 inline-flex min-h-10 items-center text-interfaz font-bold text-boli underline underline-offset-4">
           {tr("Comprobar la cuota de Betano", "Check the Betano odds")}
         </Link>
       )}
@@ -634,6 +659,21 @@ function CutTag({ row, short = false }: { row: ValueBet | PastValueBet; short?: 
   );
 }
 
+/** Nombre de la apuesta; si pasa el corte y aún no se juega, lleva a Evaluar para registrarla */
+function BetName({ row, home, away }: { row: ValueBet | PastValueBet; home: string; away: string }) {
+  const label = betLabel(row.market, row.selection, row.line, { home, away });
+  if (!isLive(row) || !row.qualifies) return <>{label}</>;
+  return (
+    <Link
+      href={evaluarHref(row.match_id, row.market, row.selection, row.line, row.odds, row.bookmaker)}
+      title={tr("Evaluar y registrar esta apuesta", "Check and record this bet")}
+      className={betLink}
+    >
+      {label}
+    </Link>
+  );
+}
+
 function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; order: Order }) {
   const [all, setAll] = useState(false);
   // Apuesta con el aviso del radar abierto, por su identidad (el índice cambia al reordenar o mostrar todas)
@@ -656,7 +696,9 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
             <li key={i} className="py-3">
               {i === divider && <p className="mb-3 text-nota font-semibold text-grafito">{tr("No llegan al corte", "Short of the cut")}</p>}
               <div className="flex items-start justify-between gap-4">
-                <span className="font-semibold">{betLabel(r.market, r.selection, r.line, { home, away })}</span>
+                <span className="font-semibold">
+                  <BetName row={r} home={home} away={away} />
+                </span>
                 <span className="cond num text-2xl leading-none font-bold">{odds(r.odds)}</span>
               </div>
               <p className="mt-0.5 text-nota text-grafito">
@@ -747,7 +789,7 @@ function ValueBets({ rows: input, order }: { rows: (ValueBet | PastValueBet)[]; 
                       {isLive(r) && <AlertTags alerts={r.alerts} open={open === keyOf(r)} onToggle={() => toggle(r)} />}
                     </td>
                     <td className={td}>
-                      {betLabel(r.market, r.selection, r.line, { home, away })}
+                      <BetName row={r} home={home} away={away} />
                       {isLive(r) && <span className="block text-nota text-grafito">{bookmakerName(r.bookmaker)}</span>}
                     </td>
                     <td className={`${td} num cond text-right text-xl font-extrabold`}>{odds(r.odds)}</td>
