@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { tr } from "@/lib/i18n";
 
 /**
  * Fila que se desplaza de lado cuando no cabe (el menú y las pestañas en el celular). Si queda algo fuera, ese borde
@@ -69,7 +70,7 @@ function Arrow({ side, onClick }: { side: "left" | "right"; onClick: () => void 
       type="button"
       tabIndex={-1}
       onClick={onClick}
-      aria-label={right ? "Ver más a la derecha" : "Ver más a la izquierda"}
+      aria-label={right ? tr("Ver más a la derecha", "See more on the right") : tr("Ver más a la izquierda", "See more on the left")}
       className={`absolute inset-y-0 flex w-12 items-center from-papel from-45% to-transparent text-grafito transition-colors hover:text-tinta ${
         right ? "right-0 justify-end bg-linear-to-l pr-2" : "left-0 justify-start bg-linear-to-r pl-2"
       }`}

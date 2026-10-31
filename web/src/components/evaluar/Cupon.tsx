@@ -6,6 +6,8 @@ import { ComboResult } from "@/components/ComboResult";
 import { Button, ErrorNote, Loading, Tag } from "@/components/ui";
 import { type ApiError, post, useApi } from "@/lib/api";
 import { money, odds } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { betLabel } from "@/lib/markets";
 import type { CaptureCombo, Performance, RegisteredBet } from "@/lib/types";
 import {
   clearSlip,
@@ -57,18 +59,20 @@ export function Cupon() {
     return (
       <section aria-labelledby="cupon-titulo" className="border border-boli/50 bg-hoja px-5 py-4">
         <h2 id="cupon-titulo" className="semi text-lg font-bold">
-          Combinada registrada (n.º {registered.bet_id})
+          {tr(`Combinada registrada (n.º ${registered.bet_id})`, `Accumulator saved (no. ${registered.bet_id})`)}
         </h2>
         <p className="mt-1 text-interfaz">
-          {money(registered.stake, registered.bankroll.currency)} a {odds(registered.odds)}. Se liquida sola cuando
-          terminen sus partidos.
+          {tr(
+            `${money(registered.stake, registered.bankroll.currency)} a ${odds(registered.odds)}. Se liquida sola cuando terminen sus partidos.`,
+            `${money(registered.stake, registered.bankroll.currency)} at ${odds(registered.odds)}. It settles on its own when its matches end.`,
+          )}
         </p>
         <div className="mt-3 flex flex-wrap gap-4">
           <Link href="/rendimiento" className="font-semibold text-boli underline underline-offset-4">
-            Ver mis apuestas
+            {tr("Ver mis apuestas", "See my bets")}
           </Link>
           <button type="button" onClick={() => setRegistered(null)} className="font-semibold text-grafito hover:text-tinta">
-            Cerrar
+            {tr("Cerrar", "Close")}
           </button>
         </div>
       </section>
@@ -96,13 +100,13 @@ export function Cupon() {
     <section aria-labelledby="cupon-titulo" className="border border-regla bg-hoja">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 pt-4 sm:px-6">
         <h2 id="cupon-titulo" className="semi text-lg font-bold">
-          Tu cupón
+          {tr("Tu cupón", "Your slip")}
         </h2>
         <p className="text-nota text-grafito">
-          {slip.legs.length} {slip.legs.length === 1 ? "selección" : "selecciones"} · {nMatches}{" "}
-          {nMatches === 1 ? "partido" : "partidos"}
+          {slip.legs.length} {slip.legs.length === 1 ? tr("selección", "selection") : tr("selecciones", "selections")} · {nMatches}{" "}
+          {nMatches === 1 ? tr("partido", "match") : tr("partidos", "matches")}
           <button type="button" onClick={clearSlip} className="ml-4 font-semibold text-grafito underline underline-offset-4 hover:text-rojo">
-            Vaciar
+            {tr("Vaciar", "Clear")}
           </button>
         </p>
       </div>
@@ -121,15 +125,18 @@ export function Cupon() {
                 {builder && <Tag tone="boli">Bet Builder</Tag>}
               </div>
               <ul className="mt-1.5 space-y-1">
-                {b.legs.map((l) => (
+                {b.legs.map((l) => {
+                  // Se rehace en el idioma en uso: la etiqueta guardada es la del idioma de cuando se añadió
+                  const label = betLabel(l.market, l.selection, l.line, { home: l.home, away: l.away, player: l.player });
+                  return (
                   <li key={l.id} className="flex items-center justify-between gap-3 text-interfaz">
-                    <span className="min-w-0">{l.label}</span>
+                    <span className="min-w-0">{label}</span>
                     <span className="flex shrink-0 items-center gap-2">
                       <span className="num font-semibold">{odds(l.odds)}</span>
                       <button
                         type="button"
                         onClick={() => removeLeg(l.id)}
-                        aria-label={`Quitar ${l.label}`}
+                        aria-label={tr(`Quitar ${label}`, `Remove ${label}`)}
                         className="flex size-7 items-center justify-center text-grafito hover:bg-papel hover:text-rojo"
                       >
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4">
@@ -138,13 +145,14 @@ export function Cupon() {
                       </button>
                     </span>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
               {builder && (
                 <div className="mt-2 grid grid-cols-[9rem_minmax(0,1fr)] items-end gap-3">
                   <div>
                     <label htmlFor={`bb-${b.matchId}`} className={labelCls}>
-                      Cuota del Bet Builder
+                      {tr("Cuota del Bet Builder", "Bet Builder odds")}
                     </label>
                     <input
                       id={`bb-${b.matchId}`}
@@ -156,7 +164,10 @@ export function Cupon() {
                     />
                   </div>
                   <p className="pb-2 text-nota text-grafito">
-                    La casa suele pagar menos que el producto de las cuotas: escribe la que te muestra.
+                    {tr(
+                      "La casa suele pagar menos que el producto de las cuotas: escribe la que te muestra.",
+                      "The bookmaker usually pays less than the product of the odds: type the one it shows you.",
+                    )}
                   </p>
                 </div>
               )}
@@ -168,7 +179,7 @@ export function Cupon() {
       <div className="mt-4 grid gap-4 px-5 sm:grid-cols-[9rem_minmax(0,1fr)] sm:px-6">
         <div>
           <label htmlFor="cuota-total" className={labelCls}>
-            Cuota total
+            {tr("Cuota total", "Total odds")}
           </label>
           <input
             id="cuota-total"
@@ -180,7 +191,7 @@ export function Cupon() {
           />
         </div>
         <fieldset>
-          <legend className={labelCls}>Casa</legend>
+          <legend className={labelCls}>{tr("Casa", "Bookmaker")}</legend>
           <div className="flex gap-1.5">
             {[
               ["betano", "Betano"],
@@ -204,7 +215,7 @@ export function Cupon() {
 
       <div className="mt-4 px-5 pb-5 sm:px-6">
         <Button variant="primary" onClick={evaluate} disabled={busy}>
-          {busy ? "Evaluando…" : "Evaluar cupón"}
+          {busy ? tr("Evaluando…", "Checking…") : tr("Evaluar cupón", "Check slip")}
         </Button>
         {error && (
           <div className="mt-3">
@@ -213,11 +224,13 @@ export function Cupon() {
         )}
         {busy && (
           <div className="mt-4">
-            <Loading lines={3} label="Evaluando el cupón" />
+            <Loading lines={3} label={tr("Evaluando el cupón", "Checking the slip")} />
           </div>
         )}
         {!busy && evaluation && !fresh && (
-          <p className="mt-3 text-nota text-grafito">Cambiaste el cupón: vuelve a evaluarlo para ver los números al día.</p>
+          <p className="mt-3 text-nota text-grafito">
+            {tr("Cambiaste el cupón: vuelve a evaluarlo para ver los números al día.", "You changed the slip: check it again to see up-to-date numbers.")}
+          </p>
         )}
         {!busy && fresh && (
           <div className="mt-4">
@@ -269,15 +282,17 @@ function RegistrarCupon({
 
   return (
     <div className="border-t border-regla px-5 py-5 sm:px-6">
-      <h3 className="semi text-base font-bold">Registrar el cupón</h3>
+      <h3 className="semi text-base font-bold">{tr("Registrar el cupón", "Record the slip")}</h3>
       <p className="mt-0.5 max-w-[60ch] text-nota text-grafito">
-        Solo si ya lo apostaste. Cuenta como una sola apuesta a cuota {odds(total)} y se liquida sola cuando terminen sus
-        partidos: basta una selección perdida para perderlo.
+        {tr(
+          `Solo si ya lo apostaste. Cuenta como una sola apuesta a cuota ${odds(total)} y se liquida sola cuando terminen sus partidos: basta una selección perdida para perderlo.`,
+          `Only if you already placed it. It counts as a single bet at odds ${odds(total)} and settles on its own when its matches end: one lost selection is enough to lose it.`,
+        )}
       </p>
       <div className="mt-3 grid gap-4 sm:grid-cols-[9rem_minmax(0,1fr)]">
         <div>
           <label htmlFor="cupon-importe" className={labelCls}>
-            Importe ({currency === "PEN" ? "S/" : currency})
+            {tr("Importe", "Stake")} ({currency === "PEN" ? "S/" : currency})
           </label>
           <input
             id="cupon-importe"
@@ -293,7 +308,7 @@ function RegistrarCupon({
         </div>
         <div>
           <label htmlFor="cupon-notas" className={labelCls}>
-            Notas (opcional)
+            {tr("Notas (opcional)", "Notes (optional)")}
           </label>
           <input id="cupon-notas" className={field} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
@@ -306,15 +321,17 @@ function RegistrarCupon({
       <div className="mt-4 flex flex-wrap gap-3">
         {!confirming ? (
           <Button onClick={() => setConfirming(true)} disabled={!(stakeNum > 0)}>
-            Registrar cupón
+            {tr("Registrar cupón", "Record slip")}
           </Button>
         ) : (
           <>
             <Button variant="primary" onClick={register} disabled={busy}>
-              {busy ? "Registrando…" : `Sí, registrar ${money(stakeNum, currency)} a ${odds(total)}`}
+              {busy
+                ? tr("Registrando…", "Saving…")
+                : tr(`Sí, registrar ${money(stakeNum, currency)} a ${odds(total)}`, `Yes, record ${money(stakeNum, currency)} at ${odds(total)}`)}
             </Button>
             <Button onClick={() => setConfirming(false)} disabled={busy}>
-              Cancelar
+              {tr("Cancelar", "Cancel")}
             </Button>
           </>
         )}

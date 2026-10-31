@@ -6,6 +6,7 @@ se permite sin clave usando el usuario por defecto.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -17,6 +18,7 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from apuestas import __version__
+from apuestas.api import i18n
 from apuestas.config import get_settings
 from apuestas.db.session import session_scope
 from apuestas.services import (
@@ -52,8 +54,23 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Content-Type", "X-API-Key"],
+    allow_headers=["Content-Type", "X-API-Key", "Accept-Language"],
 )
+
+
+@app.middleware("http")
+async def english(request: Request, call_next):
+    """Con `Accept-Language: en` (el panel en inglés) los textos de las respuestas JSON salen traducidos (api/i18n.py)."""
+    response = await call_next(request)
+    response.headers.append("Vary", "Accept-Language")
+    if not i18n.wants_english(request.headers.get("accept-language")) or \
+            response.headers.get("content-type") != "application/json":
+        return response
+    body = b"".join([chunk async for chunk in response.body_iterator])
+    data = i18n.translate(json.loads(body))
+    headers = {k: v for k, v in response.headers.items() if k != "content-length"}
+    return Response(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode(), response.status_code,
+                    headers=headers, media_type="application/json")
 
 
 LOCAL_CLIENTS = ("127.0.0.1", "::1", "localhost", "testclient")

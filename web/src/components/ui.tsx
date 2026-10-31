@@ -3,6 +3,7 @@
 import { type FormEvent, type ReactNode, useState, useSyncExternalStore } from "react";
 import { type ApiError, getApiKey, setApiKey } from "@/lib/api";
 import { pct } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 
 export function PageTitle({ title, sub, actions }: { title: string; sub?: ReactNode; actions?: ReactNode }) {
   return (
@@ -41,10 +42,10 @@ export function Section({
   );
 }
 
-export function Loading({ lines = 3, label = "Cargando…" }: { lines?: number; label?: string }) {
+export function Loading({ lines = 3, label }: { lines?: number; label?: string }) {
   return (
     <div role="status" aria-live="polite" className="space-y-2.5 py-2">
-      <span className="sr-only">{label}</span>
+      <span className="sr-only">{label ?? tr("Cargando…", "Loading…")}</span>
       {Array.from({ length: lines }, (_, i) => (
         <div key={i} className="esqueleto h-4" style={{ width: `${92 - i * 17}%` }} />
       ))}
@@ -60,18 +61,20 @@ export function ErrorNote({ error, onRetry }: { error: ApiError | Error; onRetry
     return (
       <div role="alert" className="max-w-[68ch] border-t-[3px] border-boli bg-boli-suave/60 px-4 py-3">
         <p className="font-semibold">{error.message}</p>
-        <p className="mt-0.5 mb-3 text-interfaz">Escribe la clave que te pasaron. Se guarda solo en este navegador.</p>
+        <p className="mt-0.5 mb-3 text-interfaz">
+          {tr("Escribe la clave que te pasaron. Se guarda solo en este navegador.", "Type the key you were given. It is only saved in this browser.")}
+        </p>
         <ApiKeyForm onSaved={() => window.location.reload()} />
       </div>
     );
   }
   return (
     <div role="alert" className="max-w-[68ch] border-t-[3px] border-rojo bg-rojo-suave/60 px-4 py-3">
-      <p className="font-semibold">No se pudo cargar</p>
+      <p className="font-semibold">{tr("No se pudo cargar", "Could not load")}</p>
       <p className="mt-0.5 text-interfaz">{error.message}</p>
       {onRetry && retryable && (
         <button type="button" onClick={onRetry} className="mt-1 inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4">
-          Reintentar
+          {tr("Reintentar", "Retry")}
         </button>
       )}
     </div>
@@ -81,7 +84,7 @@ export function ErrorNote({ error, onRetry }: { error: ApiError | Error; onRetry
 const noop = () => () => {};
 
 /** Clave de acceso a la API, guardada en este navegador (para usar el panel desde otro equipo). */
-export function ApiKeyForm({ label = "Clave de acceso", onSaved }: { label?: string; onSaved?: (key: string) => void }) {
+export function ApiKeyForm({ label, onSaved }: { label?: string; onSaved?: (key: string) => void }) {
   const stored = useSyncExternalStore(noop, getApiKey, () => "");
   const [key, setKey] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -99,7 +102,7 @@ export function ApiKeyForm({ label = "Clave de acceso", onSaved }: { label?: str
       <form onSubmit={save} className="flex max-w-xl flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1">
           <label htmlFor="clave" className="mb-1 block text-nota font-semibold">
-            {label}
+            {label ?? tr("Clave de acceso", "Access key")}
           </label>
           <input
             id="clave"
@@ -114,9 +117,13 @@ export function ApiKeyForm({ label = "Clave de acceso", onSaved }: { label?: str
             className="h-11 w-full border border-regla bg-hoja px-3 text-tinta focus:border-boli"
           />
         </div>
-        <Button type="submit">Guardar clave</Button>
+        <Button type="submit">{tr("Guardar clave", "Save key")}</Button>
       </form>
-      {saved && <p className="mt-2 text-nota text-grafito">{value.trim() ? "Clave guardada." : "Clave borrada."}</p>}
+      {saved && (
+        <p className="mt-2 text-nota text-grafito">
+          {value.trim() ? tr("Clave guardada.", "Key saved.") : tr("Clave borrada.", "Key removed.")}
+        </p>
+      )}
     </>
   );
 }
@@ -204,7 +211,7 @@ export function EdgeBar({ prob, odds, compact = false }: { prob: number; odds: n
   const lo = Math.min(prob, implied);
   const hi = Math.max(prob, implied);
   const good = prob > implied;
-  const text = `La cuota implica ${pct(implied)}; estimamos ${pct(prob)}`;
+  const text = tr(`La cuota implica ${pct(implied)}; estimamos ${pct(prob)}`, `The odds imply ${pct(implied)}; we estimate ${pct(prob)}`);
   return (
     <div className={compact ? "w-full min-w-24" : "w-full"}>
       <div className="relative h-5" title={compact ? text : undefined}>
@@ -227,10 +234,11 @@ export function EdgeBar({ prob, odds, compact = false }: { prob: number; odds: n
       ) : (
         <div className="mt-1.5 flex justify-between gap-4 text-nota text-grafito">
           <span>
-            La cuota implica <strong className="num font-semibold text-tinta">{pct(implied)}</strong>
+            {tr("La cuota implica", "The odds imply")} <strong className="num font-semibold text-tinta">{pct(implied)}</strong>
           </span>
           <span>
-            Estimamos <strong className={`num font-semibold ${good ? "text-boli" : "text-rojo"}`}>{pct(prob)}</strong>
+            {tr("Estimamos", "We estimate")}{" "}
+            <strong className={`num font-semibold ${good ? "text-boli" : "text-rojo"}`}>{pct(prob)}</strong>
           </span>
         </div>
       )}
@@ -252,7 +260,7 @@ export function TriBar({
 }) {
   const parts = [
     { key: "home", label: home, p: probs.home, cls: "bg-tinta" },
-    { key: "draw", label: "Empate", p: probs.draw, cls: "bg-regla" },
+    { key: "draw", label: tr("Empate", "Draw"), p: probs.draw, cls: "bg-regla" },
     { key: "away", label: away, p: probs.away, cls: "bg-grafito" },
   ];
   return (
@@ -260,7 +268,7 @@ export function TriBar({
       <div
         className={`flex w-full gap-[2px] overflow-hidden ${size === "lg" ? "h-3" : "h-1.5"}`}
         role="img"
-        aria-label={`${home} ${pct(probs.home)}, empate ${pct(probs.draw)}, ${away} ${pct(probs.away)}`}
+        aria-label={`${home} ${pct(probs.home)}, ${tr("empate", "draw")} ${pct(probs.draw)}, ${away} ${pct(probs.away)}`}
       >
         {parts.map((x) => (
           <div key={x.key} className={x.cls} style={{ width: `${x.p * 100}%` }} />

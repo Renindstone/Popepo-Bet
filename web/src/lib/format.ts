@@ -1,10 +1,11 @@
-// Formato de cifras y fechas: español de Perú, hora de Lima
+// Formato de cifras y fechas en el idioma del panel (español de Perú o inglés británico), hora de Lima
+
+import { lang, locale, tr } from "./i18n";
 
 export const TZ = "America/Lima";
-const LOCALE = "es-PE";
 
 const pctFmt = (digits: number) =>
-  new Intl.NumberFormat(LOCALE, { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits });
+  new Intl.NumberFormat(locale(), { style: "percent", minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 export function pct(p: number | null | undefined, digits = 0): string {
   if (p == null || Number.isNaN(p)) return "—";
@@ -14,7 +15,7 @@ export function pct(p: number | null | undefined, digits = 0): string {
 /** Porcentaje con signo: valor esperado, ROI, CLV */
 export function signedPct(p: number | null | undefined, digits = 1): string {
   if (p == null || Number.isNaN(p)) return "—";
-  return new Intl.NumberFormat(LOCALE, {
+  return new Intl.NumberFormat(locale(), {
     style: "percent",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -29,17 +30,18 @@ export function odds(o: number | null | undefined): string {
 
 export function num(n: number | null | undefined, digits = 1): string {
   if (n == null || Number.isNaN(n)) return "—";
-  return new Intl.NumberFormat(LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
+  return new Intl.NumberFormat(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(n);
 }
 
 export function int(n: number | null | undefined): string {
   if (n == null) return "—";
-  return new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 }).format(n);
 }
 
 export function money(n: number | null | undefined, currency = "PEN", signed = false): string {
   if (n == null || Number.isNaN(n)) return "—";
-  return new Intl.NumberFormat(LOCALE, {
+  // En los dos idiomas con el formato de Perú: en inglés los soles saldrían «PEN 10.00» en vez de «S/ 10.00»
+  return new Intl.NumberFormat("es-PE", {
     style: "currency",
     currency,
     signDisplay: signed ? "exceptZero" : "auto",
@@ -58,7 +60,7 @@ export function lineText(market: string, line: number | null | undefined): strin
 export function dateTimeLima(iso: string | null | undefined): string {
   if (!iso) return "—";
   const d = new Date(iso);
-  return new Intl.DateTimeFormat(LOCALE, {
+  return new Intl.DateTimeFormat(locale(), {
     timeZone: TZ,
     day: "numeric",
     month: "short",
@@ -68,11 +70,11 @@ export function dateTimeLima(iso: string | null | undefined): string {
   }).format(d);
 }
 
-/** "hace 2 horas", "hace 3 días" */
+/** "hace 2 horas", "hace 3 días" ("2 hours ago") */
 export function ago(iso: string | null | undefined, now: Date = new Date()): string {
   if (!iso) return "";
   const diff = (new Date(iso).getTime() - now.getTime()) / 1000;
-  const rtf = new Intl.RelativeTimeFormat("es", { numeric: "auto" });
+  const rtf = new Intl.RelativeTimeFormat(lang(), { numeric: "auto" });
   const abs = Math.abs(diff);
   if (abs < 60) return rtf.format(Math.round(diff), "second");
   if (abs < 3600) return rtf.format(Math.round(diff / 60), "minute");
@@ -103,15 +105,16 @@ export function weekLabel(monday: string): string {
   return rangeLabel(monday, shiftDay(monday, 6));
 }
 
-/** "del 26 de octubre al 22 de noviembre" entre dos fechas AAAA-MM-DD */
+/** "del 26 de octubre al 22 de noviembre" ("26 October to 22 November") entre dos fechas AAAA-MM-DD */
 export function rangeLabel(start: string, end: string): string {
   const fmt = (day: string, month: boolean) => {
     const [y, m, d] = day.split("-").map(Number);
-    return new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", day: "numeric", ...(month ? { month: "long" } : {}) }).format(
+    return new Intl.DateTimeFormat(locale(), { timeZone: "UTC", day: "numeric", ...(month ? { month: "long" } : {}) }).format(
       new Date(Date.UTC(y, m - 1, d)),
     );
   };
-  return `del ${fmt(start, start.slice(5, 7) !== end.slice(5, 7))} al ${fmt(end, true)}`;
+  const from = fmt(start, start.slice(5, 7) !== end.slice(5, 7));
+  return tr(`del ${from} al ${fmt(end, true)}`, `${from} to ${fmt(end, true)}`);
 }
 
 /** Lunes desde el que hay un mes (4 semanas completas) con la previa guardada desde `historySince` */
@@ -138,10 +141,10 @@ export function shortName(name: string): string {
   return last;
 }
 
-/** "lunes 19 de octubre" a partir de YYYY-MM-DD */
+/** "lunes, 19 de octubre" ("Monday 19 October") a partir de YYYY-MM-DD */
 export function longDay(day: string): string {
   const [y, m, d] = day.split("-").map(Number);
-  return new Intl.DateTimeFormat(LOCALE, { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(
+  return new Intl.DateTimeFormat(locale(), { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).format(
     new Date(Date.UTC(y, m - 1, d)),
   );
 }
@@ -169,25 +172,25 @@ export function competitionName(code: string): string {
   return COMPETITIONS[code] ?? code;
 }
 
-export const STAGES: Record<string, string> = {
-  confirmed: "Alineaciones confirmadas",
-  predicted: "Alineaciones previstas",
-  injuries_only: "Solo bajas conocidas",
-  none: "Sin alineaciones",
+const STAGES: Record<string, [string, string]> = {
+  confirmed: ["Alineaciones confirmadas", "Confirmed line-ups"],
+  predicted: ["Alineaciones previstas", "Predicted line-ups"],
+  injuries_only: ["Solo bajas conocidas", "Known absences only"],
+  none: ["Sin alineaciones", "No line-ups"],
 };
 
 export function stageText(stage: string | null | undefined): string {
-  if (!stage) return "Sin alineaciones";
-  return STAGES[stage] ?? stage;
+  if (!stage) return tr(...STAGES.none);
+  return STAGES[stage] ? tr(...STAGES[stage]) : stage;
 }
 
-export const RESULTS: Record<string, string> = {
-  win: "Ganada",
-  half_win: "Medio ganada",
-  push: "Devuelta",
-  half_loss: "Medio perdida",
-  loss: "Perdida",
-  void: "Anulada",
+const RESULTS: Record<string, [string, string]> = {
+  win: ["Ganada", "Won"],
+  half_win: ["Medio ganada", "Half won"],
+  push: ["Devuelta", "Refunded"],
+  half_loss: ["Medio perdida", "Half lost"],
+  loss: ["Perdida", "Lost"],
+  void: ["Anulada", "Void"],
 };
 
 /** Tono de la etiqueta de un resultado: azul si se ganó, rojo si se perdió (siempre con su palabra) */
@@ -199,8 +202,8 @@ export const RESULT_TONE: Record<string, "boli" | "rojo" | "neutral"> = {
 };
 
 export function resultText(r: string | null | undefined): string {
-  if (!r) return "Pendiente";
-  return RESULTS[r] ?? r;
+  if (!r) return tr("Pendiente", "Pending");
+  return RESULTS[r] ? tr(...RESULTS[r]) : r;
 }
 
 /** "Tottenham Hotspur vs Coventry City" → ["Tottenham Hotspur", "Coventry City"] */

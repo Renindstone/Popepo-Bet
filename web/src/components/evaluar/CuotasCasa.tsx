@@ -4,15 +4,17 @@ import { useState } from "react";
 import { Empty, ErrorNote, Loading, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { odds, pct, signedPct } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import { marketName } from "@/lib/markets";
 import { addLeg, updateSlip, useSlip } from "@/lib/slip";
 import type { BookOdd, BookOdds, MatchSummary } from "@/lib/types";
 
-const VERDICT: Record<string, { text: string; tone: "boli" | "tarjeta" | "neutral" }> = {
-  APOSTAR: { text: "Apostar", tone: "boli" },
-  "valor pequeño o poca confianza": { text: "Valor pequeño", tone: "tarjeta" },
+// El veredicto llega de la API en español: es la clave
+const verdicts = (): Record<string, { text: string; tone: "boli" | "tarjeta" | "neutral" }> => ({
+  APOSTAR: { text: tr("Apostar", "Bet"), tone: "boli" },
+  "valor pequeño o poca confianza": { text: tr("Valor pequeño", "Small value"), tone: "tarjeta" },
   "NO apostar": { text: "No", tone: "neutral" },
-};
+});
 const STAT_MARKETS = /corners|cards|shots|sot|fouls/;
 
 /**
@@ -26,10 +28,21 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
   const teams = { home: match.home, away: match.away };
 
   if (error) return <ErrorNote error={error} onRetry={() => mutate()} />;
-  if (!data) return <Loading lines={4} label="Cargando cuotas de Betano" />;
+  if (!data) return <Loading lines={4} label={tr("Cargando cuotas de Betano", "Loading Betano odds")} />;
   if (data.odds.length === 0) {
-    return <Empty>No hay cuotas de Betano guardadas para este partido (se descargan cada mañana a las 08:30).</Empty>;
+    return (
+      <Empty>
+        {tr(
+          "No hay cuotas de Betano guardadas para este partido (se descargan cada mañana a las 08:30).",
+          "No Betano odds saved for this match (they are downloaded every morning at 08:30).",
+        )}
+      </Empty>
+    );
   }
+  const VERDICT = verdicts();
+  const at = data.captured_local ?? "";
+  const saved = { date: `${at.slice(8, 10)}/${at.slice(5, 7)}`, time: at.slice(11) };
+  const positive = data.odds.filter((o) => o.ev > 0).length;
 
   const rows = all ? data.odds : data.odds.filter((o) => o.ev > 0);
   const groups = new Map<string, BookOdd[]>();
@@ -60,14 +73,15 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-nota text-grafito">
-          Guardadas el {data.captured_local?.slice(8, 10)}/{data.captured_local?.slice(5, 7)} a las{" "}
-          {data.captured_local?.slice(11)}: la cuota en Betano puede haber cambiado. {data.odds.length} cuotas,{" "}
-          {data.odds.filter((o) => o.ev > 0).length} con valor positivo.
+          {tr(
+            `Guardadas el ${saved.date} a las ${saved.time}: la cuota en Betano puede haber cambiado. ${data.odds.length} cuotas, ${positive} con valor positivo.`,
+            `Saved on ${saved.date} at ${saved.time}: the Betano odds may have changed. ${data.odds.length} odds, ${positive} with positive value.`,
+          )}
         </p>
         <div className="flex gap-1">
           {[
-            [false, "Con valor"],
-            [true, "Todas"],
+            [false, tr("Con valor", "With value")],
+            [true, tr("Todas", "All")],
           ].map(([value, label]) => (
             <button
               key={String(value)}
@@ -84,7 +98,7 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
         </div>
       </div>
       {rows.length === 0 ? (
-        <Empty>Ninguna cuota de Betano de este partido tiene valor según el modelo.</Empty>
+        <Empty>{tr("Ninguna cuota de Betano de este partido tiene valor según el modelo.", "None of this match's Betano odds has value according to the model.")}</Empty>
       ) : (
         <div className="space-y-2">
           {sorted.map(([market, items]) => {
@@ -94,7 +108,9 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
               <summary className="cursor-pointer px-3 py-2 font-semibold">
                 {title} <span className="font-normal text-grafito">({items.length})</span>
                 {STAT_MARKETS.test(market) && (
-                  <span className="ml-2 text-nota font-normal text-grafito">sin validar con cuotas reales: con cautela</span>
+                  <span className="ml-2 text-nota font-normal text-grafito">
+                    {tr("sin validar con cuotas reales: con cautela", "not validated with real odds: be careful")}
+                  </span>
                 )}
               </summary>
               {/* Mismos anchos en todos los grupos: las columnas quedan alineadas de un mercado a otro */}
@@ -140,15 +156,15 @@ export function CuotasCasa({ match, onUse }: { match: MatchSummary; onUse: (o: B
                                 onClick={() => onUse(o)}
                                 className="min-h-7 font-semibold text-boli underline underline-offset-4"
                               >
-                                Evaluar
+                                {tr("Evaluar", "Check")}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => toSlip(o)}
-                                aria-label={`Añadir ${o.label} al cupón`}
+                                aria-label={tr(`Añadir ${o.label} al cupón`, `Add ${o.label} to the slip`)}
                                 className="min-h-7 font-semibold text-grafito underline underline-offset-4 hover:text-tinta"
                               >
-                                + Cupón
+                                {tr("+ Cupón", "+ Slip")}
                               </button>
                             </div>
                           </td>

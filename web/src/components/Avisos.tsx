@@ -1,11 +1,14 @@
 import { AlertTag, reasonText } from "@/components/semana/Radar";
 import { signedNum } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import type { Alert } from "@/lib/types";
 
 function headline(a: Alert): string {
-  if (a.reason.type === "batacazo") return `${a.name} viene de un batacazo`;
-  if (a.reason.type === "pinchazo") return `${a.name} viene de un pinchazo`;
-  return `${a.name} viene rindiendo ${a.kind === "racha" ? "por encima" : "por debajo"} de lo esperado`;
+  if (a.reason.type === "batacazo") return tr(`${a.name} viene de un batacazo`, `${a.name} is coming off a big upset`);
+  if (a.reason.type === "pinchazo") return tr(`${a.name} viene de un pinchazo`, `${a.name} is coming off a slip-up`);
+  return a.kind === "racha"
+    ? tr(`${a.name} viene rindiendo por encima de lo esperado`, `${a.name} has been doing better than expected`)
+    : tr(`${a.name} viene rindiendo por debajo de lo esperado`, `${a.name} has been doing worse than expected`);
 }
 
 function figuresText(a: Alert): string | null {
@@ -13,15 +16,15 @@ function figuresText(a: Alert): string | null {
   const parts = a.figures.map((f) => {
     const where =
       f.lineup === "confirmado"
-        ? "en el once confirmado"
+        ? tr("en el once confirmado", "in the confirmed XI")
         : f.lineup === "probable"
-          ? "en el once probable"
+          ? tr("en el once probable", "in the probable XI")
           : f.lineup === "sin_once"
-            ? "once aún sin publicar"
-            : "fuera del once";
+            ? tr("once aún sin publicar", "XI not out yet")
+            : tr("fuera del once", "not in the XI");
     return `${f.name} (${signedNum(f.score, 1)}), ${where}`;
   });
-  return `Sus figuras: ${parts.join("; ")}.`;
+  return tr(`Sus figuras: ${parts.join("; ")}.`, `Key players: ${parts.join("; ")}.`);
 }
 
 /** Aviso del radar de un equipo del partido: qué pasó, con cuánto lo daba la casa y si sus figuras juegan */
@@ -49,7 +52,10 @@ export function AlertTags({ alerts, open, onToggle }: { alerts?: Alert[]; open: 
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      aria-label={`${open ? "Ocultar" : "Ver"} el aviso: ${alerts.map((a) => `${a.name} en ${a.kind}`).join(", ")}`}
+      aria-label={tr(
+        `${open ? "Ocultar" : "Ver"} el aviso: ${alerts.map((a) => `${a.name} en ${a.kind}`).join(", ")}`,
+        `${open ? "Hide" : "Show"} the alert: ${alerts.map((a) => `${a.name} ${a.kind === "racha" ? "on a run" : "in a slump"}`).join(", ")}`,
+      )}
       className="mt-1 flex min-h-6 flex-wrap items-center gap-1 text-left"
     >
       {alerts.map((a) => (

@@ -1,5 +1,6 @@
 import { Section, Tag } from "@/components/ui";
 import { shortDate } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import type { RivalryInfo } from "@/lib/types";
 
 /** «El Clásico», «Derbi de Merseyside»: en estos partidos se ven más faltas y tarjetas de lo normal */
@@ -8,12 +9,13 @@ export function RivalryTag({ name }: { name?: string | null }) {
   return <Tag tone="tarjeta">{name}</Tag>;
 }
 
-const COLS = [
-  { key: "fouls", label: "Faltas" },
-  { key: "cards", label: "Tarjetas" },
-  { key: "shots", label: "Remates" },
-  { key: "offsides", label: "Offsides" },
-] as const;
+const cols = () =>
+  [
+    { key: "fouls", label: tr("Faltas", "Fouls") },
+    { key: "cards", label: tr("Tarjetas", "Cards") },
+    { key: "shots", label: tr("Remates", "Shots") },
+    { key: "offsides", label: "Offsides" },
+  ] as const;
 
 const th = "py-2 pr-4 text-left text-nota font-semibold text-grafito";
 const td = "py-2.5 pr-4 align-top";
@@ -28,13 +30,17 @@ function pct(f: number | undefined): string {
 
 /** Historial del clásico: los últimos enfrentamientos con faltas, tarjetas, remates y offsides de cada equipo */
 export function RivalrySection({ r }: { r: RivalryInfo }) {
+  const COLS = cols();
   return (
     <Section
       title={r.name}
-      intro={`Clásico. Desde 2024 estos partidos traen un ${pct(r.factor.fouls)} más de faltas y un ${pct(r.factor.cards)} más de tarjetas de lo que espera el modelo, ya con el árbitro; lo esperado de este partido ya lo cuenta. En remates, córners, goles y offsides no se distinguen de un partido normal. Cada cifra es local-visitante de ese partido.`}
+      intro={tr(
+        `Clásico. Desde 2024 estos partidos traen un ${pct(r.factor.fouls)} más de faltas y un ${pct(r.factor.cards)} más de tarjetas de lo que espera el modelo, ya con el árbitro; lo esperado de este partido ya lo cuenta. En remates, córners, goles y offsides no se distinguen de un partido normal. Cada cifra es local-visitante de ese partido.`,
+        `Rivalry. Since 2024 these matches bring ${pct(r.factor.fouls)} more fouls and ${pct(r.factor.cards)} more cards than the model expects, referee included; this match's expectation already counts it. In shots, corners, goals and offsides they look like any other match. Each figure is home-away for that match.`,
+      )}
     >
       {r.matches.length === 0 ? (
-        <p className="text-nota text-grafito">Sin enfrentamientos anteriores en los datos.</p>
+        <p className="text-nota text-grafito">{tr("Sin enfrentamientos anteriores en los datos.", "No previous meetings in the data.")}</p>
       ) : (
         <>
           <ul className="divide-y divide-regla-suave border-y border-regla-suave md:hidden">
@@ -54,7 +60,7 @@ export function RivalrySection({ r }: { r: RivalryInfo }) {
               </li>
             ))}
             <li className="py-3 text-nota">
-              <span className="font-semibold">Media del total: </span>
+              <span className="font-semibold">{tr("Media del total: ", "Average total: ")}</span>
               {COLS.map((c) => `${c.label.toLowerCase()} ${r.averages[c.key] ?? "–"}`).join(", ")}
             </li>
           </ul>
@@ -62,7 +68,7 @@ export function RivalrySection({ r }: { r: RivalryInfo }) {
             <table className="w-full min-w-[560px] border-collapse text-interfaz">
               <thead className="border-b border-tinta">
                 <tr>
-                  <th className={th}>Partido</th>
+                  <th className={th}>{tr("Partido", "Match")}</th>
                   {COLS.map((c) => (
                     <th key={c.key} className={`${th} text-right`}>
                       {c.label}
@@ -85,7 +91,7 @@ export function RivalrySection({ r }: { r: RivalryInfo }) {
                   </tr>
                 ))}
                 <tr>
-                  <td className={`${td} font-semibold`}>Media del total</td>
+                  <td className={`${td} font-semibold`}>{tr("Media del total", "Average total")}</td>
                   {COLS.map((c) => (
                     <td key={c.key} className={`${td} num text-right font-semibold`}>
                       {r.averages[c.key] ?? "–"}

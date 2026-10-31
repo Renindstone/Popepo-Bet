@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Figure } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { int, pct, shortDate, signedPct } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import type { QualifiedPicks, PickRecord as Record } from "@/lib/types";
 
 function units(u: number): string {
@@ -14,16 +15,20 @@ function toneClass(v: number | null | undefined): string {
   return v == null || v === 0 ? "" : v > 0 ? "text-boli" : "text-rojo";
 }
 
-const SOURCES = {
+const sources = () => ({
   // La apuesta del día: una por día como mucho
-  dia: { path: "/picks/record", title: "Aciertos de la apuesta del día", who: "Todas las que eligió el sistema" },
+  dia: {
+    path: "/picks/record",
+    title: tr("Aciertos de la apuesta del día", "Bet of the day record"),
+    who: tr("Todas las que eligió el sistema", "Every one the system picked"),
+  },
   // Todas las que pasaron el corte de valor, probabilidad y confianza (la apuesta del día es una de ellas)
   corte: {
     path: "/picks/qualified",
-    title: "Aciertos de las que pasan el corte",
-    who: "Todas las que pasaron el corte de valor, probabilidad y confianza",
+    title: tr("Aciertos de las que pasan el corte", "Record of bets that pass the cut"),
+    who: tr("Todas las que pasaron el corte de valor, probabilidad y confianza", "Every bet that passed the value, probability and confidence cut"),
   },
-} as const;
+});
 
 /** Contador de aciertos desde el primer día del sistema: de la apuesta del día o de todas las que pasan el corte. */
 export function PickRecord({
@@ -31,40 +36,52 @@ export function PickRecord({
   source = "dia",
 }: {
   variant?: "card" | "row" | "line";
-  source?: keyof typeof SOURCES;
+  source?: "dia" | "corte";
 }) {
-  const src = SOURCES[source];
+  const src = sources()[source];
   const { data } = useApi<Record | QualifiedPicks>(src.path);
   if (!data) return null;
   const r = "record" in data ? data.record : data;
   const decided = r.hits + r.misses;
   const tone = r.profit_units > 0 ? "boli" : r.profit_units < 0 ? "rojo" : undefined;
-  const since = r.since ? `desde el ${shortDate(r.since)}` : "desde el inicio";
+  const sinceDate = r.since ? shortDate(r.since) : null;
+  const since = sinceDate ? tr(`desde el ${sinceDate}`, `since ${sinceDate}`) : tr("desde el inicio", "since the start");
+  const of = (a: number, b: number) => tr(`${int(a)} de ${int(b)}`, `${int(a)} of ${int(b)}`);
 
   if (variant === "line") {
-    const pending = r.pending === 1 ? "1 por jugarse" : `${int(r.pending)} por jugarse`;
+    const pending = tr(`${int(r.pending)} por jugarse`, `${int(r.pending)} still to play`);
     return (
       <p className="mb-4 border-t-[3px] border-boli bg-hoja px-3 py-2 text-interfaz">
         {r.settled === 0 ? (
-          <>Las que pasan el corte se guardan y se liquidan solas: aún no terminó ninguna ({pending}). </>
+          <>
+            {tr(
+              `Las que pasan el corte se guardan y se liquidan solas: aún no terminó ninguna (${pending}). `,
+              `Bets that pass the cut are saved and settled on their own: none has finished yet (${pending}). `,
+            )}
+          </>
         ) : (
           <>
-            Las que pasan el corte, {since}: <strong className="num">{`${int(r.hits)} de ${int(decided)}`}</strong>{" "}
-            aciertos ({pct(r.hit_rate)}) y{" "}
+            {tr(`Las que pasan el corte, ${since}: `, `Bets that pass the cut, ${since}: `)}
+            <strong className="num">{of(r.hits, decided)}</strong> {tr("aciertos", "won")} ({pct(r.hit_rate)}){" "}
+            {tr("y", "and")}{" "}
             <strong className={`num ${tone === "boli" ? "text-boli" : tone === "rojo" ? "text-rojo" : ""}`}>
               {units(r.profit_units)}
             </strong>{" "}
-            con 1 u por apuesta; {pending}.{" "}
+            {tr("con 1 u por apuesta", "staking 1 u per bet")}; {pending}.{" "}
             {r.avg_clv != null && (
               <>
-                CLV medio <strong className={`num ${toneClass(r.avg_clv)}`}>{signedPct(r.avg_clv)}</strong> frente a
-                Pinnacle sin margen antes del partido ({int(r.with_clv)} con referencia).{" "}
+                {tr("CLV medio", "Average CLV")}{" "}
+                <strong className={`num ${toneClass(r.avg_clv)}`}>{signedPct(r.avg_clv)}</strong>{" "}
+                {tr(
+                  `frente a Pinnacle sin margen antes del partido (${int(r.with_clv)} con referencia).`,
+                  `against margin-free Pinnacle before kick-off (${int(r.with_clv)} with a reference).`,
+                )}{" "}
               </>
             )}
           </>
         )}
         <Link href="/rendimiento#corte" className="font-semibold text-boli underline underline-offset-4">
-          Ver historial
+          {tr("Ver historial", "See history")}
         </Link>
       </p>
     );
@@ -73,18 +90,20 @@ export function PickRecord({
   if (variant === "row") {
     return (
       <div className="mb-8">
-        <h3 className="semi mb-3 text-base font-bold">Desde el inicio ({since.replace("desde el ", "")})</h3>
+        <h3 className="semi mb-3 text-base font-bold">
+          {tr("Desde el inicio", "Since the start")} ({sinceDate ?? tr("el inicio", "the start")})
+        </h3>
         <div className={`grid grid-cols-2 gap-x-8 gap-y-6 ${source === "corte" ? "sm:grid-cols-4 lg:grid-cols-7" : "sm:grid-cols-6"}`}>
-          <Figure value={`${int(r.hits)} de ${int(decided)}`} label="aciertos" tone={r.hits > 0 ? "boli" : undefined} />
-          <Figure value={pct(r.hit_rate)} label="acierto (sin devueltas)" />
-          <Figure value={int(r.misses)} label="falladas" />
-          <Figure value={int(r.pushes)} label="devueltas" />
-          <Figure value={int(r.pending)} label="por jugarse" />
-          <Figure value={units(r.profit_units)} label={`beneficio (ROI ${signedPct(r.roi)})`} tone={tone} />
+          <Figure value={of(r.hits, decided)} label={tr("aciertos", "won")} tone={r.hits > 0 ? "boli" : undefined} />
+          <Figure value={pct(r.hit_rate)} label={tr("acierto (sin devueltas)", "hit rate (no refunds)")} />
+          <Figure value={int(r.misses)} label={tr("falladas", "lost")} />
+          <Figure value={int(r.pushes)} label={tr("devueltas", "refunded")} />
+          <Figure value={int(r.pending)} label={tr("por jugarse", "still to play")} />
+          <Figure value={units(r.profit_units)} label={tr(`beneficio (ROI ${signedPct(r.roi)})`, `profit (ROI ${signedPct(r.roi)})`)} tone={tone} />
           {source === "corte" && (
             <Figure
               value={signedPct(r.avg_clv)}
-              label={`CLV medio (${int(r.with_clv)} con referencia)`}
+              label={tr(`CLV medio (${int(r.with_clv)} con referencia)`, `average CLV (${int(r.with_clv)} with a reference)`)}
               tone={r.avg_clv == null || r.avg_clv === 0 ? undefined : r.avg_clv > 0 ? "boli" : "rojo"}
             />
           )}
@@ -103,26 +122,29 @@ export function PickRecord({
       </p>
       {r.settled === 0 ? (
         <p className="text-nota text-grafito">
-          Aún no terminó ninguna. {r.pending === 1 ? "Hay 1 por jugarse." : `Hay ${int(r.pending)} por jugarse.`}
+          {tr("Aún no terminó ninguna.", "None has finished yet.")}{" "}
+          {r.pending === 1
+            ? tr("Hay 1 por jugarse.", "1 still to play.")
+            : tr(`Hay ${int(r.pending)} por jugarse.`, `${int(r.pending)} still to play.`)}
         </p>
       ) : (
         <>
           <div className="flex items-end gap-6">
-            <Figure size="lg" value={`${int(r.hits)} de ${int(decided)}`} label="aciertos" tone={r.hits > 0 ? "boli" : undefined} />
-            <Figure value={pct(r.hit_rate)} label="de acierto" />
+            <Figure size="lg" value={of(r.hits, decided)} label={tr("aciertos", "won")} tone={r.hits > 0 ? "boli" : undefined} />
+            <Figure value={pct(r.hit_rate)} label={tr("de acierto", "hit rate")} />
           </div>
           <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-nota">
-            <dt className="text-grafito">Falladas</dt>
+            <dt className="text-grafito">{tr("Falladas", "Lost")}</dt>
             <dd className="num text-right">{int(r.misses)}</dd>
             {r.pushes > 0 && (
               <>
-                <dt className="text-grafito">Devueltas</dt>
+                <dt className="text-grafito">{tr("Devueltas", "Refunded")}</dt>
                 <dd className="num text-right">{int(r.pushes)}</dd>
               </>
             )}
-            <dt className="text-grafito">Por jugarse</dt>
+            <dt className="text-grafito">{tr("Por jugarse", "Still to play")}</dt>
             <dd className="num text-right">{int(r.pending)}</dd>
-            <dt className="text-grafito">Beneficio (1 u por apuesta)</dt>
+            <dt className="text-grafito">{tr("Beneficio (1 u por apuesta)", "Profit (1 u per bet)")}</dt>
             <dd className={`num text-right font-semibold ${tone === "boli" ? "text-boli" : tone === "rojo" ? "text-rojo" : ""}`}>
               {units(r.profit_units)}
             </dd>

@@ -3,6 +3,7 @@
 import { Crest } from "@/components/Crest";
 import { PitchDisc, PitchFrame, PitchName } from "@/components/Pitch";
 import { shortName, signedNum } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import type { WeekRecap } from "@/lib/types";
 
 // 4-3-3 en vertical, con el portero abajo (posición en % del campo)
@@ -25,7 +26,14 @@ const COORDS: Record<string, { left: number; top: number }[]> = {
     { left: 82, top: 23 },
   ],
 };
-const LINE_NAMES: Record<string, string> = { GK: "Portero", DF: "Defensas", MF: "Mediocampistas", FW: "Delanteros" };
+const LINES = ["GK", "DF", "MF", "FW"];
+const lineName = (line: string) =>
+  ({
+    GK: tr("Portero", "Goalkeeper"),
+    DF: tr("Defensas", "Defenders"),
+    MF: tr("Mediocampistas", "Midfielders"),
+    FW: tr("Delanteros", "Forwards"),
+  })[line] ?? line;
 
 /** Once de la semana: los que más superaron lo esperado en cada línea */
 export function OnceSemana({ eleven }: { eleven: WeekRecap["eleven"] }) {
@@ -35,17 +43,17 @@ export function OnceSemana({ eleven }: { eleven: WeekRecap["eleven"] }) {
     used[sl.line] = i + 1;
     return { ...sl, pos: COORDS[sl.line][i] ?? { left: 50, top: 50 } };
   });
-  const byLine = Object.keys(LINE_NAMES).map((line) => ({
+  const byLine = LINES.map((line) => ({
     line,
     players: placed.filter((sl) => sl.line === line && sl.player).map((sl) => sl.player!),
   }));
   const label = byLine
-    .map((l) => `${LINE_NAMES[l.line]}: ${l.players.length ? l.players.map((p) => p.name).join(", ") : "sin jugador"}`)
+    .map((l) => `${lineName(l.line)}: ${l.players.length ? l.players.map((p) => p.name).join(", ") : tr("sin jugador", "no player")}`)
     .join(". ");
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(0,460px)_minmax(0,1fr)]">
-      <PitchFrame orientation="vertical" label={`Once de la semana (${eleven.formation}). ${label}`}>
+      <PitchFrame orientation="vertical" label={tr(`Once de la semana (${eleven.formation}). ${label}`, `Team of the week (${eleven.formation}). ${label}`)}>
         {placed.map((sl, i) => (
           <div
             key={i}
@@ -72,10 +80,10 @@ export function OnceSemana({ eleven }: { eleven: WeekRecap["eleven"] }) {
       <dl className="space-y-3 text-interfaz">
         {byLine.map((l) => (
           <div key={l.line}>
-            <dt className="text-nota font-semibold text-grafito">{LINE_NAMES[l.line]}</dt>
+            <dt className="text-nota font-semibold text-grafito">{lineName(l.line)}</dt>
             <dd>
               {l.players.length === 0 ? (
-                <span className="text-nota text-grafito">Aún nadie con datos suficientes.</span>
+                <span className="text-nota text-grafito">{tr("Aún nadie con datos suficientes.", "Nobody with enough data yet.")}</span>
               ) : (
                 <ul>
                   {l.players.map((p) => (

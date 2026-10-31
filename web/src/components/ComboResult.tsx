@@ -2,6 +2,7 @@
 
 import { Tag } from "@/components/ui";
 import { odds, pct, signedPct } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import type { CaptureCombo } from "@/lib/types";
 
 const COMBO_TONE: Record<string, "boli" | "rojo" | "tarjeta" | "neutral"> = {
@@ -10,15 +11,26 @@ const COMBO_TONE: Record<string, "boli" | "rojo" | "tarjeta" | "neutral"> = {
   "no evaluable": "tarjeta",
 };
 
+/** Veredicto de la API (en español, es la clave del tono) en el idioma en uso */
+export function comboVerdictText(verdict: string): string {
+  const en: Record<string, string> = {
+    "con valor": "value",
+    "sin valor": "no value",
+    "no evaluable": "can't evaluate",
+    "sin cuota para comparar": "no odds to compare",
+  };
+  return tr(verdict, en[verdict] ?? verdict);
+}
+
 /** Resultado de una combinada o Bet Builder: probabilidad de cada partido y del total según el modelo. */
 export function ComboResult({ combo }: { combo: CaptureCombo }) {
   return (
     <div className="space-y-3">
       <p className="max-w-[75ch] text-nota text-grafito">
-        Dentro de un mismo partido las selecciones dependen entre sí, así que su probabilidad conjunta sale de la matriz de
-        marcadores del modelo, incluidos los goles y asistencias de jugadores (cada gol del equipo se reparte entre sus
-        jugadores). Los partidos distintos se multiplican. Córners, tarjetas, remates y faltas se combinan como si no
-        dependieran del resultado: el total sale aproximado.
+        {tr(
+          "Dentro de un mismo partido las selecciones dependen entre sí, así que su probabilidad conjunta sale de la matriz de marcadores del modelo, incluidos los goles y asistencias de jugadores (cada gol del equipo se reparte entre sus jugadores). Los partidos distintos se multiplican. Córners, tarjetas, remates y faltas se combinan como si no dependieran del resultado: el total sale aproximado.",
+          "Within one match the selections depend on each other, so their joint probability comes from the model's scoreline matrix, player goals and assists included (each team goal is shared among its players). Different matches are multiplied. Corners, cards, shots and fouls are combined as if they did not depend on the result: the total is approximate.",
+        )}
       </p>
       <ul className="space-y-2">
         {combo.blocks.map((b, i) => (
@@ -32,7 +44,7 @@ export function ComboResult({ combo }: { combo: CaptureCombo }) {
                 {b.odds != null && <span className="font-semibold">{odds(b.odds)}</span>}
                 {b.prob != null && (
                   <span className="ml-3 text-grafito">
-                    modelo {pct(b.prob)} · justa {odds(b.fair_odds)}
+                    {tr("modelo", "model")} {pct(b.prob)} · {tr("justa", "fair")} {odds(b.fair_odds)}
                     {b.ev != null && (
                       <span className={`ml-2 font-semibold ${b.ev > 0 ? "text-boli" : "text-rojo"}`}>{signedPct(b.ev)}</span>
                     )}
@@ -47,24 +59,30 @@ export function ComboResult({ combo }: { combo: CaptureCombo }) {
                 </li>
               ))}
             </ul>
-            {b.reason && <p className="mt-1 text-nota text-rojo">No evaluable: {b.reason}</p>}
+            {b.reason && (
+              <p className="mt-1 text-nota text-rojo">
+                {tr("No evaluable:", "Can't evaluate:")} {b.reason}
+              </p>
+            )}
             {b.notes.length > 0 && <p className="mt-1 text-nota text-grafito">{b.notes.join(" · ")}</p>}
           </li>
         ))}
       </ul>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-regla pt-3">
         <span className="font-semibold">Total</span>
-        <span className="num">cuota {odds(combo.total_odds)}</span>
+        <span className="num">
+          {tr("cuota", "odds")} {odds(combo.total_odds)}
+        </span>
         {combo.prob != null && (
           <span className="num text-grafito">
-            modelo {pct(combo.prob, 1)} · justa {odds(combo.fair_odds)}
+            {tr("modelo", "model")} {pct(combo.prob, 1)} · {tr("justa", "fair")} {odds(combo.fair_odds)}
           </span>
         )}
         {combo.ev != null && (
           <span className={`num font-semibold ${combo.ev > 0 ? "text-boli" : "text-rojo"}`}>{signedPct(combo.ev)}</span>
         )}
-        <Tag tone={COMBO_TONE[combo.verdict] ?? "neutral"}>{combo.verdict}</Tag>
-        {combo.approximate && combo.evaluable && <Tag tone="tarjeta">aproximado</Tag>}
+        <Tag tone={COMBO_TONE[combo.verdict] ?? "neutral"}>{comboVerdictText(combo.verdict)}</Tag>
+        {combo.approximate && combo.evaluable && <Tag tone="tarjeta">{tr("aproximado", "approximate")}</Tag>}
       </div>
     </div>
   );

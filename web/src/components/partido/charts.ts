@@ -1,6 +1,8 @@
 import type { EChartsCoreOption } from "echarts/core";
 import { baseOption, type ChartTheme } from "@/components/Chart";
 import { pct } from "@/lib/format";
+import { tr } from "@/lib/i18n";
+import { statName } from "@/lib/markets";
 import type { StatSummary } from "@/lib/types";
 
 const pctAxis = (t: ChartTheme) => ({
@@ -39,12 +41,12 @@ export function overGoalsOption(t: ChartTheme, over: Record<string, number>): EC
     ...baseOption(t),
     grid: { left: 8, right: 8, top: 24, bottom: 28, containLabel: true },
     tooltip: { ...(baseOption(t).tooltip as object), trigger: "axis", valueFormatter: (v: number) => pct(v) },
-    xAxis: catAxis(t, lines, "Más de … goles"),
+    xAxis: catAxis(t, lines, tr("Más de … goles", "Over … goals")),
     yAxis: pctAxis(t),
     series: [
       {
         type: "bar",
-        name: "Probabilidad",
+        name: tr("Probabilidad", "Probability"),
         data: lines.map((l) => over[l]),
         barWidth: "52%",
         itemStyle: { color: t.tinta, borderRadius: [2, 2, 0, 0] },
@@ -63,12 +65,12 @@ export function handicapOption(t: ChartTheme, ah: Record<string, number>, home: 
     ...baseOption(t),
     grid: { left: 8, right: 8, top: 24, bottom: 28, containLabel: true },
     tooltip: { ...(baseOption(t).tooltip as object), trigger: "axis", valueFormatter: (v: number) => pct(v) },
-    xAxis: catAxis(t, lines.map(label), `Línea de ${home}`),
+    xAxis: catAxis(t, lines.map(label), tr(`Línea de ${home}`, `${home} line`)),
     yAxis: pctAxis(t),
     series: [
       {
         type: "bar",
-        name: `${home} cubre`,
+        name: tr(`${home} cubre`, `${home} covers`),
         data: lines.map((l) => ah[l]),
         barWidth: "52%",
         itemStyle: { color: t.grafito, borderRadius: [2, 2, 0, 0] },
@@ -92,7 +94,7 @@ export function scoresOption(t: ChartTheme, scores: { score: string; prob: numbe
     series: [
       {
         type: "bar",
-        name: "Probabilidad",
+        name: tr("Probabilidad", "Probability"),
         data: rows.map((s) => s.prob),
         barWidth: "56%",
         itemStyle: { color: t.tinta, borderRadius: [0, 2, 2, 0] },
@@ -102,14 +104,7 @@ export function scoresOption(t: ChartTheme, scores: { score: string; prob: numbe
   };
 }
 
-export const STAT_NAMES: Record<string, string> = {
-  shots: "Remates",
-  shots_on_target: "Remates a puerta",
-  corners: "Córners",
-  fouls: "Faltas",
-  cards: "Tarjetas",
-  offsides: "Offsides",
-};
+export const STAT_KEYS = ["shots", "shots_on_target", "corners", "fouls", "cards", "offsides"];
 
 /**
  * Reparto de cada estadística entre los dos equipos (barras al 100 %), con el valor esperado
@@ -121,7 +116,7 @@ export function statsShareOption(
   home: string,
   away: string,
 ): EChartsCoreOption {
-  const keys = Object.keys(STAT_NAMES).filter((k) => stats[k]).reverse();
+  const keys = STAT_KEYS.filter((k) => stats[k]).reverse();
   const share = (k: string, side: "home" | "away") => {
     const e = stats[k].expected;
     return e.home + e.away > 0 ? e[side] / (e.home + e.away) : 0.5;
@@ -143,11 +138,11 @@ export function statsShareOption(
       formatter: (ps: { dataIndex: number }[]) => {
         const k = keys[ps[0].dataIndex];
         const e = stats[k].expected;
-        return `${STAT_NAMES[k]}<br/>${home}: ${e.home.toFixed(1)}<br/>${away}: ${e.away.toFixed(1)}<br/>Total: ${e.total.toFixed(1)}`;
+        return `${statName(k)}<br/>${home}: ${e.home.toFixed(1)}<br/>${away}: ${e.away.toFixed(1)}<br/>Total: ${e.total.toFixed(1)}`;
       },
     },
     xAxis: { type: "value", show: false, max: 1 },
-    yAxis: { ...catAxis(t, keys.map((k) => STAT_NAMES[k])), axisLine: { show: false } },
+    yAxis: { ...catAxis(t, keys.map((k) => statName(k))), axisLine: { show: false } },
     series: [
       {
         type: "bar",

@@ -3,6 +3,7 @@
 import { type DragEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ErrorNote } from "@/components/ui";
 import { ApiError, upload } from "@/lib/api";
+import { tr } from "@/lib/i18n";
 import type { Capture } from "@/lib/types";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp"];
@@ -36,7 +37,7 @@ export function CaptureDrop({
   const send = useCallback(
     async (files: File[]) => {
       if (!files.length) {
-        setError(new ApiError(400, "Solo se admiten imágenes PNG, JPG o WEBP."));
+        setError(new ApiError(400, tr("Solo se admiten imágenes PNG, JPG o WEBP.", "Only PNG, JPG or WEBP images are accepted.")));
         return;
       }
       setError(null);
@@ -92,11 +93,11 @@ export function CaptureDrop({
         } ${compact ? "px-4 py-5" : "px-5 py-10"}`}
       >
         <p className={`semi font-bold ${compact ? "text-base" : "text-lg"}`}>
-          {busy > 0 ? "Subiendo…" : "Arrastra aquí la captura"}
+          {busy > 0 ? tr("Subiendo…", "Uploading…") : tr("Arrastra aquí la captura", "Drag the screenshot here")}
         </p>
         <p className="mt-1 text-nota text-grafito">
-          o pégala con <kbd className="border border-regla px-1 text-nota">Ctrl</kbd>+
-          <kbd className="border border-regla px-1 text-nota">V</kbd> en esta página
+          {tr("o pégala con", "or paste it with")} <kbd className="border border-regla px-1 text-nota">Ctrl</kbd>+
+          <kbd className="border border-regla px-1 text-nota">V</kbd> {tr("en esta página", "on this page")}
         </p>
         <button
           type="button"
@@ -104,7 +105,7 @@ export function CaptureDrop({
           disabled={busy > 0}
           className="mt-3 inline-flex h-10 items-center border border-regla bg-papel px-4 text-interfaz font-semibold hover:border-grafito disabled:opacity-50"
         >
-          Elegir imagen
+          {tr("Elegir imagen", "Choose image")}
         </button>
         <input
           ref={input}
@@ -113,13 +114,17 @@ export function CaptureDrop({
           multiple
           className="sr-only"
           tabIndex={-1}
-          aria-label="Elegir captura de cuotas"
+          aria-label={tr("Elegir captura de cuotas", "Choose an odds screenshot")}
           onChange={(e) => {
             void send(imagesFrom(e.target.files));
             e.target.value = "";
           }}
         />
-        {!compact && <p className="mt-3 text-nota text-grafito">PNG, JPG o WEBP de hasta 10 MB. Puedes subir varias.</p>}
+        {!compact && (
+          <p className="mt-3 text-nota text-grafito">
+            {tr("PNG, JPG o WEBP de hasta 10 MB. Puedes subir varias.", "PNG, JPG or WEBP up to 10 MB. You can upload several.")}
+          </p>
+        )}
       </div>
       {error && (
         <div className="mt-3">

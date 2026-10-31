@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button, ErrorNote } from "@/components/ui";
 import { type ApiError, post, useApi } from "@/lib/api";
 import { money, odds } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import type { Performance, RegisteredBet } from "@/lib/types";
 
 const field = "h-10 w-full border border-regla bg-papel px-3 text-interfaz text-tinta focus:border-boli";
@@ -43,9 +44,10 @@ export function CaptureBet({
   if (betId) {
     return (
       <p className="text-nota">
-        <span className="font-semibold text-boli">Registrada</span> (apuesta n.º {betId}).{" "}
+        <span className="font-semibold text-boli">{tr("Registrada", "Recorded")}</span>{" "}
+        {tr(`(apuesta n.º ${betId}).`, `(bet no. ${betId}).`)}{" "}
         <Link href="/rendimiento" className="font-semibold text-boli underline underline-offset-4">
-          Ver mis apuestas
+          {tr("Ver mis apuestas", "See my bets")}
         </Link>
       </p>
     );
@@ -74,12 +76,15 @@ export function CaptureBet({
   return (
     <div className="max-w-md space-y-3 border border-regla-suave p-3">
       <p className="text-nota text-grafito">
-        Solo si ya la apostaste{price ? ` a ${odds(price)}` : ""}. Se liquida sola cuando termine y cuenta para tu ROI.
+        {tr(
+          `Solo si ya la apostaste${price ? ` a ${odds(price)}` : ""}. Se liquida sola cuando termine y cuenta para tu ROI.`,
+          `Only if you already placed it${price ? ` at ${odds(price)}` : ""}. It settles on its own when it ends and counts towards your ROI.`,
+        )}
       </p>
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-36">
           <label htmlFor={inputId} className="mb-1 block text-nota font-semibold">
-            Importe ({currency === "PEN" ? "S/" : currency})
+            {tr("Importe", "Stake")} ({currency === "PEN" ? "S/" : currency})
           </label>
           <input
             id={inputId}
@@ -96,19 +101,21 @@ export function CaptureBet({
         </div>
         {!confirming ? (
           <Button onClick={() => setConfirming(true)} disabled={!(stakeNum > 0)}>
-            Registrar
+            {tr("Registrar", "Record")}
           </Button>
         ) : (
           <Button variant="primary" onClick={register} disabled={busy}>
-            {busy ? "Registrando…" : `Sí, registrar ${money(stakeNum, currency)}`}
+            {busy ? tr("Registrando…", "Saving…") : tr(`Sí, registrar ${money(stakeNum, currency)}`, `Yes, record ${money(stakeNum, currency)}`)}
           </Button>
         )}
         <Button onClick={() => setOpen(false)} disabled={busy}>
-          Cancelar
+          {tr("Cancelar", "Cancel")}
         </Button>
       </div>
       {defaultStake != null && stake === String(defaultStake) && (
-        <p className="text-nota text-grafito">Importe leído en la captura; cámbialo si no es el que apostaste.</p>
+        <p className="text-nota text-grafito">
+          {tr("Importe leído en la captura; cámbialo si no es el que apostaste.", "Stake read from the screenshot; change it if it is not what you bet.")}
+        </p>
       )}
       {error && <ErrorNote error={error} />}
     </div>

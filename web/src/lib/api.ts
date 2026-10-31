@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR, { type SWRConfiguration } from "swr";
+import { lang, tr } from "./i18n";
 
 // Desde la propia máquina la API no pide clave. Con clave (otra máquina) se envía X-API-Key.
 export const DIRECT_API_URL = "http://127.0.0.1:8000";
@@ -55,6 +56,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   const key = getApiKey();
   if (key) headers.set("X-API-Key", key);
+  // La API traduce sus textos al inglés si se le pide; siempre se dice, para no usar el idioma del navegador
+  headers.set("Accept-Language", lang());
   // Los formularios con archivos (FormData) llevan su propio Content-Type con el separador
   if (typeof init?.body === "string") headers.set("Content-Type", "application/json");
 
@@ -64,7 +67,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new ApiError(
       0,
-      `No hay conexión con la API en ${apiUrl()}. Arráncala con .venv/bin/apuestas api y vuelve a intentarlo.`,
+      tr(
+        `No hay conexión con la API en ${apiUrl()}. Arráncala con .venv/bin/apuestas api y vuelve a intentarlo.`,
+        `No connection to the API at ${apiUrl()}. Start it with .venv/bin/apuestas api and try again.`,
+      ),
     );
   }
   if (!res.ok) {
@@ -77,15 +83,18 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     if (res.status === 401) {
       throw new ApiError(
         401,
-        detail === "Clave inválida"
-          ? "La clave guardada no es válida. Revisa que la copiaste completa."
-          : "Para usar el panel desde aquí hace falta una clave de acceso.",
+        detail === "Clave inválida" || detail === "Invalid key"
+          ? tr("La clave guardada no es válida. Revisa que la copiaste completa.", "The saved key is not valid. Check that you copied all of it.")
+          : tr("Para usar el panel desde aquí hace falta una clave de acceso.", "You need an access key to use the panel from here."),
       );
     }
     if (res.status === 503) {
-      throw new ApiError(503, detail ?? "Los modelos aún no están entrenados. Ejecuta .venv/bin/apuestas train.");
+      throw new ApiError(
+        503,
+        detail ?? tr("Los modelos aún no están entrenados. Ejecuta .venv/bin/apuestas train.", "The models are not trained yet. Run .venv/bin/apuestas train."),
+      );
     }
-    throw new ApiError(res.status, detail ?? `La API respondió con un error ${res.status}.`);
+    throw new ApiError(res.status, detail ?? tr(`La API respondió con un error ${res.status}.`, `The API answered with error ${res.status}.`));
   }
   return res.json() as Promise<T>;
 }
@@ -113,12 +122,13 @@ export async function blobUrl(path: string): Promise<string> {
   const key = getApiKey();
   if (key) headers.set("X-API-Key", key);
   const res = await fetch(`${apiUrl()}${path}`, { headers });
-  if (!res.ok) throw new ApiError(res.status, `No se pudo cargar la imagen (${res.status}).`);
+  if (!res.ok) throw new ApiError(res.status, tr(`No se pudo cargar la imagen (${res.status}).`, `Could not load the image (${res.status}).`));
   return URL.createObjectURL(await res.blob());
 }
 
 export function useApi<T>(path: string | null, config?: SWRConfiguration<T, ApiError>) {
-  return useSWR<T, ApiError>(path, (p: string) => api<T>(p), {
+  // El idioma va en la clave: cada idioma guarda sus respuestas
+  return useSWR<T, ApiError>(path ? [path, lang()] : null, ([p]: [string]) => api<T>(p), {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
     ...config,

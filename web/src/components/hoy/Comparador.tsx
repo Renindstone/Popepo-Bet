@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Empty, ErrorNote, Loading, Section, Tag } from "@/components/ui";
 import type { ApiError } from "@/lib/api";
 import { odds, signedPct, splitMatch } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import { betLabel } from "@/lib/markets";
 import type { PriceComparison, PriceEdge } from "@/lib/types";
 
@@ -13,11 +14,15 @@ const td = "py-2.5 pr-4 align-middle";
 
 /** De cuándo son los dos precios (casi siempre de la misma descarga de las 08:30) */
 function when(r: PriceEdge): string {
-  return r.odds_at === r.fair_at ? `Precios del ${r.odds_at}` : `Betano del ${r.odds_at}; Pinnacle del ${r.fair_at}`;
+  return r.odds_at === r.fair_at
+    ? tr(`Precios del ${r.odds_at}`, `Prices from ${r.odds_at}`)
+    : tr(`Betano del ${r.odds_at}; Pinnacle del ${r.fair_at}`, `Betano from ${r.odds_at}; Pinnacle from ${r.fair_at}`);
 }
 
 function GroupTag({ row }: { row: PriceEdge }) {
-  return <Tag tone={row.group === "goles" ? "neutral" : "tarjeta"}>{row.group === "goles" ? "Goles" : "Estadísticas"}</Tag>;
+  return (
+    <Tag tone={row.group === "goles" ? "neutral" : "tarjeta"}>{row.group === "goles" ? tr("Goles", "Goals") : tr("Estadísticas", "Stats")}</Tag>
+  );
 }
 
 /** «Frente a Pinnacle»: cuotas de Betano que pagan más que la justa de Pinnacle, sin modelo */
@@ -25,15 +30,23 @@ export function Comparador({ data, error, onRetry }: { data?: PriceComparison; e
   const [all, setAll] = useState(false);
   return (
     <Section
-      title="Betano frente a Pinnacle"
-      intro={`Cuotas de Betano que pagan al menos un ${Math.round((data?.min_edge ?? 0.02) * 100)} % más que la cuota justa de Pinnacle, la casa más afilada que se descarga. No usa el modelo: es comparar precios. ${data?.note ?? ""}`}
+      title={tr("Betano frente a Pinnacle", "Betano against Pinnacle")}
+      intro={tr(
+        `Cuotas de Betano que pagan al menos un ${Math.round((data?.min_edge ?? 0.02) * 100)} % más que la cuota justa de Pinnacle, la casa más afilada que se descarga. No usa el modelo: es comparar precios. ${data?.note ?? ""}`,
+        `Betano odds that pay at least ${Math.round((data?.min_edge ?? 0.02) * 100)} % more than Pinnacle's fair odds, the sharpest bookmaker we download. It does not use the model: it just compares prices. ${data?.note ?? ""}`,
+      )}
     >
       {error ? (
         <ErrorNote error={error} onRetry={onRetry} />
       ) : !data ? (
-        <Loading lines={3} label="Comparando cuotas" />
+        <Loading lines={3} label={tr("Comparando cuotas", "Comparing odds")} />
       ) : data.rows.length === 0 ? (
-        <Empty>Hoy ninguna cuota de Betano paga más que la justa de Pinnacle en los partidos que faltan.</Empty>
+        <Empty>
+          {tr(
+            "Hoy ninguna cuota de Betano paga más que la justa de Pinnacle en los partidos que faltan.",
+            "Today no Betano odds pay more than Pinnacle's fair odds in the remaining matches.",
+          )}
+        </Empty>
       ) : (
         <Rows rows={data.rows} all={all} onToggle={() => setAll(!all)} />
       )}
@@ -62,10 +75,10 @@ function Rows({ rows, all, onToggle }: { rows: PriceEdge[]; all: boolean; onTogg
               </p>
               <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-nota">
                 <span>
-                  Justa de Pinnacle <strong className="num">{odds(r.fair_odds)}</strong>
+                  {tr("Justa de Pinnacle", "Pinnacle fair")} <strong className="num">{odds(r.fair_odds)}</strong>
                 </span>
                 <span>
-                  Ventaja <strong className="num text-boli">{signedPct(r.edge)}</strong>
+                  {tr("Ventaja", "Edge")} <strong className="num text-boli">{signedPct(r.edge)}</strong>
                 </span>
                 <GroupTag row={r} />
               </p>
@@ -78,11 +91,11 @@ function Rows({ rows, all, onToggle }: { rows: PriceEdge[]; all: boolean; onTogg
         <table className="w-full min-w-[600px] border-collapse text-interfaz">
           <thead className="border-b border-tinta">
             <tr>
-              <th className={th}>Partido</th>
-              <th className={th}>Apuesta</th>
+              <th className={th}>{tr("Partido", "Match")}</th>
+              <th className={th}>{tr("Apuesta", "Bet")}</th>
               <th className={`${th} text-right`}>Betano</th>
-              <th className={`${th} text-right`}>Justa de Pinnacle</th>
-              <th className={`${th} text-right`}>Ventaja</th>
+              <th className={`${th} text-right`}>{tr("Justa de Pinnacle", "Pinnacle fair")}</th>
+              <th className={`${th} text-right`}>{tr("Ventaja", "Edge")}</th>
             </tr>
           </thead>
           <tbody>
@@ -114,7 +127,7 @@ function Rows({ rows, all, onToggle }: { rows: PriceEdge[]; all: boolean; onTogg
       </div>
       {rows.length > 12 && (
         <button type="button" onClick={onToggle} className="mt-1 inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4">
-          {all ? "Mostrar menos" : `Mostrar las ${rows.length}`}
+          {all ? tr("Mostrar menos", "Show fewer") : tr(`Mostrar las ${rows.length}`, `Show all ${rows.length}`)}
         </button>
       )}
     </>

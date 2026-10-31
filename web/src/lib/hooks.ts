@@ -30,9 +30,16 @@ function readChoice(key: string): string | null {
   return choiceMemory.get(key) ?? null;
 }
 
-/** Una opción de la vista (como el orden de una lista) que se recuerda en este navegador; por defecto, la primera. */
-export function useRemembered<T extends string>(key: string, options: readonly T[]): [T, (value: T) => void] {
-  const stored = useSyncExternalStore(subscribeChoice, () => readChoice(key), () => null);
+/**
+ * Una opción de la vista (como el orden de una lista) que se recuerda en este navegador; por defecto, `fallback` o la
+ * primera. Durante el prerenderizado vale la primera.
+ */
+export function useRemembered<T extends string>(
+  key: string,
+  options: readonly T[],
+  fallback?: () => T,
+): [T, (value: T) => void] {
+  const stored = useSyncExternalStore(subscribeChoice, () => readChoice(key) ?? fallback?.() ?? null, () => null);
   const value = options.includes(stored as T) ? (stored as T) : options[0];
   function set(next: T) {
     choiceMemory.set(key, next);

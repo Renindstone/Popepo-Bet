@@ -10,7 +10,8 @@ import { RivalryTag } from "@/components/Rivalry";
 import { Button, EdgeBar, ErrorNote, Figure, Loading, PageTitle, Section } from "@/components/ui";
 import { type ApiError, post, useApi } from "@/lib/api";
 import { competitionName, money, odds, pct, signedPct, splitMatch, stageText } from "@/lib/format";
-import { betLabel, bookmakerName, MARKET_OPTIONS, type MarketOption, selectionsFor } from "@/lib/markets";
+import { tr } from "@/lib/i18n";
+import { betLabel, bookmakerName, marketOptions, type MarketOption, selectionsFor } from "@/lib/markets";
 import { addLeg, updateSlip, useSlip } from "@/lib/slip";
 import type { BookOdd, Evaluation, MatchAnalysis, MatchSummary, Performance, RegisteredBet } from "@/lib/types";
 
@@ -24,18 +25,15 @@ function parseMarket(raw: string | null): { base: MarketOption; scope: "" | "hom
       scope = sc;
     }
   }
-  const base = MARKET_OPTIONS.find((o) => o.value === m) ?? MARKET_OPTIONS[0];
+  const options = marketOptions();
+  const base = options.find((o) => o.value === m) ?? options[0];
   return { base, scope: base.scope ? scope : "" };
 }
 
-const GROUPS = [...new Set(MARKET_OPTIONS.map((o) => o.group))];
-
 function lineLabel(market: string, selection: string, t: { home?: string; away?: string }): string {
-  const home = t.home ?? "Local";
-  const away = t.away ?? "Visitante";
-  if (market === "eh") return selection === "away" ? `Hándicap de ${away}` : `Hándicap de ${home}`;
-  if (market.startsWith("ah")) return `Hándicap de ${selection === "away" ? away : home}`;
-  return "Línea";
+  const team = selection === "away" ? (t.away ?? tr("Visitante", "Away")) : (t.home ?? tr("Local", "Home"));
+  if (market === "eh" || market.startsWith("ah")) return tr(`Hándicap de ${team}`, `${team} handicap`);
+  return tr("Línea", "Line");
 }
 
 const field = "h-11 w-full border border-regla bg-hoja px-3 text-base text-tinta focus:border-boli";
@@ -69,8 +67,11 @@ export function EvaluarView() {
   const analysis = useApi<MatchAnalysis>(matchId ? `/matches/${matchId}/analysis` : null);
   const teams = { home: selected?.home, away: selected?.away };
 
+  const options = marketOptions();
+  const groups = [...new Set(options.map((o) => o.group))];
+
   function chooseMarket(value: string) {
-    const opt = MARKET_OPTIONS.find((o) => o.value === value) ?? MARKET_OPTIONS[0];
+    const opt = options.find((o) => o.value === value) ?? options[0];
     setMarket(opt);
     if (!opt.scope) setScope("");
     setSelection(selectionsFor(opt.sel)[0].value);
@@ -106,7 +107,7 @@ export function EvaluarView() {
       odds: priceNum,
       label,
     });
-    setAdded(`${label} a ${odds(priceNum)}`);
+    setAdded(tr(`${label} a ${odds(priceNum)}`, `${label} at ${odds(priceNum)}`));
     setPrice("");
   }
 
@@ -161,14 +162,17 @@ export function EvaluarView() {
   return (
     <>
       <PageTitle
-        title="Evaluar cuota"
-        sub="Escribe la cuota que ves en Betano (o bet365) y comprueba si tiene valor según el modelo."
+        title={tr("Evaluar cuota", "Check odds")}
+        sub={tr(
+          "Escribe la cuota que ves en Betano (o bet365) y comprueba si tiene valor según el modelo.",
+          "Type the odds you see on Betano (or bet365) and check whether they have value according to the model.",
+        )}
       />
       <div className="grid gap-x-12 gap-y-10 pb-10 lg:grid-cols-[400px_minmax(0,1fr)]">
         <form onSubmit={submit} className="space-y-5" noValidate>
           <div>
             <label htmlFor="partido" className={labelCls}>
-              Partido
+              {tr("Partido", "Match")}
             </label>
             {matches.error ? (
               <ErrorNote error={matches.error} onRetry={() => matches.mutate()} />
@@ -183,7 +187,7 @@ export function EvaluarView() {
                 }}
                 disabled={!matches.data}
               >
-                <option value="">{matches.data ? "Elige un partido" : "Cargando partidos…"}</option>
+                <option value="">{matches.data ? tr("Elige un partido", "Pick a match") : tr("Cargando partidos…", "Loading matches…")}</option>
                 {[...byDay.entries()].map(([day, ms]) => (
                   <optgroup key={day} label={day}>
                     {ms.map((m) => (
@@ -194,7 +198,11 @@ export function EvaluarView() {
                     ))}
                   </optgroup>
                 ))}
-                {matchId && matches.data && !selected && <option value={matchId}>Partido {matchId}</option>}
+                {matchId && matches.data && !selected && (
+                  <option value={matchId}>
+                    {tr("Partido", "Match")} {matchId}
+                  </option>
+                )}
               </select>
             )}
             <MatchNotes a={analysis.data} />
@@ -202,12 +210,12 @@ export function EvaluarView() {
 
           <div>
             <label htmlFor="mercado" className={labelCls}>
-              Mercado
+              {tr("Mercado", "Market")}
             </label>
             <select id="mercado" className={field} value={market.value} onChange={(e) => chooseMarket(e.target.value)}>
-              {GROUPS.map((g) => (
+              {groups.map((g) => (
                 <optgroup key={g} label={g}>
-                  {MARKET_OPTIONS.filter((o) => o.group === g).map((o) => (
+                  {options.filter((o) => o.group === g).map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
@@ -219,14 +227,14 @@ export function EvaluarView() {
 
           {market.scope && (
             <Choice
-              legend="De quién"
+              legend={tr("De quién", "Whose")}
               name="ambito"
               value={scope}
               onChange={(v) => setScope(v as "" | "home" | "away")}
               options={[
-                { value: "", label: "Total del partido" },
-                { value: "home", label: teams.home ?? "Local" },
-                { value: "away", label: teams.away ?? "Visitante" },
+                { value: "", label: tr("Total del partido", "Match total") },
+                { value: "home", label: teams.home ?? tr("Local", "Home") },
+                { value: "away", label: teams.away ?? tr("Visitante", "Away") },
               ]}
             />
           )}
@@ -234,7 +242,7 @@ export function EvaluarView() {
           {market.player && (
             <div>
               <label htmlFor="jugador" className={labelCls}>
-                Jugador
+                {tr("Jugador", "Player")}
               </label>
               <input
                 id="jugador"
@@ -242,7 +250,7 @@ export function EvaluarView() {
                 list="jugadores"
                 value={player}
                 onChange={(e) => setPlayer(e.target.value)}
-                placeholder="Nombre del jugador"
+                placeholder={tr("Nombre del jugador", "Player name")}
                 autoComplete="off"
               />
               <datalist id="jugadores">
@@ -254,7 +262,7 @@ export function EvaluarView() {
           )}
 
           <Choice
-            legend="Selección"
+            legend={tr("Selección", "Selection")}
             name="seleccion"
             value={selection}
             onChange={setSelection}
@@ -278,7 +286,7 @@ export function EvaluarView() {
             )}
             <div>
               <label htmlFor="cuota" className={labelCls}>
-                Cuota
+                {tr("Cuota", "Odds")}
               </label>
               <input
                 id="cuota"
@@ -294,13 +302,19 @@ export function EvaluarView() {
           {(market.value === "eh" || market.value === "ah") && (
             <p className="-mt-2 text-nota text-grafito">
               {market.value === "eh"
-                ? "Escribe el hándicap tal como sale junto al equipo (Coventry +2). Si con el hándicap queda empate, la apuesta al equipo pierde."
-                : "Hándicap asiático: si con una línea entera queda empate, se devuelve el dinero; las de cuarto (±0,25, ±0,75) se reparten en dos mitades."}
+                ? tr(
+                    "Escribe el hándicap tal como sale junto al equipo (Coventry +2). Si con el hándicap queda empate, la apuesta al equipo pierde.",
+                    "Type the handicap as shown next to the team (Coventry +2). If it ends level with the handicap, the bet on the team loses.",
+                  )
+                : tr(
+                    "Hándicap asiático: si con una línea entera queda empate, se devuelve el dinero; las de cuarto (±0,25, ±0,75) se reparten en dos mitades.",
+                    "Asian Handicap: if it ends level on a whole line, the stake is refunded; quarter lines (±0.25, ±0.75) are split into two halves.",
+                  )}
             </p>
           )}
 
           <Choice
-            legend="Casa"
+            legend={tr("Casa", "Bookmaker")}
             name="casa"
             value={bookmaker}
             onChange={setBookmaker}
@@ -312,16 +326,22 @@ export function EvaluarView() {
 
           <div className="flex flex-wrap gap-3">
             <Button type="submit" variant="primary" disabled={!valid || busy}>
-              {busy ? "Evaluando…" : "Evaluar cuota"}
+              {busy ? tr("Evaluando…", "Checking…") : tr("Evaluar cuota", "Check odds")}
             </Button>
             <Button onClick={addToSlip} disabled={!valid || !selected}>
-              Añadir al cupón
+              {tr("Añadir al cupón", "Add to slip")}
             </Button>
           </div>
           <p className="-mt-2 text-nota text-grafito" aria-live="polite">
             {added
-              ? `Añadida: ${added}. Sigue con otra selección de este partido (Bet Builder) o elige otro partido.`
-              : "Con «Añadir al cupón» puedes juntar varias selecciones, del mismo partido o de otros, y evaluarlas juntas."}
+              ? tr(
+                  `Añadida: ${added}. Sigue con otra selección de este partido (Bet Builder) o elige otro partido.`,
+                  `Added: ${added}. Carry on with another selection from this match (Bet Builder) or pick another match.`,
+                )
+              : tr(
+                  "Con «Añadir al cupón» puedes juntar varias selecciones, del mismo partido o de otros, y evaluarlas juntas.",
+                  "With “Add to slip” you can put several selections together, from the same match or others, and check them together.",
+                )}
           </p>
         </form>
 
@@ -330,7 +350,7 @@ export function EvaluarView() {
           {error ? (
             <ErrorNote error={error} />
           ) : busy ? (
-            <Loading lines={5} label="Evaluando la cuota" />
+            <Loading lines={5} label={tr("Evaluando la cuota", "Checking the odds")} />
           ) : result ? (
             <Resultado r={result.r} matchId={result.matchId} player={result.player} />
           ) : slip.legs.length ? null : (
@@ -340,8 +360,11 @@ export function EvaluarView() {
       </div>
       {selected && (
         <Section
-          title={`Cuotas de Betano · ${selected.home} vs ${selected.away}`}
-          intro="Las que se descargan cada mañana, ya evaluadas por el modelo: no hace falta captura. Pulsa Evaluar para ver el detalle o añádelas al cupón."
+          title={tr(`Cuotas de Betano · ${selected.home} vs ${selected.away}`, `Betano odds · ${selected.home} vs ${selected.away}`)}
+          intro={tr(
+            "Las que se descargan cada mañana, ya evaluadas por el modelo: no hace falta captura. Pulsa Evaluar para ver el detalle o añádelas al cupón.",
+            "The ones downloaded every morning, already checked by the model: no screenshot needed. Press Check to see the detail or add them to the slip.",
+          )}
         >
           <CuotasCasa match={selected} onUse={pickBookOdd} />
         </Section>
@@ -393,28 +416,32 @@ function Choice({
 function Explicacion() {
   return (
     <div className="max-w-[60ch] border-l border-regla pl-5 text-grafito">
-      <h2 className="semi mb-2 text-lg font-bold text-tinta">Cómo se decide</h2>
+      <h2 className="semi mb-2 text-lg font-bold text-tinta">{tr("Cómo se decide", "How it is decided")}</h2>
       <p>
-        La cuota implica una probabilidad (1 entre la cuota). Si nuestra estimación es mayor, hay valor. En 1X2, goles y
-        hándicap la estimación mezcla el modelo con el mercado afilado (Pinnacle o Betfair), porque el backtest muestra que
-        el mercado sabe más que el modelo.
+        {tr(
+          "La cuota implica una probabilidad (1 entre la cuota). Si nuestra estimación es mayor, hay valor. En 1X2, goles y hándicap la estimación mezcla el modelo con el mercado afilado (Pinnacle o Betfair), porque el backtest muestra que el mercado sabe más que el modelo.",
+          "The odds imply a probability (1 divided by the odds). If our estimate is higher, there is value. In 1X2, goals and handicap the estimate blends the model with the sharp market (Pinnacle or Betfair), because the backtest shows the market knows more than the model.",
+        )}
       </p>
       <p className="mt-2">
-        En props (tarjetas, córners, remates, jugadores) no hay mercado de referencia: la estimación es solo del modelo y la
-        confianza es menor.
+        {tr(
+          "En props (tarjetas, córners, remates, jugadores) no hay mercado de referencia: la estimación es solo del modelo y la confianza es menor.",
+          "In props (cards, corners, shots, players) there is no reference market: the estimate comes from the model alone and confidence is lower.",
+        )}
       </p>
     </div>
   );
 }
 
-const VERDICTS: Record<string, { text: string; tone: string }> = {
-  APOSTAR: { text: "Apostar", tone: "text-boli" },
-  "valor pequeño o poca confianza": { text: "Valor pequeño o poca confianza", tone: "text-tinta" },
-  "NO apostar": { text: "No apostar", tone: "text-rojo" },
-};
+// El veredicto llega de la API en español: es la clave
+const verdicts = (): Record<string, { text: string; tone: string }> => ({
+  APOSTAR: { text: tr("Apostar", "Bet"), tone: "text-boli" },
+  "valor pequeño o poca confianza": { text: tr("Valor pequeño o poca confianza", "Small value or low confidence"), tone: "text-tinta" },
+  "NO apostar": { text: tr("No apostar", "Don't bet"), tone: "text-rojo" },
+});
 
 function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; player: string | null }) {
-  const v = VERDICTS[r.verdict] ?? { text: r.verdict, tone: "" };
+  const v = verdicts()[r.verdict] ?? { text: r.verdict, tone: "" };
   const reasons = r.reasons.filter((x) => !x.startsWith("pick_id="));
   const [home, away] = splitMatch(r.match);
   const label = betLabel(r.market, r.selection, r.line, { home, away, player });
@@ -427,7 +454,7 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
           </Link>
         </p>
         <p className="mt-1 text-entradilla leading-snug font-semibold">
-          {label} a {odds(r.odds)} en {bookmakerName(r.bookmaker)}
+          {tr(`${label} a ${odds(r.odds)} en ${bookmakerName(r.bookmaker)}`, `${label} at ${odds(r.odds)} on ${bookmakerName(r.bookmaker)}`)}
         </p>
         <div className="relative mt-4 inline-block px-3 py-1">
           {r.verdict === "APOSTAR" && <PenMark className="-inset-x-2 -inset-y-1 h-[calc(100%+0.5rem)] w-[calc(100%+1rem)]" />}
@@ -435,8 +462,10 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
         </div>
         {r.verdict === "valor pequeño o poca confianza" && (
           <p className="mt-2 max-w-[60ch] border-l border-tarjeta pl-3 text-interfaz">
-            Tiene valor positivo, pero no pasa el corte que se exige a una apuesta del día (rango de cuota, probabilidad,
-            valor y confianza).
+            {tr(
+              "Tiene valor positivo, pero no pasa el corte que se exige a una apuesta del día (rango de cuota, probabilidad, valor y confianza).",
+              "It has positive value, but it does not pass the cut required of a bet of the day (odds range, probability, value and confidence).",
+            )}
           </p>
         )}
       </div>
@@ -444,18 +473,27 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
         <EdgeBar prob={r.prob} odds={r.odds} />
       </div>
       <div className="grid grid-cols-2 gap-x-6 gap-y-5 border-t border-regla-suave px-5 py-5 sm:grid-cols-3 sm:px-6">
-        <Figure value={signedPct(r.ev)} label="valor esperado" tone={r.ev > 0 ? "boli" : "rojo"} />
-        <Figure value={odds(r.fair_odds)} label="cuota justa" />
-        <Figure value={odds(r.min_odds_for_value)} label="cuota mínima para apostar" />
-        <Figure value={pct(r.confidence)} label="confianza" />
-        <Figure value={pct(r.stake_pct, 1)} label="stake sugerido de la banca" />
-        <Figure value={pct(r.model_prob)} label={r.sharp_prob != null ? `modelo (mercado afilado ${pct(r.sharp_prob)})` : "solo modelo"} />
+        <Figure value={signedPct(r.ev)} label={tr("valor esperado", "expected value")} tone={r.ev > 0 ? "boli" : "rojo"} />
+        <Figure value={odds(r.fair_odds)} label={tr("cuota justa", "fair odds")} />
+        <Figure value={odds(r.min_odds_for_value)} label={tr("cuota mínima para apostar", "minimum odds to bet")} />
+        <Figure value={pct(r.confidence)} label={tr("confianza", "confidence")} />
+        <Figure value={pct(r.stake_pct, 1)} label={tr("stake sugerido de la banca", "suggested stake of the bankroll")} />
+        <Figure
+          value={pct(r.model_prob)}
+          label={
+            r.sharp_prob != null
+              ? tr(`modelo (mercado afilado ${pct(r.sharp_prob)})`, `model (sharp market ${pct(r.sharp_prob)})`)
+              : tr("solo modelo", "model only")
+          }
+        />
       </div>
       <div className="border-t border-regla-suave px-5 py-4 text-nota text-grafito sm:px-6">
         {reasons.map((x) => (
           <p key={x}>{x}</p>
         ))}
-        <p>{stageText(r.lineup_status)}. Si cambia la alineación, vuelve a evaluarla.</p>
+        <p>
+          {stageText(r.lineup_status)}. {tr("Si cambia la alineación, vuelve a evaluarla.", "If the line-up changes, check it again.")}
+        </p>
       </div>
       <Registrar r={r} matchId={matchId} player={player} />
     </article>
@@ -504,11 +542,14 @@ function Registrar({ r, matchId, player }: { r: Evaluation; matchId: string; pla
     return (
       <div className="border-t border-regla px-5 py-5 sm:px-6">
         <p className="font-semibold">
-          Apuesta registrada (n.º {done.bet_id}): {money(done.stake, done.bankroll.currency)} a {odds(done.odds)}.
+          {tr(
+            `Apuesta registrada (n.º ${done.bet_id}): ${money(done.stake, done.bankroll.currency)} a ${odds(done.odds)}.`,
+            `Bet saved (no. ${done.bet_id}): ${money(done.stake, done.bankroll.currency)} at ${odds(done.odds)}.`,
+          )}
         </p>
         <Banca b={done.bankroll} />
         <Link href="/rendimiento" className="mt-2 inline-flex min-h-10 items-center font-semibold text-boli underline underline-offset-4">
-          Ver mis apuestas
+          {tr("Ver mis apuestas", "See my bets")}
         </Link>
       </div>
     );
@@ -516,15 +557,22 @@ function Registrar({ r, matchId, player }: { r: Evaluation; matchId: string; pla
 
   return (
     <div className="border-t border-regla px-5 py-5 sm:px-6">
-      <h3 className="semi text-lg font-bold">Registrar esta apuesta</h3>
+      <h3 className="semi text-lg font-bold">{tr("Registrar esta apuesta", "Record this bet")}</h3>
       <p className="mt-0.5 max-w-[60ch] text-nota text-grafito">
-        Solo si ya la hiciste en tu casa de apuestas. Se liquida sola al terminar el partido y cuenta para tu ROI y tu CLV.
-        {r.verdict !== "APOSTAR" && " El modelo no la recomienda; registrarla sirve igual para seguir tu rendimiento."}
+        {tr(
+          "Solo si ya la hiciste en tu casa de apuestas. Se liquida sola al terminar el partido y cuenta para tu ROI y tu CLV.",
+          "Only if you already placed it with your bookmaker. It settles on its own when the match ends and counts towards your ROI and CLV.",
+        )}
+        {r.verdict !== "APOSTAR" &&
+          tr(
+            " El modelo no la recomienda; registrarla sirve igual para seguir tu rendimiento.",
+            " The model does not recommend it; recording it still helps you track your performance.",
+          )}
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
         <div>
           <label htmlFor="importe" className={labelCls}>
-            Importe ({currency === "PEN" ? "S/" : currency})
+            {tr("Importe", "Stake")} ({currency === "PEN" ? "S/" : currency})
           </label>
           <input
             id="importe"
@@ -540,14 +588,17 @@ function Registrar({ r, matchId, player }: { r: Evaluation; matchId: string; pla
         </div>
         <div>
           <label htmlFor="notas" className={labelCls}>
-            Notas (opcional)
+            {tr("Notas (opcional)", "Notes (optional)")}
           </label>
           <input id="notas" className={field} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
       </div>
       {suggested != null && (
         <p className="mt-2 text-nota text-grafito">
-          Stake sugerido: {money(suggested, currency)} ({pct(r.stake_pct, 1)} de una banca de {money(bankroll, currency)}).
+          {tr(
+            `Stake sugerido: ${money(suggested, currency)} (${pct(r.stake_pct, 1)} de una banca de ${money(bankroll, currency)}).`,
+            `Suggested stake: ${money(suggested, currency)} (${pct(r.stake_pct, 1)} of a ${money(bankroll, currency)} bankroll).`,
+          )}
         </p>
       )}
       {error && (
@@ -558,15 +609,17 @@ function Registrar({ r, matchId, player }: { r: Evaluation; matchId: string; pla
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {!confirming ? (
           <Button onClick={() => setConfirming(true)} disabled={!(stakeNum > 0)}>
-            Registrar apuesta
+            {tr("Registrar apuesta", "Record bet")}
           </Button>
         ) : (
           <>
             <Button variant="primary" onClick={register} disabled={busy}>
-              {busy ? "Registrando…" : `Sí, registrar ${money(stakeNum, currency)}`}
+              {busy
+                ? tr("Registrando…", "Saving…")
+                : tr(`Sí, registrar ${money(stakeNum, currency)} a ${odds(r.odds)}`, `Yes, record ${money(stakeNum, currency)} at ${odds(r.odds)}`)}
             </Button>
             <Button onClick={() => setConfirming(false)} disabled={busy}>
-              Cancelar
+              {tr("Cancelar", "Cancel")}
             </Button>
           </>
         )}
@@ -579,8 +632,10 @@ function Banca({ b, children }: { b: Performance["bankroll"]; children?: ReactNo
   return (
     <div className="mt-3 text-interfaz">
       <p className="text-grafito">
-        Hoy {money(b.day_profit, b.currency, true)}, esta semana {money(b.week_profit, b.currency, true)}. Pendientes:{" "}
-        {b.pending_bets} ({money(b.pending_stake, b.currency)}).
+        {tr(
+          `Hoy ${money(b.day_profit, b.currency, true)}, esta semana ${money(b.week_profit, b.currency, true)}. Pendientes: ${b.pending_bets} (${money(b.pending_stake, b.currency)}).`,
+          `Today ${money(b.day_profit, b.currency, true)}, this week ${money(b.week_profit, b.currency, true)}. Pending: ${b.pending_bets} (${money(b.pending_stake, b.currency)}).`,
+        )}
       </p>
       {b.warnings.map((w) => (
         <p key={w} className="mt-2 border-t-[3px] border-rojo bg-rojo-suave px-3 py-2 font-semibold">
@@ -604,7 +659,9 @@ function MatchNotes({ a }: { a?: MatchAnalysis }) {
       {a.rivalry && (
         <p>
           <RivalryTag name={a.rivalry.name} />{" "}
-          <span className="text-grafito">se esperan más faltas y tarjetas que en un partido normal.</span>
+          <span className="text-grafito">
+            {tr("se esperan más faltas y tarjetas que en un partido normal.", "more fouls and cards than in a normal match are expected.")}
+          </span>
         </p>
       )}
       {notes.map((n) => (

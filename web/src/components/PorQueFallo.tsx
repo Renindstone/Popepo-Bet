@@ -6,6 +6,7 @@ import { reasonText } from "@/components/semana/Radar";
 import { ErrorNote, Loading } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { signedNum } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import type { FailureReport, WeekItem } from "@/lib/types";
 
 function tone(n: number): string {
@@ -36,20 +37,27 @@ export function PorQueFallo({ pickId }: { pickId: number }) {
     refreshInterval: (d) => (d?.note?.status === "pendiente" || d?.note?.status === "trabajando" ? 15000 : 0),
   });
   return (
-    <section aria-label="Por qué falló" className="mt-6 border-t-[3px] border-tinta pt-3">
-      <h3 className="cond text-lateral leading-none font-black uppercase">Por qué falló</h3>
+    <section aria-label={tr("Por qué falló", "Why it lost")} className="mt-6 border-t-[3px] border-tinta pt-3">
+      <h3 className="cond text-lateral leading-none font-black uppercase">{tr("Por qué falló", "Why it lost")}</h3>
       {error ? (
         <ErrorNote error={error} onRetry={() => mutate()} />
       ) : !data ? (
-        <Loading lines={3} label="Comparando la previa con lo que pasó" />
+        <Loading lines={3} label={tr("Comparando la previa con lo que pasó", "Comparing the preview with what happened")} />
       ) : (
         <>
           <p className="mt-1 mb-4 max-w-[72ch] text-interfaz text-grafito">
-            {data.match} terminó {data.score}. Lo que esperaba el modelo antes del partido frente a lo que pasó: cada dato
-            suma de −1 a +1 y 0 es lo esperado.
+            {tr(
+              `${data.match} terminó ${data.score}. Lo que esperaba el modelo antes del partido frente a lo que pasó: cada dato suma de −1 a +1 y 0 es lo esperado.`,
+              `${data.match} ended ${data.score}. What the model expected before the match against what happened: each item adds from −1 to +1 and 0 is as expected.`,
+            )}
           </p>
           {!data.has_preview ? (
-            <p className="text-interfaz text-grafito">No hay previa guardada de este partido (se guarda desde el 24-10-2026).</p>
+            <p className="text-interfaz text-grafito">
+              {tr(
+                "No hay previa guardada de este partido (se guarda desde el 24-10-2026).",
+                "There is no saved preview for this match (saved since 24-10-2026).",
+              )}
+            </p>
           ) : (
             <div className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
               {data.teams.map((t) => (
@@ -61,17 +69,27 @@ export function PorQueFallo({ pickId }: { pickId: number }) {
             </div>
           )}
           <div className="mt-5 max-w-[72ch] text-interfaz">
-            <p className="font-bold">¿Lo avisaba Sorpresas?</p>
+            <p className="font-bold">{tr("¿Lo avisaba Sorpresas?", "Did Surprises warn about it?")}</p>
             {data.flagged.length === 0 ? (
-              <p className="text-grafito">No: ninguno de los dos equipos estaba en el radar cuando se generó la apuesta.</p>
+              <p className="text-grafito">
+                {tr(
+                  "No: ninguno de los dos equipos estaba en el radar cuando se generó la apuesta.",
+                  "No: neither team was on the radar when the bet was generated.",
+                )}
+              </p>
             ) : (
               data.flagged.map((f) => (
                 <p key={f.team}>
-                  Sí: {f.team} estaba {f.kind === "racha" ? "en racha" : "en baja"}.{" "}
+                  {f.kind === "racha"
+                    ? tr(`Sí: ${f.team} estaba en racha.`, `Yes: ${f.team} was on a run.`)
+                    : tr(`Sí: ${f.team} estaba en baja.`, `Yes: ${f.team} was in a slump.`)}{" "}
                   {f.reason.type === "suma"
-                    ? `Venía muy ${f.kind === "racha" ? "por encima" : "por debajo"} de lo esperado en las últimas 4 semanas.`
+                    ? f.kind === "racha"
+                      ? tr("Venía muy por encima de lo esperado en las últimas 4 semanas.", "It had been well above expectations over the last 4 weeks.")
+                      : tr("Venía muy por debajo de lo esperado en las últimas 4 semanas.", "It had been well below expectations over the last 4 weeks.")
                     : reasonText({ reason: f.reason, score: 0, n_matches: 0 })}
-                  {f.figures_played.length > 0 && ` Jugaron sus figuras: ${f.figures_played.join(", ")}.`}
+                  {f.figures_played.length > 0 &&
+                    tr(` Jugaron sus figuras: ${f.figures_played.join(", ")}.`, ` Its key players played: ${f.figures_played.join(", ")}.`)}
                 </p>
               ))
             )}

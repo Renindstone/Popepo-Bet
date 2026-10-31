@@ -21,14 +21,15 @@ import {
   signedPct,
   splitMatch,
 } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import { betLabel, bookmakerName, clvRefText, marketName } from "@/lib/markets";
 import type { Aggregate, Bankroll, Performance, PickHistory, QualifiedPicks, UserBet } from "@/lib/types";
 
-const PERIODS = [
-  { value: "", label: "Todo" },
-  { value: "7", label: "7 días" },
-  { value: "30", label: "30 días" },
-  { value: "90", label: "90 días" },
+const periods = () => [
+  { value: "", label: tr("Todo", "All") },
+  { value: "7", label: tr("7 días", "7 days") },
+  { value: "30", label: tr("30 días", "30 days") },
+  { value: "90", label: tr("90 días", "90 days") },
 ];
 
 export function RendimientoView() {
@@ -53,12 +54,15 @@ export function RendimientoView() {
   return (
     <>
       <PageTitle
-        title="Mis apuestas"
-        sub="Tu rendimiento real con las apuestas que registras. Se liquidan solas cuando termina el partido."
+        title={tr("Mis apuestas", "My bets")}
+        sub={tr(
+          "Tu rendimiento real con las apuestas que registras. Se liquidan solas cuando termina el partido.",
+          "Your real performance with the bets you record. They settle on their own when the match ends.",
+        )}
         actions={
           <fieldset className="flex flex-wrap gap-1">
-            <legend className="sr-only">Periodo</legend>
-            {PERIODS.map((o) => (
+            <legend className="sr-only">{tr("Periodo", "Period")}</legend>
+            {periods().map((o) => (
               <button
                 key={o.value}
                 type="button"
@@ -92,18 +96,18 @@ export function RendimientoView() {
         </>
       )}
 
-      <Section title="Últimas apuestas registradas">
+      <Section title={tr("Últimas apuestas registradas", "Latest recorded bets")}>
         {bets.error ? (
           <ErrorNote error={bets.error} onRetry={() => bets.mutate()} />
         ) : !bets.data ? (
           <Loading lines={3} />
         ) : bets.data.length === 0 ? (
           <Empty>
-            Aún no registras ninguna apuesta. Cuando hagas una, regístrala desde{" "}
+            {tr("Aún no registras ninguna apuesta. Cuando hagas una, regístrala desde", "You have not recorded any bets yet. When you place one, record it from")}{" "}
             <Link href="/evaluar" className="font-semibold text-boli underline underline-offset-4">
-              Evaluar cuota
+              {tr("Evaluar cuota", "Check odds")}
             </Link>{" "}
-            para seguir tu ROI y tu CLV.
+            {tr("para seguir tu ROI y tu CLV.", "to track your ROI and CLV.")}
           </Empty>
         ) : (
           <BetsTable rows={bets.data} currency={currency} />
@@ -111,11 +115,14 @@ export function RendimientoView() {
       </Section>
 
       <Section
-        title="La apuesta del día del sistema"
-        intro="Cómo le fue a la apuesta del día, con 1 unidad por apuesta. Mide al sistema, no a ti: sirve para decidir cuánto confiar en él."
+        title={tr("La apuesta del día del sistema", "The system's bet of the day")}
+        intro={tr(
+          "Cómo le fue a la apuesta del día, con 1 unidad por apuesta. Mide al sistema, no a ti: sirve para decidir cuánto confiar en él.",
+          "How the bet of the day did, staking 1 unit per bet. It measures the system, not you: it helps you decide how much to trust it.",
+        )}
       >
         <PickRecord variant="row" />
-        <h3 className="semi mb-3 text-base font-bold">Último año</h3>
+        <h3 className="semi mb-3 text-base font-bold">{tr("Último año", "Last year")}</h3>
         {history.error ? (
           <ErrorNote error={history.error} onRetry={() => history.mutate()} />
         ) : !history.data ? (
@@ -127,8 +134,11 @@ export function RendimientoView() {
 
       <Section
         id="corte"
-        title="Las que pasan el corte"
-        intro="Todas las apuestas con valor que pasaron el corte de valor, probabilidad y confianza, no solo la apuesta del día. Se guarda el último cálculo antes del partido: las que se retiraron o dejaron de pasar el corte no cuentan. Con 1 unidad por apuesta. El CLV compara la cuota tomada con la justa (sin margen) de Pinnacle unos 15 minutos antes del partido, o con el cierre de bet365: con unos cientos de apuestas dice si hay ventaja mucho antes que el ROI. Hasta el 28-10 la de Pinnacle solía ser de horas antes."
+        title={tr("Las que pasan el corte", "Bets that pass the cut")}
+        intro={tr(
+          "Todas las apuestas con valor que pasaron el corte de valor, probabilidad y confianza, no solo la apuesta del día. Se guarda el último cálculo antes del partido: las que se retiraron o dejaron de pasar el corte no cuentan. Con 1 unidad por apuesta. El CLV compara la cuota tomada con la justa (sin margen) de Pinnacle unos 15 minutos antes del partido, o con el cierre de bet365: con unos cientos de apuestas dice si hay ventaja mucho antes que el ROI. Hasta el 28-10 la de Pinnacle solía ser de horas antes.",
+          "Every value bet that passed the value, probability and confidence cut, not just the bet of the day. The last calculation before kick-off is kept: those withdrawn or that stopped passing the cut do not count. Staking 1 unit per bet. CLV compares the odds taken with Pinnacle's fair (margin-free) odds about 15 minutes before kick-off, or with the bet365 closing line: with a few hundred bets it shows whether there is an edge long before ROI does. Until 28-10 the Pinnacle price was usually from hours before.",
+        )}
       >
         <PickRecord variant="row" source="corte" />
         <CorteHistorial />
@@ -143,20 +153,23 @@ function Resumen({ total, currency }: { total: Aggregate; currency: string }) {
   const tone = (x: number | null) => (x == null || x === 0 ? undefined : x > 0 ? "boli" : "rojo");
   return (
     <Section
-      title="Resumen"
-      intro="El CLV compara tu cuota con la de cierre. Un CLV positivo y sostenido es la mejor señal de que apuestas con criterio, aunque el resultado tarde en reflejarlo."
+      title={tr("Resumen", "Summary")}
+      intro={tr(
+        "El CLV compara tu cuota con la de cierre. Un CLV positivo y sostenido es la mejor señal de que apuestas con criterio, aunque el resultado tarde en reflejarlo.",
+        "CLV compares your odds with the closing odds. A positive, sustained CLV is the best sign that you bet with judgement, even if results take time to show it.",
+      )}
     >
       {total.bets === 0 ? (
-        <Empty>Sin apuestas liquidadas en este periodo.</Empty>
+        <Empty>{tr("Sin apuestas liquidadas en este periodo.", "No settled bets in this period.")}</Empty>
       ) : (
         <div className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-4 lg:grid-cols-7">
-          <Figure size="lg" value={money(total.profit, currency, true)} label="beneficio" tone={tone(total.profit)} />
+          <Figure size="lg" value={money(total.profit, currency, true)} label={tr("beneficio", "profit")} tone={tone(total.profit)} />
           <Figure size="lg" value={signedPct(total.roi)} label="ROI" tone={tone(total.roi)} />
-          <Figure size="lg" value={signedPct(total.avg_clv)} label="CLV medio" tone={tone(total.avg_clv)} />
-          <Figure value={pct(total.hit_rate)} label="acierto" />
-          <Figure value={int(total.bets)} label="apuestas liquidadas" />
-          <Figure value={money(total.staked, currency)} label="apostado" />
-          <Figure value={odds(total.avg_odds)} label="cuota media" />
+          <Figure size="lg" value={signedPct(total.avg_clv)} label={tr("CLV medio", "average CLV")} tone={tone(total.avg_clv)} />
+          <Figure value={pct(total.hit_rate)} label={tr("acierto", "hit rate")} />
+          <Figure value={int(total.bets)} label={tr("apuestas liquidadas", "settled bets")} />
+          <Figure value={money(total.staked, currency)} label={tr("apostado", "staked")} />
+          <Figure value={odds(total.avg_odds)} label={tr("cuota media", "average odds")} />
         </div>
       )}
     </Section>
@@ -181,14 +194,14 @@ function LossMeter({ label, profit, limit, currency }: { label: string; profit: 
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(used * 100)}
-        aria-label={`${label}: ${pct(used)} del límite de pérdida usado`}
+        aria-label={tr(`${label}: ${pct(used)} del límite de pérdida usado`, `${label}: ${pct(used)} of the loss limit used`)}
       >
         <div className={`h-2 rounded-full ${tone}`} style={{ width: `${used * 100}%` }} />
       </div>
       <p className="mt-1 text-nota text-grafito">
         {profit >= 0
-          ? `Sin pérdidas. Límite de pérdida: ${money(-limit, currency)}`
-          : `Usado el ${pct(used)} del límite de pérdida de ${money(-limit, currency)}`}
+          ? tr(`Sin pérdidas. Límite de pérdida: ${money(-limit, currency)}`, `No losses. Loss limit: ${money(-limit, currency)}`)
+          : tr(`Usado el ${pct(used)} del límite de pérdida de ${money(-limit, currency)}`, `${pct(used)} of the ${money(-limit, currency)} loss limit used`)}
       </p>
     </div>
   );
@@ -199,8 +212,11 @@ function Banca({ b, onSaved }: { b: Bankroll; onSaved: () => void }) {
   const tone = b.total_profit > 0 ? "boli" : b.total_profit < 0 ? "rojo" : undefined;
   return (
     <Section
-      title="Banca"
-      intro="La banca inicial es el dinero con el que empiezas: de ella salen el stake sugerido y los límites de pérdida diaria y semanal. Al llegar a un límite, para."
+      title={tr("Banca", "Bankroll")}
+      intro={tr(
+        "La banca inicial es el dinero con el que empiezas: de ella salen el stake sugerido y los límites de pérdida diaria y semanal. Al llegar a un límite, para.",
+        "The starting bankroll is the money you begin with: the suggested stake and the daily and weekly loss limits come from it. When you hit a limit, stop.",
+      )}
     >
       <div className="grid gap-x-10 gap-y-6 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="grid grid-cols-2 gap-x-8 gap-y-4 md:grid-cols-1">
@@ -214,25 +230,34 @@ function Banca({ b, onSaved }: { b: Bankroll; onSaved: () => void }) {
             />
           ) : (
             <div>
-              <Figure size="lg" value={money(b.bankroll, b.currency)} label="banca inicial" />
+              <Figure size="lg" value={money(b.bankroll, b.currency)} label={tr("banca inicial", "starting bankroll")} />
               <button
                 type="button"
                 onClick={() => setEditing(true)}
                 className="inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4"
               >
-                Editar banca inicial
+                {tr("Editar banca inicial", "Edit starting bankroll")}
               </button>
             </div>
           )}
           <Figure
             value={money(b.current, b.currency)}
-            label={`banca actual (${money(b.total_profit, b.currency, true)} desde el inicio)`}
+            label={tr(
+              `banca actual (${money(b.total_profit, b.currency, true)} desde el inicio)`,
+              `current bankroll (${money(b.total_profit, b.currency, true)} since the start)`,
+            )}
             tone={tone}
           />
-          <Figure value={int(b.pending_bets)} label={`pendientes de liquidar, ${money(b.pending_stake, b.currency)} en juego`} />
+          <Figure
+            value={int(b.pending_bets)}
+            label={tr(
+              `pendientes de liquidar, ${money(b.pending_stake, b.currency)} en juego`,
+              `waiting to settle, ${money(b.pending_stake, b.currency)} at stake`,
+            )}
+          />
         </div>
-        <LossMeter label="Hoy" profit={b.day_profit} limit={b.daily_loss_limit} currency={b.currency} />
-        <LossMeter label="Esta semana" profit={b.week_profit} limit={b.weekly_loss_limit} currency={b.currency} />
+        <LossMeter label={tr("Hoy", "Today")} profit={b.day_profit} limit={b.daily_loss_limit} currency={b.currency} />
+        <LossMeter label={tr("Esta semana", "This week")} profit={b.week_profit} limit={b.weekly_loss_limit} currency={b.currency} />
       </div>
       {b.warnings.map((w) => (
         <p key={w} role="alert" className="mt-4 border-t-[3px] border-rojo bg-rojo-suave px-3 py-2 font-semibold">
@@ -243,10 +268,10 @@ function Banca({ b, onSaved }: { b: Bankroll; onSaved: () => void }) {
   );
 }
 
-const CURRENCIES = [
-  ["PEN", "Soles (S/)"],
-  ["USD", "Dólares (US$)"],
-  ["EUR", "Euros (€)"],
+const currencies = () => [
+  ["PEN", tr("Soles (S/)", "Soles (S/)")],
+  ["USD", tr("Dólares (US$)", "Dollars (US$)")],
+  ["EUR", tr("Euros (€)", "Euros (€)")],
 ];
 
 function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => void }) {
@@ -258,7 +283,7 @@ function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => voi
     e.preventDefault();
     const value = Number(amount.replace(",", "."));
     if (!Number.isFinite(value) || value <= 0) {
-      setState({ busy: false, error: "Escribe un monto mayor que 0." });
+      setState({ busy: false, error: tr("Escribe un monto mayor que 0.", "Type an amount greater than 0.") });
       return;
     }
     setState({ busy: true });
@@ -271,10 +296,10 @@ function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => voi
   }
 
   return (
-    <form onSubmit={save} className="max-w-xs space-y-3" aria-label="Editar banca inicial">
+    <form onSubmit={save} className="max-w-xs space-y-3" aria-label={tr("Editar banca inicial", "Edit starting bankroll")}>
       <div>
         <label htmlFor="banca-monto" className="mb-1 block text-nota font-semibold">
-          Banca inicial
+          {tr("Banca inicial", "Starting bankroll")}
         </label>
         <div className="flex gap-2">
           <input
@@ -293,7 +318,7 @@ function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => voi
             className="num h-10 min-w-0 flex-1 border border-regla bg-hoja px-3 text-tinta focus:border-boli"
           />
           <label htmlFor="banca-moneda" className="sr-only">
-            Moneda
+            {tr("Moneda", "Currency")}
           </label>
           <select
             id="banca-moneda"
@@ -301,7 +326,7 @@ function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => voi
             onChange={(e) => setCurrency(e.target.value)}
             className="h-10 border border-regla bg-hoja px-2 text-tinta focus:border-boli"
           >
-            {CURRENCIES.map(([code, name]) => (
+            {currencies().map(([code, name]) => (
               <option key={code} value={code}>
                 {name}
               </option>
@@ -316,10 +341,10 @@ function BancaForm({ b, onDone }: { b: Bankroll; onDone: (saved: boolean) => voi
       </div>
       <div className="flex gap-2">
         <Button type="submit" variant="primary" disabled={state.busy}>
-          {state.busy ? "Guardando…" : "Guardar"}
+          {state.busy ? tr("Guardando…", "Saving…") : tr("Guardar", "Save")}
         </Button>
         <Button onClick={() => onDone(false)} disabled={state.busy}>
-          Cancelar
+          {tr("Cancelar", "Cancel")}
         </Button>
       </div>
     </form>
@@ -337,7 +362,7 @@ function cumulativeOption(t: ChartTheme, values: number[], currency: string): EC
     xAxis: {
       type: "category",
       data: values.map((_, i) => String(i + 1)),
-      name: "Apuesta n.º",
+      name: tr("Apuesta n.º", "Bet no."),
       nameLocation: "middle",
       nameGap: 26,
       axisTick: { show: false },
@@ -352,7 +377,7 @@ function cumulativeOption(t: ChartTheme, values: number[], currency: string): EC
     series: [
       {
         type: "line",
-        name: "Beneficio acumulado",
+        name: tr("Beneficio acumulado", "Cumulative profit"),
         data: values,
         symbol: "circle",
         symbolSize: 5,
@@ -415,11 +440,14 @@ function Evolucion({ bets, currency }: { bets: UserBet[] | undefined; currency: 
   const option = useMemo(() => (t && values.length > 1 ? cumulativeOption(t, values, currency) : null), [t, values, currency]);
   if (!bets) return null;
   return (
-    <Section title="Beneficio acumulado" intro="Con tus últimas 30 apuestas registradas, en el orden en que las hiciste.">
+    <Section
+      title={tr("Beneficio acumulado", "Cumulative profit")}
+      intro={tr("Con tus últimas 30 apuestas registradas, en el orden en que las hiciste.", "With your last 30 recorded bets, in the order you placed them.")}
+    >
       {values.length < 2 ? (
-        <Empty>Hacen falta al menos dos apuestas liquidadas para dibujar la evolución.</Empty>
+        <Empty>{tr("Hacen falta al menos dos apuestas liquidadas para dibujar la evolución.", "It takes at least two settled bets to draw the trend.")}</Empty>
       ) : (
-        <Chart option={option} height={260} label="Beneficio acumulado apuesta a apuesta" />
+        <Chart option={option} height={260} label={tr("Beneficio acumulado apuesta a apuesta", "Cumulative profit bet by bet")} />
       )}
     </Section>
   );
@@ -430,12 +458,18 @@ function Evolucion({ bets, currency }: { bets: UserBet[] | undefined; currency: 
 function Desglose({ p, currency }: { p: Performance; currency: string }) {
   if (p.total.bets === 0) return null;
   return (
-    <Section title="Desglose" intro="Dónde ganas y dónde pierdes. Con pocas apuestas por grupo, el ROI es sobre todo ruido.">
+    <Section
+      title={tr("Desglose", "Breakdown")}
+      intro={tr(
+        "Dónde ganas y dónde pierdes. Con pocas apuestas por grupo, el ROI es sobre todo ruido.",
+        "Where you win and where you lose. With few bets per group, ROI is mostly noise.",
+      )}
+    >
       <div className="grid gap-x-10 gap-y-10 lg:grid-cols-2">
-        <Grupo title="Por mercado" data={p.market} name={marketLabel} currency={currency} chart />
-        <Grupo title="Por competición" data={p.competition} name={competitionName} currency={currency} chart />
-        <Grupo title="Por casa" data={p.bookmaker} name={bookmakerName} currency={currency} />
-        <Grupo title="Por rango de cuota" data={p.odds_band} name={oddsBand} currency={currency} />
+        <Grupo title={tr("Por mercado", "By market")} data={p.market} name={marketLabel} currency={currency} chart />
+        <Grupo title={tr("Por competición", "By competition")} data={p.competition} name={competitionName} currency={currency} chart />
+        <Grupo title={tr("Por casa", "By bookmaker")} data={p.bookmaker} name={bookmakerName} currency={currency} />
+        <Grupo title={tr("Por rango de cuota", "By odds range")} data={p.odds_band} name={oddsBand} currency={currency} />
       </div>
     </Section>
   );
@@ -483,11 +517,11 @@ function Grupo({
         <table className="w-full min-w-[460px] border-collapse text-nota">
           <thead>
             <tr className="border-b border-regla text-right text-nota text-grafito">
-              <th className="py-1.5 pr-3 text-left font-medium">Grupo</th>
-              <th className="py-1.5 pr-3 font-medium">Apuestas</th>
-              <th className="py-1.5 pr-3 font-medium">Beneficio</th>
+              <th className="py-1.5 pr-3 text-left font-medium">{tr("Grupo", "Group")}</th>
+              <th className="py-1.5 pr-3 font-medium">{tr("Apuestas", "Bets")}</th>
+              <th className="py-1.5 pr-3 font-medium">{tr("Beneficio", "Profit")}</th>
               <th className="py-1.5 pr-3 font-medium">ROI</th>
-              <th className="py-1.5 pr-3 font-medium">Acierto</th>
+              <th className="py-1.5 pr-3 font-medium">{tr("Acierto", "Hit rate")}</th>
               <th className="py-1.5 font-medium">CLV</th>
             </tr>
           </thead>
@@ -558,7 +592,7 @@ function BetsTable({ rows, currency }: { rows: UserBet[]; currency: string }) {
                 <span className="cond num text-2xl leading-none font-bold">{odds(b.odds)}</span>
               </div>
               <p className="mt-0.5 text-nota text-grafito">
-                {b.match}, en {bookmakerName(b.bookmaker)}
+                {tr(`${b.match}, en ${bookmakerName(b.bookmaker)}`, `${b.match}, at ${bookmakerName(b.bookmaker)}`)}
               </p>
               <p className="num mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-nota">
                 <Tag tone={b.result ? RESULT_TONE[b.result] ?? "neutral" : "tarjeta"}>{resultText(b.result)}</Tag>
@@ -581,12 +615,12 @@ function BetsWide({ rows, currency }: { rows: UserBet[]; currency: string }) {
       <table className="w-full min-w-[760px] border-collapse text-interfaz">
         <thead>
           <tr className="border-b border-regla text-left text-nota text-grafito">
-            <th className="py-2 pr-4 font-medium">Partido</th>
-            <th className="py-2 pr-4 font-medium">Apuesta</th>
-            <th className="py-2 pr-4 text-right font-medium">Cuota</th>
-            <th className="py-2 pr-4 text-right font-medium">Importe</th>
-            <th className="py-2 pr-4 font-medium">Resultado</th>
-            <th className="py-2 pr-4 text-right font-medium">Beneficio</th>
+            <th className="py-2 pr-4 font-medium">{tr("Partido", "Match")}</th>
+            <th className="py-2 pr-4 font-medium">{tr("Apuesta", "Bet")}</th>
+            <th className="py-2 pr-4 text-right font-medium">{tr("Cuota", "Odds")}</th>
+            <th className="py-2 pr-4 text-right font-medium">{tr("Importe", "Stake")}</th>
+            <th className="py-2 pr-4 font-medium">{tr("Resultado", "Result")}</th>
+            <th className="py-2 pr-4 text-right font-medium">{tr("Beneficio", "Profit")}</th>
             <th className="py-2 text-right font-medium">CLV</th>
           </tr>
         </thead>
@@ -626,20 +660,22 @@ function CorteHistorial() {
   if (data.picks.length === 0) {
     return (
       <Empty>
-        Aún no hay apuestas que pasen el corte. Se guardan solas cada día y, cuando termina el partido, se anota si se
-        ganaron o se perdieron.
+        {tr(
+          "Aún no hay apuestas que pasen el corte. Se guardan solas cada día y, cuando termina el partido, se anota si se ganaron o se perdieron.",
+          "No bets have passed the cut yet. They are saved on their own every day and, when the match ends, marked as won or lost.",
+        )}
       </Empty>
     );
   }
   const shown = all ? data.picks : data.picks.slice(0, 12);
   const tag = (r: QualifiedPicks["picks"][number]) => (
     <Tag tone={r.result ? (RESULT_TONE[r.result] ?? "neutral") : "tarjeta"}>
-      {r.result ? resultText(r.result) : "Por jugarse"}
+      {r.result ? resultText(r.result) : tr("Por jugarse", "To be played")}
     </Tag>
   );
   return (
     <>
-      <h3 className="semi mb-3 text-base font-bold">Últimos 60 días</h3>
+      <h3 className="semi mb-3 text-base font-bold">{tr("Últimos 60 días", "Last 60 days")}</h3>
       <ul className="divide-y divide-regla-suave border-y border-regla-suave md:hidden">
         {shown.map((r) => {
           const [home, away] = splitMatch(r.match);
@@ -650,12 +686,12 @@ function CorteHistorial() {
                 <span className="cond num text-2xl leading-none font-bold">{odds(r.odds)}</span>
               </div>
               <p className="mt-0.5 text-nota text-grafito">
-                {shortDate(r.date)}, {r.match}, en {bookmakerName(r.bookmaker)}
+                {shortDate(r.date)}, {tr(`${r.match}, en ${bookmakerName(r.bookmaker)}`, `${r.match}, at ${bookmakerName(r.bookmaker)}`)}
               </p>
               <p className="num mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-nota">
                 {tag(r)}
                 <span>
-                  Valor <strong className="text-boli">{signedPct(r.ev)}</strong>
+                  {tr("Valor", "Value")} <strong className="text-boli">{signedPct(r.ev)}</strong>
                 </span>
                 {r.profit_units != null && (
                   <span className={profitClass(r.profit_units)}>
@@ -668,7 +704,7 @@ function CorteHistorial() {
                     CLV {signedPct(r.clv)} <span className="text-grafito">({clvRefText(r.clv_ref)})</span>
                   </span>
                 )}
-                {r.is_pick_of_day && <Tag tone="boli">Apuesta del día</Tag>}
+                {r.is_pick_of_day && <Tag tone="boli">{tr("Apuesta del día", "Bet of the day")}</Tag>}
               </p>
               {r.clv_note && <p className="mt-1 text-nota text-grafito">{r.clv_note}</p>}
             </li>
@@ -679,14 +715,14 @@ function CorteHistorial() {
         <table className="w-full min-w-[820px] border-collapse text-interfaz">
           <thead>
             <tr className="border-b border-regla text-left text-nota text-grafito">
-              <th className="py-2 pr-4 font-medium">Fecha</th>
-              <th className="py-2 pr-4 font-medium">Partido</th>
-              <th className="py-2 pr-4 font-medium">Apuesta</th>
-              <th className="py-2 pr-4 text-right font-medium">Cuota</th>
-              <th className="py-2 pr-4 text-right font-medium">Valor</th>
+              <th className="py-2 pr-4 font-medium">{tr("Fecha", "Date")}</th>
+              <th className="py-2 pr-4 font-medium">{tr("Partido", "Match")}</th>
+              <th className="py-2 pr-4 font-medium">{tr("Apuesta", "Bet")}</th>
+              <th className="py-2 pr-4 text-right font-medium">{tr("Cuota", "Odds")}</th>
+              <th className="py-2 pr-4 text-right font-medium">{tr("Valor", "Value")}</th>
               <th className="py-2 pr-4 text-right font-medium">CLV</th>
-              <th className="py-2 pr-4 font-medium">Resultado</th>
-              <th className="py-2 text-right font-medium">Unidades</th>
+              <th className="py-2 pr-4 font-medium">{tr("Resultado", "Result")}</th>
+              <th className="py-2 text-right font-medium">{tr("Unidades", "Units")}</th>
             </tr>
           </thead>
           <tbody>
@@ -700,7 +736,7 @@ function CorteHistorial() {
                     {betLabel(r.market, r.selection, r.line, { home, away })}
                     <span className="block text-nota text-grafito">
                       {bookmakerName(r.bookmaker)}
-                      {r.is_pick_of_day && ", apuesta del día"}
+                      {r.is_pick_of_day && tr(", apuesta del día", ", bet of the day")}
                     </span>
                   </td>
                   <td className="cond num py-2 pr-4 text-right text-lg font-bold">{odds(r.odds)}</td>
@@ -709,7 +745,7 @@ function CorteHistorial() {
                     <span className={`num font-semibold ${profitClass(r.clv)}`}>{signedPct(r.clv)}</span>
                     {(r.clv_ref || r.clv_note) && (
                       <span className="block text-nota text-grafito">
-                        {r.clv_ref ? clvRefText(r.clv_ref) : "sin referencia"}
+                        {r.clv_ref ? clvRefText(r.clv_ref) : tr("sin referencia", "no reference")}
                       </span>
                     )}
                   </td>
@@ -729,7 +765,7 @@ function CorteHistorial() {
           onClick={() => setAll(!all)}
           className="mt-1 inline-flex min-h-10 items-center text-interfaz font-semibold text-boli underline underline-offset-4"
         >
-          {all ? "Mostrar menos" : `Mostrar las ${data.picks.length}`}
+          {all ? tr("Mostrar menos", "Show fewer") : tr(`Mostrar las ${data.picks.length}`, `Show all ${data.picks.length}`)}
         </button>
       )}
     </>
@@ -747,7 +783,7 @@ function WhyButton({ open, onToggle }: { open: boolean; onToggle: () => void }) 
       aria-expanded={open}
       className="ml-3 inline-flex min-h-6 items-center text-nota font-bold text-boli underline underline-offset-2"
     >
-      {open ? "Ocultar" : "Por qué falló"}
+      {open ? tr("Ocultar", "Hide") : tr("Por qué falló", "Why it lost")}
     </button>
   );
 }
@@ -758,23 +794,25 @@ function Historial({ h }: { h: PickHistory }) {
   if (h.picks === 0) {
     return (
       <Empty>
-        Aún no hay apuestas del día liquidadas. El historial empieza a llenarse a medida que el sistema elige una y el
-        partido termina.
+        {tr(
+          "Aún no hay apuestas del día liquidadas. El historial empieza a llenarse a medida que el sistema elige una y el partido termina.",
+          "No bet of the day has settled yet. The history fills up as the system picks one and the match ends.",
+        )}
       </Empty>
     );
   }
   return (
     <>
       <div className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-5">
-        <Figure value={int(h.picks)} label="apuestas del día" />
+        <Figure value={int(h.picks)} label={tr("apuestas del día", "bets of the day")} />
         <Figure
           value={`${h.profit_units > 0 ? "+" : ""}${h.profit_units.toFixed(2)} u`}
-          label="beneficio en unidades"
+          label={tr("beneficio en unidades", "profit in units")}
           tone={h.profit_units > 0 ? "boli" : h.profit_units < 0 ? "rojo" : undefined}
         />
         <Figure value={signedPct(h.roi)} label="ROI" />
-        <Figure value={pct(h.hit_rate)} label="acierto" />
-        <Figure value={signedPct(h.avg_clv)} label="CLV medio" />
+        <Figure value={pct(h.hit_rate)} label={tr("acierto", "hit rate")} />
+        <Figure value={signedPct(h.avg_clv)} label={tr("CLV medio", "average CLV")} />
       </div>
       <ul className="mt-6 divide-y divide-regla-suave border-y border-regla-suave md:hidden">
         {[...h.last].reverse().map((r, i) => {
@@ -802,11 +840,11 @@ function Historial({ h }: { h: PickHistory }) {
         <table className="w-full min-w-[640px] border-collapse text-interfaz">
           <thead>
             <tr className="border-b border-regla text-left text-nota text-grafito">
-              <th className="py-2 pr-4 font-medium">Fecha</th>
-              <th className="py-2 pr-4 font-medium">Partido</th>
-              <th className="py-2 pr-4 font-medium">Apuesta</th>
-              <th className="py-2 pr-4 text-right font-medium">Cuota</th>
-              <th className="py-2 pr-4 font-medium">Resultado</th>
+              <th className="py-2 pr-4 font-medium">{tr("Fecha", "Date")}</th>
+              <th className="py-2 pr-4 font-medium">{tr("Partido", "Match")}</th>
+              <th className="py-2 pr-4 font-medium">{tr("Apuesta", "Bet")}</th>
+              <th className="py-2 pr-4 text-right font-medium">{tr("Cuota", "Odds")}</th>
+              <th className="py-2 pr-4 font-medium">{tr("Resultado", "Result")}</th>
               <th className="py-2 text-right font-medium">CLV</th>
             </tr>
           </thead>

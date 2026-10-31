@@ -4,28 +4,41 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ApiKeyForm, Button, ErrorNote, Figure, Loading, PageTitle, Section, Tag } from "@/components/ui";
 import { type ApiError, apiUrl, DIRECT_API_URL, post, put, useApi } from "@/lib/api";
 import { ago, dateTimeLima, int, pct, shortDate, todayLima } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import { useMe } from "@/lib/me";
 import type { DataStatus, Me, SyncStatus } from "@/lib/types";
 
-const SOURCES: Record<string, { name: string; what: string }> = {
-  fdco: { name: "football-data.co.uk", what: "Resultados, estadísticas y cuotas de bet365, Pinnacle y Betfair" },
-  fotmob: { name: "FotMob", what: "Alineaciones, lesiones, sanciones, árbitros y estadísticas de jugadores" },
-  understat: { name: "Understat", what: "Segundo modelo de xG" },
-  oddspapi: { name: "OddsPapi", what: "Cuotas de Betano (opcional, experimental)" },
-  dedupe: {
-    name: "Equipos duplicados",
-    what: "Une el mismo equipo escrito distinto en cada fuente (cada día a las 05:30)",
+const sources = (): Record<string, { name: string; what: string }> => ({
+  fdco: {
+    name: "football-data.co.uk",
+    what: tr("Resultados, estadísticas y cuotas de bet365, Pinnacle y Betfair", "Results, stats and odds from bet365, Pinnacle and Betfair"),
   },
-};
+  fotmob: {
+    name: "FotMob",
+    what: tr(
+      "Alineaciones, lesiones, sanciones, árbitros y estadísticas de jugadores",
+      "Line-ups, injuries, suspensions, referees and player stats",
+    ),
+  },
+  understat: { name: "Understat", what: tr("Segundo modelo de xG", "Second xG model") },
+  oddspapi: { name: "OddsPapi", what: tr("Cuotas de Betano (opcional, experimental)", "Betano odds (optional, experimental)") },
+  dedupe: {
+    name: tr("Equipos duplicados", "Duplicate teams"),
+    what: tr(
+      "Une el mismo equipo escrito distinto en cada fuente (cada día a las 05:30)",
+      "Merges the same team spelt differently in each source (every day at 05:30)",
+    ),
+  },
+});
 
 const STALE_HOURS = 48;
 
 function statusTag(status: string, finishedAt: string | null) {
-  if (status === "running") return <Tag tone="tarjeta">En curso</Tag>;
-  if (status !== "ok") return <Tag tone="rojo">Falló</Tag>;
+  if (status === "running") return <Tag tone="tarjeta">{tr("En curso", "Running")}</Tag>;
+  if (status !== "ok") return <Tag tone="rojo">{tr("Falló", "Failed")}</Tag>;
   const hours = finishedAt ? (Date.now() - new Date(finishedAt).getTime()) / 3.6e6 : Infinity;
-  if (hours > STALE_HOURS) return <Tag tone="tarjeta">Desactualizada</Tag>;
-  return <Tag tone="boli">Al día</Tag>;
+  if (hours > STALE_HOURS) return <Tag tone="tarjeta">{tr("Desactualizada", "Out of date")}</Tag>;
+  return <Tag tone="boli">{tr("Al día", "Up to date")}</Tag>;
 }
 
 /** Flechas en círculo: volver a descargar */
@@ -69,12 +82,21 @@ function SyncButton({ sync, onChange }: { sync: SyncStatus | undefined; onChange
   const note = refused
     ? { text: refused, tone: "text-rojo" }
     : running
-      ? { text: `Paso ${(sync?.done_steps ?? 0) + 1} de ${sync?.total_steps}: ${sync?.step ?? ""}`, tone: "text-grafito" }
+      ? {
+          text: tr(
+            `Paso ${(sync?.done_steps ?? 0) + 1} de ${sync?.total_steps}: ${sync?.step ?? ""}`,
+            `Step ${(sync?.done_steps ?? 0) + 1} of ${sync?.total_steps}: ${sync?.step ?? ""}`,
+          ),
+          tone: "text-grafito",
+        }
       : sync?.error
         ? { text: sync.error, tone: "text-rojo" }
         : sync?.finished_at
           ? {
-              text: `Sincronizado ${ago(sync.finished_at)}${waiting ? `; puedes volver a hacerlo ${ago(sync.next_allowed_at)}` : ""}.`,
+              text: tr(
+                `Sincronizado ${ago(sync.finished_at)}${waiting ? `; puedes volver a hacerlo ${ago(sync.next_allowed_at)}` : ""}.`,
+                `Synced ${ago(sync.finished_at)}${waiting ? `; you can do it again ${ago(sync.next_allowed_at)}` : ""}.`,
+              ),
               tone: "text-grafito",
             }
           : null;
@@ -83,7 +105,7 @@ function SyncButton({ sync, onChange }: { sync: SyncStatus | undefined; onChange
     <div className="flex flex-col items-start gap-1 sm:items-end">
       <Button onClick={start} disabled={running || starting || waiting}>
         <RefreshIcon spinning={running || starting} />
-        {running ? "Sincronizando…" : "Sincronizar"}
+        {running ? tr("Sincronizando…", "Syncing…") : tr("Sincronizar", "Sync")}
       </Button>
       {note && (
         <p role="status" aria-live="polite" className={`max-w-xs text-nota sm:text-right ${note.tone}`}>
@@ -108,6 +130,7 @@ export function DatosView() {
   const syncing = !!sync.data?.running;
   const status = useApi<DataStatus>("/status", { refreshInterval: syncing ? 5_000 : 60_000 });
   const s = status.data;
+  const SOURCES = sources();
 
   // Al terminar la sincronización se recarga la tabla de fuentes
   const wasSyncing = useRef(false);
@@ -119,7 +142,13 @@ export function DatosView() {
 
   return (
     <>
-      <PageTitle title="Estado de los datos" sub="Cuándo se actualizó cada fuente y con qué datos trabaja el modelo. Se refresca cada minuto." />
+      <PageTitle
+        title={tr("Estado de los datos", "Data status")}
+        sub={tr(
+          "Cuándo se actualizó cada fuente y con qué datos trabaja el modelo. Se refresca cada minuto.",
+          "When each source was last updated and what data the model works with. It refreshes every minute.",
+        )}
+      />
       {status.error ? (
         <div className="pb-10">
           <ErrorNote error={status.error} onRetry={() => status.mutate()} />
@@ -131,18 +160,21 @@ export function DatosView() {
       ) : (
         <>
           <Section
-            title="Fuentes"
-            intro="Última tarea registrada de cada fuente. Ninguna fuente puede tumbar la ingesta: si una falla, las demás siguen. «Sincronizar» descarga ahora lo de las 05:30 y las 08:30 de FotMob, football-data y Understat y reentrena el modelo (tarda unos minutos y no gasta peticiones de OddsPapi)."
+            title={tr("Fuentes", "Sources")}
+            intro={tr(
+              "Última tarea registrada de cada fuente. Ninguna fuente puede tumbar la ingesta: si una falla, las demás siguen. «Sincronizar» descarga ahora lo de las 05:30 y las 08:30 de FotMob, football-data y Understat y reentrena el modelo (tarda unos minutos y no gasta peticiones de OddsPapi).",
+              "Latest recorded task for each source. No source can bring the ingestion down: if one fails, the others carry on. “Sync” downloads now the 05:30 and 08:30 runs from FotMob, football-data and Understat and retrains the model (it takes a few minutes and spends no OddsPapi requests).",
+            )}
             actions={<SyncButton sync={sync.data} onChange={(st) => sync.mutate(st, { revalidate: false })} />}
           >
             <div className="overflow-x-auto">
               <table className="w-full min-w-[680px] border-collapse text-interfaz">
                 <thead>
                   <tr className="border-b border-regla text-left text-nota text-grafito">
-                    <th className="py-2 pr-4 font-medium">Fuente</th>
-                    <th className="py-2 pr-4 font-medium">Última tarea</th>
-                    <th className="py-2 pr-4 font-medium">Estado</th>
-                    <th className="py-2 font-medium">Terminó</th>
+                    <th className="py-2 pr-4 font-medium">{tr("Fuente", "Source")}</th>
+                    <th className="py-2 pr-4 font-medium">{tr("Última tarea", "Latest task")}</th>
+                    <th className="py-2 pr-4 font-medium">{tr("Estado", "Status")}</th>
+                    <th className="py-2 font-medium">{tr("Terminó", "Finished")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -164,11 +196,11 @@ export function DatosView() {
                             <span className="block text-nota text-grafito">{ago(src.finished_at)}</span>
                           </>
                         ) : (
-                          <span className="text-grafito">Aún no termina</span>
+                          <span className="text-grafito">{tr("Aún no termina", "Not finished yet")}</span>
                         )}
                         {src.status !== "ok" && src.last_ok && (
                           <span className="mt-1 block text-nota text-grafito">
-                            Último dato bueno: {dateTimeLima(src.last_ok)} ({ago(src.last_ok)})
+                            {tr("Último dato bueno:", "Last good data:")} {dateTimeLima(src.last_ok)} ({ago(src.last_ok)})
                           </span>
                         )}
                       </td>
@@ -179,23 +211,28 @@ export function DatosView() {
             </div>
             {!s.sources.oddspapi && (
               <p className="mt-3 max-w-[68ch] text-nota text-grafito">
-                Sin cuotas de Betano automáticas: OddsPapi no está configurado. Usa Evaluar cuota con la cuota que ves en la
-                app de Betano.
+                {tr(
+                  "Sin cuotas de Betano automáticas: OddsPapi no está configurado. Usa Evaluar cuota con la cuota que ves en la app de Betano.",
+                  "No automatic Betano odds: OddsPapi is not set up. Use Check odds with the odds you see in the Betano app.",
+                )}
               </p>
             )}
           </Section>
 
-          <Section title="Modelo y base de datos">
+          <Section title={tr("Modelo y base de datos", "Model and database")}>
             <div className="grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-3 lg:grid-cols-6">
               <Modelo asOf={s.model_as_of} />
-              <Figure value={int(s.counts.matches)} label="partidos" />
+              <Figure value={int(s.counts.matches)} label={tr("partidos", "matches")} />
               <Figure
                 value={int(s.counts.matches_with_details)}
-                label={`con estadísticas detalladas (${pct(s.counts.matches_with_details / Math.max(1, s.counts.matches))})`}
+                label={tr(
+                  `con estadísticas detalladas (${pct(s.counts.matches_with_details / Math.max(1, s.counts.matches))})`,
+                  `with detailed stats (${pct(s.counts.matches_with_details / Math.max(1, s.counts.matches))})`,
+                )}
               />
-              <Figure value={int(s.counts.players)} label="jugadores" />
-              <Figure value={int(s.counts.active_absences)} label="bajas activas" />
-              <Figure value={int(s.counts.odds_rows)} label="cuotas guardadas" />
+              <Figure value={int(s.counts.players)} label={tr("jugadores", "players")} />
+              <Figure value={int(s.counts.active_absences)} label={tr("bajas activas", "current absences")} />
+              <Figure value={int(s.counts.odds_rows)} label={tr("cuotas guardadas", "odds saved")} />
             </div>
           </Section>
         </>
@@ -238,34 +275,46 @@ function Inteligencia() {
   return (
     <Section
       id="ia"
-      title="Inteligencia artificial"
-      intro="Cada usuario decide si usa la IA en el panel. Los números del modelo no cambian: la IA nunca los calcula."
+      title={tr("Inteligencia artificial", "Artificial intelligence")}
+      intro={tr(
+        "Cada usuario decide si usa la IA en el panel. Los números del modelo no cambian: la IA nunca los calcula.",
+        "Each user decides whether to use AI in the panel. The model's numbers do not change: the AI never calculates them.",
+      )}
     >
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <p className="text-interfaz font-bold">Usar IA en el panel</p>
-        <div role="group" aria-label="Usar IA en el panel" className="flex">
-          {option(true, "Encendida")}
-          {option(false, "Apagada")}
+        <p className="text-interfaz font-bold">{tr("Usar IA en el panel", "Use AI in the panel")}</p>
+        <div role="group" aria-label={tr("Usar IA en el panel", "Use AI in the panel")} className="flex">
+          {option(true, tr("Encendida", "On"))}
+          {option(false, tr("Apagada", "Off"))}
         </div>
       </div>
       {state.error && <ErrorNote error={state.error} />}
-      <p className="mt-4 text-interfaz">Si la apagas:</p>
+      <p className="mt-4 text-interfaz">{tr("Si la apagas:", "If you turn it off:")}</p>
       <ul className="mt-1 max-w-[72ch] list-disc space-y-1 pl-5 text-interfaz text-grafito">
-        <li>desaparecen «Capturas» del menú y «¿Viste una cuota?» de Hoy;</li>
-        <li>«Por qué falló» y «Sorpresas» muestran solo los números, sin la explicación de Claude;</li>
-        <li>no se procesan tus capturas pendientes.</li>
+        <li>{tr("desaparecen «Capturas» del menú y «¿Viste una cuota?» de Hoy;", "“Screenshots” disappears from the menu and “Spotted some odds?” from Today;")}</li>
+        <li>
+          {tr(
+            "«Por qué falló» y «Sorpresas» muestran solo los números, sin la explicación de Claude;",
+            "“Why it lost” and “Surprises” show only the numbers, without Claude's explanation;",
+          )}
+        </li>
+        <li>{tr("no se procesan tus capturas pendientes.", "your pending screenshots are not processed.")}</li>
       </ul>
     </Section>
   );
 }
 
 function Modelo({ asOf }: { asOf: string | null }) {
-  if (!asOf) return <Figure value="Sin entrenar" label="ejecuta apuestas train" tone="rojo" />;
+  if (!asOf) return <Figure value={tr("Sin entrenar", "Not trained")} label={tr("ejecuta apuestas train", "run apuestas train")} tone="rojo" />;
   const days = daysSince(asOf);
   return (
     <Figure
       value={shortDate(asOf)}
-      label={days <= 0 ? "modelo entrenado hoy" : `modelo entrenado hace ${days} ${days === 1 ? "día" : "días"}`}
+      label={
+        days <= 0
+          ? tr("modelo entrenado hoy", "model trained today")
+          : tr(`modelo entrenado hace ${days} ${days === 1 ? "día" : "días"}`, `model trained ${days} ${days === 1 ? "day" : "days"} ago`)
+      }
       tone={days > 7 ? "rojo" : undefined}
     />
   );
@@ -279,24 +328,27 @@ function Conexion() {
 
   return (
     <Section
-      title="Conexión"
-      intro="Desde esta misma máquina la API no pide clave. Si abres el panel desde otro equipo, escribe tu clave (apuestas user create-key). Se guarda solo en este navegador."
+      title={tr("Conexión", "Connection")}
+      intro={tr(
+        "Desde esta misma máquina la API no pide clave. Si abres el panel desde otro equipo, escribe tu clave (apuestas user create-key). Se guarda solo en este navegador.",
+        "From this same machine the API asks for no key. If you open the panel from another computer, type your key (apuestas user create-key). It is only saved in this browser.",
+      )}
     >
       <dl className="mb-5 grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-interfaz">
         <dt className="text-grafito">API</dt>
         <dd className="num font-semibold break-all">{url}</dd>
-        <dt className="text-grafito">Estado</dt>
+        <dt className="text-grafito">{tr("Estado", "Status")}</dt>
         <dd>
           {health.error ? (
-            <Tag tone="rojo">Sin conexión</Tag>
+            <Tag tone="rojo">{tr("Sin conexión", "No connection")}</Tag>
           ) : health.data ? (
-            <Tag tone="boli">Conectada, versión {health.data.version}</Tag>
+            <Tag tone="boli">{tr(`Conectada, versión ${health.data.version}`, `Connected, version ${health.data.version}`)}</Tag>
           ) : (
-            <span className="text-grafito">Comprobando…</span>
+            <span className="text-grafito">{tr("Comprobando…", "Checking…")}</span>
           )}
         </dd>
       </dl>
-      <ApiKeyForm label="Clave de la API (opcional)" />
+      <ApiKeyForm label={tr("Clave de la API (opcional)", "API key (optional)")} />
     </Section>
   );
 }

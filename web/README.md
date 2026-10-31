@@ -1,6 +1,8 @@
 # Panel web
 
-Interfaz visual de App Apuestas (Next.js + TypeScript + Tailwind, gráficas con ECharts). Todo el texto está en español y las horas en hora de Lima.
+Interfaz visual de App Apuestas (Next.js + TypeScript + Tailwind, gráficas con ECharts). En español o inglés (selector ES / EN de la cabecera) y con las horas en hora de Lima.
+
+Cada texto lleva sus dos versiones donde se usa: `tr("Hoy", "Today")` (`src/lib/i18n.tsx`), también en `format.ts` y `markets.ts`. Lo que manda la API llega ya traducido (el panel envía `Accept-Language`).
 
 Consume la API FastAPI del proyecto desde el navegador. Cómo arrancarlo: ver la sección «Panel web» del [README principal](../README.md).
 

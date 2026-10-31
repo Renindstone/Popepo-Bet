@@ -9,6 +9,7 @@ import { Empty, ErrorNote, Loading, PageTitle, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { AlertTag } from "@/components/semana/Radar";
 import { COMPETITIONS, competitionName, stageText } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import { matchesTeams } from "@/lib/search";
 import type { MatchSummary } from "@/lib/types";
 
@@ -49,23 +50,29 @@ export function PartidosView() {
 
   return (
     <>
-      <PageTitle title="Partidos" sub="Próximos partidos de las nueve competiciones. Elige uno para ver el análisis completo." />
+      <PageTitle
+        title={tr("Partidos", "Matches")}
+        sub={tr(
+          "Próximos partidos de las nueve competiciones. Elige uno para ver el análisis completo.",
+          "Upcoming matches in the nine competitions. Pick one to see the full analysis.",
+        )}
+      />
 
       <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pb-6">
         <TeamSearch value={query} onChange={search} />
         <fieldset className="flex flex-wrap items-center gap-1">
-          <legend className="sr-only">Competición</legend>
-          {[["", "Todas"], ...Object.entries(COMPETITIONS)].map(([code, name]) => (
+          <legend className="sr-only">{tr("Competición", "Competition")}</legend>
+          {[["", tr("Todas", "All")], ...Object.entries(COMPETITIONS)].map(([code, name]) => (
             <FilterButton key={code} active={comp === code} onClick={() => setParam("comp", code)}>
               {name}
             </FilterButton>
           ))}
         </fieldset>
         <fieldset className="flex flex-wrap items-center gap-1">
-          <legend className="sr-only">Días</legend>
+          <legend className="sr-only">{tr("Días", "Days")}</legend>
           {DAY_OPTIONS.map((d) => (
             <FilterButton key={d} active={days === d} onClick={() => setParam("dias", d === 3 ? "" : String(d))}>
-              {d} días
+              {tr(`${d} días`, `${d} days`)}
             </FilterButton>
           ))}
         </fieldset>
@@ -78,17 +85,28 @@ export function PartidosView() {
       ) : rows.length === 0 ? (
         searching ? (
           <Empty>
-            Ningún partido {comp ? `de ${competitionName(comp)} ` : ""}con «{query.trim()}» en los próximos {days} días.
-            {days < DAY_OPTIONS[DAY_OPTIONS.length - 1] && " Prueba con más días."}
+            {tr(
+              `Ningún partido ${comp ? `de ${competitionName(comp)} ` : ""}con «${query.trim()}» en los próximos ${days} días.`,
+              `No ${comp ? `${competitionName(comp)} ` : ""}match with “${query.trim()}” in the next ${days} days.`,
+            )}
+            {days < DAY_OPTIONS[DAY_OPTIONS.length - 1] && tr(" Prueba con más días.", " Try more days.")}
           </Empty>
         ) : (
-          <Empty>No hay partidos {comp ? `de ${competitionName(comp)} ` : ""}en los próximos {days} días.</Empty>
+          <Empty>
+            {tr(
+              `No hay partidos ${comp ? `de ${competitionName(comp)} ` : ""}en los próximos ${days} días.`,
+              `No ${comp ? `${competitionName(comp)} ` : ""}matches in the next ${days} days.`,
+            )}
+          </Empty>
         )
       ) : (
         <div className="space-y-8 pb-10">
           {searching && (
             <p className="-mt-2 text-nota text-grafito" aria-live="polite">
-              {rows.length === 1 ? "1 partido" : `${rows.length} partidos`} con «{query.trim()}»
+              {tr(
+                `${rows.length === 1 ? "1 partido" : `${rows.length} partidos`} con «${query.trim()}»`,
+                `${rows.length === 1 ? "1 match" : `${rows.length} matches`} with “${query.trim()}”`,
+              )}
             </p>
           )}
           {[...groups.entries()].map(([dayKey, ms]) => (
@@ -120,7 +138,7 @@ export function PartidosView() {
                         )}
                       </span>
                       <span className="col-start-2 truncate text-nota text-grafito sm:col-start-auto">
-                        {m.referee ? `Árbitro: ${m.referee}` : "Árbitro sin designar"}
+                        {m.referee ? tr(`Árbitro: ${m.referee}`, `Referee: ${m.referee}`) : tr("Árbitro sin designar", "Referee not appointed")}
                       </span>
                       <span className="col-start-2 sm:col-start-auto">
                         <Tag tone={m.lineups === "confirmed" ? "confirmada" : "neutral"} className="sm:w-full sm:justify-center">
@@ -143,7 +161,7 @@ function TeamSearch({ value, onChange }: { value: string; onChange: (value: stri
   return (
     <div role="search" className="relative w-full sm:w-72">
       <label htmlFor="buscar-equipo" className="sr-only">
-        Buscar equipo
+        {tr("Buscar equipo", "Search team")}
       </label>
       <svg
         aria-hidden="true"
@@ -168,14 +186,14 @@ function TeamSearch({ value, onChange }: { value: string; onChange: (value: stri
         onKeyDown={(e) => {
           if (e.key === "Escape") onChange("");
         }}
-        placeholder="Buscar equipo"
+        placeholder={tr("Buscar equipo", "Search team")}
         className="h-9 w-full border border-regla bg-hoja pr-9 pl-9 text-interfaz text-tinta placeholder:text-grafito focus:border-boli"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
-          aria-label="Borrar búsqueda"
+          aria-label={tr("Borrar búsqueda", "Clear search")}
           className="absolute top-1/2 right-1 flex size-7 -translate-y-1/2 items-center justify-center text-grafito hover:text-tinta"
         >
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4">

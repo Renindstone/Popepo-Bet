@@ -7,6 +7,7 @@ import { UnusualTag } from "@/components/Unusual";
 import { ErrorNote, Loading } from "@/components/ui";
 import { api, useApi } from "@/lib/api";
 import { num, pct } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import type { MatchAnalysis, PlayerDetail } from "@/lib/types";
 
 /**
@@ -48,7 +49,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
   const rows = a.players.filter((p) => !filter || sides[p.team_id] === filter);
 
   if (a.players.length === 0) {
-    return <p className="text-grafito">Sin proyecciones de jugadores para este partido.</p>;
+    return <p className="text-grafito">{tr("Sin proyecciones de jugadores para este partido.", "No player projections for this match.")}</p>;
   }
 
   return (
@@ -57,7 +58,7 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
         <div className="mb-3 flex flex-wrap gap-1">
           {(
             [
-              ["", "Ambos equipos"],
+              ["", tr("Ambos equipos", "Both teams")],
               ["home", a.home],
               ["away", a.away],
             ] as const
@@ -80,15 +81,15 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
         <table className="w-full min-w-[760px] border-collapse text-interfaz">
           <thead className="border-b border-regla">
             <tr>
-              <th className="py-2 pr-3 text-left text-nota font-medium text-grafito">Jugador</th>
-              <th className={th}>Remates</th>
-              <th className={th}>A puerta</th>
-              <th className={th}>Goles</th>
-              <th className={th}>Asist.</th>
-              <th className={th}>Titular</th>
-              <th className={th}>Minutos</th>
-              <th className={th}>Faltas</th>
-              <th className={th}>Amarillas</th>
+              <th className="py-2 pr-3 text-left text-nota font-medium text-grafito">{tr("Jugador", "Player")}</th>
+              <th className={th}>{tr("Remates", "Shots")}</th>
+              <th className={th}>{tr("A puerta", "On target")}</th>
+              <th className={th}>{tr("Goles", "Goals")}</th>
+              <th className={th}>{tr("Asist.", "Assists")}</th>
+              <th className={th}>{tr("Titular", "Starts")}</th>
+              <th className={th}>{tr("Minutos", "Minutes")}</th>
+              <th className={th}>{tr("Faltas", "Fouls")}</th>
+              <th className={th}>{tr("Amarillas", "Yellows")}</th>
             </tr>
           </thead>
           <tbody>
@@ -150,15 +151,15 @@ function Meter({ label, p }: { label: string; p: number }) {
   );
 }
 
-const PER90: [string, string][] = [
-  ["shots", "Remates"],
-  ["shots_on_target", "A puerta"],
-  ["goals", "Goles"],
+const per90 = (): [string, string][] => [
+  ["shots", tr("Remates", "Shots")],
+  ["shots_on_target", tr("A puerta", "On target")],
+  ["goals", tr("Goles", "Goals")],
   ["xg", "xG"],
-  ["assists", "Asistencias"],
+  ["assists", tr("Asistencias", "Assists")],
   ["xa", "xA"],
-  ["fouls_committed", "Faltas"],
-  ["yellow_cards", "Amarillas"],
+  ["fouls_committed", tr("Faltas", "Fouls")],
+  ["yellow_cards", tr("Amarillas", "Yellows")],
 ];
 
 function PlayerPanel({ name, matchId }: { name: string; matchId: number }) {
@@ -169,36 +170,36 @@ function PlayerPanel({ name, matchId }: { name: string; matchId: number }) {
   return (
     <div className="grid gap-x-10 gap-y-6 pt-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
       <div>
-        <h4 className="semi mb-3 font-bold">Probabilidades en este partido</h4>
+        <h4 className="semi mb-3 font-bold">{tr("Probabilidades en este partido", "Probabilities in this match")}</h4>
         {pr ? (
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-            <Meter label="Al menos 1 remate" p={pr.p_shots_over_0_5} />
-            <Meter label="Al menos 2 remates" p={pr.p_shots_over_1_5} />
-            <Meter label="Al menos 3 remates" p={pr.p_shots_over_2_5} />
-            <Meter label="Al menos 1 a puerta" p={pr.p_sot_over_0_5} />
-            <Meter label="Al menos 2 a puerta" p={pr.p_sot_over_1_5} />
-            <Meter label="Marca gol" p={pr.p_goal} />
-            <Meter label="Da una asistencia" p={pr.p_assist} />
-            <Meter label="Marca o asiste" p={pr.p_goal_assist} />
-            <Meter label="Ve tarjeta" p={pr.p_card} />
+            <Meter label={tr("Al menos 1 remate", "At least 1 shot")} p={pr.p_shots_over_0_5} />
+            <Meter label={tr("Al menos 2 remates", "At least 2 shots")} p={pr.p_shots_over_1_5} />
+            <Meter label={tr("Al menos 3 remates", "At least 3 shots")} p={pr.p_shots_over_2_5} />
+            <Meter label={tr("Al menos 1 a puerta", "At least 1 on target")} p={pr.p_sot_over_0_5} />
+            <Meter label={tr("Al menos 2 a puerta", "At least 2 on target")} p={pr.p_sot_over_1_5} />
+            <Meter label={tr("Marca gol", "Scores")} p={pr.p_goal} />
+            <Meter label={tr("Da una asistencia", "Assists")} p={pr.p_assist} />
+            <Meter label={tr("Marca o asiste", "Scores or assists")} p={pr.p_goal_assist} />
+            <Meter label={tr("Ve tarjeta", "Gets booked")} p={pr.p_card} />
           </div>
         ) : (
-          <p className="text-grafito">{data.note ?? "No figura en la alineación prevista."}</p>
+          <p className="text-grafito">{data.note ?? tr("No figura en la alineación prevista.", "Not in the predicted line-up.")}</p>
         )}
         <p className="mt-4">
           <Link
             href={`/evaluar?partido=${matchId}&mercado=player_shots&jugador=${encodeURIComponent(name)}`}
             className="font-semibold text-boli underline underline-offset-4"
           >
-            Evaluar una cuota de {name}
+            {tr(`Evaluar una cuota de ${name}`, `Check odds for ${name}`)}
           </Link>
         </p>
       </div>
       <div>
-        <h4 className="semi mb-3 font-bold">Por 90 minutos esta temporada</h4>
+        <h4 className="semi mb-3 font-bold">{tr("Por 90 minutos esta temporada", "Per 90 minutes this season")}</h4>
         {data.per90 ? (
           <dl className="grid grid-cols-3 gap-x-4 gap-y-3">
-            {PER90.map(([k, label]) => (
+            {per90().map(([k, label]) => (
               <div key={k}>
                 <dt className="text-nota text-grafito">{label}</dt>
                 <dd className="cond num text-xl font-bold">{num(data.per90?.[k], 2)}</dd>
@@ -206,13 +207,13 @@ function PlayerPanel({ name, matchId }: { name: string; matchId: number }) {
             ))}
           </dl>
         ) : (
-          <p className="text-grafito">Sin minutos registrados.</p>
+          <p className="text-grafito">{tr("Sin minutos registrados.", "No minutes recorded.")}</p>
         )}
         <p className="mt-3 text-nota text-grafito">
-          {data.minutes90 != null && `Muestra de ${num(data.minutes90, 1)} partidos completos`}
-          {data.starts != null && `, ${data.starts} titularidades`}
+          {data.minutes90 != null && tr(`Muestra de ${num(data.minutes90, 1)} partidos completos`, `Sample of ${num(data.minutes90, 1)} full matches`)}
+          {data.starts != null && tr(`, ${data.starts} titularidades`, `, ${data.starts} starts`)}
           {data.season_rating != null && `. Rating ${num(data.season_rating, 2)}`}
-          {data.market_value_m ? `. Valor ${num(data.market_value_m, 1)} M€` : ""}.
+          {data.market_value_m ? tr(`. Valor ${num(data.market_value_m, 1)} M€`, `. Value €${num(data.market_value_m, 1)}m`) : ""}.
         </p>
       </div>
     </div>

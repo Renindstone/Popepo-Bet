@@ -2,13 +2,19 @@
 
 import { Crest } from "@/components/Crest";
 import { PitchFrame, PitchName } from "@/components/Pitch";
-import { UNUSUAL_NOTE, UnusualTag, isUnusual } from "@/components/Unusual";
+import { UnusualTag, isUnusual, unusualNote } from "@/components/Unusual";
 import { Empty, ErrorNote, Loading, Section, Tag } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { shortName } from "@/lib/format";
+import { tr } from "@/lib/i18n";
 import type { LineupPlayer, LineupTeam, MatchLineups } from "@/lib/types";
 
-const KINDS: Record<string, string> = { injury: "Lesión", suspension: "Sanción", doubtful: "Duda", other: "Baja" };
+const KINDS: Record<string, [string, string]> = {
+  injury: ["Lesión", "Injury"],
+  suspension: ["Sanción", "Suspension"],
+  doubtful: ["Duda", "Doubtful"],
+  other: ["Baja", "Out"],
+};
 
 function minutesToKickoff(kickoffLocal: string): number {
   // "YYYY-MM-DD HH:MM" en hora de Lima (UTC−5, sin horario de verano)
@@ -26,23 +32,30 @@ export function Alineaciones({ matchId }: { matchId: number }) {
   const confirmed = data?.status === "confirmed";
   return (
     <Section
-      title="Alineaciones"
+      title={tr("Alineaciones", "Line-ups")}
       id="alineaciones"
       intro={
         !data?.status
           ? undefined
           : confirmed
-            ? `Confirmadas. Actualizado ${data.updated_local?.slice(11) ?? ""}.`
-            : "Probables, según FotMob. La confirmada se busca 70, 50, 35, 20 y 10 minutos antes del inicio (suele salir una hora antes)."
+            ? tr(`Confirmadas. Actualizado ${data.updated_local?.slice(11) ?? ""}.`, `Confirmed. Updated ${data.updated_local?.slice(11) ?? ""}.`)
+            : tr(
+                "Probables, según FotMob. La confirmada se busca 70, 50, 35, 20 y 10 minutos antes del inicio (suele salir una hora antes).",
+                "Probable, according to FotMob. The confirmed one is checked 70, 50, 35, 20 and 10 minutes before kick-off (it usually comes out an hour before).",
+              )
       }
-      actions={data?.status ? <Tag tone={confirmed ? "confirmada" : "neutral"}>{confirmed ? "Confirmadas" : "Probables"}</Tag> : undefined}
+      actions={
+        data?.status ? (
+          <Tag tone={confirmed ? "confirmada" : "neutral"}>{confirmed ? tr("Confirmadas", "Confirmed") : tr("Probables", "Probable")}</Tag>
+        ) : undefined
+      }
     >
       {error ? (
         <ErrorNote error={error} onRetry={() => mutate()} />
       ) : !data ? (
-        <Loading lines={4} label="Cargando alineaciones" />
+        <Loading lines={4} label={tr("Cargando alineaciones", "Loading line-ups")} />
       ) : !data.status || data.teams.every((t) => t.starters.length === 0) ? (
-        <Empty>FotMob aún no publica las alineaciones probables de este partido.</Empty>
+        <Empty>{tr("FotMob aún no publica las alineaciones probables de este partido.", "FotMob has not published the probable line-ups for this match yet.")}</Empty>
       ) : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-4 text-interfaz">
@@ -75,12 +88,12 @@ function TeamHeader({ t }: { t: LineupTeam }) {
         {t.team}
         <span
           className={`ml-2 inline-block size-3 rounded-full align-middle ${t.side === "home" ? "bg-ficha ring-1 ring-tinta" : "bg-negro ring-1 ring-tinta"}`}
-          title={t.side === "home" ? "Blanco en el campo" : "Azul en el campo"}
+          title={t.side === "home" ? tr("Blanco en el campo", "White on the pitch") : tr("Negro en el campo", "Black on the pitch")}
           aria-hidden="true"
         />
       </p>
       <p className="text-nota text-grafito">
-        {[t.formation, t.coach && `Entrenador: ${t.coach}`].filter(Boolean).join(" · ")}
+        {[t.formation, t.coach && tr(`Entrenador: ${t.coach}`, `Manager: ${t.coach}`)].filter(Boolean).join(" · ")}
       </p>
     </div>
   );
@@ -103,7 +116,9 @@ function Pitch({ teams, orientation }: { teams: LineupTeam[]; orientation: "hori
   return (
     <PitchFrame
       orientation={orientation}
-      label={teams.map((t) => `${t.team} (${t.formation ?? "sin formación"}): ${t.starters.map((p) => p.name).join(", ")}`).join(". ")}
+      label={teams
+        .map((t) => `${t.team} (${t.formation ?? tr("sin formación", "no formation")}): ${t.starters.map((p) => p.name).join(", ")}`)
+        .join(". ")}
     >
       {teams.flatMap((t) =>
         t.starters.map((p) => {
@@ -141,7 +156,7 @@ function Bench({ t, confirmed }: { t: LineupTeam; confirmed: boolean }) {
       <h3 className="semi font-bold">{t.team}</h3>
       {t.starters.some((p) => isUnusual(p.recent_starts)) && (
         <>
-          <h4 className="mt-2 text-nota font-semibold">Titulares poco habituales</h4>
+          <h4 className="mt-2 text-nota font-semibold">{tr("Titulares poco habituales", "Unusual starters")}</h4>
           <ul className="mt-1 text-nota">
             {t.starters
               .filter((p) => isUnusual(p.recent_starts))
@@ -151,13 +166,15 @@ function Bench({ t, confirmed }: { t: LineupTeam; confirmed: boolean }) {
                 </li>
               ))}
           </ul>
-          <p className="mt-1 text-nota text-grafito">{UNUSUAL_NOTE}</p>
+          <p className="mt-1 text-nota text-grafito">{unusualNote()}</p>
         </>
       )}
-      <h4 className="mt-2 text-nota font-semibold">Suplentes</h4>
+      <h4 className="mt-2 text-nota font-semibold">{tr("Suplentes", "Substitutes")}</h4>
       {t.subs.length === 0 ? (
         <p className="text-nota text-grafito">
-          {confirmed ? "Sin suplentes publicados." : "Se conocen cuando se confirma la alineación."}
+          {confirmed
+            ? tr("Sin suplentes publicados.", "No substitutes published.")
+            : tr("Se conocen cuando se confirma la alineación.", "Known once the line-up is confirmed.")}
         </p>
       ) : (
         <ul className="mt-1 grid grid-cols-1 gap-x-4 text-nota sm:grid-cols-2">
@@ -170,9 +187,9 @@ function Bench({ t, confirmed }: { t: LineupTeam; confirmed: boolean }) {
           ))}
         </ul>
       )}
-      <h4 className="mt-3 text-nota font-semibold">Bajas</h4>
+      <h4 className="mt-3 text-nota font-semibold">{tr("Bajas", "Absences")}</h4>
       {t.unavailable.length === 0 ? (
-        <p className="text-nota text-grafito">Ninguna registrada.</p>
+        <p className="text-nota text-grafito">{tr("Ninguna registrada.", "None recorded.")}</p>
       ) : (
         <ul className="mt-1 text-nota">
           {t.unavailable.map((u) => (
@@ -180,9 +197,9 @@ function Bench({ t, confirmed }: { t: LineupTeam; confirmed: boolean }) {
               {u.name}
               <span className="text-grafito">
                 {" "}
-                · {KINDS[u.kind] ?? u.kind}
+                · {KINDS[u.kind] ? tr(...KINDS[u.kind]) : u.kind}
                 {u.reason && u.reason.toLowerCase() !== u.kind ? ` (${u.reason})` : ""}
-                {u.expected_return ? `. Vuelve: ${u.expected_return}` : ""}
+                {u.expected_return ? tr(`. Vuelve: ${u.expected_return}`, `. Back: ${u.expected_return}`) : ""}
               </span>
             </li>
           ))}
