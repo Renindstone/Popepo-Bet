@@ -156,7 +156,14 @@ class PoliteClient:
         raise RuntimeError(f"No se pudo descargar {url}: {last_exc}")
 
     def get_json(self, url: str, **kwargs: Any) -> Any:
-        return json.loads(self.get_bytes(url, **kwargs))
+        raw = self.get_bytes(url, **kwargs)
+        try:
+            return json.loads(raw)
+        except ValueError as exc:
+            # Una página de mantenimiento con 200 (Understat, 3-11-2026) no puede quedarse en la caché: con ttl=None
+            # sería para siempre. Sin la URL completa: los parámetros pueden llevar claves de API
+            self.forget(url, kwargs.get("params"), kwargs.get("headers"))
+            raise SourceUnavailable(f"{urlparse(url).netloc} no devolvió datos (¿está en mantenimiento?)") from exc
 
     def get_text(self, url: str, encoding: str = "utf-8", **kwargs: Any) -> str:
         return self.get_bytes(url, **kwargs).decode(encoding, errors="replace")

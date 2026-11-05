@@ -106,6 +106,7 @@
 
 ## Limitaciones conocidas
 
+- **Understat en mantenimiento** desde el 3-11-2026: todas sus páginas dicen «We will come back soon» con respuesta 200. Mientras tanto, el xG de las cinco grandes ligas se promedia sin Understat. Cuando vuelva, se recuperan solos los partidos de la temporada, porque cada descarga trae la temporada entera. Un JSON inválido ya no se guarda en la caché (`http.get_json`).
 - **football-data.co.uk** puede caerse: estuvo caído del 2026-10-21 a las 10:47 al 2026-10-23 (probablemente por PHP2Shell; ver `docs/fuentes.md`). Volvió el 23-10 por la noche: se bajaron los tres días que faltaban y sus estadísticas coinciden con las de FotMob (0 diferencias en los partidos nuevos). Si vuelve a caerse, el host se salta 30 min y *Datos* muestra el motivo y el último dato bueno.
 - El modelo no le gana a bet365 en 1X2, goles ni hándicap asiático (ver el backtest en `docs/modelos.md`).
 - Los mercados de estadísticas y jugadores no tienen backtest con cuotas reales. Los goles, asistencias, remates, remates a puerta y tarjetas de jugadores sí se comprobaron fuera de muestra, con el once confirmado (goles y asistencias bien calibrados en 90 días; en los últimos 45, un 9 % cortos; remates y a puerta, 1,00 y 1,01 de lo real de enero a abril de 2026 y 0,92-0,93 desde julio, por el modelo de remates del equipo; tarjeta de los titulares, 1,00 y 1,00 desde el 2026-10-22).

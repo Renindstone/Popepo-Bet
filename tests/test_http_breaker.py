@@ -99,3 +99,13 @@ def test_no_internet_here_does_not_mark_the_host_down(make_client):
 ])
 def test_failure_reason_is_one_short_line(error, reason):
     assert failure_reason(error) == reason
+
+
+def test_a_maintenance_page_is_not_cached_and_the_next_download_recovers(make_client):
+    pages = [httpx.Response(200, text="<html>We will come back soon</html>"), httpx.Response(200, json={"ok": 1})]
+    c, calls = make_client(lambda request: pages.pop(0))
+    with pytest.raises(http.SourceUnavailable, match="mantenimiento"):
+        c.get_json("https://understat.com/getLeagueData/EPL/2025", ttl=None)  # ttl=None: caché para siempre
+    assert c.get_json("https://understat.com/getLeagueData/EPL/2025", ttl=None) == {"ok": 1}
+    assert c.get_json("https://understat.com/getLeagueData/EPL/2025", ttl=None) == {"ok": 1}
+    assert len(calls) == 2  # lo bueno sí se queda en la caché
