@@ -109,4 +109,4 @@ def test_summaries_only_use_the_models_numbers():
         {"apuesta": "Goles: Más de 2.5", "cuota": 1.62, "prob_modelo": "58.0%", "valor_esperado": "-6.0%",
          "veredicto": "NO apostar"}]}
     text = cr.summary_lines(lines)
-    assert "valor pequeño" in text and "+2.6%" in text and "previstas" in text
+    assert "no pasan el corte" in text and "+2.6%" in text and "previstas" in text

@@ -28,8 +28,8 @@ def s(monkeypatch):
 
 
 def bet(**kw):
-    """Apuesta con valor que pasa el corte por defecto (goles, cuota 2,0, 55 %, +10 %, confianza 0,8)."""
-    base = dict(market="ou_goals", selection="over", line=2.5, bookmaker="bet365", odds=2.0, prob=0.55,
+    """Apuesta con valor que pasa el corte por defecto (goles, cuota 2,0, 65 %, +10 %, confianza 0,8)."""
+    base = dict(market="ou_goals", selection="over", line=2.5, bookmaker="bet365", odds=2.0, prob=0.65,
                 fair_odds=1.82, ev=0.10, confidence=0.8, stake_pct=0.01, reasons=[])
     return SimpleNamespace(**{**base, **kw})
 
@@ -50,6 +50,7 @@ def match(s, kickoff=datetime(2026, 10, 20, 19, tzinfo=UTC)):
 
 
 @pytest.mark.parametrize("change, passes", [
+    ({"prob": 0.60}, True), ({"prob": 0.59}, False),
     ({}, True),
     ({"confidence": 0.4}, False),  # poca confianza
     ({"odds": 3.5, "ev": 0.2}, False),  # cuota fuera del rango de la apuesta del día
@@ -121,13 +122,27 @@ def test_past_day_lists_the_ones_that_passed_first(s):
 # --------------------------------------------------------------------------- copia fija de lo anunciado
 
 
+def test_dias_pasados_con_el_minimo_de_probabilidad(s, monkeypatch):
+    mt = match(s, kickoff=datetime.now(UTC) - timedelta(days=3))
+    day = picks.today_local() - timedelta(days=3)
+    for sel, prob, counted in (("alta", 0.60, False), ("baja", 0.59, False), ("del_dia", 0.45, True)):
+        s.add(m.Pick(match_id=mt.id, pick_date=day, stage="pre_lineup", market="1x2", selection=sel,
+                     bookmaker="bet365", odds=2.0, model_prob=prob, fair_odds=2.0, ev=0.1, confidence=0.8,
+                     stake_pct=0.01, qualifies=False, status="settled", was_pick_of_day=counted))
+    s.flush()
+    monkeypatch.setattr(picks, "MIN_PROB_SINCE", day)  # ya rige: sale lo que llega y la que contó para los aciertos
+    assert {r["selection"] for r in queries.pick_of_day(day.isoformat())["value_bets"]} == {"alta", "del_dia"}
+    monkeypatch.setattr(picks, "MIN_PROB_SINCE", day + timedelta(days=1))  # antes de la regla: como se vio
+    assert len(queries.pick_of_day(day.isoformat())["value_bets"]) == 3
+
+
 def test_lo_anunciado_no_se_sobrescribe(s):
     mt = match(s)
     day = date(2026, 10, 20)
-    p = picks._upsert_pick(s, mt, bet(odds=2.0, ev=0.10, prob=0.55), day, "pre_lineup")
+    p = picks._upsert_pick(s, mt, bet(odds=2.0, ev=0.10, prob=0.65), day, "pre_lineup")
     s.flush()
-    assert (p.announced_odds, p.announced_ev, p.announced_prob) == (2.0, 0.10, 0.55) and p.announced_at is not None
-    picks._upsert_pick(s, mt, bet(odds=1.8, ev=0.05, prob=0.58), day, "confirmed")  # recálculo
+    assert (p.announced_odds, p.announced_ev, p.announced_prob) == (2.0, 0.10, 0.65) and p.announced_at is not None
+    picks._upsert_pick(s, mt, bet(odds=1.8, ev=0.05, prob=0.68), day, "confirmed")  # recálculo
     assert (p.odds, p.announced_odds, p.announced_ev) == (1.8, 2.0, 0.10)
 
 

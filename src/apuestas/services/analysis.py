@@ -227,7 +227,7 @@ class MatchAnalysis:
             "value_bets": [
                 {**b.to_dict(), "label": b.label(mt.home_team.name, mt.away_team.name,
                                                  self.model.players[b.player_id].name if b.player_id in self.model.players else None)}
-                for b in self.bets if b.ev > 0
+                for b in self.bets if b.ev > 0 and b.prob >= get_settings().pick_min_prob
             ],
             "props_min_odds": self.min_odds_props,
             "players": [p.to_dict() for p in sorted(self.model.players.values(), key=lambda p: -p.lam.get("shots", 0))[:16]],

@@ -243,7 +243,7 @@ def summary_lines(result: dict) -> str:
             f"{r['apuesta']} a {r['cuota']} ({r['prob_modelo']}, valor esperado {r['valor_esperado']})" for r in bet)
             + ".")
     if small:
-        parts.append("Con valor pequeño o poca confianza: " + "; ".join(
+        parts.append("Con valor, pero no pasan el corte: " + "; ".join(
             f"{r['apuesta']} a {r['cuota']} ({r['valor_esperado']})" for r in small) + ".")
     if not bet and not small and ok:
         best = max(ok, key=lambda r: float(r["valor_esperado"].rstrip("%")))

@@ -54,7 +54,8 @@ class Settings(BaseSettings):
     # Criterios de la apuesta del día
     pick_min_odds: float = 1.50
     pick_max_odds: float = 2.60
-    pick_min_prob: float = 0.42
+    # Decisión del dueño (5-11-2026): ni en el corte ni en las listas de apuestas con valor sale nada por debajo
+    pick_min_prob: float = 0.60
     pick_min_ev: float = 0.03
     pick_min_confidence: float = 0.60
     # Córners, tarjetas y demás estadísticas (y props de jugador) no se han validado contra cuotas reales: no

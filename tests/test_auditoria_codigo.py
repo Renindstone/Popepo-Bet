@@ -124,9 +124,10 @@ def test_bloqueo_del_dia_en_postgres():
 
 
 def test_con_valor_no_lista_partidos_empezados():
-    assert picks._listed(1.9, started=False) is True
-    assert picks._listed(1.9, started=True) is False
-    assert picks._listed(1.1, started=False) is False  # menos de 1.20: tampoco
+    assert picks._listed(1.9, 0.65, started=False) is True
+    assert picks._listed(1.9, 0.65, started=True) is False
+    assert picks._listed(1.1, 0.95, started=False) is False  # menos de 1.20: tampoco
+    assert picks._listed(1.9, 0.59, started=False) is False  # menos del 60 %: tampoco
 
 
 # --------------------------------------------------------------------------- 5: archivo de temporadas

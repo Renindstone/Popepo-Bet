@@ -12,7 +12,7 @@ import type { BookOdd, BookOdds, MatchSummary } from "@/lib/types";
 // El veredicto llega de la API en español: es la clave
 const verdicts = (): Record<string, { text: string; tone: "boli" | "tarjeta" | "neutral" }> => ({
   APOSTAR: { text: tr("Apostar", "Bet"), tone: "boli" },
-  "valor pequeño o poca confianza": { text: tr("Valor pequeño", "Small value"), tone: "tarjeta" },
+  "valor pequeño o poca confianza": { text: tr("No pasa el corte", "Below the cut"), tone: "tarjeta" },
   "NO apostar": { text: "No", tone: "neutral" },
 });
 const STAT_MARKETS = /corners|cards|shots|sot|fouls/;

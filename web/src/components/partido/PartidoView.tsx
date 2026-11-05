@@ -612,15 +612,15 @@ function ValorDelPartido({ a }: { a: MatchAnalysis }) {
     <Section
       title={tr("Cuotas con valor y props", "Value odds and props")}
       intro={tr(
-        "Cuotas de bet365 y Betano con valor positivo para este partido, y la cuota mínima a pedir en los props que no tienen cuota.",
-        "bet365 and Betano odds with positive value for this match, and the minimum odds to ask for on props that have no price.",
+        "Cuotas de bet365 y Betano con valor positivo y 60 % o más de probabilidad para este partido, y la cuota mínima a pedir en los props que no tienen cuota.",
+        "bet365 and Betano odds with positive value and a 60% or higher probability for this match, and the minimum odds to ask for on props that have no price.",
       )}
     >
       <div className="grid gap-x-10 gap-y-8 lg:grid-cols-2">
         <div className="min-w-0">
           <h3 className="semi mb-2 font-bold">{tr("Con valor", "With value")}</h3>
           {a.value_bets.length === 0 ? (
-            <Empty>{tr("Ninguna cuota disponible tiene valor positivo.", "No available odds have positive value.")}</Empty>
+            <Empty>{tr("Ninguna cuota disponible tiene valor positivo y 60 % o más de probabilidad.", "No available odds have positive value and a 60% or higher probability.")}</Empty>
           ) : (
             <table className="w-full border-collapse text-interfaz">
               <thead>

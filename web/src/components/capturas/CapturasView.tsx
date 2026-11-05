@@ -247,7 +247,7 @@ function summaryText(c: Capture): string {
   if (!s.lines) return "";
   const parts = [tr(`${s.lines} cuota${s.lines === 1 ? "" : "s"}`, `${s.lines} price${s.lines === 1 ? "" : "s"}`)];
   if (s.bet) parts.push(tr(`${s.bet} para apostar`, `${s.bet} to bet`));
-  else if (s.positive_ev) parts.push(tr(`${s.positive_ev} con valor pequeño`, `${s.positive_ev} with small value`));
+  else if (s.positive_ev) parts.push(tr(`${s.positive_ev} con valor sin pasar el corte`, `${s.positive_ev} with value below the cut`));
   else parts.push(tr("ninguna con valor", "none with value"));
   if (s.errors) parts.push(tr(`${s.errors} sin evaluar`, `${s.errors} not evaluated`));
   return parts.join(" · ");
@@ -515,7 +515,7 @@ function ComboBet({ c, onDone }: { c: Capture; onDone: () => void }) {
 // El veredicto llega de la API en español: es la clave
 const verdicts = (): Record<string, { text: string; tone: "boli" | "tarjeta" | "rojo" }> => ({
   APOSTAR: { text: tr("Apostar", "Bet"), tone: "boli" },
-  "valor pequeño o poca confianza": { text: tr("Valor pequeño", "Small value"), tone: "tarjeta" },
+  "valor pequeño o poca confianza": { text: tr("No pasa el corte", "Below the cut"), tone: "tarjeta" },
   "NO apostar": { text: tr("No apostar", "Don't bet"), tone: "rojo" },
 });
 

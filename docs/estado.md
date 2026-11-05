@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 31 de octubre de 2026 (panel en español e inglés). Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
+Última actualización: 5 de noviembre de 2026 (mínimo de 60 % de probabilidad). Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
 
 ## Qué funciona hoy
 
@@ -77,6 +77,7 @@
 | 2026-10-31 | Una apuesta del día por día en los aciertos: puede cambiar durante el día, pero cuenta la de más valor × confianza de las que lo fueron, gane o pierda (el dueño eligió esta regla frente a fijar la primera del día). Se aplicó también al historial. |
 | 2026-10-31 | Panel en español e inglés con un selector. El dueño eligió traducir **todo, también los textos que manda el servidor** (razones, avisos, notas y errores). Las explicaciones de Claude y los resúmenes de capturas, en el idioma en que se escribieron. |
 | 2026-10-30 | El dueño pidió añadir Turquía (Süper Lig) «si es que hay datos»: los hay (FotMob, football-data y OddsPapi), y entra como liga completa igual que Portugal y Bélgica. Aprobó Betano y Pinnacle de OddsPapi para Turquía (0-10 peticiones más al mes). |
+| 2026-11-05 | **Mínimo de 60 % de probabilidad.** La apuesta del día, las que pasan el corte y las listas «Con valor» de Hoy y del partido solo enseñan apuestas de 60 % o más (`pick_min_prob`). Lo de menos del 60 % se sigue guardando para poder medirlo, pero no se enseña desde ese día (`picks.MIN_PROB_SINCE`); los días anteriores, los aciertos y lo anunciado quedan como estaban. Evaluar cuota y Capturas siguen evaluando cualquier cuota: si no llega, sale «No pasa el corte». No cambia la fórmula. El backtest no muestra mejora de ROI (cifras en `docs/modelos.md`). |
 
 ## Pendiente o por decidir
 

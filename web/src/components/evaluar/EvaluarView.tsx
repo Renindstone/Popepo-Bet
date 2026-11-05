@@ -503,7 +503,7 @@ function Explicacion() {
 // El veredicto llega de la API en español: es la clave
 const verdicts = (): Record<string, { text: string; tone: string }> => ({
   APOSTAR: { text: tr("Apostar", "Bet"), tone: "text-boli" },
-  "valor pequeño o poca confianza": { text: tr("Valor pequeño o poca confianza", "Small value or low confidence"), tone: "text-tinta" },
+  "valor pequeño o poca confianza": { text: tr("No pasa el corte", "Does not pass the cut"), tone: "text-tinta" },
   "NO apostar": { text: tr("No apostar", "Don't bet"), tone: "text-rojo" },
 });
 
@@ -530,8 +530,8 @@ function Resultado({ r, matchId, player }: { r: Evaluation; matchId: string; pla
         {r.verdict === "valor pequeño o poca confianza" && (
           <p className="mt-2 max-w-[60ch] border-l border-tarjeta pl-3 text-interfaz">
             {tr(
-              "Tiene valor positivo, pero no pasa el corte que se exige a una apuesta del día (rango de cuota, probabilidad, valor y confianza).",
-              "It has positive value, but it does not pass the cut required of a bet of the day (odds range, probability, value and confidence).",
+              "Tiene valor positivo, pero no pasa el corte que se exige a una apuesta del día (rango de cuota, 60 % o más de probabilidad, valor y confianza).",
+              "It has positive value, but it does not pass the cut required of a bet of the day (odds range, a 60% or higher probability, value and confidence).",
             )}
           </p>
         )}

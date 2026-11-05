@@ -274,7 +274,17 @@ Limitación: en partidos antiguos el valor de mercado es el de la fecha de desca
   |---|---|---|
   | Bodø @9,00 | probabilidad 32 %, valor +185 %, confianza 0,65 | probabilidad 15 %, valor +39 %, confianza 0,31 (no puede ser apuesta del día) |
   | Napoli @1,30 | probabilidad 44 % | probabilidad 66 % |
-- **Apuesta del día**: máxima `valor × confianza` con cuota entre 1,50 y 2,60, prob ≥ 42 %, valor ≥ 3 % y confianza ≥ 0,60. **Si ninguna cumple, no hay apuesta del día.**
+- **Apuesta del día**: máxima `valor × confianza` con cuota entre 1,50 y 2,60, prob ≥ 60 %, valor ≥ 3 % y confianza ≥ 0,60. **Si ninguna cumple, no hay apuesta del día.**
+  **Mínimo de 60 %** (5-11-2026, decisión del dueño; antes, 42 %): también se aplica a las listas «Con valor» de Hoy y de la página del partido. La probabilidad y el valor se calculan igual: solo cambia qué apuestas se enseñan. Con 60 % y valor ≥ 3 %, la cuota tiene que ser de 1,72 o más. **No mejora el resultado:** en el backtest de 2024-08 a 2026-10 (`experimentos/validacion/corte_60.py`, cuotas de 1,50 a 2,60, valor ≥ 3 %, sin filtrar por confianza), se acierta más, pero se cobra menos:
+
+  | Estrategia | Probabilidad | Apuestas | Cuota media | Esperado | Acierto | ROI | CLV |
+  |---|---|---:|---:|---:|---:|---:|---:|
+  | Solo modelo | Menos de 60 % | 2.583 | 2,02 | 53,5 % | 48,8 % | −1,8 % ± 3,7 | +1,1 % |
+  | Solo modelo | 60 % o más | 515 | 1,80 | 63,7 % | 55,4 % | −1,7 % ± 7,2 | +0,9 % |
+  | Modelo + Pinnacle | Menos de 60 % | 136 | 2,04 | 52,9 % | 47,7 % | −3,1 % ± 16,5 | +1,2 % |
+  | Modelo + Pinnacle | 60 % o más | 30 | 1,79 | 65,7 % | 53,3 % | −7,1 % ± 31,8 | +3,2 % |
+
+  Al seleccionar por valor, el modelo acierta menos de lo que promete, y entre las de 60 % o más la diferencia es de 8 a 12 puntos. Con el dinero real pasó igual: de las 144 apuestas guardadas que pasaron el corte y ya tienen resultado, las de 60 % o más (52, probabilidad media 67 %, cuota 1,64) ganaron 26 y perdieron 26, −9,7 unidades; las de menos de 60 % (92, 52 %, cuota 2,08), 48 y 43, +7,2 unidades. Son pocas para sacar conclusiones.
   Solo puede salir de los **mercados de goles** (1X2, doble oportunidad, empate no válido, ambos marcan, hándicaps y más/menos goles), que son los validados en el backtest contra cuotas reales. Córners, tarjetas, el resto de estadísticas y las props de jugador se muestran como apuestas con valor, pero no pueden ser apuesta del día hasta validarlos (`APUESTAS_PICK_ALLOW_STAT_MARKETS=true` lo cambia).
 - **Discrepancia con la casa en estadísticas.** En córners, tarjetas y el resto de estadísticas, si la casa tiene todos los lados de la línea (más y menos, o los dos equipos del hándicap), se calcula su probabilidad sin margen y se compara con la del modelo:
   - hasta 5 puntos de diferencia, la confianza no cambia;

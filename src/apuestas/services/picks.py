@@ -53,6 +53,10 @@ def matches_for_day(s: Session, day: date) -> list[m.Match]:
     ))
 
 
+# Desde este día rige el mínimo de probabilidad en las listas; los días anteriores se enseñan como se vieron
+MIN_PROB_SINCE = date(2026, 11, 5)
+
+
 def qualifies(b: BetEval) -> bool:
     st = get_settings()
     return bool(
@@ -121,10 +125,11 @@ def _lock_day(s: Session, day: date) -> None:
         s.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": 7_000_000 + day.toordinal()})
 
 
-def _listed(odds: float, started: bool) -> bool:
-    """Si una cuota con valor sale en «Con valor»: no las de menos de 1.20 ni las de partidos que ya empezaron (en
-    directo esa cuota ya no es la de antes del partido)."""
-    return not started and odds >= get_settings().value_list_min_odds
+def _listed(odds: float, prob: float, started: bool) -> bool:
+    """Si una cuota con valor sale en «Con valor»: no las de menos de 1.20, ni las de menos del 60 %, ni las de partidos
+    que ya empezaron (en directo esa cuota ya no es la de antes del partido)."""
+    st = get_settings()
+    return not started and odds >= st.value_list_min_odds and prob >= st.pick_min_prob
 
 
 def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict:
@@ -168,7 +173,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
                     pick = _upsert_pick(s, mt, b, day, an.stage)
                     s.flush()
                     b.reasons = [*b.reasons, f"pick_id={pick.id}"]
-                if _listed(b.odds, started):
+                if _listed(b.odds, b.prob, started):
                     report["value_bets"].append({**b.to_dict(), "match_id": mt.id,
                                                  "label": b.label(mt.home_team.name, mt.away_team.name),
                                                  "match": f"{mt.home_team.name} vs {mt.away_team.name}",
@@ -211,7 +216,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
             if current is not None:
                 current.is_pick_of_day = False
             report["notes"].append(
-                "Hoy no hay apuesta del día: ninguna apuesta supera los umbrales de valor y confianza. "
+                "Hoy no hay apuesta del día: ninguna apuesta supera los umbrales de probabilidad, valor y confianza. "
                 "No apostar también es una decisión rentable.")
         s.flush()
         counted = s.scalar(select(m.Pick).where(m.Pick.pick_date == day, m.Pick.was_pick_of_day.is_(True)))

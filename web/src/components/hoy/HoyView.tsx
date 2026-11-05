@@ -215,12 +215,12 @@ function ValueSection({ rows, past }: { rows: (ValueBet | PastValueBet)[]; past:
       intro={
         past
           ? tr(
-              "Las que el sistema guardó ese día con valor positivo, con su resultado. Puedes ver primero las que pasaron el corte, las más probables, las de más confianza o las de más valor. No salen las cuotas de menos de 1.20.",
-              "The positive-value bets the system saved that day, with their result. You can see first the ones that passed the cut, the most likely, the most confident or the highest value. Odds under 1.20 are not shown.",
+              "Las que el sistema guardó ese día con valor positivo, con su resultado. Puedes ver primero las que pasaron el corte, las más probables, las de más confianza o las de más valor. Los días anteriores al 5 de noviembre de 2026 incluyen las de menos del 60 % de probabilidad. No salen las cuotas de menos de 1.20.",
+              "The positive-value bets the system saved that day, with their result. You can see first the ones that passed the cut, the most likely, the most confident or the highest value. Days before 5 November 2026 include those under 60% probability. Odds under 1.20 are not shown.",
             )
           : tr(
-              "Cuotas de bet365 y Betano donde nuestra estimación supera lo que implica la cuota. Las que pasan el corte de valor, probabilidad y confianza se guardan y, cuando termina el partido, se anota si se ganaron o se perdieron; entre ellas sale la apuesta del día. «Más probables» ordena por la probabilidad de que salga; «Más confianza», por lo seguro que está el modelo de su estimación. No salen las cuotas de menos de 1.20, que casi no dejan margen.",
-              "bet365 and Betano odds where our estimate beats what the odds imply. The ones that pass the value, probability and confidence cut are saved and, when the match ends, marked as won or lost; the bet of the day comes from them. “Most likely” sorts by the chance it lands; “Most confident”, by how sure the model is of its estimate. Odds under 1.20 are not shown, as they leave almost no margin.",
+              "Cuotas de bet365 y Betano con 60 % o más de probabilidad donde nuestra estimación supera lo que implica la cuota. Las que pasan el corte de valor, probabilidad y confianza se guardan y, cuando termina el partido, se anota si se ganaron o se perdieron; entre ellas sale la apuesta del día. «Más probables» ordena por la probabilidad de que salga; «Más confianza», por lo seguro que está el modelo de su estimación. No salen las cuotas de menos de 1.20, que casi no dejan margen.",
+              "bet365 and Betano odds with a 60% or higher probability where our estimate beats what the odds imply. The ones that pass the value, probability and confidence cut are saved and, when the match ends, marked as won or lost; the bet of the day comes from them. “Most likely” sorts by the chance it lands; “Most confident”, by how sure the model is of its estimate. Odds under 1.20 are not shown, as they leave almost no margin.",
             )
       }
     >
@@ -425,7 +425,7 @@ function NoPick({ note, past }: { note: string | null; past: boolean }) {
       <p className={deck}>
         {note
           ? note.replace(/^(Hoy no hay apuesta del día|No bet of the day today): /, "").replace(/^./, (c) => c.toUpperCase())
-          : tr("Ninguna apuesta superó los umbrales de valor y confianza.", "No bet beat the value and confidence thresholds.")}
+          : tr("Ninguna apuesta superó los umbrales de probabilidad, valor y confianza.", "No bet beat the probability, value and confidence thresholds.")}
       </p>
     </article>
   );
@@ -594,8 +594,8 @@ function MarginNote() {
       </p>
       <p className="mt-2">
         {tr(
-          "La apuesta del día es la de mayor valor por confianza entre las que pasan el corte. Algunos días no hay ninguna.",
-          "The bet of the day is the one with the highest value times confidence among those that pass the cut. Some days there is none.",
+          "La apuesta del día es la de mayor valor por confianza entre las que pasan el corte, que pide 60 % o más de probabilidad. Algunos días no hay ninguna.",
+          "The bet of the day is the one with the highest value times confidence among those that pass the cut, which requires a 60% or higher probability. Some days there is none.",
         )}
       </p>
     </aside>

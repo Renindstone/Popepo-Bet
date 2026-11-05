@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from apuestas.betting.settlement import needs_line
@@ -190,8 +190,11 @@ def pick_of_day(day: str | None = None, refresh: bool = False) -> dict:
         return picks.generate(d)
     with session_scope() as s:
         # Primero las que pasaron el corte (y no se retiraron), luego el resto por valor esperado
-        rows = sorted(s.scalars(select(m.Pick).where(m.Pick.pick_date == d,
-                                                     m.Pick.odds >= get_settings().value_list_min_odds)),
+        st = get_settings()
+        min_prob = () if d < picks.MIN_PROB_SINCE else (or_(m.Pick.model_prob >= st.pick_min_prob,
+                                                            m.Pick.was_pick_of_day.is_(True)),)
+        rows = sorted(s.scalars(select(m.Pick).where(m.Pick.pick_date == d, m.Pick.odds >= st.value_list_min_odds,
+                                                     *min_prob)),
                       key=lambda p: (not (p.qualifies and p.status != "withdrawn"), -p.ev))
         # La que cuenta para los aciertos (una por día), no la última que se enseñó
         pod = next((p for p in rows if p.was_pick_of_day), None)
