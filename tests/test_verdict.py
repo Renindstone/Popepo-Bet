@@ -25,7 +25,7 @@ def s(monkeypatch):
             yield session
             session.flush()
 
-        monkeypatch.setattr(verdict, "session_scope", scope, raising=False)
+        monkeypatch.setattr(verdict, "session_scope", scope)
         yield session
 
 
@@ -160,3 +160,196 @@ def test_copia_de_los_numeros(s):
     assert numbers["odds"] == 2.10 and numbers["confidence"] == 0.64 and numbers["stage"] == "confirmed"
     assert numbers["implied"] == pytest.approx(1 / 2.10, abs=0.001) and "Villarreal" in numbers["label"]
     assert numbers["streaks"][0]["team"] == "Paris Saint-Germain"
+
+
+# ------------------------------------------------------------------------- los tres papeles
+
+MOTIVOS_OK = [{"etiqueta": "Riesgo", "texto": "Si gana por un gol, se pierde."},
+              {"etiqueta": "Noticias", "texto": "Vuelve su delantero."}]
+
+
+def review_for(s, pick=None, status="trabajando", **kw):
+    if pick is None:
+        a, b = team(s, "Local"), team(s, "Visita")
+        pick = add_pick(s, add_match(s, a, b, datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1), status="scheduled"),
+                        pick_date=datetime.now().date())
+    review = m.PickReview(pick_id=pick.id, day=pick.pick_date, status=status, attempts=0, stage=pick.stage,
+                          numbers=verdict.snapshot(s, pick), **kw)
+    s.add(review)
+    s.flush()
+    return review
+
+
+def ref(review):
+    return f"review:{review.id}"
+
+
+def fake_claude(monkeypatch, s, on_role=None, skip=()):
+    """Sustituye la ejecución de Claude: cada papel guarda lo suyo salvo los de `skip`. Devuelve los papeles lanzados."""
+    launched = []
+
+    def ask(papel, review_id):
+        launched.append(papel)
+        rf = f"review:{review_id}"
+        if papel not in skip:
+            if papel == "juez":
+                verdict.save_verdict(rf, "Dudosa", MOTIVOS_OK)
+            else:
+                verdict.save_side(rf, papel, f"Texto de {papel}", [{"titulo": "Nota", "url": "https://e.com/a"}])
+        if on_role:
+            on_role(papel)
+        return None
+
+    monkeypatch.setattr(verdict, "_ask", ask)
+    return launched
+
+
+def test_el_juez_no_tiene_internet_y_los_revisores_si(monkeypatch):
+    monkeypatch.setattr(verdict.ai_notes.shutil, "which", lambda _: "/usr/bin/claude")
+    cmd, _, _ = verdict.command("juez")
+    assert cmd[cmd.index("--tools") + 1] == ""
+    assert "WebSearch" not in cmd[cmd.index("--allowedTools") + 1]
+    assert "mcp__apuestas__guardar_veredicto" in cmd[cmd.index("--allowedTools") + 1]
+    assert cmd[cmd.index("--model") + 1] == "sonnet" and cmd[cmd.index("--effort") + 1] == "high"
+    reviewer, _, _ = verdict.command("favor")
+    assert reviewer[reviewer.index("--tools") + 1] == "WebSearch,WebFetch"
+    assert "guardar_veredicto" not in reviewer[reviewer.index("--allowedTools") + 1]
+    assert "guardar_revisor" in reviewer[reviewer.index("--allowedTools") + 1]
+
+
+def test_un_revisor_no_recibe_el_texto_del_otro(s):
+    review = review_for(s, favor="razón secreta a favor", contra="razón secreta en contra")
+    assert "razón secreta" not in verdict.prompt(review, "contra")
+    assert "razón secreta" not in verdict.prompt(review, "favor")
+    juez = verdict.prompt(review, "juez")
+    assert "razón secreta a favor" in juez and "razón secreta en contra" in juez
+
+
+@pytest.mark.parametrize("palabra, motivos", [
+    ("Quizás", MOTIVOS_OK), ("Apostar", []), ("Apostar", MOTIVOS_OK[:1]), ("Apostar", MOTIVOS_OK * 3),
+    ("Apostar", [{"etiqueta": "Confianza", "texto": "x"}, {"etiqueta": "Riesgo", "texto": "y"}]),
+    ("Apostar", [{"etiqueta": "racha", "texto": "x"}, {"etiqueta": "Riesgo", "texto": "y"}]),
+    ("Apostar", [{"etiqueta": "Riesgo", "texto": "es una Apuesta Segura"}, {"etiqueta": "Noticias", "texto": "y"}]),
+    ("Dudosa", [{"etiqueta": "Riesgo", "texto": "sin riesgo"}, {"etiqueta": "Noticias", "texto": "y"}]),
+    ("Dudosa", [{"etiqueta": "Riesgo", "texto": "gana garantizado"}, {"etiqueta": "Noticias", "texto": "y"}]),
+    ("Dudosa", [{"etiqueta": "Riesgo", "texto": "x" * 201}, {"etiqueta": "Noticias", "texto": "y"}]),
+    ("Dudosa", [{"etiqueta": "x" * 21, "texto": "x"}, {"etiqueta": "Noticias", "texto": "y"}]),
+])
+def test_veredicto_invalido_se_rechaza(s, palabra, motivos):
+    review = review_for(s)
+    with pytest.raises(ValueError):
+        verdict.save_verdict(ref(review), palabra, motivos)
+    assert review.word is None
+
+
+def test_veredicto_valido_se_guarda(s):
+    review = review_for(s)
+    verdict.save_verdict(ref(review), "Mejor no", MOTIVOS_OK)
+    assert review.word == "Mejor no" and review.motives[0] == {"label": "Riesgo", "text": MOTIVOS_OK[0]["texto"]}
+
+
+def test_fuente_con_enlace_peligroso_se_rechaza(s):
+    review = review_for(s)
+    with pytest.raises(ValueError):
+        verdict.save_side(ref(review), "favor", "texto", [{"titulo": "x", "url": "javascript:alert(1)"}])
+    assert review.favor is None
+
+
+def test_revisor_no_puede_prometer(s):
+    review = review_for(s)
+    with pytest.raises(ValueError):
+        verdict.save_side(ref(review), "contra", "Esto es una apuesta segura.", [])
+
+
+def test_no_se_guarda_en_una_revision_terminada(s):
+    review = review_for(s, status="lista")
+    with pytest.raises(ValueError):
+        verdict.save_side(ref(review), "favor", "texto", [])
+
+
+def test_los_tres_papeles_dejan_la_revision_lista(s, monkeypatch):
+    launched = fake_claude(monkeypatch, s)
+    review = review_for(s, status="pendiente")
+    verdict.run(review.id)
+    s.refresh(review)
+    assert launched == ["favor", "contra", "juez"]
+    assert review.status == "lista" and review.word == "Dudosa" and review.favor == "Texto de favor"
+    assert review.favor_sources == [{"title": "Nota", "url": "https://e.com/a"}] and review.model == "sonnet"
+
+
+def test_si_cambia_la_apuesta_a_mitad_se_descarta(s, monkeypatch):
+    review = review_for(s, status="pendiente")
+
+    def replaced(papel):
+        if papel == "juez":
+            review.pick.is_pick_of_day = False
+
+    fake_claude(monkeypatch, s, on_role=replaced)
+    verdict.run(review.id)
+    s.refresh(review)
+    assert review.status == "descartada"
+
+
+def test_si_empieza_el_partido_no_se_revisa(s, monkeypatch):
+    launched = fake_claude(monkeypatch, s)
+    a, b = team(s, "Local"), team(s, "Visita")
+    pick = add_pick(s, add_match(s, a, b, datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1), status="scheduled"))
+    review = review_for(s, pick, status="pendiente")
+    verdict.run(review.id)
+    s.refresh(review)
+    assert review.status == "descartada" and launched == []
+
+
+def test_si_falta_un_revisor_no_hay_veredicto_y_se_reintenta_una_vez(s, monkeypatch):
+    launched = fake_claude(monkeypatch, s, skip=("contra",))
+    review = review_for(s, status="pendiente")
+    verdict.run(review.id)
+    s.refresh(review)
+    assert review.status == "pendiente" and review.word is None and review.attempts == 1
+    assert "juez" not in launched
+    verdict.run(review.id)
+    s.refresh(review)
+    assert review.status == "error" and review.attempts == 2 and "contra" in review.error
+
+
+def test_el_reintento_no_repite_lo_ya_guardado(s, monkeypatch):
+    launched = fake_claude(monkeypatch, s)
+    review = review_for(s, status="pendiente", favor="Ya escrito", favor_sources=[])
+    verdict.run(review.id)
+    assert launched == ["contra", "juez"]
+
+
+def test_un_fallo_de_claude_no_lanza_y_se_reintenta(s, monkeypatch):
+    def boom(papel, review_id):
+        raise RuntimeError("No encuentro el CLI")
+
+    monkeypatch.setattr(verdict, "_ask", boom)
+    review = review_for(s, status="pendiente")
+    verdict.run(review.id)
+    s.refresh(review)
+    assert review.status == "pendiente" and "No encuentro el CLI" in review.error
+
+
+def test_datos_del_handicap_europeo_explican_el_empate(s):
+    review = review_for(s, villarreal_psg(s))
+    data = verdict.review_data(ref(review))
+    assert "pierde" in data["como_se_liquida"] and data["numbers"]["odds"] == 2.10
+    assert data["visitante"]["forma"]["hot"] is True and data["visitante"]["bajas"] == []
+
+
+def test_datos_con_referencia_mala(s):
+    with pytest.raises(ValueError):
+        verdict.review_data("pick:1")
+
+
+def test_herramientas_del_motor(monkeypatch):
+    from apuestas.config import get_settings
+    from apuestas.mcp_server.server import build
+
+    def tools():
+        return {t.name for t in build()._tool_manager.list_tools()}
+
+    assert "datos_veredicto" in tools() and not {"guardar_revisor", "guardar_veredicto"} & tools()
+    monkeypatch.setattr(get_settings(), "mcp_engine", True)
+    assert {"datos_veredicto", "guardar_revisor", "guardar_veredicto"} <= tools()
+    assert "registrar_apuesta" not in tools()

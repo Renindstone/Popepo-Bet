@@ -97,6 +97,12 @@ def claim(note_id: int) -> bool:
 
 def command(note: m.AiNote) -> tuple[list[str], dict[str, str], Path]:
     """Comando, entorno y carpeta de trabajo para `claude -p` (separado para poder probarlo)."""
+    return claude_command(WEB_TOOLS, MCP_TOOLS, get_settings().captures_cli_model)
+
+
+def claude_command(tools: tuple[str, ...], mcp_tools: tuple[str, ...], model: str,
+                   effort: str | None = None) -> tuple[list[str], dict[str, str], Path]:
+    """`claude -p` aislado: solo las herramientas indicadas, sin archivos ni terminal y sin leer esta PC."""
     st = get_settings()
     claude = shutil.which(st.claude_bin)
     if claude is None:
@@ -108,11 +114,12 @@ def command(note: m.AiNote) -> tuple[list[str], dict[str, str], Path]:
         "env": {"APUESTAS_MCP_USER": st.default_user, "APUESTAS_MCP_ENGINE": "true"}}}}
     cmd = [
         claude, "-p",
-        "--model", st.captures_cli_model,
+        "--model", model,
+        *(["--effort", effort] if effort else []),
         "--mcp-config", json.dumps(mcp_config),
         "--strict-mcp-config",
-        "--tools", ",".join(WEB_TOOLS),   # solo buscar y leer noticias: ni archivos ni terminal
-        "--allowedTools", ",".join([*WEB_TOOLS, *(f"mcp__apuestas__{t}" for t in MCP_TOOLS)]),
+        "--tools", ",".join(tools),   # como mucho, buscar y leer noticias: ni archivos ni terminal
+        "--allowedTools", ",".join([*tools, *(f"mcp__apuestas__{t}" for t in mcp_tools)]),
         "--disallowedTools", ",".join(f"WebFetch(domain:{h})" for h in LOCAL_HOSTS),
         "--permission-mode", "dontAsk",
         "--setting-sources", "",
@@ -163,13 +170,8 @@ def run(note_id: int) -> None:
         _finish(note_id, str(exc))
 
 
-def save(ref: str, texto: str, fuentes: list[dict]) -> dict:
-    """Guarda la explicación de la nota en curso para esa referencia (herramienta MCP del motor)."""
-    text = (texto or "").strip()
-    if not text:
-        raise ValueError("La explicación está vacía")
-    if len(text) > MAX_TEXT:
-        raise ValueError(f"La explicación pasa de {MAX_TEXT} caracteres")
+def clean_sources(fuentes: list[dict] | None) -> list[dict]:
+    """Las fuentes que escribió Claude, ya validadas: solo enlaces web y como mucho MAX_SOURCES."""
     if len(fuentes or []) > MAX_SOURCES:
         raise ValueError(f"Como mucho {MAX_SOURCES} fuentes")
     sources = []
@@ -178,6 +180,17 @@ def save(ref: str, texto: str, fuentes: list[dict]) -> dict:
         if not url.startswith(("http://", "https://")):
             raise ValueError(f"Fuente sin enlace válido: {url[:80]}")
         sources.append({"title": str(f.get("titulo") or f.get("title") or url)[:160], "url": url[:500]})
+    return sources
+
+
+def save(ref: str, texto: str, fuentes: list[dict]) -> dict:
+    """Guarda la explicación de la nota en curso para esa referencia (herramienta MCP del motor)."""
+    text = (texto or "").strip()
+    if not text:
+        raise ValueError("La explicación está vacía")
+    if len(text) > MAX_TEXT:
+        raise ValueError(f"La explicación pasa de {MAX_TEXT} caracteres")
+    sources = clean_sources(fuentes)
     with session_scope() as s:
         note = s.scalar(select(m.AiNote).where(m.AiNote.ref == ref, m.AiNote.status == "trabajando")
                         .order_by(m.AiNote.day.desc()))

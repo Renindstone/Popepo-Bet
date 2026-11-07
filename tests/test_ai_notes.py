@@ -210,11 +210,12 @@ def test_comando_no_deja_leer_la_api_local(s, monkeypatch):
     assert {"WebFetch(domain:127.0.0.1)", "WebFetch(domain:localhost)", "WebFetch(domain:[::1])"} <= set(denied)
 
 
-def test_el_mcp_del_motor_solo_tiene_sus_tres_herramientas(monkeypatch):
+def test_el_mcp_del_motor_solo_tiene_sus_herramientas(monkeypatch):
     from apuestas.mcp_server.server import build
 
     monkeypatch.setattr(get_settings(), "mcp_engine", True)
-    assert {t.name for t in build()._tool_manager.list_tools()} == {"datos_fallo", "datos_radar", "guardar_explicacion"}
+    assert {t.name for t in build()._tool_manager.list_tools()} == {
+        "datos_fallo", "datos_radar", "guardar_explicacion", "datos_veredicto", "guardar_revisor", "guardar_veredicto"}
 
 
 def test_un_fallo_de_las_notas_no_deshace_la_liquidacion(s, monkeypatch):

@@ -20,7 +20,7 @@ from mcp.server.mcpserver.utilities.types import Image
 
 from apuestas.config import get_settings
 from apuestas.db.session import session_scope
-from apuestas.services import ai_notes, captures, queries, tracker
+from apuestas.services import ai_notes, captures, queries, tracker, verdict
 
 log = logging.getLogger(__name__)
 
@@ -202,12 +202,28 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
         racha o en baja en las últimas 4 semanas, sus figuras y sus próximos partidos."""
         return _safe(ai_notes.radar_data, ref)
 
+    @server.tool()
+    def datos_veredicto(ref: str) -> str:
+        """Datos de una revisión de la apuesta del día (ref="review:<id>"): números del modelo, racha y últimos
+        resultados de cada equipo, bajas, avisos del radar y cómo se liquida. Solo son datos: la decisión es del usuario."""
+        return _safe(verdict.review_data, ref)
+
     if get_settings().mcp_engine and not http:
 
         @server.tool()
         def guardar_explicacion(ref: str, texto: str, fuentes: list[dict]) -> str:
             """Guarda la explicación escrita (de 3 a 6 frases) para `ref`, con las fuentes usadas: [{titulo, url}]."""
             return _safe(ai_notes.save, ref, texto, fuentes)
+
+        @server.tool()
+        def guardar_revisor(ref: str, papel: str, texto: str, fuentes: list[dict]) -> str:
+            """Guarda el texto de un revisor (papel: favor o contra) con las fuentes usadas: [{titulo, url}]."""
+            return _safe(verdict.save_side, ref, papel, texto, fuentes)
+
+        @server.tool()
+        def guardar_veredicto(ref: str, palabra: str, motivos: list[dict]) -> str:
+            """Guarda el veredicto del juez: palabra (Apostar, Dudosa o Mejor no) y de 2 a 4 motivos: [{etiqueta, texto}]."""
+            return _safe(verdict.save_verdict, ref, palabra, motivos)
 
     @server.tool()
     def capturas_pendientes() -> str:
@@ -257,9 +273,9 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
         return _safe(queries.data_status)
 
     if get_settings().mcp_engine and not http:
-        # El motor de notas lee páginas de internet: solo ve sus tres herramientas, ninguna que escriba en la BD
+        # Los motores de Claude leen páginas de internet: solo ven sus herramientas, ninguna que escriba en otras tablas
         for t in list(server._tool_manager.list_tools()):
-            if t.name not in ai_notes.MCP_TOOLS:
+            if t.name not in (*ai_notes.MCP_TOOLS, *verdict.MCP_TOOLS):
                 server.remove_tool(t.name)
     return server
 
