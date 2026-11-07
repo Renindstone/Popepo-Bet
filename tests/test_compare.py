@@ -140,3 +140,15 @@ def test_el_analisis_tampoco_usa_cuotas_que_ya_no_se_ofrecen(s):
     rows = analysis._latest_odds(s, mt.id)
     assert sorted((r.bookmaker, r.line, r.price) for r in rows) == [("bet365", None, 1.90), ("betano", 9.5, 2.00)]
     assert s.query(m.OddsSnapshot).filter_by(bookmaker="betano").count() == 2  # la 9.5 no se guardó dos veces
+
+
+def test_una_casa_que_dejo_de_mandar_el_partido_no_cuenta(s):
+    # OddsPapi marcó Betano como inactiva en el partido: su última cuota se quedó de hace días (Werder +1.5, 7-11-2026)
+    from apuestas.services import analysis
+
+    mt = match(s)
+    download(s, mt, [("betano", "ah", "away", 1.5, 1.57)], hours=50)
+    download(s, mt, [("pinnacle", "ah", "away", 1.5, 1.389)], hours=10)
+    assert [(r.bookmaker, r.price) for r in analysis._latest_odds(s, mt.id)] == [("pinnacle", 1.389)]
+    download(s, mt, [("betano", "ah", "away", 1.5, 1.39)], hours=29)  # vista hace menos de 30 h: sigue valiendo
+    assert sorted(r.bookmaker for r in analysis._latest_odds(s, mt.id)) == ["betano", "pinnacle"]

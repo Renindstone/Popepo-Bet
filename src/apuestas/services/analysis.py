@@ -387,6 +387,13 @@ def _player_projections(
 # Una línea que no salió en la última descarga de su casa ya no se ofrece (`OddsSnapshot.last_seen_at`). Las 12 horas
 # dejan dentro la descarga de las 08:30 cuando después llega la de Pinnacle de antes del partido.
 ODDS_FRESH = timedelta(hours=12)
+# Una casa puede dejar de mandar un partido sin quitar sus líneas una a una (OddsPapi marcó Betano como inactiva en casi
+# todos desde el 5-11-2026): lo que no se vio en este tiempo antes del partido, o de ahora, ya no es una cuota vigente
+ODDS_MAX_AGE = timedelta(hours=30)
+
+
+def _utc(when: datetime) -> datetime:
+    return when if when.tzinfo else when.replace(tzinfo=UTC)
 
 
 def _latest_odds(s: Session, match_id: int) -> list[m.OddsSnapshot]:
@@ -403,8 +410,11 @@ def _latest_odds(s: Session, match_id: int) -> list[m.OddsSnapshot]:
         latest[(r.bookmaker, r.market, r.selection, r.line)] = r
         if r.last_seen_at is not None:
             newest[r.bookmaker] = max(newest.get(r.bookmaker, r.last_seen_at), r.last_seen_at)
+    match = s.get(m.Match, match_id)
+    oldest = min(datetime.now(UTC), _utc(match.kickoff_utc)) - ODDS_MAX_AGE  # en SQLite llegan sin zona
     return [r for r in latest.values()
-            if r.last_seen_at is None or r.last_seen_at >= newest[r.bookmaker] - ODDS_FRESH]
+            if r.last_seen_at is None
+            or (r.last_seen_at >= newest[r.bookmaker] - ODDS_FRESH and _utc(r.last_seen_at) >= oldest)]
 
 
 def _sharp_prob(odds_rows: list[m.OddsSnapshot], market: str, selection: str, line: float | None) -> float | None:
