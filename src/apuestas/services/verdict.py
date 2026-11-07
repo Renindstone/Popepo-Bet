@@ -331,6 +331,7 @@ def run(review_id: int) -> None:
                     valid = False
                 else:
                     valid, done = True, _done(review, papel)
+                    done_before = {p: _done(review, p) for p in SIDES}
             if not valid:
                 _discard(review_id)
                 return
@@ -341,7 +342,16 @@ def run(review_id: int) -> None:
                 _failed(review_id, f"{papel}: {error}")
                 return
             with session_scope() as s:
-                saved = _done(s.get(m.PickReview, review_id), papel)
+                review = s.get(m.PickReview, review_id)
+                saved = _done(review, papel)
+                # Una página leída por un revisor podría pedirle escribir también la parte del otro
+                intruded = [p for p in SIDES if p != papel and not done_before[p] and _done(review, p)]
+                for p in intruded:
+                    setattr(review, p, None)
+                    setattr(review, f"{p}_sources", None)
+            if intruded:
+                _failed(review_id, f"{papel}: escribió también la parte de {', '.join(intruded)}")
+                return
             if not saved:
                 _failed(review_id, f"{papel}: Claude no guardó su parte")
                 return
@@ -376,7 +386,8 @@ def request_due(s: Session, now: datetime) -> m.PickReview | None:
     # Sin once confirmado basta con una: otra revisión solo vale la pena con la alineación de verdad
     if "confirmed" in stages or (stages and not confirmed):
         return None
-    if s.scalar(select(func.count()).select_from(m.PickReview).where(m.PickReview.day == pick.pick_date, active)) >= MAX_PER_DAY:
+    spent = or_(active, m.PickReview.attempts > 0)  # una descartada a mitad también gastó la suscripción
+    if s.scalar(select(func.count()).select_from(m.PickReview).where(m.PickReview.day == pick.pick_date, spent)) >= MAX_PER_DAY:
         log.info("Ya hay %d revisiones hoy: no se revisa la apuesta %s", MAX_PER_DAY, pick.id)
         return None
     review = m.PickReview(pick_id=pick.id, day=pick.pick_date, status="pendiente", attempts=0, stage=pick.stage,
@@ -403,10 +414,23 @@ def rescue_stuck(now: datetime | None = None) -> int:
     return n
 
 
+def reset_running() -> int:
+    """Al arrancar el worker, que es el único que las escribe: las que estaban en `trabajando` se cortaron."""
+    with session_scope() as s:
+        rows = list(s.scalars(select(m.PickReview).where(m.PickReview.status == "trabajando")))
+        for review in rows:
+            review.status = "pendiente" if review.attempts < MAX_ATTEMPTS else "error"
+            if review.status == "error":
+                review.error = "Se interrumpió demasiadas veces"
+        return len(rows)
+
+
 def process_pending() -> int:
     """Escribe las pendientes, de una en una. Devuelve cuántas intentó."""
     rescue_stuck()
     with session_scope() as s:
+        if not ai_notes.auto_enabled(s):
+            return 0
         ids = list(s.scalars(select(m.PickReview.id).where(m.PickReview.status == "pendiente")
                              .order_by(m.PickReview.created_at, m.PickReview.id)))
     for review_id in ids:

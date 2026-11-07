@@ -630,3 +630,43 @@ def test_medicion_cuenta_la_ultima_valida_antes_del_inicio_y_una_por_dia(s):
     out = verdict.measure(s)
     assert out["contados"]["Mejor no"]["misses"] == 1 and set(out["contados"]) == {"Mejor no"}
     assert out["todos"]["Apostar"]["hits"] == 1 and out["todos"]["Mejor no"]["misses"] == 1
+
+
+# ------------------------------------------------------------------------- correcciones del revisor final
+
+def test_un_revisor_que_escribe_la_parte_del_otro_falla(s, monkeypatch):
+    def ask(papel, review_id):
+        rf = f"review:{review_id}"
+        verdict.save_side(rf, "favor", "A favor", [])
+        verdict.save_side(rf, "contra", "Escrito por el revisor a favor", [])  # una página se lo pidió
+        return None
+
+    monkeypatch.setattr(verdict, "_ask", ask)
+    review = review_for(s, status="pendiente")
+    verdict.run(review.id)
+    s.refresh(review)
+    assert review.status == "pendiente" and review.contra is None and review.word is None
+    assert "contra" in review.error
+
+
+def test_el_tope_cuenta_las_descartadas_que_gastaron(s):
+    for minutes in (60, 70, 80):
+        pick = today_pick(s, minutes=minutes)
+        review = due(s)
+        review.status, review.attempts = "descartada", 1
+        pick.is_pick_of_day = False
+    today_pick(s, minutes=90)
+    assert due(s) is None
+
+
+def test_al_arrancar_el_worker_las_que_trabajaban_vuelven_a_pendiente(s):
+    review = review_for(s)
+    review.attempts, review.updated_at = 1, datetime.now(UTC)
+    assert verdict.reset_running() == 1 and review.status == "pendiente"
+
+
+def test_con_la_ia_apagada_no_se_reintenta(s, monkeypatch):
+    launched = fake_claude(monkeypatch, s)
+    review_for(s, status="pendiente")
+    monkeypatch.setattr(verdict.ai_notes, "auto_enabled", lambda _: False)
+    assert verdict.process_pending() == 0 and launched == []

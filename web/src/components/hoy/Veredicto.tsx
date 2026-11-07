@@ -45,7 +45,12 @@ function Side({ title, side }: { title: string; side: { text: string | null; sou
 export function Veredicto({ pickId }: { pickId: number }) {
   const { data, error, mutate } = useApi<PickReview | null>(`/picks/${pickId}/review`, {
     refreshInterval: (d) =>
-      d?.status === "espera" ? 60000 : d?.status === "pendiente" || d?.status === "trabajando" || d?.updating ? 15000 : 0,
+      d?.status === "pendiente" || d?.status === "trabajando" || d?.updating
+        ? 15000
+        : // Revisado sin once confirmado: al confirmarse llega otra revisión
+          d?.status === "espera" || (d?.status === "lista" && d.stage !== "confirmed")
+          ? 60000
+          : 0,
   });
   if (error) return <ErrorNote error={error} onRetry={() => mutate()} />;
   if (!data) return null;

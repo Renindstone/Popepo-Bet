@@ -392,7 +392,13 @@ def catch_up() -> None:
 
 def run() -> None:
     global _sched
+    from apuestas.services import verdict
+
     tz = get_settings().tz
+    try:
+        verdict.reset_running()  # una revisión cortada por el reinicio vuelve a la cola sin esperar
+    except Exception:  # noqa: BLE001 - sin esto el worker arranca igual
+        log.exception("No se pudieron recuperar las revisiones en marcha")
     sched = _sched = BlockingScheduler(timezone=tz, job_defaults={"misfire_grace_time": MISFIRE_GRACE_S, "coalesce": True})
     for key, (fn, hour, minute, weekday, _grace) in DAILY_JOBS.items():
         sched.add_job(fn, "cron", hour=hour, minute=minute, id=key,
