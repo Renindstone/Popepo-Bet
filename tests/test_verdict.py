@@ -498,3 +498,118 @@ def test_una_tarea_completa_escribe_la_revision(s, monkeypatch):
     review = s.query(m.PickReview).one()
     s.refresh(review)
     assert review.status == "lista" and verdict.process_due(datetime.now(UTC)) == 0
+
+
+# ------------------------------------------------------------------------- lo que ve cada usuario
+
+OWNER = "renzo"
+
+
+def view(pick, user=OWNER):
+    return verdict.for_user(pick.id, user)
+
+
+def ready_review(s, pick, numbers=None, **kw):
+    review = review_for(s, pick, status="lista", word="Mejor no", favor="A favor", favor_sources=[], contra="En contra",
+                        contra_sources=[{"title": "Nota", "url": "https://e.com/a"}],
+                        motives=[{"label": "Riesgo", "text": "Se pierde si gana por uno."}], **kw)
+    if numbers:
+        review.numbers = {**review.numbers, **numbers}
+    return review
+
+
+def test_con_la_ia_apagada_no_sale_nada(s):
+    s.add(m.User(username="sin_ia", ai_enabled=False))
+    pick = today_pick(s)
+    ready_review(s, pick)
+    assert view(pick, "sin_ia") is None
+
+
+def test_dia_futuro_no_sale_nada(s):
+    pick = today_pick(s)
+    pick.pick_date += timedelta(days=1)
+    assert view(pick) is None
+
+
+def test_hoy_sin_revision_espera(s):
+    assert view(today_pick(s))["status"] == "espera"
+
+
+def test_dia_pasado_sin_revision_no_sale_nada(s):
+    pick = today_pick(s, minutes=-600)
+    pick.pick_date -= timedelta(days=1)
+    assert view(pick) is None
+
+
+def test_hoy_en_marcha_y_en_error(s):
+    pick = today_pick(s)
+    review = review_for(s, pick)
+    assert view(pick)["status"] == "trabajando"
+    review.status, review.error = "error", "Claude tardó demasiado"
+    out = view(pick)
+    assert out["status"] == "error" and out["error"] == "Claude tardó demasiado" and out["word"] is None
+
+
+def test_veredicto_listo_trae_sus_partes(s):
+    pick = today_pick(s)
+    ready_review(s, pick)
+    out = view(pick)
+    assert out["status"] == "lista" and out["word"] == "Mejor no" and out["threshold"] == 0.8
+    assert out["motives"][0]["label"] == "Riesgo" and out["debate"]["contra"]["sources"][0]["url"] == "https://e.com/a"
+    assert out["record"]["high"] == {"hits": 0, "misses": 0} and out["streaks"] == []
+    assert out["numbers_changed"] is False and out["updating"] is False
+
+
+def test_hoy_la_confianza_es_la_actual_y_avisa_si_cruza_el_80(s):
+    pick = today_pick(s, confidence=0.83)
+    ready_review(s, pick, numbers={"confidence": 0.78})
+    out = view(pick)
+    assert out["confidence"] == 0.83 and out["numbers_changed"] is True
+
+
+def test_sin_cruzar_el_80_no_avisa(s):
+    pick = today_pick(s, confidence=0.70)
+    ready_review(s, pick, numbers={"confidence": 0.78})
+    assert view(pick)["numbers_changed"] is False
+
+
+@pytest.mark.parametrize("odds, changed", [(2.09, False), (2.11, True), (1.89, True)])
+def test_cuota_movida_mas_de_5_por_ciento_avisa(s, odds, changed):
+    pick = today_pick(s, odds=odds, confidence=0.70)
+    ready_review(s, pick, numbers={"odds": 2.00, "confidence": 0.70})
+    assert view(pick)["numbers_changed"] is changed
+
+
+def test_dia_pasado_usa_la_copia(s):
+    pick = today_pick(s, minutes=-600, confidence=0.90)
+    pick.pick_date -= timedelta(days=1)
+    ready_review(s, pick, numbers={"confidence": 0.64})
+    out = view(pick)
+    assert out["confidence"] == 0.64 and out["numbers_changed"] is False
+
+
+def test_veredicto_anterior_se_mantiene_si_la_nueva_falla_o_esta_en_marcha(s):
+    pick = today_pick(s)
+    ready_review(s, pick)
+    newer = review_for(s, pick)
+    out = view(pick)
+    assert out["word"] == "Mejor no" and out["updating"] is True
+    newer.status = "error"
+    out = view(pick)
+    assert out["word"] == "Mejor no" and out["status"] == "lista" and out["updating"] is False
+
+
+def test_no_se_ensena_el_veredicto_de_otra_apuesta(s):
+    ready_review(s, today_pick(s))
+    assert view(today_pick(s, minutes=90))["status"] == "espera"
+
+
+def test_descartada_no_se_ensena(s):
+    pick = today_pick(s)
+    ready_review(s, pick).status = "descartada"
+    assert view(pick)["status"] == "espera"
+
+
+def test_apuesta_que_no_existe(s):
+    with pytest.raises(verdict.queries.NotFound):
+        verdict.for_user(999, OWNER)

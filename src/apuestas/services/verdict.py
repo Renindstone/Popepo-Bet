@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from apuestas.config import get_settings
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
-from apuestas.services import ai_notes, picks, radar
+from apuestas.services import ai_notes, picks, queries, radar, tracker
 from apuestas.services.analysis import bet_label
 from apuestas.services.capture_engines import parse_claude_output
 
@@ -34,6 +34,7 @@ RESERVED_LABELS = ("confianza", "racha")  # esos motivos los escribe el código
 MIN_MOTIVES, MAX_MOTIVES = 2, 4
 MAX_LABEL, MAX_MOTIVE = 20, 200
 MAX_ATTEMPTS = 2
+NUMBERS_MOVED = 0.05  # la cuota se movió tanto desde la revisión: se avisa
 MAX_PER_DAY = 3  # para no gastar la suscripción si la apuesta cambia varias veces
 LAST_CALL_MIN = 30  # sin alineación confirmada, se revisa igual a estos minutos del partido
 PROMISES = re.compile(r"apuesta segura|sin riesgo|garantiz", re.IGNORECASE)
@@ -418,3 +419,40 @@ def process_due(now: datetime) -> int:
     with session_scope() as s:
         request_due(s, now)
     return process_pending()
+
+
+# ------------------------------------------------------------------------- lo que ve cada usuario
+
+def for_user(pick_id: int, username: str) -> dict | None:
+    """La revisión tal como la ve un usuario: nada con la IA apagada, ni en días futuros ni en días pasados sin ella."""
+    now = datetime.now(UTC)
+    with session_scope() as s:
+        pick = s.get(m.Pick, pick_id)
+        if pick is None:
+            raise queries.NotFound(f"No existe la apuesta {pick_id}")
+        today = picks.today_local()
+        if not tracker.ai_enabled(s, username) or pick.pick_date > today:
+            return None
+        past = pick.pick_date < today or _aware(pick.match.kickoff_utc) <= now
+        reviews = s.scalars(select(m.PickReview).where(m.PickReview.pick_id == pick_id,
+                                                       m.PickReview.status != "descartada")
+                            .order_by(m.PickReview.id)).all()
+        ready = next((r for r in reversed(reviews) if r.status == "lista"), None)
+        latest = reviews[-1] if reviews else None
+        if ready is None:
+            if past:
+                return None
+            return {"status": latest.status if latest else "espera", "error": latest.error if latest else None,
+                    "word": None}
+        seen = ready.numbers
+        threshold = get_settings().verdict_min_confidence
+        changed = not past and ((seen["confidence"] >= threshold) != (pick.confidence >= threshold)
+                                or abs(pick.odds / seen["odds"] - 1) > NUMBERS_MOVED)
+        when = ready.updated_at or ready.created_at
+        return {"status": "lista", "error": None, "word": ready.word, "motives": ready.motives or [],
+                "streaks": seen.get("streaks", []), "confidence": seen["confidence"] if past else pick.confidence,
+                "threshold": threshold, "record": confidence_record(s), "stage": ready.stage,
+                "numbers_changed": changed, "updating": not past and latest.status in ("pendiente", "trabajando"),
+                "updated_at": _aware(when).astimezone(get_settings().tz).isoformat() if when else None,
+                "debate": {"favor": {"text": ready.favor, "sources": ready.favor_sources or []},
+                           "contra": {"text": ready.contra, "sources": ready.contra_sources or []}}}

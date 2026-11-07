@@ -31,6 +31,7 @@ from apuestas.services import (
     radar,
     sync,
     tracker,
+    verdict,
 )
 
 log = logging.getLogger(__name__)
@@ -256,6 +257,12 @@ def week(day: str | None = None, period: str = "semana", user: str = Depends(cur
     """Equipo, jugador y once de la semana o del mes (4 semanas): quién sorprendió a la casa (equipos) y a nuestro
     modelo (jugadores)."""
     return _wrap(queries.week_recap, day, True, period)
+
+
+@app.get("/picks/{pick_id}/review")
+def pick_review(pick_id: int, user: str = Depends(current_user)) -> dict | None:
+    """Veredicto de los revisores de una apuesta del día (nada si el usuario tiene la IA apagada)."""
+    return _wrap(verdict.for_user, pick_id, user)
 
 
 @app.get("/picks/{pick_id}/failure")

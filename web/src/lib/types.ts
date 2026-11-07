@@ -597,6 +597,26 @@ export type PeriodRecap = WeekRecap | MonthUnavailable;
 // --------------------------------------------------------------------------- radar de Sorpresas (GET /radar)
 
 /** Explicación escrita por Claude (solo si el usuario usa la IA) */
+/** Veredicto de los revisores de la apuesta del día */
+export interface PickReview {
+  status: "espera" | "pendiente" | "trabajando" | "error" | "lista";
+  error: string | null;
+  word: "Apostar" | "Dudosa" | "Mejor no" | null;
+  motives?: { label: string; text: string }[];
+  streaks?: { team: string; wins: number; played: number; run: number }[];
+  confidence?: number;
+  threshold?: number;
+  record?: { high: { hits: number; misses: number }; low: { hits: number; misses: number } };
+  stage?: string;
+  numbers_changed?: boolean;
+  updating?: boolean;
+  updated_at?: string | null;
+  debate?: {
+    favor: { text: string | null; sources: { title: string; url: string }[] };
+    contra: { text: string | null; sources: { title: string; url: string }[] };
+  };
+}
+
 export interface AiNote {
   status: "pendiente" | "trabajando" | "lista" | "error";
   text: string | null;
