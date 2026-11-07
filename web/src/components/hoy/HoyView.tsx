@@ -6,6 +6,7 @@ import { Fragment, useCallback, useState } from "react";
 import { AlertList, AlertTags } from "@/components/Avisos";
 import { CaptureDrop } from "@/components/capturas/CaptureDrop";
 import { Comparador } from "@/components/hoy/Comparador";
+import { Veredicto } from "@/components/hoy/Veredicto";
 import { Crest } from "@/components/Crest";
 import { PickRecord } from "@/components/PickRecord";
 import { PorQueFallo } from "@/components/PorQueFallo";
@@ -406,6 +407,7 @@ function Slip({ pick, past, bankroll, currency }: { pick: PickOfDay; past: boole
         </ul>
       )}
       {!past && <AlertList alerts={pick.alerts} className="mt-5" />}
+      {pick.pick_id && <Veredicto pickId={pick.pick_id} />}
       {past && pick.pick_id && (pick.result === "loss" || pick.result === "half_loss") && <PorQueFallo pickId={pick.pick_id} />}
       {checkHref && !past && (
         <Link href={checkHref} className="mt-4 inline-flex min-h-10 items-center text-interfaz font-bold text-boli underline underline-offset-4">
