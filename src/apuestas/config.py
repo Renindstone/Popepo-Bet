@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     # Solo para el MCP que lanza el motor de notas de Claude: habilita guardar_explicacion
     mcp_engine: bool = False
     ai_notes_timeout_s: int = 300
+    # Veredicto de los revisores: la regla de confianza del dueño y con qué modelo de Claude se escribe
+    verdict_min_confidence: float = 0.80
+    verdict_cli_model: str = "sonnet"
+    verdict_effort: str = "high"
 
     @property
     def tz(self) -> ZoneInfo:

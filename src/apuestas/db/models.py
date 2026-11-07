@@ -399,6 +399,31 @@ class AiNote(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class PickReview(Base):
+    """Una revisión de la apuesta del día: A favor, En contra y Juez, con la copia de los números que vieron."""
+
+    __tablename__ = "pick_review"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pick_id: Mapped[int] = mapped_column(ForeignKey("pick.id", ondelete="CASCADE"), index=True)
+    day: Mapped[date] = mapped_column(Date, index=True)
+    status: Mapped[str] = mapped_column(String(12), default="pendiente")  # pendiente|trabajando|lista|error|descartada
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    stage: Mapped[str] = mapped_column(String(14))
+    numbers: Mapped[dict] = mapped_column(JSONType)
+    favor: Mapped[str | None] = mapped_column(Text)
+    favor_sources: Mapped[list | None] = mapped_column(JSONType)
+    contra: Mapped[str | None] = mapped_column(Text)
+    contra_sources: Mapped[list | None] = mapped_column(JSONType)
+    word: Mapped[str | None] = mapped_column(String(10))  # Apostar | Dudosa | Mejor no
+    motives: Mapped[list | None] = mapped_column(JSONType)
+    model: Mapped[str | None] = mapped_column(String(40))
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    pick: Mapped[Pick] = relationship()
+
+
 class UserBet(Base, TimestampMixin):
     __tablename__ = "user_bet"
     id: Mapped[int] = mapped_column(primary_key=True)
