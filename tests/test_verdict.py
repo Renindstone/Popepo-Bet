@@ -173,8 +173,8 @@ def review_for(s, pick=None, status="trabajando", **kw):
         a, b = team(s, "Local"), team(s, "Visita")
         pick = add_pick(s, add_match(s, a, b, datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1), status="scheduled"),
                         pick_date=datetime.now().date())
-    review = m.PickReview(pick_id=pick.id, day=pick.pick_date, status=status, attempts=0, stage=pick.stage,
-                          numbers=verdict.snapshot(s, pick), **kw)
+    review = m.PickReview(pick_id=pick.id, day=pick.pick_date, status=status, attempts=0,
+                          numbers=verdict.snapshot(s, pick), **{"stage": pick.stage, **kw})
     s.add(review)
     s.flush()
     return review
@@ -613,3 +613,20 @@ def test_descartada_no_se_ensena(s):
 def test_apuesta_que_no_existe(s):
     with pytest.raises(verdict.queries.NotFound):
         verdict.for_user(999, OWNER)
+
+
+# ------------------------------------------------------------------------- medición
+
+def test_medicion_cuenta_la_ultima_valida_antes_del_inicio_y_una_por_dia(s):
+    a, b = team(s, "A"), team(s, "B")
+    counted = add_pick(s, add_match(s, a, b, KO, 0, 1), was_pick_of_day=True, status="settled", result="loss")
+    review_for(s, counted, status="lista", word="Dudosa", stage="predicted").created_at = KO - timedelta(hours=3)
+    review_for(s, counted, status="lista", word="Mejor no").created_at = KO - timedelta(hours=1)
+    review_for(s, counted, status="lista", word="Apostar").created_at = KO + timedelta(minutes=5)  # después: no
+    review_for(s, counted, status="error").created_at = KO - timedelta(minutes=30)
+    replaced = add_pick(s, add_match(s, a, b, KO + timedelta(hours=2), 2, 0), selection="away", status="settled",
+                        result="win")
+    review_for(s, replaced, status="lista", word="Apostar").created_at = KO
+    out = verdict.measure(s)
+    assert out["contados"]["Mejor no"]["misses"] == 1 and set(out["contados"]) == {"Mejor no"}
+    assert out["todos"]["Apostar"]["hits"] == 1 and out["todos"]["Mejor no"]["misses"] == 1

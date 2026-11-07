@@ -20,7 +20,7 @@ OddsPapi (opcional) ─┘        │
    fitting (paquete)     rotación, dificultad)        Parquet + DuckDB
          └──────────┬─────────┘
                     ▼
-   services/  analysis (partido completo) · picks (apuesta del día, liquidación) · predictions (previa) · weekly (semana y mes) · radar · failure (por qué falló) · ai_notes (Claude) · compare (Betano frente a Pinnacle) · rivalries (clásicos)
+   services/  analysis (partido completo) · picks (apuesta del día, liquidación) · predictions (previa) · weekly (semana y mes) · radar · failure (por qué falló) · ai_notes (Claude) · verdict (veredicto de los revisores) · compare (Betano frente a Pinnacle) · rivalries (clásicos)
               tracker (usuarios, apuestas, banca) · queries (capa común)
                     │
       ┌─────────────┼──────────────┬───────────────┐
@@ -40,6 +40,16 @@ El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: 
 **Sorpresas** (desde el 29-10-2026): `weekly.score_range` puntúa cualquier rango de fechas, así que el mes son 4 semanas. `services/radar.py` saca de los últimos 28 días los equipos en racha o en baja y los jugadores en racha, con caché de 5 minutos, y pone sus avisos en `picks.generate`, `/matches` y el análisis del partido (`alerts`); no tocan la probabilidad ni el corte. `services/failure.py` compara la previa con lo que pasó en la apuesta del día perdida (`GET /picks/{id}/failure`). `services/ai_notes.py` escribe con `claude -p` (suscripción de la PC, aislado como el motor de capturas pero con WebSearch y WebFetch) la explicación en `ai_note`: la pide `settle_all` al perder la apuesta del día y la escribe la tarea `notas_ia` del worker (min 5, 25 y 45), o la API al pulsar «Investigar con Claude» (`POST /radar/investigate`, solo el dueño). `guardar_explicacion` solo existe en el MCP del motor (`APUESTAS_MCP_ENGINE`). Cada usuario tiene su interruptor de la IA (`app_user.ai_enabled`, `GET/PUT /me`).
 
 **Apuestas que pasan el corte:** cada apuesta con valor de un partido que aún no empezó se guarda en `pick` (`picks.generate`) y se actualiza en cada recálculo; `pick.qualifies` dice si pasa el corte de la apuesta del día (`picks.qualifies`: valor, probabilidad, confianza, rango de cuota y, por ahora, solo mercados de goles). El análisis que se enseña es el último antes del partido: si deja de tener valor se retira (`status = "withdrawn"`) y si deja de pasar el corte se desmarca; si lo recupera el mismo día, se reabre la misma fila. Pero los contadores miden **lo que se anunció** (desde el 29-10-2026): la primera vez que una apuesta pasa el corte se guarda fija su cuota, probabilidad y valor (`announced_*`), y `was_pick_of_day` recuerda si llegó a ser la apuesta del día. Las retiradas que se anunciaron se liquidan igual y cuentan. La liquidación es la de siempre (`picks.settle_all`, que aísla cada apuesta para que una rota no pare las demás), y `GET /picks/qualified` da sus aciertos desde el inicio y las de los últimos días. `picks.generate` toma un cerrojo de PostgreSQL por día (`pg_advisory_xact_lock`) para que el worker y la API no la calculen a la vez.
+
+**Veredicto de los revisores** (desde el 7-11-2026, ADR 0009): la tarea `job_verdict` del worker corre cada 5 minutos (`verdict.process_due`). Crea una fila en `pick_review` para la apuesta del día de hoy cuando su alineación está confirmada, o a 30 minutos del inicio si no llega. Como mucho hay 3 por día, y solo si alguien de los motores tiene la IA encendida. Luego lanza tres `claude -p` aislados (`ai_notes.claude_command`, Sonnet con esfuerzo alto):
+- A favor y En contra pueden leer noticias, y ninguno ve el texto del otro.
+- El juez no tiene internet: lee los dos textos como datos.
+
+Las herramientas MCP `datos_veredicto`, `guardar_revisor` y `guardar_veredicto` solo existen en el MCP del motor. Este solo ve sus herramientas y las de las notas.
+
+Si la apuesta cambia o el partido empieza a mitad, la revisión se descarta. Si falta un papel, se reintenta una vez y no hay veredicto. La confianza frente al 80 % y la racha (3 victorias seguidas o 4 de 5 contra el equipo al que se apuesta en contra) las calcula el código y se guardan en la copia `numbers`.
+
+El panel lo lee con `GET /picks/{pick_id}/review` (`verdict.for_user`), y `experimentos/validacion/veredicto.py` mide los aciertos por palabra.
 
 **Combinadas registradas:** una apuesta con `market = "combo"` en `user_bet`, cuyo partido es el que termina último, y sus selecciones en `user_bet_leg`. La liquidación (`picks.settle_all` y `betting.settlement.combo_profit`) resuelve cada selección y la combinada: una perdida basta para perderla; una anulada divide su cuota de la total.
 

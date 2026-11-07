@@ -47,6 +47,9 @@ Reglas: no recomiendes apostar si el veredicto no es "APOSTAR"; recuerda la gest
 Capturas: el usuario sube imágenes de cuotas en el panel. capturas_pendientes → ver_captura (imagen + guía) →
 evaluar_captura (las cuotas que leíste; el modelo calcula el veredicto) o evaluar_combinada (combinadas y Bet
 Builders) → guardar_veredicto_captura (resumen). Si no hay nada evaluable: marcar_no_evaluable.
+
+datos_veredicto solo da los datos de una revisión de la apuesta del día: es una opinión, no un cálculo; la decisión es
+del usuario y nunca digas que una apuesta es segura.
 """
 
 

@@ -456,3 +456,20 @@ def for_user(pick_id: int, username: str) -> dict | None:
                 "updated_at": _aware(when).astimezone(get_settings().tz).isoformat() if when else None,
                 "debate": {"favor": {"text": ready.favor, "sources": ready.favor_sources or []},
                            "contra": {"text": ready.contra, "sources": ready.contra_sources or []}}}
+
+
+# ------------------------------------------------------------------------- medición
+
+def measure(s: Session) -> dict:
+    """Aciertos por palabra con la última revisión lista antes del inicio. `contados`: la apuesta del día que cuenta
+    para los aciertos (una por día); `todos`: cualquier apuesta del día que tuvo veredicto."""
+    last: dict[int, m.PickReview] = {}
+    for review in s.scalars(select(m.PickReview).where(m.PickReview.status == "lista").order_by(m.PickReview.created_at)):
+        if _aware(review.created_at) < _aware(review.pick.match.kickoff_utc):
+            last[review.pick_id] = review
+    groups: dict[str, dict[str, list[m.Pick]]] = {"contados": {}, "todos": {}}
+    for review in last.values():
+        groups["todos"].setdefault(review.word, []).append(review.pick)
+        if review.pick.was_pick_of_day:
+            groups["contados"].setdefault(review.word, []).append(review.pick)
+    return {k: {word: picks.record_from(rows) for word, rows in g.items()} for k, g in groups.items()}
