@@ -353,3 +353,148 @@ def test_herramientas_del_motor(monkeypatch):
     monkeypatch.setattr(get_settings(), "mcp_engine", True)
     assert {"datos_veredicto", "guardar_revisor", "guardar_veredicto"} <= tools()
     assert "registrar_apuesta" not in tools()
+
+
+# ------------------------------------------------------------------------- cuándo se pide
+
+def today_pick(s, stage="confirmed", minutes=60, **kw):
+    a, b = team(s, f"Local {stage} {minutes}"), team(s, f"Visita {stage} {minutes}")
+    kickoff = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=minutes)
+    return add_pick(s, add_match(s, a, b, kickoff, status="scheduled"), stage=stage,
+                    pick_date=verdict.picks.today_local(), **kw)
+
+
+def due(s):
+    return verdict.request_due(s, datetime.now(UTC))
+
+
+def test_con_alineacion_confirmada_se_pide(s):
+    pick = today_pick(s)
+    review = due(s)
+    assert review.pick_id == pick.id and review.status == "pendiente" and review.stage == "confirmed"
+    assert review.numbers["odds"] == pick.odds
+
+
+def test_prevista_a_mas_de_30_minutos_espera(s):
+    today_pick(s, stage="predicted", minutes=31)
+    assert due(s) is None
+
+
+def test_prevista_a_30_minutos_se_pide(s):
+    today_pick(s, stage="predicted", minutes=30)
+    assert due(s).stage == "predicted"
+
+
+def test_empezado_no_se_pide(s):
+    today_pick(s, minutes=-1)
+    assert due(s) is None
+
+
+def test_apuesta_de_otro_dia_no_se_pide(s):
+    pick = today_pick(s)
+    pick.pick_date += timedelta(days=1)
+    assert due(s) is None
+
+
+def test_si_ya_no_es_la_apuesta_del_dia_no_se_pide(s):
+    today_pick(s, is_pick_of_day=False)
+    assert due(s) is None
+
+
+def test_con_la_ia_apagada_no_se_pide(s, monkeypatch):
+    today_pick(s)
+    monkeypatch.setattr(verdict.ai_notes, "auto_enabled", lambda _: False)
+    assert due(s) is None
+
+
+def test_no_se_duplica_con_la_misma_alineacion(s):
+    today_pick(s)
+    due(s).status = "lista"
+    assert due(s) is None
+
+
+def test_una_revision_en_error_no_se_pide_otra_vez(s):
+    today_pick(s)
+    due(s).status = "error"
+    assert due(s) is None
+
+
+def test_de_prevista_a_confirmada_se_revisa_otra_vez(s):
+    pick = today_pick(s, stage="predicted", minutes=20)
+    due(s).status = "lista"
+    assert due(s) is None
+    pick.stage = "confirmed"
+    assert due(s).stage == "confirmed"
+
+
+def test_sin_confirmar_no_se_repite_si_cambia_a_otro_estado_sin_once(s):
+    pick = today_pick(s, stage="injuries_only", minutes=20)
+    due(s).status = "lista"
+    pick.stage = "predicted"
+    assert due(s) is None
+
+
+def test_si_la_apuesta_vuelve_se_reutiliza_el_veredicto(s):
+    a = today_pick(s)
+    due(s).status = "lista"
+    a.is_pick_of_day = False
+    b = today_pick(s, minutes=90)
+    due(s).status = "lista"
+    b.is_pick_of_day = False
+    a.is_pick_of_day = True
+    assert due(s) is None
+
+
+def test_una_descartada_se_puede_pedir_otra_vez(s):
+    today_pick(s)
+    due(s).status = "descartada"
+    assert due(s) is not None
+
+
+def test_maximo_tres_revisiones_al_dia(s):
+    for minutes in (60, 70, 80):
+        pick = today_pick(s, minutes=minutes)
+        due(s).status = "lista"
+        pick.is_pick_of_day = False
+    today_pick(s, minutes=90)
+    assert due(s) is None
+
+
+def test_reinicio_a_mitad_vuelve_a_pendiente(s):
+    review = review_for(s)
+    review.attempts = 1
+    now = datetime.now(UTC)
+    limit = 3 * verdict.get_settings().ai_notes_timeout_s + 120
+    review.updated_at = now - timedelta(seconds=limit - 5)
+    assert verdict.rescue_stuck(now) == 0
+    review.updated_at = now - timedelta(seconds=limit + 5)
+    assert verdict.rescue_stuck(now) == 1 and review.status == "pendiente"
+
+
+def test_reinicio_con_los_intentos_gastados_queda_en_error(s):
+    review = review_for(s)
+    review.attempts = 2
+    now = datetime.now(UTC)
+    review.updated_at = now - timedelta(days=1)
+    assert verdict.rescue_stuck(now) == 1 and review.status == "error"
+
+
+def test_sin_el_cli_de_claude_queda_en_error_sin_romper(s, monkeypatch):
+    monkeypatch.setattr(verdict.get_settings(), "claude_bin", "no-existe-claude")
+    today_pick(s)
+    assert verdict.process_due(datetime.now(UTC)) == 1
+    review = s.query(m.PickReview).one()
+    s.refresh(review)
+    assert review.status == "pendiente"
+    verdict.process_due(datetime.now(UTC))
+    s.refresh(review)
+    assert review.status == "error" and "No encuentro el CLI de Claude Code" in review.error
+
+
+def test_una_tarea_completa_escribe_la_revision(s, monkeypatch):
+    fake_claude(monkeypatch, s)
+    today_pick(s)
+    assert verdict.process_due(datetime.now(UTC)) == 1
+    review = s.query(m.PickReview).one()
+    s.refresh(review)
+    assert review.status == "lista" and verdict.process_due(datetime.now(UTC)) == 0

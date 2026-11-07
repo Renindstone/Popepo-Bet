@@ -234,6 +234,16 @@ def job_lineups() -> None:
     _last_pod[day] = key
 
 
+@_safe("veredicto", network=0)
+def job_verdict() -> None:
+    """Pide y escribe la revisión de la apuesta del día cuando toca. Un fallo aquí no afecta a las apuestas."""
+    from apuestas.services import verdict
+
+    n = verdict.process_due(datetime.now(UTC))
+    if n:
+        log.info("Revisiones de la apuesta del día intentadas: %d", n)
+
+
 # Minutos antes del inicio en que se baja Pinnacle para el CLV (la tarea corre cada LINEUP_EVERY_MIN minutos)
 CLOSING_CHECK_MIN = 15
 CLOSING_TASK = "closing odds"
@@ -392,6 +402,7 @@ def run() -> None:
     sched.add_job(job_post_match, "cron", minute="15,45", id="post_match")
     sched.add_job(job_odds, "cron", hour="*/3", minute=10, id="odds")
     sched.add_job(job_ai_notes, "cron", minute="5,25,45", id="ai_notes")
+    sched.add_job(job_verdict, "cron", minute=f"*/{LINEUP_EVERY_MIN}", id="verdict")
     sched.add_job(catch_up, "date", run_date=datetime.now(tz) + timedelta(seconds=10), id="catch_up")
     log.info("Worker iniciado (%s). Tareas: %s", tz, [j.id for j in sched.get_jobs()])
     sched.start()

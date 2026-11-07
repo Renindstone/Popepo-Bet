@@ -10,10 +10,10 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from apuestas.config import get_settings
@@ -34,6 +34,8 @@ RESERVED_LABELS = ("confianza", "racha")  # esos motivos los escribe el código
 MIN_MOTIVES, MAX_MOTIVES = 2, 4
 MAX_LABEL, MAX_MOTIVE = 20, 200
 MAX_ATTEMPTS = 2
+MAX_PER_DAY = 3  # para no gastar la suscripción si la apuesta cambia varias veces
+LAST_CALL_MIN = 30  # sin alineación confirmada, se revisa igual a estos minutos del partido
 PROMISES = re.compile(r"apuesta segura|sin riesgo|garantiz", re.IGNORECASE)
 MCP_TOOLS = ("datos_veredicto", "guardar_revisor", "guardar_veredicto")
 
@@ -354,3 +356,65 @@ def run(review_id: int) -> None:
         _failed(review_id, f"Claude tardó más de {get_settings().ai_notes_timeout_s} s")
     except Exception as exc:  # noqa: BLE001 - la revisión nunca se queda a medias
         _failed(review_id, str(exc))
+
+
+# ------------------------------------------------------------------------- cuándo se revisa
+
+def request_due(s: Session, now: datetime) -> m.PickReview | None:
+    """Crea la revisión si toca: alineación confirmada o, sin confirmar, a LAST_CALL_MIN minutos del partido."""
+    pick = s.scalar(select(m.Pick).where(m.Pick.pick_date == picks.today_local(), m.Pick.is_pick_of_day.is_(True),
+                                         m.Pick.status == "open"))
+    if pick is None or not ai_notes.auto_enabled(s):
+        return None
+    left = _aware(pick.match.kickoff_utc) - now
+    confirmed = pick.stage == "confirmed"
+    if left <= timedelta(0) or (not confirmed and left > timedelta(minutes=LAST_CALL_MIN)):
+        return None
+    active = m.PickReview.status != "descartada"
+    stages = set(s.scalars(select(m.PickReview.stage).where(m.PickReview.pick_id == pick.id, active)))
+    # Sin once confirmado basta con una: otra revisión solo vale la pena con la alineación de verdad
+    if "confirmed" in stages or (stages and not confirmed):
+        return None
+    if s.scalar(select(func.count()).select_from(m.PickReview).where(m.PickReview.day == pick.pick_date, active)) >= MAX_PER_DAY:
+        log.info("Ya hay %d revisiones hoy: no se revisa la apuesta %s", MAX_PER_DAY, pick.id)
+        return None
+    review = m.PickReview(pick_id=pick.id, day=pick.pick_date, status="pendiente", attempts=0, stage=pick.stage,
+                          numbers=snapshot(s, pick))
+    s.add(review)
+    s.flush()
+    return review
+
+
+def rescue_stuck(now: datetime | None = None) -> int:
+    """Recupera las que se quedaron en `trabajando` porque se reinició el servicio a medias."""
+    now = now or datetime.now(UTC)
+    cutoff = now - timedelta(seconds=len((*SIDES, "juez")) * get_settings().ai_notes_timeout_s + ai_notes.STUCK_MARGIN_S)
+    n = 0
+    with session_scope() as s:
+        for review in s.scalars(select(m.PickReview).where(m.PickReview.status == "trabajando")):
+            when = review.updated_at or review.created_at
+            if when is not None and _aware(when) < cutoff:
+                gave_up = review.attempts >= MAX_ATTEMPTS
+                review.status = "error" if gave_up else "pendiente"
+                if gave_up:
+                    review.error = "Se interrumpió demasiadas veces"
+                n += 1
+    return n
+
+
+def process_pending() -> int:
+    """Escribe las pendientes, de una en una. Devuelve cuántas intentó."""
+    rescue_stuck()
+    with session_scope() as s:
+        ids = list(s.scalars(select(m.PickReview.id).where(m.PickReview.status == "pendiente")
+                             .order_by(m.PickReview.created_at, m.PickReview.id)))
+    for review_id in ids:
+        run(review_id)
+    return len(ids)
+
+
+def process_due(now: datetime) -> int:
+    """La tarea del worker: pide la revisión si toca y escribe las pendientes."""
+    with session_scope() as s:
+        request_due(s, now)
+    return process_pending()
