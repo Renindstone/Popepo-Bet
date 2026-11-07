@@ -373,7 +373,8 @@ def match_book_odds(match_ref: str | int, bookmaker: str = "betano") -> dict:
     tz = get_settings().tz
     with session_scope() as s:
         match = find_match(s, match_ref)
-        rows = [r for r in analysis._latest_odds(s, match.id) if r.bookmaker == bookmaker]
+        rows = [r for r in analysis._latest_odds(s, match.id)
+                if r.bookmaker == bookmaker and analysis.can_bet(r.market, r.line)]
         home, away = match.home_team.name, match.away_team.name
         out = []
         if rows:

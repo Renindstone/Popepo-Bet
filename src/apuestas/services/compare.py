@@ -39,7 +39,7 @@ def match_edges(s: Session, match: m.Match, min_edge: float = MIN_EDGE) -> list[
         return []
     home, away = match.home_team.name, match.away_team.name
     out = []
-    for b in (r for r in rows if r.bookmaker.startswith("betano")):
+    for b in (r for r in rows if r.bookmaker.startswith("betano") and analysis.can_bet(r.market, r.line)):
         p = analysis.book_fair_prob(ref, REFERENCE, b.market, b.selection, b.line)
         if not p:
             continue

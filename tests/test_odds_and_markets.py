@@ -167,3 +167,14 @@ def test_valor_de_lineas_de_cuarto_cuenta_las_mitades():
     odds = 1.95
     approx = (out.effective_prob() * odds - 1) * out.decided()
     assert approx == pytest.approx(out.ev(odds), abs=1e-9)
+
+
+@pytest.mark.parametrize("market, line, ok", [
+    ("ah", 0.25, False), ("ah", -0.75, False), ("ah", 1.25, False), ("ah_corners", -2.75, False),
+    ("ah", 1.5, True), ("ah", -2.0, True), ("ah", 0.0, True), ("ah", 3.0, True),
+    ("ou_goals", 2.25, True), ("1x2", None, True),
+])
+def test_el_dueno_no_puede_apostar_lineas_asiaticas_de_cuarto(market, line, ok):
+    from apuestas.services import analysis
+
+    assert analysis.can_bet(market, line) is ok

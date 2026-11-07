@@ -447,6 +447,11 @@ def _confidence(
     return max(0.0, min(1.0, c))
 
 
+def can_bet(market: str, line: float | None) -> bool:
+    """Si el dueño puede hacer esa apuesta: en sus casas no tiene las líneas asiáticas de cuarto (0.25, 0.75, 1.25…)."""
+    return not (market.startswith("ah") and line is not None and (line * 2) % 1 != 0)
+
+
 def evaluate_bet(
     analysis_model: MatchModel, quality: dict, rotation: str, odds_rows: list[m.OddsSnapshot],
     market: str, selection: str, line: float | None, odds: float, bookmaker: str, player_id: int | None = None,
@@ -616,7 +621,7 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
     # Evaluar todas las cuotas disponibles de mis casas
     bets = []
     for r in odds_rows:
-        if r.bookmaker not in MY_BOOKS:
+        if r.bookmaker not in MY_BOOKS or not can_bet(r.market, r.line):
             continue
         try:
             bets.append(evaluate_bet(mm, quality, rotation, odds_rows, r.market, r.selection, r.line, r.price, r.bookmaker))
