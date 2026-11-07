@@ -448,8 +448,10 @@ def _confidence(
 
 
 def can_bet(market: str, line: float | None) -> bool:
-    """Si el dueño puede hacer esa apuesta: en sus casas no tiene las líneas asiáticas de cuarto (0.25, 0.75, 1.25…)."""
-    return not (market.startswith("ah") and line is not None and (line * 2) % 1 != 0)
+    """Si el dueño puede hacer esa apuesta: en sus casas no tiene las líneas de cuarto (0.25, 0.75, 1.25…) del hándicap
+    asiático ni de Más/Menos goles."""
+    quarter = line is not None and (line * 2) % 1 != 0
+    return not (quarter and (market.startswith("ah") or market.startswith("ou_goals")))
 
 
 def evaluate_bet(
