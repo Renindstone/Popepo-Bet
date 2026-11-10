@@ -8,7 +8,7 @@ Popepo-Bet se instala en tres pasos en cualquier sistema:
 
 En **Windows** funciona dentro de WSL, que es un Ubuntu dentro de Windows: primero se instala WSL y después los pasos son los mismos que en Ubuntu.
 
-Se probó en CachyOS (de la familia Arch). Los pasos de Fedora, Debian, Ubuntu, Mac y Windows usan los mismos scripts, pero aún no se han probado en esas máquinas: si algo falla, mira [Problemas frecuentes](#6-problemas-frecuentes).
+Se probó en CachyOS (de la familia Arch) y en Fedora (10-11-2026, con Python 3.15 y Node.js 22: los scripts funcionan sin cambios). Los pasos de Debian, Ubuntu, Mac y Windows usan los mismos scripts, pero aún no se han probado en esas máquinas: si algo falla, mira [Problemas frecuentes](#6-problemas-frecuentes).
 
 **Qué necesita:**
 - unos 2 GB de disco (la base de datos ocupa ~0,5 GB, el entorno de Python ~0,8 GB, el panel ~0,5 GB y la caché de descargas ~0,1 GB);
