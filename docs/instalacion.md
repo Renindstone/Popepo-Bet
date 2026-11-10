@@ -230,6 +230,8 @@ git pull && scripts/instalar.sh && scripts/arrancar.sh
 | El panel dice "No hay conexión con la API" | Arch, Fedora, Debian, Ubuntu y Windows | La API no está corriendo: `systemctl --user status apuestas-api` y revisa el registro con `journalctl --user -u apuestas-api` |
 | El panel dice "No hay conexión con la API" | Mac | `scripts/arrancar.sh` no está abierto en ninguna terminal: arráncalo |
 | *address already in use* al arrancar | Todos | Otro programa usa el puerto 3000, 8000 o 5433; por ejemplo, otra copia de Popepo-Bet o un `npm run dev`. Ciérralo y vuelve a arrancar |
+| Durante la instalación salen avisos de una fuente (por ejemplo, *understat.com no devolvió datos (¿está en mantenimiento?)*) | Todos | Es normal si esa fuente está caída o en mantenimiento: se salta y la instalación sigue. Cuando vuelva, el worker recupera sus datos solo |
+| La instalación no escribe nada durante mucho rato | Todos | Está descargando el detalle de miles de partidos de FotMob, despacio a propósito. Avisa cada 100 partidos (*Detalles de FotMob: 100 de 8000 partidos jugados*); entre aviso y aviso pueden pasar varios minutos |
 | "Modelos no entrenados todavía" | Todos | El instalador no llegó al final: vuelve a ejecutar `scripts/instalar.sh` |
 | Una captura queda en "Error" con *No encuentro el CLI de Claude Code* | Todos | Instala Claude Code o ajusta `APUESTAS_CLAUDE_BIN` en `.env` |
 | Una captura queda en "Error" con un mensaje de autenticación | Todos | Tu sesión de Claude caducó: ejecuta `claude` en una terminal, haz `/login` y pulsa "Reintentar" en la captura |
