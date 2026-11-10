@@ -14,9 +14,11 @@ from apuestas.core.competitions import COMPETITIONS, FULL, LIGHT, fotmob_season,
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.ingest import dedupe, football_data, fotmob, store, understat
-from apuestas.ingest.http import SourceBlocked
+from apuestas.ingest.http import SourceBlocked, SourceUnavailable
 
 log = logging.getLogger(__name__)
+
+BACKFILL_PROGRESS_EVERY = 100  # cada cuántos partidos del historial se avisa del avance
 
 
 def _run(source: str, task: str, fn: Callable[[], int]) -> int:
@@ -29,7 +31,8 @@ def _run(source: str, task: str, fn: Callable[[], int]) -> int:
     try:
         rows = fn()
         status, error = "ok", None
-    except (SourceBlocked, FileNotFoundError) as exc:
+    except (SourceBlocked, SourceUnavailable, FileNotFoundError) as exc:
+        # Fallos esperados (bloqueo, mantenimiento, caída): una línea, sin la traza que asusta en la instalación
         rows, status, error = 0, "error", str(exc)
         log.warning("%s/%s: %s", source, task, exc)
     except Exception as exc:  # noqa: BLE001 - registramos y seguimos con otras fuentes
@@ -131,12 +134,15 @@ def sync_fotmob_details(
         for mid in upcoming:
             fetch(mid, 0 if force_upcoming else 600)
             done += 1
-        for mid in pending:
+        for i, mid in enumerate(pending, 1):
             try:
                 fetch(mid, None)  # partido terminado: se cachea para siempre
                 done += 1
             except FileNotFoundError:
                 log.info("Sin detalles en FotMob para el partido %s", mid)
+            if i % BACKFILL_PROGRESS_EVERY == 0:
+                # La primera instalación pasa horas aquí: que se vea que avanza
+                log.info("Detalles de FotMob: %d de %d partidos jugados", i, len(pending))
         return done
 
     return _run("fotmob", f"details up={len(upcoming)} backfill={len(pending)}", task)
