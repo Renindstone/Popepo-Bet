@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 10 de noviembre de 2026 (instrucciones de la IA recuperadas del historial). Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
+Última actualización: 10 de noviembre de 2026 (instrucciones de la IA recuperadas del historial y ADR 0009 rehecho). Actualízalo cada vez que termines un cambio: qué cambió, qué decidió el usuario y qué queda pendiente.
 
 ## Qué funciona hoy
 
@@ -86,7 +86,7 @@
 
 ## Pendiente o por decidir
 
-- **Reconstruir lo que se perdió entre el 31-10 y el 10-11-2026** (solo vivía en la PC del dueño): los ADR 0007, 0008 y 0009 (el 0009 es el veredicto de los revisores; se puede rehacer con `docs/arquitectura.md` y este archivo) y lo que cambió en `DESIGN.md`, `PRODUCT.md` y las skills tras el 31-10 (panel en inglés, veredicto, comparador…). Se irá actualizando por partes con el dueño.
+- **Reconstruir lo que se perdió entre el 31-10 y el 10-11-2026** (solo vivía en la PC del dueño): los ADR 0007 y 0008 (no se sabe de qué trataban: quizá el panel en español e inglés del 31-10; el 0009, del veredicto de los revisores, ya se rehízo el 10-11 con el código y los commits) y lo que cambió en `DESIGN.md`, `PRODUCT.md` y las skills tras el 31-10 (panel en inglés, veredicto, comparador…). Se irá actualizando por partes con el dueño.
 - **Betano casi sin cuotas en OddsPapi** (desde el 2026-11-05): en la descarga del 7-11, OddsPapi marca Betano como inactiva en la mayoría de los partidos (Bundesliga, LaLiga y Portugal enteras; en la Premier, 4 de 16 activos). El sistema seguía usando la última cuota guardada, de hasta 6 días: la apuesta del día del 7-11 (Werder +1.5) salió a 1.57 cuando Betano pagaba 1.39. Ahora una cuota que no se vio en las últimas 30 horas no cuenta (`analysis.ODDS_MAX_AGE`). Hay que vigilar si OddsPapi vuelve a mandar Betano; mientras tanto, la mayoría de las apuestas salen de bet365 (football-data).
 - **Veredicto de los revisores:** hacer la primera revisión real (con la IA encendida en Datos) y anotar cuánto tarda y cuánto gasta. Medir con `experimentos/validacion/veredicto.py` cuando haya unas 30 apuestas del día contadas, antes de usarlo para nada automático (necesita el OK del dueño).
 - **Turquía** (completa desde el 2026-10-30, `docs/modelos.md` sección 7): el xG de FotMob casi no mueve su 1X2 (−0,0006 ± 0,0010) y el modelo sigue **peor que bet365** allí (+0,0119 ± 0,0045, como en la Bundesliga): en el backtest sus apuestas solo modelo pierden un 9,6 % (337). El árbitro pesa más que en ninguna otra liga (tarjetas +0,019 ± 0,005, faltas +0,027 ± 0,007). Por revisar con datos: las apuestas de Turquía que pasan el corte y su CLV. Si siguen peor, proponer al dueño sacarla de la apuesta del día. Las copias de la BD de la medición (`apuestas_tur`, `apuestas_tur_antes`) se borraron con el OK del dueño, con `pg_dump` antes en `var/backups/`.
