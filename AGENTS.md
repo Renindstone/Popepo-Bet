@@ -10,7 +10,9 @@ Este archivo es para cualquier IA que trabaje en el repositorio (Claude Code, Co
 - [`docs/adr/`](docs/adr/): decisiones de arquitectura y su porqué.
 - [`web/AGENTS.md`](web/AGENTS.md): antes de tocar el panel (Next.js 16 tiene cambios incompatibles con lo que conoces).
 
-Las skills de la IA (`.claude/`), el contexto de diseño (`DESIGN.md`, `PRODUCT.md`, `.impeccable/`), las decisiones de arquitectura (`docs/adr/`) y `CLAUDE.md` están en el repositorio desde el 10-11-2026, para que cualquier sesión (también en la nube) las tenga. Entre el 31-10 y el 10-11 solo vivían en la PC del dueño y se perdieron: lo de esas fechas (ADR 0007 a 0009 y los cambios de diseño y skills posteriores al 31-10) hay que reconstruirlo.
+Las skills de la IA (`.claude/`), el contexto de diseño (`DESIGN.md`, `PRODUCT.md`, `.impeccable/`), las decisiones de arquitectura (`docs/adr/`) y `CLAUDE.md` están en el repositorio desde el 10-11-2026, para que cualquier sesión (también en la nube) las tenga. Entre el 31-10 y el 10-11 solo vivían en la PC del dueño y se perdieron; lo que falta por reconstruir está en `docs/estado.md`.
+
+**Todo lo que sirva de contexto para la IA va al repositorio, con commit y push** (regla del dueño del 10-11-2026): decisiones, instrucciones, skills y pendientes. Nada de eso se queda solo en la PC ni en la memoria de una sesión. Sigue valiendo la regla 1: sin claves ni datos personales.
 
 ## El proyecto
 

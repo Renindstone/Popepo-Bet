@@ -121,6 +121,13 @@ cifra en columnas**.
   Lima.
 - **Textos:** español sencillo y los nombres de mercado de Betano. Honestidad: «el modelo no le gana a bet365»
   donde corresponda; nunca «segura».
+- **Dos idiomas (ADR 0007):** todo texto nuevo del panel va con `tr("español", "English")` de `web/src/lib/i18n.tsx`
+  (fechas y números con `locale()`; el dinero, siempre en soles). En inglés, los nombres de mercado de Betano en inglés
+  (`lib/markets.ts`). Un texto nuevo del servidor que llegue al panel se añade a `src/apuestas/api/i18n.py`; si no,
+  sale en español (`tests/test_i18n.py` comprueba los mercados). Revisa que el texto inglés, a veces más largo, no
+  desborde en el celular.
+- **Opinión frente a cálculo:** lo que escribe Claude (veredicto de los revisores, explicaciones) va siempre debajo de
+  las cifras del modelo, sin recuadro que pese más que la ficha, con su nota de que es una opinión y sin cifras propias.
 - **Accesibilidad:** contraste AA, anillo de foco `boli` (ya global), `aria-label` en botones de solo icono, `alt`
   en imágenes (`alt=""` si es decorativa, como los escudos junto al nombre), `role="img"` con descripción para
   gráficos y el campo.
@@ -129,7 +136,7 @@ cifra en columnas**.
 
 `web/src/components/ui.tsx`: `PageTitle`, `Section`, `Loading`, `ErrorNote` (pide la clave si falta), `Empty`,
 `Tag` (tonos `neutral`, `boli` = negro con letra amarilla, `rojo`, `tarjeta`, `confirmada` = amarillo), `Figure`, `Button`, `EdgeBar`, `TriBar`,
-`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo, solo en el veredicto de Evaluar), `Avisos.tsx` (`AlertBox`, `AlertList` y `AlertTags`: el aviso del radar, con filete arriba rojo si va en baja y de tinta si va en racha), `semana/Radar.tsx` (`AlertTag`, «Equipo en racha/en baja», y el radar con sus listas cortadas en 3 en el celular), `NotaClaude` (explicación de Claude: firmada, con fuentes y como texto plano) y `PorQueFallo`, `PitchFrame`, `PitchName` y `PitchDisc` (`components/Pitch.tsx`: el campo con sus líneas, para las alineaciones y el once de la semana), `ComboResult` (combinadas), `PickRecord` (aciertos), `hoy/Comparador.tsx` (pestaña «Frente a Pinnacle»: lista en el celular y tabla desde `lg`), `Unusual.tsx` (`UnusualTag`, «Poco habitual: N de 10» en tono neutro, y `UNUSUAL_NOTE`), `Rivalry.tsx` (`RivalryTag`, etiqueta del clásico en tono `tarjeta`, y `RivalrySection`, su historial: lista en el celular y tabla desde `md`),
+`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo, solo en el veredicto de Evaluar), `Avisos.tsx` (`AlertBox`, `AlertList` y `AlertTags`: el aviso del radar, con filete arriba rojo si va en baja y de tinta si va en racha), `semana/Radar.tsx` (`AlertTag`, «Equipo en racha/en baja», y el radar con sus listas cortadas en 3 en el celular), `NotaClaude` (explicación de Claude: firmada, con fuentes y como texto plano) y `PorQueFallo`, `PitchFrame`, `PitchName` y `PitchDisc` (`components/Pitch.tsx`: el campo con sus líneas, para las alineaciones y el once de la semana), `ComboResult` (combinadas), `PickRecord` (aciertos), `hoy/Comparador.tsx` (pestaña «Frente a Pinnacle»: lista en el celular y tabla desde `lg`), `hoy/Veredicto.tsx` (veredicto de los revisores debajo de la apuesta del día: palabra grande, motivos en filas y la discusión plegada en un `<details>`; no es el veredicto de Evaluar, que es el del modelo), `LangSwitch` y `tr` (`lib/i18n.tsx`: selector ES / EN de la cabecera y el texto en el idioma en uso), `Unusual.tsx` (`UnusualTag`, «Poco habitual: N de 10» en tono neutro, y `UNUSUAL_NOTE`), `Rivalry.tsx` (`RivalryTag`, etiqueta del clásico en tono `tarjeta`, y `RivalrySection`, su historial: lista en el celular y tabla desde `md`),
 `ScrollRow` (fila que se desplaza de lado con difuminado y flecha cuando hay más; la usan el menú y las pestañas) y
 `Tabs` + `useHashTab` (pestañas accesibles, fijas arriba al bajar, con la activa en el ancla de la URL y, si se
 quiere, cuántas filas hay en cada una con `count`).
@@ -144,6 +151,11 @@ menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
 - Nada pendiente de los que la auditoría no mide (29-10-2026: tamaños pasados a tokens, columnas de las cuotas de Betano
   alineadas entre grupos y sin repetir el nombre del mercado, campo con tokens y la ficha del visitante al estilo de
   portada).
+- **La auditoría en inglés hay que rehacerla** (10-11-2026): el 31-10 salió limpia en los dos idiomas, pero lo que se
+  usó para pasarla en inglés se perdió con la copia local. `driver.mjs` abre siempre en español (`locale: "es-PE"`) y
+  sus textos de espera (`ready`) están en español. Falta una opción de idioma en el driver.
+- **El veredicto de los revisores no sale en las capturas del driver** si no hay una revisión hecha ese día (o con la
+  IA apagada): revisarlo a mano cuando exista la primera revisión real.
 
 Al resolver uno, bórralo de esta lista y añade los nuevos que encuentre la auditoría.
 
@@ -153,4 +165,5 @@ Al resolver uno, bórralo de esta lista y añade los nuevos que encuentre la aud
 - [ ] `paleta.mjs --fallos` sin combinaciones nuevas que no lleguen.
 - [ ] Capturas revisadas a ojo en las cuatro variantes de las páginas tocadas.
 - [ ] Sin hex ni tamaños sueltos nuevos; animaciones con su `prefers-reduced-motion`.
+- [ ] Textos nuevos con `tr(es, en)` y, si vienen del servidor, en `api/i18n.py`; vistos en los dos idiomas.
 - [ ] `npm run lint` y `npx tsc --noEmit` limpios; servicio `apuestas-web` reiniciado.

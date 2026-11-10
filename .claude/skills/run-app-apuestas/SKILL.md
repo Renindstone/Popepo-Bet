@@ -56,6 +56,7 @@ Las capturas quedan en `/tmp/apuestas-shots/<página>-<desktop|mobile>-<light|da
 | `hoy` | `/` (pestaña Partidos) | Partidos del día |
 | `hoy-valor` | `/?dia=<día del primer partido>#valor` | Otras apuestas con valor |
 | `hoy-props` | `/?dia=<día del primer partido>#props` | Props con cuota mínima |
+| `hoy-precio` | `/?dia=<día del primer partido>#precio` | Betano frente a Pinnacle |
 | `partidos` | `/partidos` | vs |
 | `partido` | `/partidos/<primer partido>` (pestaña Alineaciones) | Alineación y bajas |
 | `partido-probabilidades` | `/partidos/<primer partido>#probabilidades` | Dificultad del rival |
@@ -100,6 +101,11 @@ cd web && npm run lint && npx tsc --noEmit
   si no, salen huecos donde van los escudos.
 - **Tema oscuro** = `prefers-color-scheme: dark` (`web/src/app/globals.css`); el driver lo emula con
   `colorScheme`. No hay un interruptor de tema en la página.
+- **Idioma:** el panel está en español e inglés (selector ES / EN en la cabecera, recordado en `localStorage` como
+  `apuestas.idioma`; sin elegir, sigue al navegador). El driver abre siempre en español (`locale: "es-PE"`) y sus
+  textos de espera están en español: todavía no saca capturas ni audita en inglés (pendiente en `disenio-panel`).
+- **El veredicto de los revisores** (debajo de la apuesta del día de Hoy) solo se pinta con la IA encendida en Datos y
+  una revisión hecha; antes de la alineación se ve «Los revisores la leerán cuando salga la alineación».
 - **Los radios y el campo de archivo son `sr-only` (1×1 px)**: se tocan por su `<label>`. La auditoría los ignora.
 - **Las pestañas `hoy-valor` y `hoy-props` usan el día del primer partido próximo**, no hoy: hoy puede no tener
   partidos y saldrían vacías. `hoy` sí es `/`, como la ve el dueño.

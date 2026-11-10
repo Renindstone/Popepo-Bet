@@ -108,7 +108,7 @@ def test_past_day_lists_the_ones_that_passed_first(s):
                                           ("c", 0.20, True, "withdrawn", 2.0), ("d", 0.08, True, "settled", 2.0),
                                           ("e", 0.01, False, "settled", 1.15)):  # cuota de menos de 1.20: no sale
         s.add(m.Pick(match_id=mt.id, pick_date=day, stage="pre_lineup", market="1x2", selection=sel,
-                     bookmaker="bet365", odds=odds, model_prob=0.5, fair_odds=2.0, ev=ev, confidence=0.8,
+                     bookmaker="bet365", odds=odds, model_prob=0.7, fair_odds=2.0, ev=ev, confidence=0.8,  # ≥ pick_min_prob
                      stake_pct=0.01, qualifies=passed, status=status))
     s.flush()
     rows = queries.pick_of_day(day.isoformat())["value_bets"]
@@ -116,7 +116,7 @@ def test_past_day_lists_the_ones_that_passed_first(s):
     assert [r["selection"] for r in rows] == ["d", "b", "a", "c"]
     assert rows[0]["qualifies"] is True and rows[2]["qualifies"] is False
     # Probabilidad y confianza guardadas, para poder ordenar por ellas en el panel
-    assert rows[0]["prob"] == 0.5 and rows[0]["confidence"] == 0.8
+    assert rows[0]["prob"] == 0.7 and rows[0]["confidence"] == 0.8
 
 
 # --------------------------------------------------------------------------- copia fija de lo anunciado

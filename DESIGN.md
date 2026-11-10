@@ -247,7 +247,7 @@ No hay tarjetas como estructura de página. Las secciones son filete más conten
 Campos de 40 a 44 px, borde de regla, fondo hoja, esquinas rectas y borde boli con el foco. El anillo de foco global es de 2 px en boli.
 
 ### Navigation
-Cabecera amarilla con el logotipo a la izquierda y la fecha de la edición a la derecha (en el celular, el día de la semana y la fecha en dos líneas). Debajo, el menú en condensada negrita de 16 px sobre papel, cerrado por una regla de tinta; la sección activa lleva una barra negra de 4 px debajo. En el celular el menú se desplaza de lado con una flecha.
+Cabecera amarilla con el logotipo a la izquierda y, a la derecha, el selector de idioma ES / EN encima de la fecha de la edición (en el celular, el día de la semana y la fecha en dos líneas). El selector son dos botones rectos con borde negro; el idioma activo va en negro con letra amarilla. Debajo, el menú en condensada negrita de 16 px sobre papel, cerrado por una regla de tinta; la sección activa lleva una barra negra de 4 px debajo. En el celular el menú se desplaza de lado con una flecha.
 
 ### Titular de portada
 El componente propio de la casa. El titular (h2 visual de 6 rem; el h1 es la tira de la edición) va seguido de la entradilla con la etiqueta roja «Apuesta del día» en línea, el partido con sus escudos y la probabilidad frente a la que implica la cuota. Debajo, la ficha: un filete de 3 px, la cuota de portada con el resaltador y las cifras (probabilidad, cuota justa, valor esperado, confianza y banca), cerrada por una regla de tinta. Luego las razones, con un cuadradito amarillo como viñeta.
@@ -261,6 +261,19 @@ probabilidad ni el corte». En las listas va como etiqueta con palabra («Milan 
 ### Explicación de Claude
 Recuadro de tinta sobre tarjeta-suave con el título «Explicación de Claude», el texto plano, las fuentes como enlaces y
 la hora a la que se escribió. Nunca lleva cifras propias del recuadro: las cifras van fuera, del modelo.
+
+### Veredicto de los revisores
+Debajo de la apuesta del día de Hoy (ADR 0009), abierto por el filete de 3 px. Una línea con la etiqueta en mayúsculas
+pequeñas, la palabra en extracondensada grande («Apostar» en tinta, «Dudosa» en tarjeta, «Mejor no» en rojo) y «La
+decisión es tuya». Debajo, los motivos como filas con regla suave (etiqueta en negrita a la izquierda: Confianza, Racha
+y los del juez), los avisos en tono tarjeta («Revisado sin alineación confirmada») y la nota fija de que es una opinión
+de Claude sin medir que no cambia el cálculo. La discusión (A favor y En contra, con sus fuentes) va plegada en «Ver la
+discusión completa». Sin recuadro ni fondo: no debe pesar más que la ficha del modelo. Con la IA apagada no se pinta.
+
+### Frente a Pinnacle
+Pestaña de Hoy (`#precio`) que compara precios sin modelo. Lista en el celular y tabla desde `lg`, cortada en 12 filas
+con «Mostrar las N». Cada fila lleva la etiqueta del grupo (Goles en neutro, Estadísticas en tono tarjeta) y de cuándo
+son los dos precios. La entradilla dice siempre que no usa el modelo.
 
 **The Highlighter Rule.** El resaltador amarillo se usa una vez por página, sobre la cuota de la apuesta del día, y entra con una sola pasada de 650 ms (sin movimiento si se pide reducirlo).
 
