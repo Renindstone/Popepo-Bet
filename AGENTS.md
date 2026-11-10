@@ -7,10 +7,10 @@ Este archivo es para cualquier IA que trabaje en el repositorio (Claude Code, Co
 - [`docs/modelos.md`](docs/modelos.md): modelo estadístico, reglas de prudencia y resultados del backtest.
 - [`docs/fuentes.md`](docs/fuentes.md): de dónde salen los datos y cómo se validan.
 - [`docs/instalacion.md`](docs/instalacion.md): instalación desde cero y servicios.
-- `docs/adr/` (local, no se publica): decisiones de arquitectura y su porqué.
-- `web/AGENTS.md` (lo genera `next dev`): antes de tocar el panel (Next.js 16 tiene cambios incompatibles con lo que conoces).
+- [`docs/adr/`](docs/adr/): decisiones de arquitectura y su porqué.
+- [`web/AGENTS.md`](web/AGENTS.md): antes de tocar el panel (Next.js 16 tiene cambios incompatibles con lo que conoces).
 
-Las skills de la IA (`.claude/`), el contexto de diseño (`DESIGN.md`, `PRODUCT.md`, `.impeccable/`), las decisiones de arquitectura (`docs/adr/`) y `CLAUDE.md` no se publican: son herramientas locales del dueño (están en `.gitignore` y `.worktreeinclude` las copia a cada worktree). Si no las tienes, sigue el estilo del código que tocas.
+Las skills de la IA (`.claude/`), el contexto de diseño (`DESIGN.md`, `PRODUCT.md`, `.impeccable/`), las decisiones de arquitectura (`docs/adr/`) y `CLAUDE.md` están en el repositorio desde el 10-11-2026, para que cualquier sesión (también en la nube) las tenga. Entre el 31-10 y el 10-11 solo vivían en la PC del dueño y se perdieron: lo de esas fechas (ADR 0007 a 0009 y los cambios de diseño y skills posteriores al 31-10) hay que reconstruirlo.
 
 ## El proyecto
 
