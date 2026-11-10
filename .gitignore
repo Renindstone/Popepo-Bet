@@ -26,18 +26,7 @@ node_modules/
 .idea/
 .DS_Store
 
-# docs
-docs/adr
-
-# Instrucciones, skills y contexto de diseño de la IA: no se publican (decisión del dueño, 31-10-2026). Copia
-# privada en ~/Proyectos/Claude/popepo-ia; .worktreeinclude los copia a cada worktree nuevo. AGENTS.md sí se publica
-.claude/
-.impeccable/
-CLAUDE.md
-DESIGN.md
-PRODUCT.md
-web/AGENTS.md
-docs/superpowers/
+# Copia local de las instrucciones de la IA para worktrees (ya no hace falta: todo está en el repositorio)
 .worktreeinclude
 
 # Bocetos de las conversaciones de diseño (superpowers)
