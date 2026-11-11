@@ -20,7 +20,11 @@ OWN-WORLD: Banda amarilla #FFD400 con el logotipo POPEPO·BET en Sofia Sans Extr
 
 STORY: El dueño abre la portada, entiende de un vistazo qué propone el modelo, cuánto paga, cuánto se fía y que no apostar también vale; luego baja a las otras con valor o abre el partido.
 
-FIRST VIEWPORT: Cabecera amarilla a todo el ancho; menú bajo un filete; tira de edición con el día y sus botones. Izquierda: titular de la apuesta en mayúsculas extracondensadas hasta 6 rem, entradilla con la etiqueta roja «Apuesta del día», el partido y la probabilidad frente a la que implica la cuota, la ficha de cifras entre filetes con la cuota resaltada, razones en dos columnas y los enlaces al partido y a Betano; debajo, «Con valor» y «Props». Derecha (340 px): «La jornada» con el 1X2 del modelo por competición, el récord, la captura rápida y el recuadro negro «Antes de apostar».
+FIRST VIEWPORT: Cabecera amarilla a todo el ancho; menú bajo un filete; tira de edición con el día y sus botones. Izquierda: titular de la apuesta en mayúsculas extracondensadas hasta 6 rem, entradilla con la etiqueta roja «Apuesta del día», el partido y la probabilidad frente a la que implica la cuota, la ficha de cifras entre filetes con la cuota resaltada, razones en dos columnas y los enlaces al partido y a Betano; debajo, el veredicto de los revisores (solo con la IA encendida) y las pestañas «Con valor», «Props» y «Frente a Pinnacle». Derecha (340 px): «La jornada» con el 1X2 del modelo por competición, el récord, la captura rápida y el recuadro negro «Antes de apostar».
+
+ORDER: Titular → entradilla → ficha → razones → veredicto de los revisores → pestañas (Con valor, Props, Frente a Pinnacle). El veredicto es una opinión de Claude: va debajo de las cifras del modelo, abierto por el filete de 3 px, sin recuadro ni fondo, y nunca pesa más que la ficha. «Frente a Pinnacle» compara precios sin modelo y lo dice en su entradilla.
+
+LANGUAGE: La cabecera lleva el selector ES / EN encima de la fecha de la edición. Todo texto de la portada existe en español y en inglés; el dinero, siempre en soles.
 
 FORM: Portada del diario deportivo, 4.ª de mi lista; seed:0de9f4a4a4281d6d. Interacción propia: la pasada del resaltador sobre la cuota al cargar.
 
