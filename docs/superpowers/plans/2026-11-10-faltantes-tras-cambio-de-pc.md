@@ -81,7 +81,7 @@
 
 - [ ] **Step 1:** El dueño ejecuta `sudo dnf install chromium`. Comprobar: `ls /usr/bin/chromium-browser`.
 - [ ] **Step 2:** Comprobar el fallo actual: `node .claude/skills/run-app-apuestas/driver.mjs shot /datos` termina con un error de Playwright sobre `/usr/bin/brave-origin`.
-- [ ] **Step 3:** Implementar `findBrowser()` con `fs.existsSync`, usarla en `chromium.launch` y hacer que `check` imprima una tercera línea `navegador: <ruta>`. Comprobar el mensaje sin navegador: `BROWSER=/no/existe PATH= /usr/bin/node …/driver.mjs check` no aplica (BROWSER inexistente pasa al siguiente); probarlo renombrando la lista en una copia temporal en el scratchpad, no en el repositorio.
+- [ ] **Step 3:** Implementar `findBrowser()` con `fs.existsSync`, usarla en `chromium.launch` y hacer que `check` imprima una tercera línea `navegador: <ruta>`. Comprobar el mensaje sin navegador con una copia del driver en el scratchpad a la que se le vacía la lista de rutas: debe salir con código 1 y el mensaje de Interfaces, sin traza.
 - [ ] **Step 4:** `node .claude/skills/run-app-apuestas/driver.mjs check` imprime `panel … → 200`, `api … → 200` y `navegador: /usr/bin/chromium-browser`.
 - [ ] **Step 5:** `node .claude/skills/run-app-apuestas/driver.mjs shots` y luego `audit --schemes light,dark`. Por cada página con `no cargó`, abrir su componente en `web/src` y poner en `PAGES` el texto que hoy pinta (sospechoso conocido: `hoy` espera «Partidos del día», que ahora solo es un `aria-label`; el título visible es «La jornada»). Si las páginas `partido*` y `evaluar` fallan con `La API no tiene partidos próximos`, es la fecha FIFA: ampliar la ventana de búsqueda del primer partido en el driver a 14 días y anotarlo en Gotchas.
 - [ ] **Step 6:** Mirar con la herramienta de leer imágenes 4 capturas de `/tmp/apuestas-shots/` (hoy y datos, escritorio y celular): ninguna vacía ni con «No se pudo cargar».
@@ -123,7 +123,7 @@
 
 - [ ] **Step 1:** `grep -nE '\`[a-z_0-9]+\.py\`' docs/modelos.md docs/auditoria-modelo.md` y, por cada nombre, `find . -name <nombre> -not -path './.venv/*'`. Los que existen en `experimentos/` se quedan con su ruta completa.
 - [ ] **Step 2:** Para los que no existen, una sola nota al principio de la sección 7: «Los scripts citados por nombre suelto (`bt.py`, `cmp.py`, `wf.py`…) eran notas de las sesiones en la PC anterior y no se conservan. Las cifras quedan como registro; para volver a medir, usa `apuestas backtest` y los scripts de `experimentos/`.» No se borra ninguna cifra.
-- [ ] **Step 3:** Verificar que la nota está y que `AGENTS.md` no cita ninguno de esos scripts (hoy cita uno: corregirlo o quitarlo). Commit: `Modelos: los scripts de sesión citados ya no existen`.
+- [ ] **Step 3:** Verificar que la nota está y que `AGENTS.md` no cita ninguno de esos scripts (si cita alguno, corregirlo o quitarlo). Commit: `Modelos: los scripts de sesión citados ya no existen`.
 
 ---
 
