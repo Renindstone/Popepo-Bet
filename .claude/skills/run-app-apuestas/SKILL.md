@@ -6,14 +6,16 @@ description: Arrancar, comprobar y manejar el panel web de App Apuestas (Next.js
 # Run: panel de App Apuestas
 
 El panel (`web/`, Next.js) y la API (`src/apuestas`, FastAPI) corren como servicios systemd de usuario. Un agente los
-maneja con **`.claude/skills/run-app-apuestas/driver.mjs`**: abre las páginas en Brave sin ventana mediante
+maneja con **`.claude/skills/run-app-apuestas/driver.mjs`**: abre las páginas en Brave o Chromium sin ventana mediante
 `playwright-core`, espera a que carguen los datos, saca capturas y audita el diseño. Las rutas son relativas a la
 raíz del repositorio.
 
 ## Requisitos
 
 - Servicios instalados (`docs/instalacion.md`): `apuestas-db`, `apuestas-api` (:8000), `apuestas-web` (:3000).
-- Un navegador Chromium. En esta máquina es Brave (`/usr/bin/brave-origin`); otro se indica con `BROWSER=/ruta`.
+- Un navegador de la familia Chromium. El driver usa el primero que encuentre de `/usr/bin/brave-origin`,
+  `brave-browser`, `chromium-browser`, `chromium` y `google-chrome`; otro se indica con `BROWSER=/ruta`. Si no hay
+  ninguno, lo dice y no sigue: `sudo dnf install chromium` (Fedora) o `sudo pacman -S chromium` (Arch).
 - `playwright-core` ya está en las dependencias de desarrollo del panel (no descarga navegadores):
 
 ```bash
@@ -27,14 +29,15 @@ systemctl --user start apuestas-db apuestas-api apuestas-web
 node .claude/skills/run-app-apuestas/driver.mjs check
 ```
 
-`check` debe decir `panel: http://localhost:3000 → 200` y `api: http://127.0.0.1:8000/health → 200`. El panel se
+`check` debe decir `panel: http://localhost:3000 → 200`, `api: http://127.0.0.1:8000/health → 200` y
+`navegador: <ruta>`. El panel se
 recompila al arrancar el servicio: tras tocar `web/`, `systemctl --user restart apuestas-web` y espera a que
 `check` dé 200 (unos 30-60 s).
 
 ## Manejar el panel (camino del agente)
 
 ```bash
-# Capturas de todas las páginas: escritorio y celular, claro y oscuro (52 imágenes, ~90 s)
+# Capturas de todas las páginas: escritorio y celular, claro y oscuro (72 imágenes, ~2 min)
 node .claude/skills/run-app-apuestas/driver.mjs shots
 
 # Solo algunas
@@ -53,7 +56,7 @@ Las capturas quedan en `/tmp/apuestas-shots/<página>-<desktop|mobile>-<light|da
 
 | Página (`--pages`) | Ruta | Espera el texto |
 |---|---|---|
-| `hoy` | `/` (pestaña Partidos) | Partidos del día |
+| `hoy` | `/` | La jornada |
 | `hoy-valor` | `/?dia=<día del primer partido>#valor` | Otras apuestas con valor |
 | `hoy-props` | `/?dia=<día del primer partido>#props` | Props con cuota mínima |
 | `hoy-precio` | `/?dia=<día del primer partido>#precio` | Betano frente a Pinnacle |
@@ -67,8 +70,8 @@ Las capturas quedan en `/tmp/apuestas-shots/<página>-<desktop|mobile>-<light|da
 | `capturas` | `/capturas` | Arrastra aquí la captura |
 | `sorpresas` | `/sorpresas` (semana, radar y pestaña Once) | En el radar |
 | `sorpresas-mes` | `/sorpresas?periodo=mes` | En el radar |
-| `sorpresas-equipos` | `/sorpresas#equipos` | Resultado, goles y córners |
-| `sorpresas-jugadores` | `/sorpresas#jugadores` | Remates, remates a puerta |
+| `sorpresas-equipos` | `/sorpresas?semana=<última semana con partidos jugados>#equipos` | Resultado, goles y córners |
+| `sorpresas-jugadores` | `/sorpresas?semana=<última semana con partidos jugados>#jugadores` | Remates, remates a puerta |
 | `rendimiento` | `/rendimiento` | Banca |
 | `datos` | `/datos` | Fuentes |
 
@@ -93,8 +96,12 @@ cd web && npm run lint && npx tsc --noEmit
 
 ## Gotchas
 
-- **No hay `chromium-cli`** en esta máquina y Playwright no tiene navegadores descargados: el driver usa
-  `playwright-core` con `executablePath` de Brave. No hace falta `npx playwright install`.
+- **Playwright no tiene navegadores descargados**: el driver usa `playwright-core` con el navegador del sistema
+  (ver Requisitos). No hace falta `npx playwright install`.
+- **Páginas que dependen de los datos**: `partido*`, `evaluar` y `hoy-*` usan el primer partido de los próximos 14
+  días; si no hay ninguno (parón de verano), el driver lo dice y saca las demás. Las pestañas `sorpresas-equipos` y
+  `sorpresas-jugadores` solo existen en una semana con partidos jugados, así que van a la última que los tenga (un
+  lunes o en una fecha FIFA, la semana en curso no tiene).
 - **Los datos llegan después del HTML** (SWR en el navegador): esperar a `networkidle` no basta; el driver espera
   un texto de cada página (`--ready` en `shot`). Sin eso, la captura sale con el esqueleto de carga.
 - **Escudos y gráficos cargan perezosamente** (`loading="lazy"`): el driver recorre la página antes de la captura;
@@ -119,5 +126,5 @@ cd web && npm run lint && npx tsc --noEmit
   `systemctl --user status apuestas-web` y, si hace falta, `journalctl --user -u apuestas-web -n 50`.
 - **`no cargó: locator.waitFor: Timeout`** en una página: la API respondió error o la página cambió su texto. Mira
   `problemas:` en la salida (errores de consola y HTTP) y actualiza `ready` en `PAGES` del driver si cambió el texto.
-- **`La API no tiene partidos próximos`**: falta la ingesta (`.venv/bin/apuestas ingest …`, ver
-  `docs/instalacion.md`); `partido` y `evaluar` necesitan al menos un partido.
+- **`La API no tiene partidos próximos …: se saltan partido, evaluar…`**: no hay partidos en 14 días o falta la
+  ingesta (`.venv/bin/apuestas ingest …`, ver `docs/instalacion.md`). Las demás páginas se sacan igual.

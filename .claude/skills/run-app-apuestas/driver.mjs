@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Driver del panel web de App Apuestas: abre las páginas en Brave sin ventana (playwright-core), saca capturas
+// Driver del panel web de App Apuestas: abre las páginas en Brave o Chromium sin ventana (playwright-core), saca capturas
 // y hace una auditoría de diseño y usabilidad. Lo usan las skills run-app-apuestas y disenio-panel.
 //
 //   node .claude/skills/run-app-apuestas/driver.mjs check
@@ -8,9 +8,9 @@
 //   node .claude/skills/run-app-apuestas/driver.mjs audit [--pages ...] [--devices ...] [--schemes ...]
 //
 // Variables: APUESTAS_WEB (http://localhost:3000), APUESTAS_API (http://127.0.0.1:8000),
-// BROWSER (/usr/bin/brave-origin), SHOTS_DIR (/tmp/apuestas-shots).
+// BROWSER (si no, el primero que exista de BROWSERS), SHOTS_DIR (/tmp/apuestas-shots).
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,7 +21,11 @@ const { chromium } = require("playwright-core");
 
 const WEB = process.env.APUESTAS_WEB ?? "http://localhost:3000";
 const API = process.env.APUESTAS_API ?? "http://127.0.0.1:8000";
-const BROWSER = process.env.BROWSER ?? "/usr/bin/brave-origin";
+// Navegadores que sirven (todos Chromium), por orden de preferencia; BROWSER=/ruta va antes que la lista
+const BROWSERS = ["/usr/bin/brave-origin", "/usr/bin/brave-browser", "/usr/bin/chromium-browser", "/usr/bin/chromium", "/usr/bin/google-chrome"];
+const NO_BROWSER =
+  "No hay navegador para el driver. Instala Chromium (Fedora: sudo dnf install chromium; Arch: sudo pacman -S chromium) o indica uno con BROWSER=/ruta.";
+const findBrowser = () => [process.env.BROWSER, ...BROWSERS].find((p) => p && existsSync(p));
 const OUT = process.env.SHOTS_DIR ?? "/tmp/apuestas-shots";
 
 const DEVICES = {
@@ -30,7 +34,7 @@ const DEVICES = {
 };
 // Cada página y el texto que indica que ya cargó sus datos (no solo el esqueleto)
 const PAGES = {
-  hoy: { path: "/", ready: "Partidos del día" },
+  hoy: { path: "/", ready: "La jornada" },
   // Las otras pestañas de Hoy, el día del primer partido próximo (hoy puede no haber partidos y salir vacías)
   "hoy-valor": { path: null, hash: "#valor", ready: "Otras apuestas con valor" },
   "hoy-props": { path: null, hash: "#props", ready: "Props con cuota mínima" },
@@ -47,8 +51,9 @@ const PAGES = {
   // Semana en curso, una entrada por pestaña
   sorpresas: { path: "/sorpresas", ready: "En el radar" },
   "sorpresas-mes": { path: "/sorpresas?periodo=mes", ready: "En el radar" },
-  "sorpresas-equipos": { path: "/sorpresas#equipos", ready: "Resultado, goles y córners" },
-  "sorpresas-jugadores": { path: "/sorpresas#jugadores", ready: "Remates, remates a puerta" },
+  // Las pestañas solo existen en una semana con partidos jugados: van a la última que los tenga
+  "sorpresas-equipos": { path: null, hash: "#equipos", ready: "Resultado, goles y córners" },
+  "sorpresas-jugadores": { path: null, hash: "#jugadores", ready: "Remates, remates a puerta" },
   rendimiento: { path: "/rendimiento", ready: "Banca" },
   datos: { path: "/datos", ready: "Fuentes" },
 };
@@ -77,10 +82,13 @@ async function check() {
       process.exitCode = 1;
     }
   }
+  const browser = findBrowser();
+  console.log(`navegador: ${browser ?? NO_BROWSER}`);
+  if (!browser) process.exitCode = 1;
 }
 
 async function firstMatch() {
-  const r = await fetch(`${API}/matches?days=10`);
+  const r = await fetch(`${API}/matches?days=14`); // 14 días: una fecha FIFA deja unos 12 sin partidos
   const rows = await r.json();
   if (!rows.length) throw new Error("La API no tiene partidos próximos (¿ingesta hecha?)");
   return rows[0];
@@ -94,10 +102,36 @@ function matchDay(m) {
   return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
+// Lunes de la última semana con partidos jugados (la actual no los tiene un lunes ni en una fecha FIFA)
+async function playedWeek() {
+  for (let back = 0; back < 4; back++) {
+    const day = new Date(Date.now() - back * 7 * 864e5).toISOString().slice(0, 10);
+    const w = await (await fetch(`${API}/week?day=${day}`)).json();
+    if (w.coverage?.played) return w.week_start;
+  }
+  return null;
+}
+
 async function resolvePages(names) {
   const isMatch = (n) => n === "partido" || n.startsWith("partido-");
   const isHoyTab = (n) => n.startsWith("hoy-");
-  const first = names.some((n) => isMatch(n) || isHoyTab(n) || n === "evaluar") ? await firstMatch() : null;
+  const needsMatch = (n) => isMatch(n) || isHoyTab(n) || n === "evaluar";
+  let first = null;
+  if (names.some(needsMatch)) {
+    try {
+      first = await firstMatch();
+    } catch (e) {
+      // Sin partidos próximos (fecha FIFA, parón de verano): las demás páginas se sacan igual
+      console.log(`${e.message}: se saltan ${names.filter(needsMatch).join(", ")}`);
+      names = names.filter((n) => !needsMatch(n));
+    }
+  }
+  const isWeekTab = (n) => n === "sorpresas-equipos" || n === "sorpresas-jugadores";
+  const week = names.some(isWeekTab) ? await playedWeek() : null;
+  if (!week && names.some(isWeekTab)) {
+    console.log(`Ninguna de las últimas 4 semanas tiene partidos jugados: se saltan ${names.filter(isWeekTab).join(", ")}`);
+    names = names.filter((n) => !isWeekTab(n));
+  }
   const mid = first?.match_id;
   return names.map((n) => {
     const p = PAGES[n];
@@ -108,7 +142,9 @@ async function resolvePages(names) {
         ? `/?dia=${matchDay(first)}${p.hash}`
         : n === "evaluar"
           ? `/evaluar?partido=${mid}`
-          : p.path;
+          : isWeekTab(n)
+            ? `/sorpresas?semana=${week}${p.hash}`
+            : p.path;
     return { name: n, path, ready: p.ready };
   });
 }
@@ -238,8 +274,13 @@ function auditInPage(isMobile) {
 }
 
 async function run(cmd, opts) {
+  const executablePath = findBrowser();
+  if (!executablePath) {
+    console.error(NO_BROWSER);
+    process.exit(1);
+  }
   mkdirSync(OUT, { recursive: true });
-  const browser = await chromium.launch({ executablePath: BROWSER, headless: true });
+  const browser = await chromium.launch({ executablePath, headless: true });
   const results = [];
   try {
     if (cmd === "shot") {
