@@ -308,6 +308,8 @@ Limitación: en partidos antiguos el valor de mercado es el de la fecha de desca
 
 ## 7. Backtest (`backtest/engine.py`)
 
+> **Scripts de medición que no se conservan** (10-11-2026). Los scripts citados en esta sección por nombre suelto (`bt.py`, `cmp.py`, `wf.py`, `ana.py`, `frente_casas.py`, `medir_k.py`… y las carpetas de notas de sesión como `nivel-liga/`) vivían en la PC anterior del dueño y se perdieron: nunca estuvieron en el repositorio. Las cifras quedan como registro de lo que se midió. Para volver a medir, usa `apuestas backtest` y los scripts de `experimentos/`, que sí están en el repositorio.
+
 Walk-forward: cada semana se reajusta con datos anteriores y se apuesta contra la **cuota previa de bet365**. CLV contra el cierre de bet365.
 
 **Temporadas 2024-25 y 2025-26** (2.132 partidos de EPL, BUN y LAL; la log-loss se mide en los 1.998 con cuotas de bet365 y Pinnacle). Ya con los detalles de FotMob completos: alineaciones, árbitros y xG de todos los partidos desde 2023. El "modelo anterior" se ha vuelto a medir con los datos completos (antes daba 0,992 con datos parciales).
