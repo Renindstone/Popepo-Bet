@@ -16,7 +16,7 @@ Las skills de la IA (`.claude/`), el contexto de diseño (`DESIGN.md`, `PRODUCT.
 
 ## El proyecto
 
-Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía) y Champions League. Descarga datos gratuitos, estima con un modelo estadístico la probabilidad de cada mercado, la compara con la cuota de la casa y propone una apuesta del día. Se usa desde un panel web, desde Claude (servidor MCP), desde una API REST y desde Telegram.
+Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía), Champions League y, de selecciones, la UEFA Nations League (análisis sin apuesta del día). Descarga datos gratuitos, estima con un modelo estadístico la probabilidad de cada mercado, la compara con la cuota de la casa y propone una apuesta del día. Se usa desde un panel web, desde Claude (servidor MCP), desde una API REST y desde Telegram.
 
 ## Con quién trabajas
 
@@ -79,6 +79,7 @@ Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga,
 ## Conceptos que se confunden
 
 - **Hándicap europeo (`eh`, "Hándicap" o "3 vías" en Betano) ≠ hándicap asiático (`ah`).** En el europeo hay tres resultados y, si con el hándicap queda empate, la apuesta al equipo **pierde**. En el asiático de línea entera ese empate **se devuelve**. Ejemplo real: Coventry +2 europeo con 3-1 en contra quedó 3-3 con el hándicap y se perdió. En la BD la línea `eh` se guarda como hándicap del local; el panel pide la línea del equipo elegido y la convierte. La línea `ah` es relativa al equipo elegido.
+- **Selecciones (UEFA Nations League, `UNL`, desde el 10-11-2026):** se descargan y se analizan (Partidos, análisis, Evaluar cuota, API, MCP y bot), pero **no entran en la apuesta del día ni pasan el corte** (`Competition.picks=False`) y **no tienen mercados de jugador** (decisiones del dueño). Solo vienen de FotMob: sin cuotas de cierre ni ratings del mercado, y sin cuotas históricas para medir el modelo contra las casas. Los clasificatorios europeos al Mundial, el Mundial 2026 y la Eurocopa 2024 solo dan historial. Jugar con la selección no cambia el club del jugador ni entra en sus proyecciones de club. Los equipos llevan el nombre de FotMob en inglés ("Spain", "Turkiye") y se buscan también en español. Detalle en `docs/modelos.md`, sección 7.
 - **Apuesta del día:** solo usa mercados de goles. Córners, tarjetas y otras estadísticas no entran hasta validarlos con cuotas reales (`pick_allow_stat_markets=False`), y bajan de confianza cuando el modelo y la cuota de la casa discrepan mucho.
 - **Equipos con pocos partidos con cuotas de cierre** (por ejemplo, rivales europeos de ligas pequeñas): menos confianza y probabilidad mezclada con la de la casa. Detalle en `docs/modelos.md`.
 - **Combinadas y Bet Builders:** las patas de goles de un mismo partido, y los goles y asistencias de jugadores, se evalúan juntas con la matriz de marcadores (están correlacionadas; cada gol del equipo se reparte entre sus jugadores); las de partidos distintos se multiplican. Córners, tarjetas, remates y faltas dentro de un Bet Builder se multiplican como independientes y el bloque sale "aproximado". Las patas fuera del modelo hacen la combinada no evaluable.

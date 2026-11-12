@@ -65,6 +65,12 @@ EXACT: dict[str, str] = {
     # Partido (analysis.py, features/lineup.py, queries.py)
     "Sin historial suficiente": "Not enough history",
     "equipo con pocas cuotas de referencia": "team with few reference odds",
+    analysis.NO_PICKS_NOTE: "National teams: it does not enter the bet of the day or pass the cut, because the model "
+                            "could not be measured against bookmaker odds",
+    analysis.NO_PLAYERS_NOTE: "National teams: no player markets; what the model knows about each player comes from "
+                              "their club",
+    analysis.NO_MARKET_NATIONAL: "National teams: no closing odds in our data; the model only uses goals and xG and is "
+                                 "unreliable in this match",
     "Sin historial de alineaciones: no se ajusta": "No line-up history: no adjustment",
     "Alineación claramente más débil que la habitual (rotación o bajas importantes)":
         "Line-up clearly weaker than usual (rotation or key absences)",

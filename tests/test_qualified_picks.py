@@ -30,7 +30,7 @@ def s(monkeypatch):
 def bet(**kw):
     """Apuesta con valor que pasa el corte por defecto (goles, cuota 2,0, 65 %, +10 %, confianza 0,8)."""
     base = dict(market="ou_goals", selection="over", line=2.5, bookmaker="bet365", odds=2.0, prob=0.65,
-                fair_odds=1.82, ev=0.10, confidence=0.8, stake_pct=0.01, reasons=[])
+                fair_odds=1.82, ev=0.10, confidence=0.8, stake_pct=0.01, reasons=[], eligible=True)
     return SimpleNamespace(**{**base, **kw})
 
 

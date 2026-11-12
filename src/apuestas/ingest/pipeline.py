@@ -10,7 +10,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import or_, select
 
 from apuestas.config import get_settings
-from apuestas.core.competitions import COMPETITIONS, FULL, LIGHT, fotmob_season, season_start_year
+from apuestas.core.competitions import COMPETITIONS, FULL, LIGHT, NATIONAL, fotmob_season, season_start_year
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.ingest import dedupe, football_data, fotmob, store, understat
@@ -59,10 +59,14 @@ def sync_fotmob_leagues(start_years: list[int], codes: list[str] | None = None) 
         if comp_def.fotmob_id is None or (codes and comp_def.code not in codes):
             continue
         for year in start_years:
+            fm_season = fotmob_season(year, comp_def)
+            if fm_season is None:  # competición sin edición ese año (la Nations League es bienal)
+                continue
 
-            def task(comp_def=comp_def, year=year) -> int:
+            def task(comp_def=comp_def, year=year, fm_season=fm_season) -> int:
                 ttl = 3600 if year >= current else None
-                fixtures = fotmob.league_matches(comp_def.fotmob_id, fotmob_season(year), ttl=ttl)
+                fixtures = [fm for lid in (comp_def.fotmob_id, *comp_def.fotmob_more_ids)
+                            for fm in fotmob.league_matches(lid, fm_season, ttl=ttl)]
                 with session_scope() as s:
                     comp = store.ensure_competitions(s)[comp_def.code]
                     season = store.get_season(s, comp, year)
@@ -87,7 +91,8 @@ def sync_fotmob_details(
     `hours_ahead` (si se da) sustituye a `days_ahead`: p.ej. 1.7 h para buscar alineaciones confirmadas.
     `match_ids` limita la descarga a esos partidos (sin historial atrasado).
     Las competiciones "light" con `fotmob_stats` (Europa League, Conference) solo bajan los partidos jugados y de
-    ellos solo el árbitro y las estadísticas de equipo (`store.apply_fotmob_details(stats_only=True)`).
+    ellos solo el árbitro y las estadísticas de equipo (`store.apply_fotmob_details(stats_only=True)`); las de
+    selecciones (clasificatorios, Mundial, Eurocopa), también las alineaciones y los jugadores.
     """
     full = {c.code for c in FULL}
     codes = codes or [*full, *(c.code for c in LIGHT if c.fotmob_stats)]
@@ -127,7 +132,9 @@ def sync_fotmob_details(
             if ttl is None and not det.finished and not det.cancelled:
                 # La caché guardó la versión previa al partido: hay que volver a descargarla
                 det = fotmob.match_details(match.fotmob_id, ttl=0)
-            store.apply_fotmob_details(s, match, det, stats_only=match.competition.code not in full)
+            # De las selecciones se guardan también las alineaciones de los torneos de historial: son su once típico
+            code = match.competition.code
+            store.apply_fotmob_details(s, match, det, stats_only=code not in full and code not in NATIONAL)
 
     def task() -> int:
         done = 0

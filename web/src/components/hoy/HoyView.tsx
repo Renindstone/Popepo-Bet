@@ -478,7 +478,7 @@ function Jornada({ rows }: { rows: DayMatch[] }) {
         <span className="text-nota font-semibold text-grafito">{tr("1X2 del modelo, en %", "Model 1X2, in %")}</span>
       </div>
       {rows.length === 0 ? (
-        <Empty>{tr("No hay partidos de las nueve competiciones este día.", "No matches from the nine competitions this day.")}</Empty>
+        <Empty>{tr("No hay partidos de las diez competiciones este día.", "No matches from the ten competitions this day.")}</Empty>
       ) : (
         <table className="w-full table-fixed border-collapse text-interfaz">
           <caption className="sr-only">

@@ -683,6 +683,43 @@ Jugadores fuera de muestra (como en Portugal y Bélgica): corte del 15-01-2026, 
 
 OddsPapi: con ocho competiciones ya eran 2 peticiones por casa casi cada día y la API admite 5 torneos por petición, así que la novena añade de 0 a 10 al mes (70-112 con el calendario de 2025-26). Lo aprobó el dueño el 30-10-2026.
 
+**Selecciones: UEFA Nations League** (10 y 11-11-2026, a petición del dueño; `experimentos/validacion/selecciones.py`). Entra como competición completa para el análisis, **sin apuesta del día y sin mercados de jugador** (decisiones del dueño), con los clasificatorios europeos al Mundial 2026, el Mundial 2026 y la Eurocopa 2024 como historial (683 partidos, 86 selecciones; `docs/fuentes.md`). Lo que cambia frente a un club:
+
+- **Sin cuotas de cierre ni ratings del mercado.** football-data no cubre selecciones, así que su fuerza sale solo de goles y xG de FotMob, con entre 14 y 35 partidos por selección europea en tres años (mediana 19; antes de pedir el historial se estimaron 25-35). Las reglas de prudencia de siempre se aplican solas: `market_matches = 0`, así que la confianza lleva el factor mínimo (×0,6) y la probabilidad se mezcla con la de la casa (25 % modelo). La apuesta lleva además la razón «Selecciones: no entra en la apuesta del día ni pasa el corte…» y nunca da «APOSTAR».
+- **No se puede medir contra bet365.** No hay cuotas históricas gratuitas de selecciones. La única referencia posible es la más simple: las dos selecciones como el equipo medio, con la ventaja local (`logloss_equipos_iguales`, nuevo en `apuestas backtest --selecciones`). Ganarle es pedir muy poco (España contra San Marino no es un partido igualado): **no dice que el modelo sirva para apostar.**
+- **Mismo modelo que los clubes.** Las selecciones nunca se cruzan con los clubes, pero comparten la media de goles, la ventaja local general (con su desvío por competición: Nations League −0,013 sobre 0,217), ρ, la dispersión de los conteos y los árbitros. El Mundial y la Eurocopa van como sede neutral.
+- **Jugadores.** `fit_players` deja fuera los partidos de selecciones: las proyecciones de club no cambian (5.512 jugadores antes y después) y en selecciones no hay props (lo que se sabe del jugador es de su club, con otro papel y otros compañeros). Las alineaciones sí se usan para el ajuste por once, frente al once típico de la selección.
+
+*Clubes, antes y después de entrenar con las selecciones* (`apuestas backtest --europa`, 2024-08 → 2026-06, 5.362 partidos con cuotas):
+
+| | Sin selecciones | Con selecciones |
+|---|---|---|
+| Log-loss 1X2 del modelo (bet365 0,9645, Pinnacle 0,9645, mezcla 0,9641) | 0,9674 | 0,9674 |
+| Por liga (EPL, BUN, LAL, SA, L1, BEL, TUR) | 0,9933 / 0,9810 / 0,9632 / 0,9673 / 0,9671 / 1,0035 / 0,9517 | iguales |
+| Portugal | 0,9189 | 0,9188 |
+| Champions / Europa League / Conference | 0,9011 / 0,9856 / 1,0149 | 0,9010 / 0,9856 / 1,0146 |
+| Apuestas solo modelo | 3.306, ROI −4,38 %, CLV +1,11 % | 3.305, ROI −4,50 %, CLV +1,10 % |
+| Apuestas modelo + mercado | 188, ROI −11,69 %, CLV +2,51 % | iguales |
+| Remates / córners / tarjetas / faltas / offsides (mejora del total por partido frente a la media) | 0,0467 / 0,0153 / 0,0399 / 0,1675 / 0,0488 | 0,0476 / 0,0156 / 0,0396 / 0,1676 / 0,0503 |
+
+Nada cambia más allá del cuarto decimal: una sola apuesta de 3.306 es distinta. El modelo sigue sin ganarle a bet365.
+
+*Selecciones: modelo frente a «equipos iguales»* (log-loss 1X2, walk-forward semanal; más bajo es mejor):
+
+| Torneo y ventana | Partidos | Modelo | Equipos iguales | Mejora |
+|---|---|---|---|---|
+| Nations League 2024-25 (2024-08 → 2026-06; arranca casi sin historial) | 133 | 0,9791 | 1,0822 | +0,103 ± 0,061 |
+| Clasificatorios al Mundial 2026 | 204 | 0,8135 | 1,0576 | +0,244 ± 0,066 |
+| Mundial 2026, junio | 55 | 0,9238 | 1,0846 | +0,161 ± 0,111 |
+| **Nations League 2026-27** (2026-07 → 2026-11, ya con el Mundial y los clasificatorios) | 104 | 0,9521 | 1,0991 | +0,147 ± 0,065 |
+| Mundial 2026, julio | 25 | 0,7771 | 1,0570 | +0,280 ± 0,086 |
+
+*Estadísticas en la Nations League* (mejora del total por partido frente a la media): en 2024-25 (168 partidos), remates +0,059 ± 0,042, tarjetas +0,048 ± 0,041 y faltas +0,160 ± 0,097; a puerta +0,022 ± 0,044 y córners −0,008 ± 0,028 no se distinguen de la media. En 2026-27 (104), **ninguna se distingue de la media**: remates +0,045 ± 0,065, a puerta −0,007 ± 0,061, córners +0,017 ± 0,025, tarjetas −0,024 ± 0,059 y faltas +0,030 ± 0,077. Con tan pocos partidos por selección, las cuotas de córners y tarjetas que salen «con valor» en estos partidos no son de fiar (y salen: para el 12-11 se guardaron 99 apuestas con valor, de tarjetas, goles y córners; ninguna pasa el corte).
+
+*xG de las selecciones en el modelo de goles*: entra, como en las ligas (`GOALS_XG_SKIP` solo deja fuera el de la Europa League y la Conference). Emparejado en los mismos partidos, con xG − sin xG: Nations League +0,027 ± 0,027 (algo peor con xG, en el borde del margen), clasificatorios 0,000 ± 0,026, Mundial −0,036 ± 0,052 (mejor con xG) y los 521 juntos +0,007 ± 0,018. No se distingue: se deja como en las ligas y se vuelve a medir con la ventana de noviembre.
+
+OddsPapi: la Nations League es un solo torneo y se juega en los parones de clubes, así que es 1 petición por casa y día: unas 14 por ventana (7 días × Betano y Pinnacle). Sin CLV de antes del partido, porque sus apuestas nunca pasan el corte. Lo aprobó el dueño el 10-11-2026 (iban 42 de 250; 46 tras la primera descarga).
+
 **Córners del local grande en la Champions frente a Pinnacle** (22-10-2026). Con la fuerza de goles como guía y las estadísticas de las copas, el modelo seguía dando al local unos 0,7 córners menos que Pinnacle en Betis-Feyenoord (4,6-4,7 frente a 5,3-4,1; Betano 5,4-4,1) y Bayern-Arsenal (4,8-4,1 frente a 5,5-4,2; Betano 5,7-4,1). Ya estaban descartados el nivel por liga, más contracción (K 40) y un sesgo del local en toda la Champions.
 
 *De dónde sale cada número.* Bayern-Arsenal: 4,79 = exp(media 1,457 + local 0,202 + ataque del Bayern 0,500 − defensa del Arsenal 0,593). El Arsenal es el equipo que menos córners concede (2,8 en casa y 3,8 fuera en la Premier) y, en el modelo de goles, más fuerte que el Bayern (1,83 frente a 1,62; 1X2 del modelo 38/24/38, Pinnacle 43/26/32). Betis-Feyenoord: solo con la fuerza de goles salía 5,2-4,3; las desviaciones de cada equipo lo llevaban a 4,6-4,7, porque el Betis saca en LaLiga menos córners de los que le tocan por su fuerza (−0,08 de dominio) y el Feyenoord en la Eredivisie más (+0,13). Su fuerza de goles es casi igual (0,63 y 0,67), así que el modelo los veía parejos, y Pinnacle no (1X2 60/20/20).

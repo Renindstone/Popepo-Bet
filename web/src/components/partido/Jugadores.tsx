@@ -49,7 +49,11 @@ export function Jugadores({ a }: { a: MatchAnalysis }) {
   const rows = a.players.filter((p) => !filter || sides[p.team_id] === filter);
 
   if (a.players.length === 0) {
-    return <p className="text-grafito">{tr("Sin proyecciones de jugadores para este partido.", "No player projections for this match.")}</p>;
+    return (
+      <p className="text-grafito">
+        {a.data_quality.no_players_note ?? tr("Sin proyecciones de jugadores para este partido.", "No player projections for this match.")}
+      </p>
+    );
   }
 
   return (

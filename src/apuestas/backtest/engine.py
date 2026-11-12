@@ -5,7 +5,8 @@ Métricas:
 - Log-loss / Brier del 1X2: modelo vs probabilidades de bet365 vs Pinnacle (sin margen), en total y por liga. Por
   defecto se evalúan las ligas completas (`LEAGUES`: Premier, Bundesliga, LaLiga, Serie A, Ligue 1, Portugal,
   Bélgica y Turquía; hasta el 21-10-2026 solo las tres primeras, hasta el 29-10-2026 las cinco primeras y hasta el
-  30-10-2026 sin Turquía).
+  30-10-2026 sin Turquía). La Champions y la Nations League no tienen cuotas de football-data: solo se mide su
+  modelo (`extra_competitions`).
 - ROI de apuestas con valor (1X2, más/menos 2.5 y hándicap asiático principal) a cuota previa de bet365.
 - CLV medio: cuota tomada vs cuota de cierre de bet365 (indicador de ventaja real a corto plazo).
 - Calibración de modelos de remates, córners y tarjetas (verosimilitud frente a la media de la liga), del total del
@@ -81,6 +82,17 @@ class BacktestResult:
     count_calibration: dict[str, dict] = field(default_factory=dict)
     lineups: dict = field(default_factory=dict)
     ll_by_comp: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
+    # Competiciones sin cuotas: log-loss de la referencia simple (los dos equipos como el equipo medio)
+    ll_ref_by_comp: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
+
+    def _vs_reference(self, comp: str) -> dict:
+        ref = self.ll_ref_by_comp.get(comp)
+        if not ref:
+            return {}
+        diff = np.array(ref) - np.array(self.ll_by_comp[comp])  # positivo: el modelo predice mejor
+        margin = 1.96 * float(diff.std(ddof=1)) / math.sqrt(len(diff)) if len(diff) > 1 else float("nan")
+        return {"logloss_equipos_iguales": round(float(np.mean(ref)), 4), "mejora": round(float(diff.mean()), 4),
+                "margen_95": round(margin, 4)}
 
     def summary(self) -> dict:
         def agg(items: list[Bet]) -> dict:
@@ -105,7 +117,8 @@ class BacktestResult:
             "logloss_1x2": {k: round(v, 4) for k, v in self.logloss.items() if ":" not in k},
             "logloss_1x2_por_competicion": _by_competition(self.logloss),
             "brier_1x2": {k: round(v, 4) for k, v in self.brier.items()},
-            "logloss_modelo_por_competicion": {k: {"partidos": len(v), "logloss": round(float(np.mean(v)), 4)}
+            "logloss_modelo_por_competicion": {k: {"partidos": len(v), "logloss": round(float(np.mean(v)), 4),
+                                                   **self._vs_reference(k)}
                                                for k, v in sorted(self.ll_by_comp.items())},
             "betting": {strat: {k: agg(v) for k, v in groups.items()} for strat, groups in by.items()},
             "count_models": self.count_calibration,
@@ -135,8 +148,9 @@ def _odds_map(s: Session, match_ids: list[int]) -> dict[int, dict[tuple, float]]
     return out
 
 
-# Ligas con cuotas de football-data que se evalúan por defecto: las completas que no son copas
-LEAGUES = tuple(c.code for c in FULL if not c.is_cup)
+# Ligas con cuotas de football-data que se evalúan por defecto: las completas que las tienen (ni la Champions ni la
+# Nations League)
+LEAGUES = tuple(c.code for c in FULL if c.fd_code)
 
 
 def run(
@@ -272,7 +286,12 @@ def _evaluate_match(r: MatchRow, gm, rho: float, od: dict, res: BacktestResult, 
     outcome_idx = 0 if r.hg > r.ag else (1 if r.hg == r.ag else 2)
     res.ll_by_comp[r.competition].append(-math.log(max(p_model[outcome_idx], 1e-9)))
     if model_only:
-        return  # competición sin cuotas (Champions...): solo cuenta la log-loss del modelo
+        # Competición sin cuotas (Champions, selecciones...): solo cuenta la log-loss del modelo, frente a la
+        # referencia más simple: los dos equipos como el equipo medio, con la ventaja local de la competición
+        ref = dist.dixon_coles_matrix(*gm.expected(-1, -1, r.neutral, r.competition), rho)
+        p_ref = [float(np.tril(ref, -1).sum()), float(np.trace(ref)), float(np.triu(ref, 1).sum())]
+        res.ll_ref_by_comp[r.competition].append(-math.log(max(p_ref[outcome_idx], 1e-9)))
+        return
     res.n_matches += 1
 
     sharp = _book_probs(od, "pinnacle") or _book_probs(od, "betfair_ex")

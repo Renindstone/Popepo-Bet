@@ -15,7 +15,7 @@ web
 
 ## Product Purpose
 
-Popepo-Bet analiza apuestas de fútbol **prepartido** (Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga, Pro League de Bélgica, Süper Lig y Champions League). Estima con un modelo estadístico la probabilidad de cada mercado, la compara con la cuota de la casa y señala las apuestas con valor, entre ellas una apuesta del día. Liquida solo las apuestas registradas y mide el rendimiento (aciertos, ROI, CLV y banca).
+Popepo-Bet analiza apuestas de fútbol **prepartido** (Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga, Pro League de Bélgica, Süper Lig y Champions League; y, de selecciones, la UEFA Nations League, que se analiza pero no entra en la apuesta del día). Estima con un modelo estadístico la probabilidad de cada mercado, la compara con la cuota de la casa y señala las apuestas con valor, entre ellas una apuesta del día. Liquida solo las apuestas registradas y mide el rendimiento (aciertos, ROI, CLV y banca).
 
 El éxito es decidir mejor qué apostar y qué no, con números honestos: "no apostar" es un resultado válido.
 

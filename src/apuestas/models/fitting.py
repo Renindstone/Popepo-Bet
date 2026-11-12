@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session, aliased
 
 from apuestas.betting import odds as oddsmath
 from apuestas.config import get_settings
-from apuestas.core.competitions import COMPETITIONS
+from apuestas.core.competitions import COMPETITIONS, NATIONAL
 from apuestas.db import models as m
 from apuestas.models import market, ratings
 from apuestas.models.ratings import MatchObs, RatingModel
@@ -43,7 +43,7 @@ GOALS_XG_WEIGHT = 0.85  # elegido por backtest 2024-26 (mejor log-loss que 0, 0.
 # Competiciones cuyo xG no entra en el modelo de goles (solo sus goles): la Europa League y la Conference, que traen
 # estadísticas de FotMob desde el 21-10-2026 para los modelos de conteo. Con su xG, la log-loss 1X2 de la Champions
 # empeoraba (+0,0062 ± 0,0025 por partido, backtest 2024-26) y la de las ligas no cambiaba.
-GOALS_XG_SKIP = frozenset(code for code, c in COMPETITIONS.items() if c.fotmob_stats)
+GOALS_XG_SKIP = frozenset(code for code, c in COMPETITIONS.items() if c.fotmob_stats and not c.national)
 COUNT_STATS = ("shots", "shots_on_target", "corners", "fouls", "cards", "offsides")
 PLAYER_STATS = ("shots", "shots_on_target", "goals", "xg", "assists", "xa", "fouls_committed", "yellow_cards")
 # Goles y asistencias también como parte de los goles de su equipo en los minutos que jugó (para repartirlos)
@@ -607,7 +607,10 @@ def fit_players(s: Session, before: datetime, half_life_days: float = 200.0) -> 
         .join(m.Player, m.Player.id == m.PlayerMatchStats.player_id)
         .outerjoin(m.TeamMatchStats, and_(m.TeamMatchStats.match_id == m.PlayerMatchStats.match_id,
                                           m.TeamMatchStats.team_id == m.PlayerMatchStats.team_id))
-        .where(m.Match.kickoff_utc < before, m.Match.kickoff_utc >= since, m.PlayerMatchStats.minutes > 0)
+        .where(m.Match.kickoff_utc < before, m.Match.kickoff_utc >= since, m.PlayerMatchStats.minutes > 0,
+               # Solo clubes: con su selección el jugador tiene otro papel y otros compañeros, y mezclarlo cambiaría
+               # sus proyecciones de club (decisión del 10-11-2026: sin mercados de jugador en selecciones)
+               m.Match.competition_id.not_in(select(m.Competition.id).where(m.Competition.code.in_(NATIONAL))))
     )
     acc: dict[int, dict] = {}
     pos_acc: dict[str, dict[str, float]] = {}

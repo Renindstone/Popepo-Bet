@@ -67,6 +67,20 @@ _TEAM_SEEDS = {
     # Turquía: football-data (izquierda) frente a FotMob (derecha), 30-10-2026
     "ad demirspor": "adana demirspor", "amedspor": "amed sportif", "bodrumspor": "bodrum",
     "karagumruk": "fatih karagumruk",
+    # Selecciones (10-11-2026): como las llama Betano en español y variantes en inglés, frente a FotMob (derecha)
+    "espana": "spain", "inglaterra": "england", "francia": "france", "alemania": "germany", "italia": "italy",
+    "paises bajos": "netherlands", "holanda": "netherlands", "belgica": "belgium", "croacia": "croatia",
+    "dinamarca": "denmark", "suiza": "switzerland", "suecia": "sweden", "noruega": "norway", "polonia": "poland",
+    "hungria": "hungary", "rumania": "romania", "ucrania": "ukraine", "eslovenia": "slovenia",
+    "eslovaquia": "slovakia", "islandia": "iceland", "finlandia": "finland", "grecia": "greece",
+    "escocia": "scotland", "gales": "wales", "irlanda": "ireland", "republica irlanda": "ireland",
+    "republic of ireland": "ireland", "irlanda del norte": "northern ireland", "turquia": "turkiye",
+    "turkey": "turkiye", "chequia": "czechia", "republica checa": "czechia", "czech republic": "czechia",
+    "bosnia y herzegovina": "bosnia herzegovina", "bosnia": "bosnia herzegovina",
+    "macedonia del norte": "north macedonia", "bielorrusia": "belarus", "kazajistan": "kazakhstan",
+    "azerbaiyan": "azerbaijan", "chipre": "cyprus", "letonia": "latvia", "lituania": "lithuania",
+    "luxemburgo": "luxembourg", "moldavia": "moldova", "islas feroe": "faroe islands",
+    "andorra seleccion": "andorra",  # FotMob la llama "Andorra", como al club: en la BD es "Andorra (Selección)"
     # Ligas extra de football-data (izquierda) frente a FotMob (derecha)
     "rapid": "rapid wien", "copenhagen": "kobenhavn", "aarhus": "agf", "jagiellonia": "jagiellonia bialystok",
     "legia": "legia warszawa", "rakow": "rakow czestochowa", "univ craiova": "universitatea craiova",

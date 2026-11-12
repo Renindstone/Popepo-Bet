@@ -26,7 +26,7 @@ def s():
 
 
 def test_serie_a_and_ligue_1_are_full_with_all_sources():
-    assert [c.code for c in FULL] == ["EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR", "UCL"]
+    assert [c.code for c in FULL] == ["EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR", "UCL", "UNL"]
     assert not {"SA", "L1", "POR", "BEL", "TUR"} & {c.code for c in LIGHT}
     sa, l1 = COMPETITIONS["SA"], COMPETITIONS["L1"]
     assert (sa.fd_code, sa.understat, sa.fotmob_id) == ("I1", "Serie_A", 55)

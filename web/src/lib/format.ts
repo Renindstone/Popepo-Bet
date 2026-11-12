@@ -166,6 +166,7 @@ export const COMPETITIONS: Record<string, string> = {
   BEL: "Pro League",
   TUR: "Süper Lig",
   UCL: "Champions League",
+  UNL: "Nations League",
 };
 
 export function competitionName(code: string): string {

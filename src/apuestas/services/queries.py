@@ -102,7 +102,8 @@ def competition_code(text: str) -> str:
     """Código de una competición completa a partir del código o del nombre: "sa", "Serie A" -> "SA"."""
     key = names.strip_accents(text).lower().replace(" ", "")
     for c in FULL:
-        if key in (c.code.lower(), names.strip_accents(c.name).lower().replace(" ", "")):
+        name = names.strip_accents(c.name).lower().replace(" ", "")
+        if key in (c.code.lower(), name, name.removeprefix("uefa")):  # "Nations League" = "UEFA Nations League"
             return c.code
     return text.upper()
 

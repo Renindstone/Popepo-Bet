@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 INSTRUCTIONS = """\
 Sistema de análisis de apuestas de fútbol (Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga,
-Pro League (Bélgica), Süper Lig (Turquía) y Champions League).
+Pro League (Bélgica), Süper Lig (Turquía), Champions League y UEFA Nations League).
 Los números (probabilidades, cuotas justas, valor esperado) los calcula un modelo estadístico; tu papel
 es interpretarlos, explicarlos y combinarlos con información cualitativa (noticias, ruedas de prensa).
 
@@ -43,6 +43,10 @@ Mercados (parámetro `mercado`) y selecciones:
 
 Reglas: no recomiendes apostar si el veredicto no es "APOSTAR"; recuerda la gestión de banca y que
 "no apostar" es válido. Las bajas manuales sirven para noticias que FotMob aún no refleja.
+
+Selecciones (UEFA Nations League, código UNL): los equipos van con su nombre en inglés ("Spain", "Turkiye") y se
+encuentran también en español. El modelo solo tiene goles y xG de FotMob, sin cuotas de cierre: nunca dan "APOSTAR"
+(están fuera de la apuesta del día) y no tienen mercados de jugador. Dilo así si te preguntan.
 
 Capturas: el usuario sube imágenes de cuotas en el panel. capturas_pendientes → ver_captura (imagen + guía) →
 evaluar_captura (las cuotas que leíste; el modelo calcula el veredicto) o evaluar_combinada (combinadas y Bet
@@ -94,8 +98,8 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
 
     @server.tool()
     def partidos_proximos(dias: int = 3, competicion: str | None = None) -> str:
-        """Lista los próximos partidos (EPL, BUN, LAL, SA, L1, POR, BEL, TUR, UCL) con hora de Lima, árbitro y estado
-        de alineaciones. `competicion`: el código o el nombre ("Serie A", "Primeira Liga", "Süper Lig")."""
+        """Lista los próximos partidos (EPL, BUN, LAL, SA, L1, POR, BEL, TUR, UCL, UNL) con hora de Lima, árbitro y
+        estado de alineaciones. `competicion`: el código o el nombre ("Serie A", "Süper Lig", "Nations League")."""
         return _safe(queries.upcoming, dias, competicion)
 
     @server.tool()

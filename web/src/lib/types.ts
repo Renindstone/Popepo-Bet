@@ -1,6 +1,6 @@
 // Formas de las respuestas de la API FastAPI (src/apuestas/api/app.py y services/queries.py)
 
-export type Competicion = "EPL" | "BUN" | "LAL" | "SA" | "L1" | "POR" | "BEL" | "TUR" | "UCL" | string;
+export type Competicion = "EPL" | "BUN" | "LAL" | "SA" | "L1" | "POR" | "BEL" | "TUR" | "UCL" | "UNL" | string;
 
 export interface MatchSummary {
   alerts?: Alert[];
@@ -284,6 +284,9 @@ export interface MatchAnalysis {
     weighted_matches_min: number;
     referee_known: boolean;
     model_as_of: string;
+    // Selecciones: fuera de la apuesta del día y sin mercados de jugador (textos del servidor, ya traducidos)
+    no_picks_note?: string;
+    no_players_note?: string;
   };
   value_bets: (BetEval & { label: string })[];
   props_min_odds: PropMinOdds[];

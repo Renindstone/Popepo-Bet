@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from apuestas.betting import odds as oddsmath
 from apuestas.config import get_settings
+from apuestas.core.competitions import COMPETITIONS
 from apuestas.db import models as m
 from apuestas.features import context as ctx
 from apuestas.features import lineup as lu
@@ -176,6 +177,7 @@ class BetEval:
     confidence: float
     player_id: int | None = None
     reasons: list[str] = field(default_factory=list)
+    eligible: bool = True  # False: competición fuera de la apuesta del día y del corte (`Competition.picks`)
 
     def label(self, home: str, away: str, player_name: str | None = None) -> str:
         return bet_label(self.market, self.selection, self.line, home, away, player_name)
@@ -457,6 +459,14 @@ def _confidence(
     return max(0.0, min(1.0, c))
 
 
+# Selecciones (Nations League): no hay cuotas históricas para medir el modelo contra las casas, como en las ligas
+NO_PICKS_NOTE = ("Selecciones: no entra en la apuesta del día ni pasa el corte, porque el modelo no se pudo medir "
+                 "contra las cuotas de las casas")
+NO_PLAYERS_NOTE = "Selecciones: sin mercados de jugador; lo que el modelo sabe de cada jugador es de su club"
+NO_MARKET_NATIONAL = ("Selecciones: sin cuotas de cierre en nuestros datos; el modelo solo usa goles y xG y es poco "
+                      "fiable en este partido")
+
+
 def can_bet(market: str, line: float | None) -> bool:
     """Si el dueño puede hacer esa apuesta: en sus casas no tiene las líneas de cuarto (0.25, 0.75, 1.25…) del hándicap
     asiático ni de Más/Menos goles."""
@@ -510,11 +520,14 @@ def evaluate_bet(
                        f"{quality.get('no_market_note', 'equipo con pocas cuotas de referencia')}")
     else:
         reasons.append(f"Probabilidad del modelo {model_p:.0%} (sin referencia de mercado afilado)")
+    eligible = quality.get("picks", True)
+    if not eligible:
+        reasons.append(NO_PICKS_NOTE)
     # float(): los cálculos devuelven tipos numpy, que no se serializan a JSON (p.ej. numpy.bool en comparaciones)
     return BetEval(market, selection, line, bookmaker, float(odds), float(model_p),
                    float(sharp_p) if sharp_p is not None else None, float(prob),
                    1 / float(prob) if prob > 0 else float("inf"), float(ev), float(stake), float(conf),
-                   player_id, reasons)
+                   player_id, reasons, eligible)
 
 
 # --------------------------------------------------------------------------- análisis
@@ -571,7 +584,9 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
             total_dispersion[stat] = cm.total_dispersion
 
     mm = MatchModel(home, away, lam_h, lam_a, bundle.rho, count_means, dispersion, total_dispersion)
-    for is_home, tid, lam in ((True, home, lam_h), (False, away, lam_a)):
+    cdef = COMPETITIONS.get(match.competition.code)
+    # En selecciones no hay mercados de jugador: lo que se sabe de cada jugador es de su club (fitting.fit_players)
+    for is_home, tid, lam in ((True, home, lam_h), (False, away, lam_a)) if not (cdef and cdef.national) else ():
         for pp in _player_projections(s, bundle, match, tid, is_home, count_means, lam):
             mm.players[pp.player_id] = pp
 
@@ -617,6 +632,8 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
         "market_weight": round(market_coverage_weight(market_min), 3),
         # Casa cuyo 1X2 movió el reparto de remates y córners, y cuánto (δ: fuerza sumada al local)
         "count_market_shift": {"book": mkt[0], "delta": round(delta, 3)} if mkt else None,
+        # Competición que se analiza pero no entra en la apuesta del día ni en el corte (selecciones)
+        "picks": cdef is None or cdef.picks,
     }
     # Partidos (ponderados) del equipo menos visto en cada estadística, y quiénes están por debajo de STAT_COVERED
     quality["stat_matches_min"] = {
@@ -627,8 +644,13 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
                          if cm.n_matches.get(t.id, 0.0) < STAT_COVERED)
         for stat, cm in bundle.counts.items() if quality["stat_matches_min"][stat] < STAT_COVERED}
     if thin:
-        quality["no_market_note"] = (f"{' y '.join(thin)} casi sin cuotas de su liga en nuestros datos; "
-                                     "el modelo es poco fiable en este partido")
+        quality["no_market_note"] = NO_MARKET_NATIONAL if cdef and cdef.national else (
+            f"{' y '.join(thin)} casi sin cuotas de su liga en nuestros datos; "
+            "el modelo es poco fiable en este partido")
+    if not quality["picks"]:
+        quality["no_picks_note"] = NO_PICKS_NOTE
+    if cdef and cdef.national:
+        quality["no_players_note"] = NO_PLAYERS_NOTE
 
     # Evaluar todas las cuotas disponibles de mis casas
     bets = []

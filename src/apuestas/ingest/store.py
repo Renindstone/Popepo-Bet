@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from apuestas.core import names
-from apuestas.core.competitions import COMPETITIONS, season_label
+from apuestas.core.competitions import COMPETITIONS, NATIONAL, NATIONAL_TEAM, season_label
 from apuestas.core.rivalries import RIVALRIES
 from apuestas.db import models as m
 from apuestas.ingest.fotmob import FMDetails, FMMatch
@@ -212,8 +212,10 @@ def resolve_referee(s: Session, name: str, country: str | None = None, source: s
 
 def upsert_fotmob_match(s: Session, comp: m.Competition, season: m.Season, fm: FMMatch) -> m.Match:
     match = s.scalar(select(m.Match).where(m.Match.fotmob_id == fm.fotmob_id))
-    home = fotmob_team(s, fm.home_id, fm.home_name)
-    away = fotmob_team(s, fm.away_id, fm.away_name)
+    cdef = COMPETITIONS.get(comp.code)
+    country = NATIONAL_TEAM if cdef is not None and cdef.national else None
+    home = fotmob_team(s, fm.home_id, fm.home_name, country)
+    away = fotmob_team(s, fm.away_id, fm.away_name, country)
     if match is None:
         # Liga que era "light" sin FotMob (Portugal y Bélgica hasta el 29-10-2026, Turquía hasta el 30-10): football-data ya creó el partido
         match = s.scalar(select(m.Match).where(
@@ -232,6 +234,7 @@ def upsert_fotmob_match(s: Session, comp: m.Competition, season: m.Season, fm: F
             kickoff_utc=fm.kickoff_utc,
             home_team_id=home.id,
             away_team_id=away.id,
+            neutral_venue=cdef is not None and cdef.neutral,
         )
         s.add(match)
     match.kickoff_utc = fm.kickoff_utc
@@ -383,6 +386,8 @@ def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails, stats_only:
     away = fotmob_team(s, det.away_id, match.away_team.name)
     team_by_fid = {det.home_id: home, det.away_id: away}
     seen_on = det.kickoff_utc.date()
+    # Jugar con la selección no es un fichaje: el jugador sigue en su club (`resolve_player` sin equipo)
+    national = match.competition.code in NATIONAL
 
     if det.cancelled:
         match.status = "cancelled"
@@ -403,7 +408,8 @@ def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails, stats_only:
             if team is None:
                 continue
             player = resolve_player(
-                s, p.fotmob_id, p.name, team, p.position, p.market_value, p.season_rating, seen_on
+                s, p.fotmob_id, p.name, None if national else team, p.position, p.market_value, p.season_rating,
+                seen_on
             )
             s.add(
                 m.Lineup(
@@ -428,7 +434,7 @@ def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails, stats_only:
     if not det.finished and not stats_only:
         for team in (home, away):
             reported = [u for u in det.unavailable if team_by_fid.get(u.team_fotmob_id) is team]
-            update_availability(s, team, reported, seen_on)
+            update_availability(s, team, reported, seen_on, national)
 
     # Estadísticas de equipo
     for fid, stats in det.team_stats.items():
@@ -444,7 +450,7 @@ def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails, stats_only:
             team = team_by_fid.get(row.get("team_fotmob_id"))
             if team is None or not row.get("minutes"):
                 continue
-            player = resolve_player(s, fid, row.get("name") or "", team, seen_on=seen_on)
+            player = resolve_player(s, fid, row.get("name") or "", None if national else team, seen_on=seen_on)
             s.add(
                 m.PlayerMatchStats(
                     match_id=match.id,
@@ -460,8 +466,10 @@ def apply_fotmob_details(s: Session, match: m.Match, det: FMDetails, stats_only:
     reconcile(s, match)
 
 
-def update_availability(s: Session, team: m.Team, reported: Iterable, seen_on: date) -> None:
-    """Marca como activas las bajas informadas y desactiva las que ya no aparecen (fuente fotmob)."""
+def update_availability(s: Session, team: m.Team, reported: Iterable, seen_on: date, national: bool = False) -> None:
+    """Marca como activas las bajas informadas y desactiva las que ya no aparecen (fuente fotmob).
+
+    `national`: el equipo es una selección; el jugador no cambia de club por ser baja con ella."""
     now = datetime.now(UTC)
     current = {
         a.player_id: a
@@ -473,7 +481,8 @@ def update_availability(s: Session, team: m.Team, reported: Iterable, seen_on: d
     }
     seen: set[int] = set()
     for u in reported:
-        player = resolve_player(s, u.fotmob_id, u.name, team, None, u.market_value, u.season_rating, seen_on)
+        player = resolve_player(s, u.fotmob_id, u.name, None if national else team, None, u.market_value,
+                                u.season_rating, seen_on)
         seen.add(player.id)
         row = current.get(player.id)
         if row is None:

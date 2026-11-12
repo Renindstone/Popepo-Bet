@@ -13,11 +13,16 @@ Copenhague, Young Boys, Legia...). Algunas se juegan de marzo a noviembre (`cale
 La Europa League y la Conference (`fotmob_stats`) traen además de FotMob el árbitro y las estadísticas de equipo de
 sus partidos jugados (remates, córners, tarjetas, xG...), sin alineaciones ni jugadores: son los partidos que conectan
 las ligas en los modelos de remates y córners.
+
+Selecciones (`national`, desde el 10-11-2026): la UEFA Nations League es "full" pero sin apuesta del día (`picks=False`:
+no hay cuotas históricas de selecciones para medir el modelo contra las casas) y sin mercados de jugador. Los
+clasificatorios europeos al Mundial, el Mundial y la Eurocopa son "light": solo dan historial a esas selecciones. Solo
+vienen de FotMob (football-data y Understat no cubren selecciones) y nunca se cruzan con los clubes.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 
@@ -34,6 +39,13 @@ class Competition:
     fd_extra: str | None = None  # football-data.co.uk, liga "extra" (new/XXX.csv)
     calendar_year: bool = False  # temporada de marzo a noviembre (se identifica por el año natural)
     fotmob_stats: bool = False  # nivel "light": árbitro y estadísticas de equipo de FotMob de los partidos jugados
+    national: bool = False  # selecciones: sus jugadores no cambian de club al jugar con ellas y no tienen props
+    picks: bool = True  # False: se analiza, pero no entra en la apuesta del día ni en las que pasan el corte
+    neutral: bool = False  # fase final en sede única: sus partidos no llevan ventaja local
+    fotmob_more_ids: tuple[int, ...] = ()  # más ligas de FotMob de la misma competición (divisiones B, C y D)
+    # Año de inicio -> temporada en FotMob, para las que no son "AAAA/AAAA+1" cada año. Con una temporada que no existe
+    # FotMob devuelve la actual, así que solo se piden las de esta lista: hay que añadir aquí cada edición nueva.
+    fotmob_seasons: dict[int, str] | None = field(default=None, hash=False)
 
 
 COMPETITIONS: dict[str, Competition] = {
@@ -50,6 +62,9 @@ COMPETITIONS: dict[str, Competition] = {
         Competition("BEL", "Pro League", "Belgium", "full", fd_code="B1", fotmob_id=40),
         Competition("TUR", "Süper Lig", "Turkey", "full", fd_code="T1", fotmob_id=71),
         Competition("UCL", "Champions League", "Europe", "full", is_cup=True, fotmob_id=42),
+        # Selecciones. Las ligas A, B, C y D son cuatro ligas en FotMob y un solo torneo en OddsPapi
+        Competition("UNL", "UEFA Nations League", "Europe", "full", fotmob_id=9806, fotmob_more_ids=(9807, 9808, 9809),
+                    national=True, picks=False, fotmob_seasons={2024: "2024/2025", 2026: "2026/2027"}),
         # --- Solo para la escala de fuerza ---
         Competition("NED", "Eredivisie", "Netherlands", "light", fd_code="N1"),
         Competition("SCO", "Premiership", "Scotland", "light", fd_code="SC0"),
@@ -68,11 +83,21 @@ COMPETITIONS: dict[str, Competition] = {
         Competition("IRL", "Premier Division", "Ireland", "light", fd_extra="IRL", calendar_year=True),
         Competition("UEL", "Europa League", "Europe", "light", is_cup=True, fotmob_id=73, fotmob_stats=True),
         Competition("UECL", "Conference League", "Europe", "light", is_cup=True, fotmob_id=10216, fotmob_stats=True),
+        # Historial de las selecciones (el Mundial de junio y julio de 2026 va con la temporada 2025-26)
+        Competition("WCQ", "Clasificatorios UEFA al Mundial", "Europe", "light", is_cup=True, fotmob_id=10195,
+                    fotmob_stats=True, national=True, fotmob_seasons={2025: "2025/2026"}),
+        Competition("WC", "Mundial", "World", "light", is_cup=True, fotmob_id=77, fotmob_stats=True, national=True,
+                    neutral=True, fotmob_seasons={2025: "2026"}),
+        Competition("EURO", "Eurocopa", "Europe", "light", is_cup=True, fotmob_id=50, fotmob_stats=True,
+                    national=True, neutral=True, fotmob_seasons={2023: "2024"}),
     ]
 }
 
 FULL = [c for c in COMPETITIONS.values() if c.tier == "full"]
 LIGHT = [c for c in COMPETITIONS.values() if c.tier == "light"]
+NATIONAL = frozenset(c.code for c in COMPETITIONS.values() if c.national)
+# `team.country` de las selecciones: así nunca se emparejan por nombre con un club ni se fusionan con él
+NATIONAL_TEAM = "Selección"
 
 
 def season_start_year(d: date) -> int:
@@ -89,5 +114,8 @@ def fd_season_code(start_year: int) -> str:
     return f"{str(start_year)[-2:]}{str(start_year + 1)[-2:]}"
 
 
-def fotmob_season(start_year: int) -> str:
+def fotmob_season(start_year: int, comp: Competition | None = None) -> str | None:
+    """Temporada de FotMob de ese año; None si la competición no tiene edición ese año (`fotmob_seasons`)."""
+    if comp is not None and comp.fotmob_seasons is not None:
+        return comp.fotmob_seasons.get(start_year)
     return f"{start_year}/{start_year + 1}"

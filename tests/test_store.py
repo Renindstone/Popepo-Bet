@@ -134,4 +134,6 @@ def test_players_without_fotmob_id_are_skipped(s):
 
 
 def test_europa_and_conference_bring_stats():
-    assert [c.code for c in LIGHT if c.fotmob_stats] == ["UEL", "UECL"]
+    assert [c.code for c in LIGHT if c.fotmob_stats and not c.national] == ["UEL", "UECL"]
+    # Los torneos de selecciones también, y además con alineaciones y jugadores (pipeline.sync_fotmob_details)
+    assert [c.code for c in LIGHT if c.fotmob_stats and c.national] == ["WCQ", "WC", "EURO"]

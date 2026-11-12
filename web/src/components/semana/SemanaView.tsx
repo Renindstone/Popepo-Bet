@@ -159,8 +159,8 @@ function RecapBody({
               <div className="pb-8">
                 <Empty>
                   {month
-                    ? tr("En este mes aún no se jugó ningún partido de las nueve competiciones.", "No match from the nine competitions has been played this month yet.")
-                    : tr("Esta semana aún no se jugó ningún partido de las nueve competiciones.", "No match from the nine competitions has been played this week yet.")}
+                    ? tr("En este mes aún no se jugó ningún partido de las diez competiciones.", "No match from the ten competitions has been played this month yet.")
+                    : tr("Esta semana aún no se jugó ningún partido de las diez competiciones.", "No match from the ten competitions has been played this week yet.")}
                 </Empty>
               </div>
               {/* El radar mira los últimos 28 días: no depende de que la semana elegida tenga partidos */}

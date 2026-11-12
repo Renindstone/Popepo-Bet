@@ -699,6 +699,7 @@ function Calidad({ a }: { a: MatchAnalysis }) {
           `Data quality: ${stageText(q.lineup_status).toLowerCase()} (factor ${num(q.lineup_factor, 2)}), minimum sample of ${num(q.weighted_matches_min, 1)} weighted matches (factor ${num(q.sample_factor, 2)}), ${q.referee_known ? "referee known" : "referee without history"}. Model trained on ${shortDate(q.model_as_of)}.`,
         )}
       </p>
+      {q.no_picks_note && <p className="max-w-[80ch] pt-2 font-semibold text-tinta">{q.no_picks_note}</p>}
     </section>
   );
 }

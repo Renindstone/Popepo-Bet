@@ -117,6 +117,8 @@ def backtest(
                                                    "--no-home-by-league = una sola, como antes del 29-10-2026"),
     ligas: str = typer.Option(None, help="Ligas con cuotas a evaluar, separadas por comas (por defecto las completas: "
                                          "EPL,BUN,LAL,SA,L1,POR,BEL,TUR; sin TUR = las de antes del 30-10-2026)"),
+    selecciones: bool = typer.Option(False, help="Mide también la log-loss del modelo en la Nations League y en los "
+                                                 "torneos de selecciones (sin cuotas: solo el modelo)"),
     out: str = "",
 ) -> None:
     """Backtest walk-forward contra cuotas históricas de bet365."""
@@ -129,7 +131,9 @@ def backtest(
     leagues = tuple(c.strip().upper() for c in ligas.split(",") if c.strip()) if ligas else engine.LEAGUES
     res = engine.run(date.fromisoformat(start), date.fromisoformat(end), competitions=leagues, half_life_days=half_life,
                      xg_weight=xg_weight, min_ev=min_ev, w_model=w_model, market_weight=market_weight,
-                     lineups=lineups, extra_competitions=("UCL", "UEL", "UECL") if europa else (),
+                     lineups=lineups,
+                     extra_competitions=(*(("UCL", "UEL", "UECL") if europa else ()),
+                                         *(("UNL", "WCQ", "WC", "EURO") if selecciones else ())),
                      count_l2=count_l2, count_strength=count_strength, count_market=count_market,
                      count_level=count_level, home_by_league=home_by_league)
     summary = res.summary()

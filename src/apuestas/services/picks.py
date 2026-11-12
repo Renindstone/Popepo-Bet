@@ -60,7 +60,8 @@ MIN_PROB_SINCE = date(2026, 11, 5)
 def qualifies(b: BetEval) -> bool:
     st = get_settings()
     return bool(
-        (st.pick_allow_stat_markets or is_goal_market(b.market))
+        b.eligible
+        and (st.pick_allow_stat_markets or is_goal_market(b.market))
         and st.pick_min_odds <= b.odds <= st.pick_max_odds
         and b.prob >= st.pick_min_prob
         and b.ev >= st.pick_min_ev

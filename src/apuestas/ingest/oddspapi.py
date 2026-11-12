@@ -51,6 +51,9 @@ TOURNAMENTS = {
     # Desde el 30-10-2026, con el OK del dueño: 0-10 más al mes (con ocho ya eran 2 peticiones casi cada día)
     "TUR": ("super-lig", "turkiye"),
     "UCL": ("uefa-champions-league", "international-clubs"),
+    # Desde el 10-11-2026, con el OK del dueño: las ligas A, B, C y D son un solo torneo. Se juega en los parones de
+    # clubes, así que casi siempre es 1 petición por casa y día: unas 14 por ventana de selecciones
+    "UNL": ("uefa-nations-league", "international"),
 }
 # La API rechaza más de 5 torneos por petición (400 INVALID_PARAMETER, visto el 22-10-2026 con seis competiciones)
 MAX_TOURNAMENTS = 5
