@@ -154,4 +154,6 @@ Decisiones tomadas al ejecutar, distintas de lo que decía el plan:
 - **Sin rama, sin registro aparte y sin revisor en otra sesión**: se trabajó directo en `main`, como permite `AGENTS.md`, con un commit por tarea y una revisión propia al final. Una revisión del mismo autor vale menos que una ajena.
 - **Commits por nombre de archivo**: la sesión de la Nations League tenía cambios sin subir en esta misma carpeta, así que nunca se usó `git commit -a`.
 
+**Datos de la PC anterior**: el dueño confirmó el 12-11-2026 que no conserva el disco ni ninguna copia. No hay restauración; todo lo de la tabla B, fila 1, empieza de cero el 11-11-2026.
+
 Queda pendiente, apuntado en la skill `disenio-panel`: un enlace de 19 px de alto en Mis apuestas en el celular (único fallo de las dos auditorías, 72 variantes en cada idioma).
