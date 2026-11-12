@@ -6,6 +6,7 @@
 //   node .claude/skills/run-app-apuestas/driver.mjs shots [--pages hoy,partido] [--devices desktop,mobile] [--schemes light,dark]
 //   node .claude/skills/run-app-apuestas/driver.mjs shot /evaluar?partido=4821 [--mobile] [--dark] [--name evaluar-real]
 //   node .claude/skills/run-app-apuestas/driver.mjs audit [--pages ...] [--devices ...] [--schemes ...]
+//   Con --lang en (shots, shot y audit) abre el panel en inglés: archivos con el sufijo -en y audit-en.json.
 //
 // Variables: APUESTAS_WEB (http://localhost:3000), APUESTAS_API (http://127.0.0.1:8000),
 // BROWSER (si no, el primero que exista de BROWSERS), SHOTS_DIR (/tmp/apuestas-shots).
@@ -32,30 +33,31 @@ const DEVICES = {
   desktop: { viewport: { width: 1280, height: 900 } },
   mobile: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
 };
-// Cada página y el texto que indica que ya cargó sus datos (no solo el esqueleto)
+// Cada página y el texto que indica que ya cargó sus datos (no solo el esqueleto), en español y en inglés:
+// el inglés se copia de la misma llamada tr() del panel, no se traduce a mano
 const PAGES = {
-  hoy: { path: "/", ready: "La jornada" },
+  hoy: { path: "/", ready: ["La jornada", "Fixtures"] },
   // Las otras pestañas de Hoy, el día del primer partido próximo (hoy puede no haber partidos y salir vacías)
-  "hoy-valor": { path: null, hash: "#valor", ready: "Otras apuestas con valor" },
-  "hoy-props": { path: null, hash: "#props", ready: "Props con cuota mínima" },
-  "hoy-precio": { path: null, hash: "#precio", ready: "Betano frente a Pinnacle" },
-  partidos: { path: "/partidos", ready: "vs" },
+  "hoy-valor": { path: null, hash: "#valor", ready: ["Otras apuestas con valor", "Other value bets"] },
+  "hoy-props": { path: null, hash: "#props", ready: ["Props con cuota mínima", "Props with minimum odds"] },
+  "hoy-precio": { path: null, hash: "#precio", ready: ["Betano frente a Pinnacle", "Betano against Pinnacle"] },
+  partidos: { path: "/partidos", ready: ["vs", "vs"] },
   // El primer partido de la lista, una entrada por pestaña (la pestaña va en el ancla de la URL)
-  partido: { path: null, ready: "Alineación y bajas" },
-  "partido-probabilidades": { path: null, hash: "#probabilidades", ready: "Dificultad del rival" },
-  "partido-estadisticas": { path: null, hash: "#estadisticas", ready: "Estadísticas esperadas" },
-  "partido-cuotas": { path: null, hash: "#cuotas", ready: "Props: cuota mínima" },
-  "partido-jugadores": { path: null, hash: "#jugadores", ready: "Proyección para este partido" },
-  evaluar: { path: null, ready: "Cuotas de Betano" }, // Evaluar con ese partido elegido
-  capturas: { path: "/capturas", ready: "Arrastra aquí la captura" },
+  partido: { path: null, ready: ["Alineación y bajas", "Line-up and absences"] },
+  "partido-probabilidades": { path: null, hash: "#probabilidades", ready: ["Dificultad del rival", "Opponent difficulty"] },
+  "partido-estadisticas": { path: null, hash: "#estadisticas", ready: ["Estadísticas esperadas", "Expected stats"] },
+  "partido-cuotas": { path: null, hash: "#cuotas", ready: ["Props: cuota mínima", "Props: minimum odds"] },
+  "partido-jugadores": { path: null, hash: "#jugadores", ready: ["Proyección para este partido", "Projection for this match"] },
+  evaluar: { path: null, ready: ["Cuotas de Betano", "Betano odds"] }, // Evaluar con ese partido elegido
+  capturas: { path: "/capturas", ready: ["Arrastra aquí la captura", "Drag the screenshot here"] },
   // Semana en curso, una entrada por pestaña
-  sorpresas: { path: "/sorpresas", ready: "En el radar" },
-  "sorpresas-mes": { path: "/sorpresas?periodo=mes", ready: "En el radar" },
+  sorpresas: { path: "/sorpresas", ready: ["En el radar", "On the radar"] },
+  "sorpresas-mes": { path: "/sorpresas?periodo=mes", ready: ["En el radar", "On the radar"] },
   // Las pestañas solo existen en una semana con partidos jugados: van a la última que los tenga
-  "sorpresas-equipos": { path: null, hash: "#equipos", ready: "Resultado, goles y córners" },
-  "sorpresas-jugadores": { path: null, hash: "#jugadores", ready: "Remates, remates a puerta" },
-  rendimiento: { path: "/rendimiento", ready: "Banca" },
-  datos: { path: "/datos", ready: "Fuentes" },
+  "sorpresas-equipos": { path: null, hash: "#equipos", ready: ["Resultado, goles y córners", "result, goals and corners"] },
+  "sorpresas-jugadores": { path: null, hash: "#jugadores", ready: ["Remates, remates a puerta", "Shots, shots on target"] },
+  rendimiento: { path: "/rendimiento", ready: ["Banca", "Bankroll"] },
+  datos: { path: "/datos", ready: ["Fuentes", "Sources"] },
 };
 
 function args() {
@@ -112,7 +114,7 @@ async function playedWeek() {
   return null;
 }
 
-async function resolvePages(names) {
+async function resolvePages(names, lang) {
   const isMatch = (n) => n === "partido" || n.startsWith("partido-");
   const isHoyTab = (n) => n.startsWith("hoy-");
   const needsMatch = (n) => isMatch(n) || isHoyTab(n) || n === "evaluar";
@@ -145,12 +147,14 @@ async function resolvePages(names) {
           : isWeekTab(n)
             ? `/sorpresas?semana=${week}${p.hash}`
             : p.path;
-    return { name: n, path, ready: p.ready };
+    return { name: n, path, ready: p.ready[lang === "en" ? 1 : 0] };
   });
 }
 
-async function open(browser, device, scheme) {
-  const ctx = await browser.newContext({ ...DEVICES[device], colorScheme: scheme, locale: "es-PE", timezoneId: "America/Lima" });
+async function open(browser, device, scheme, lang) {
+  const ctx = await browser.newContext({ ...DEVICES[device], colorScheme: scheme, locale: lang === "en" ? "en-GB" : "es-PE", timezoneId: "America/Lima" });
+  // El idioma elegido con el selector ES / EN se recuerda aquí (web/src/lib/i18n.tsx); cada pasada estrena contexto
+  if (lang === "en") await ctx.addInitScript(() => window.localStorage.setItem("apuestas.idioma", "en"));
   const page = await ctx.newPage();
   const problems = [];
   page.on("console", (m) => m.type() === "error" && problems.push(`consola: ${m.text().slice(0, 200)}`));
@@ -279,6 +283,12 @@ async function run(cmd, opts) {
     console.error(NO_BROWSER);
     process.exit(1);
   }
+  const lang = opts.lang === true ? "" : (opts.lang ?? "es");
+  if (lang !== "es" && lang !== "en") {
+    console.error(`--lang admite es o en, no «${lang}»`);
+    process.exit(1);
+  }
+  const suffix = lang === "en" ? "-en" : "";
   mkdirSync(OUT, { recursive: true });
   const browser = await chromium.launch({ executablePath, headless: true });
   const results = [];
@@ -287,26 +297,26 @@ async function run(cmd, opts) {
       const path = opts._[0] ?? "/";
       const device = opts.mobile ? "mobile" : "desktop";
       const scheme = opts.dark ? "dark" : "light";
-      const { ctx, page, problems } = await open(browser, device, scheme);
+      const { ctx, page, problems } = await open(browser, device, scheme, lang);
       await visit(page, path, opts.ready);
-      const file = join(OUT, `${opts.name ?? (path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "hoy")}-${device}-${scheme}.png`);
+      const file = join(OUT, `${opts.name ?? (path.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "hoy")}-${device}-${scheme}${suffix}.png`);
       await page.screenshot({ path: file, fullPage: !opts.viewport });
       console.log(file, problems.length ? `\n  problemas: ${problems.join(" | ")}` : "");
       await ctx.close();
       return;
     }
-    const pages = await resolvePages(list(opts.pages, Object.keys(PAGES)));
+    const pages = await resolvePages(list(opts.pages, Object.keys(PAGES)), lang);
     for (const device of list(opts.devices, Object.keys(DEVICES))) {
       for (const scheme of list(opts.schemes, cmd === "audit" ? ["light"] : ["light", "dark"])) {
         for (const p of pages) {
-          const { ctx, page, problems } = await open(browser, device, scheme);
+          const { ctx, page, problems } = await open(browser, device, scheme, lang);
           const t0 = Date.now();
           try {
             await visit(page, p.path, p.ready);
           } catch (e) {
             problems.push(`no cargó: ${e.message.split("\n")[0]}`);
           }
-          const file = join(OUT, `${p.name}-${device}-${scheme}.png`);
+          const file = join(OUT, `${p.name}-${device}-${scheme}${suffix}.png`);
           await page.screenshot({ path: file, fullPage: true });
           const row = { page: p.name, path: p.path, device, scheme, ms: Date.now() - t0, file, problems };
           if (cmd === "audit") row.audit = await page.evaluate(auditInPage, device === "mobile");
@@ -322,8 +332,9 @@ async function run(cmd, opts) {
       }
     }
     if (cmd === "audit") {
-      writeFileSync(join(OUT, "audit.json"), JSON.stringify(results, null, 1));
-      console.log(`\nDetalle e inventario de diseño: ${join(OUT, "audit.json")}`);
+      const report = join(OUT, `audit${suffix}.json`);
+      writeFileSync(report, JSON.stringify(results, null, 1));
+      console.log(`\nDetalle e inventario de diseño: ${report}`);
     }
   } finally {
     await browser.close();
@@ -333,4 +344,4 @@ async function run(cmd, opts) {
 const { cmd, opts } = args();
 if (cmd === "check") await check();
 else if (["shots", "shot", "audit"].includes(cmd)) await run(cmd, opts);
-else console.log("Uso: driver.mjs check | shots | shot <ruta> [--mobile] [--dark] | audit   (ver SKILL.md)");
+else console.log("Uso: driver.mjs check | shots | shot <ruta> [--mobile] [--dark] | audit   [--lang en]   (ver SKILL.md)");

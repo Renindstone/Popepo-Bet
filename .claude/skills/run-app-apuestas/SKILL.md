@@ -48,10 +48,14 @@ node .claude/skills/run-app-apuestas/driver.mjs shot "/evaluar?partido=4821" --m
 
 # Auditoría de diseño y usabilidad (por defecto tema claro; añade --schemes light,dark)
 node .claude/skills/run-app-apuestas/driver.mjs audit
+
+# Lo mismo con el panel en inglés (vale para shots, shot y audit)
+node .claude/skills/run-app-apuestas/driver.mjs audit --lang en --schemes light,dark
 ```
 
 Las capturas quedan en `/tmp/apuestas-shots/<página>-<desktop|mobile>-<light|dark>.png` y la auditoría en
-`/tmp/apuestas-shots/audit.json`. Mira las capturas con la herramienta de leer imágenes: si una sale vacía o con
+`/tmp/apuestas-shots/audit.json`; con `--lang en`, los archivos llevan el sufijo `-en` (`…-light-en.png`,
+`audit-en.json`), así que las dos pasadas no se pisan. `/tmp` se vacía al reiniciar la PC. Mira las capturas con la herramienta de leer imágenes: si una sale vacía o con
 «No se pudo cargar», no está bien.
 
 | Página (`--pages`) | Ruta | Espera el texto |
@@ -109,8 +113,10 @@ cd web && npm run lint && npx tsc --noEmit
 - **Tema oscuro** = `prefers-color-scheme: dark` (`web/src/app/globals.css`); el driver lo emula con
   `colorScheme`. No hay un interruptor de tema en la página.
 - **Idioma:** el panel está en español e inglés (selector ES / EN en la cabecera, recordado en `localStorage` como
-  `apuestas.idioma`; sin elegir, sigue al navegador). El driver abre siempre en español (`locale: "es-PE"`) y sus
-  textos de espera están en español: todavía no saca capturas ni audita en inglés (pendiente en `disenio-panel`).
+  `apuestas.idioma`; sin elegir, sigue al navegador). El driver abre en español salvo con `--lang en`, que pone
+  el navegador en inglés británico y deja elegido «en» antes de cargar la página. Cada página tiene su texto de
+  espera en los dos idiomas (`PAGES` del driver): el inglés se copia de la misma llamada `tr()` del panel. En
+  `shot`, el `--ready` va en el idioma que se pide.
 - **El veredicto de los revisores** (debajo de la apuesta del día de Hoy) solo se pinta con la IA encendida en Datos y
   una revisión hecha; antes de la alineación se ve «Los revisores la leerán cuando salga la alineación».
 - **Los radios y el campo de archivo son `sr-only` (1×1 px)**: se tocan por su `<label>`. La auditoría los ignora.

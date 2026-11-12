@@ -141,19 +141,19 @@ cifra en columnas**.
 `Tabs` + `useHashTab` (pestañas accesibles, fijas arriba al bajar, con la activa en el ancla de la URL y, si se
 quiere, cuántas filas hay en cada una con `count`).
 
-## Pendientes conocidos (auditoría del 28-10-2026, tras el rediseño)
+## Pendientes conocidos (auditoría del 11-11-2026, en español y en inglés)
 
-La auditoría `--schemes light,dark` sale limpia en las 64 variantes (sin desborde, texto < 12 px, contraste bajo
-ni toques < 24 px) y `paleta.mjs --fallos` no da fallos. La página de un partido y la de Hoy van en pestañas (en el
+La auditoría `--schemes light,dark` carga las 72 variantes en español y las 72 en inglés (`--lang en`), sin desborde,
+texto < 12 px ni contraste bajo, con un solo fallo de toque (abajo). `paleta.mjs --fallos` no da fallos. La página de un partido y la de Hoy van en pestañas (en el
 celular, la de un partido mide como mucho unos 3.500 px y Hoy unos 5.500 un sábado de 22 partidos, con «La jornada» cortada en 8) y el
 menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
 
 - Nada pendiente de los que la auditoría no mide (29-10-2026: tamaños pasados a tokens, columnas de las cuotas de Betano
   alineadas entre grupos y sin repetir el nombre del mercado, campo con tokens y la ficha del visitante al estilo de
   portada).
-- **La auditoría en inglés hay que rehacerla** (10-11-2026): el 31-10 salió limpia en los dos idiomas, pero lo que se
-  usó para pasarla en inglés se perdió con la copia local. `driver.mjs` abre siempre en español (`locale: "es-PE"`) y
-  sus textos de espera (`ready`) están en español. Falta una opción de idioma en el driver.
+- **Mis apuestas en el celular, sin apuestas registradas** (11-11-2026): el enlace «Evaluar cuota» / «Check odds» del
+  aviso vacío mide 19 px de alto (el mínimo es 24). Está en una frase dentro de `Empty`, que no es un párrafo, y por
+  eso la auditoría lo cuenta. Sale ahora porque la base de datos nueva no tiene apuestas.
 - **El veredicto de los revisores no sale en las capturas del driver** si no hay una revisión hecha ese día (o con la
   IA apagada): revisarlo a mano cuando exista la primera revisión real.
 
@@ -161,7 +161,8 @@ Al resolver uno, bórralo de esta lista y añade los nuevos que encuentre la aud
 
 ## Antes de dar un cambio por terminado
 
-- [ ] `driver.mjs audit` sin empeorar ninguna cifra, en claro y oscuro y en escritorio y celular.
+- [ ] `driver.mjs audit --schemes light,dark` sin empeorar ninguna cifra, en escritorio y celular, y lo mismo con
+      `--lang en`.
 - [ ] `paleta.mjs --fallos` sin combinaciones nuevas que no lleguen.
 - [ ] Capturas revisadas a ojo en las cuatro variantes de las páginas tocadas.
 - [ ] Sin hex ni tamaños sueltos nuevos; animaciones con su `prefers-reduced-motion`.
