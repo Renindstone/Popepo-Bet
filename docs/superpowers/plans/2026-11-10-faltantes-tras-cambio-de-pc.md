@@ -132,3 +132,26 @@
 - Crear `graphify-out/`: no se sube al repositorio, es opcional y la guía ya funciona sin él.
 - Arreglar lo que encuentre la auditoría en inglés (tarea 3, paso 5).
 - Restaurar la base de datos anterior: depende de la respuesta del dueño; si hay copia, es un plan aparte con `pg_dump` previo de la actual.
+
+## Resultado (12-11-2026)
+
+Las cinco tareas están hechas y subidas a `main`:
+
+| Tarea | Commit |
+|---|---|
+| 1. `docs/estado.md` dice lo que se perdió | `a64f062` |
+| 5. Nota de scripts en `docs/modelos.md` | `e4530ba` |
+| 4. `.impeccable/` al día | `0d99168` |
+| 2. El driver encuentra el navegador | `a0bbb67` |
+| 3. El driver abre el panel en inglés | `7e08c07` |
+
+Decisiones tomadas al ejecutar, distintas de lo que decía el plan:
+
+- **Navegador**: el dueño instaló Brave Origin antes de empezar la tarea 2, así que no hizo falta `sudo dnf install chromium`. El driver lo encuentra el primero de su lista.
+- **`findBrowser()` no termina el programa**: devuelve la ruta o nada, y quien la llama decide. Así `check` enseña sus tres líneas aunque falte el navegador; `shots`, `shot` y `audit` sí salen con código 1 y el mensaje.
+- **Sorpresas**: las pestañas Equipos y Jugadores no fallaban por un texto viejo, sino porque no existen en una semana sin partidos jugados (un lunes o en fecha FIFA). El driver busca ahora la última semana con partidos (`playedWeek()`), algo que el plan no preveía.
+- **Sin partidos próximos**: la ventana pasa de 10 a 14 días y, si aun así no hay, se saltan las páginas que dependen de un partido en vez de parar todo.
+- **Sin rama, sin registro aparte y sin revisor en otra sesión**: se trabajó directo en `main`, como permite `AGENTS.md`, con un commit por tarea y una revisión propia al final. Una revisión del mismo autor vale menos que una ajena.
+- **Commits por nombre de archivo**: la sesión de la Nations League tenía cambios sin subir en esta misma carpeta, así que nunca se usó `git commit -a`.
+
+Queda pendiente, apuntado en la skill `disenio-panel`: un enlace de 19 px de alto en Mis apuestas en el celular (único fallo de las dos auditorías, 72 variantes en cada idioma).
