@@ -366,6 +366,27 @@ Variantes probadas sin mejora (diferencia de log-loss frente a no ajustar; 2.119
 | Tope del ajuste (±10 % en la media de goles) | −0,0015 ± 0,0009 | −0,0010 ± 0,0024 |
 | β = 0,30 (anterior) | +0,0013 ± 0,0028 | +0,0004 ± 0,0072 |
 
+**Otros índices de calidad del once** (14-11-2026, `experimentos/validacion/calidad_once.py`; 6.566 partidos con el once confirmado de los dos equipos, de agosto de 2024 al 9-11-2026: 6.128 de las ocho ligas y 438 de la Champions). Se probó si un índice hecho con lo que hizo cada jugador antes del partido capta más que el actual, que es casi solo el valor de mercado (la nota de temporada solo viene en 807 de 223.595 filas de alineación). Cada índice mide el once de hoy frente al once típico (los titulares de los últimos 8 onces, pesados por las veces que salieron); sus β se ajustan con dos temporadas y se miden en la tercera, así que todo es fuera de muestra menos el actual con β = 0,10. Diferencia de pérdida logarítmica del 1X2 (negativo = mejor):
+
+| Índice | Ligas, frente a sin ajuste | Ligas, frente al actual | Champions, frente a sin ajuste | Champions, frente al actual | Todas, frente al actual |
+|---|---|---|---|---|---|
+| Actual, β = 0,10 (producción) | −0,0012 ± 0,0009 | — | −0,0007 ± 0,0039 | — | — |
+| Actual, β ajustada (0,15 y 0,13) | −0,0012 ± 0,0012 | 0,0000 ± 0,0004 | −0,0005 ± 0,0056 | +0,0002 ± 0,0018 | 0,0000 ± 0,0004 |
+| Nota de FotMob de sus últimos 10 partidos | −0,0004 ± 0,0011 | +0,0008 ± 0,0012 | −0,0023 ± 0,0047 | −0,0016 ± 0,0049 | +0,0007 ± 0,0012 |
+| xG + xA por 90 de sus últimos 10 partidos | −0,0002 ± 0,0006 | +0,0010 ± 0,0010 | −0,0006 ± 0,0026 | +0,0001 ± 0,0041 | +0,0009 ± 0,0010 |
+| Titulares habituales (en cuántos de los últimos 8 onces salió) | −0,0015 ± 0,0015 | −0,0003 ± 0,0015 | −0,0080 ± 0,0064 | −0,0073 ± 0,0060 | −0,0008 ± 0,0014 |
+| **Actual + titulares habituales** | −0,0022 ± 0,0018 | −0,0009 ± 0,0013 | −0,0070 ± 0,0081 | −0,0063 ± 0,0055 | **−0,0013 ± 0,0012** |
+| Los cuatro juntos | −0,0020 ± 0,0019 | −0,0008 ± 0,0014 | −0,0067 ± 0,0087 | −0,0060 ± 0,0063 | −0,0011 ± 0,0014 |
+
+Lectura:
+
+1. **La nota y el xG + xA recientes no aportan nada.** La forma reciente de los jugadores ya está en la fuerza del equipo; lo que añade el once es quién juega, no cómo venía jugando. (La nota ya había salido neutra en octubre con otra réplica.)
+2. **Subir la β del índice actual no cambia nada**: 0,10 sigue bien.
+3. **Contar cuántos titulares habituales salen es lo único que suma**, y sobre todo en la Champions, donde más se rota. Junto al índice actual llega justo a su margen con todos los partidos (−0,0013 ± 0,0012) y en la Champions (−0,0063 ± 0,0055), no en las ligas solas (−0,0009 ± 0,0013). Por temporada, frente a no ajustar: 2024-25 −0,0035 ± 0,0025, 2025-26 −0,0005 ± 0,0028 y 2026-27 −0,0058 ± 0,0043. Se probaron seis variantes en tres grupos, así que una que roza su margen puede ser suerte: **no entra en producción**; se vuelve a medir al final de la temporada 2026-27 (unos 2.500 partidos más), y si aguanta se le propone al dueño.
+4. **El tamaño importa más que el signo.** En los 3.951 partidos de liga con cuotas: modelo sin ajuste 0,9603, con el índice actual 0,9588, con el actual y los habituales 0,9584; bet365 de días antes 0,9571, Pinnacle de días antes 0,9565 y el cierre de Pinnacle 0,9537. Con el once ya publicado, el modelo sigue detrás de la cuota que la casa daba días antes sin conocerlo. Ningún índice de alineación cierra esa distancia: lo que el cierre sabe de más no está en estos datos.
+
+Límite de la medición: el valor de mercado guardado es el del día de la descarga (noviembre de 2026 para todo el historial), así que el índice actual ve el futuro en los partidos antiguos. No se nota una ventaja mayor en las temporadas viejas (2024-25 −0,0021, 2025-26 −0,0001, 2026-27 −0,0021 en las ligas), pero la comparación favorece al actual, no a los nuevos.
+
 Los onces *previstos* (FotMob) no se pueden calibrar porque no se guarda su historial: cuando sale el confirmado, la fila se sobrescribe. Se les aplica el mismo β, que probablemente es algo alto para ellos, porque un once previsto mal acertado mete ruido. Ejemplo: en Liverpool-Villarreal (UCL, 20-10-2026) el once previsto de Liverpool incluye a varios suplentes y el de Villarreal es el de Champions (en liga rota). Con β = 0,30 el modelo daba 0,43 al local; con 0,10 da 0,59; el mercado, ~0,66.
 
 **Árbitro en tarjetas** (mejora de log-verosimilitud por partido frente al modelo sin árbitro; 2.105 partidos):
@@ -934,7 +955,7 @@ No cambia el modelo ni las apuestas (no hace falta backtest): resume cada semana
 - **Propuestas de la auditoría de octubre de 2026** ([auditoria-modelo.md](auditoria-modelo.md)), repasadas con la BD el 29-10-2026: aplicados el valor de las líneas de cuarto, la copia fija de lo anunciado y la dispersión propia del total en los conteos (sección 3); medidos y no aplicados la fuerza dinámica (sección 1, −0,0018 ± 0,0022), el apilado con el mercado y elegir por la probabilidad de valor (sección 6). Después, el mismo día: aplicada la ventaja local por liga (sección 1), medida y sin hacer falta la calibración de los empates, y hecho el comparador de Betano contra Pinnacle sin margen (sección 6). Quedan sin probar: remates a puerta como observación de la fuerza dinámica y Kelly contraído con la varianza (necesita una varianza por predicción, que daría la fuerza dinámica).
 - Guardar cuotas de 1X2 de la Champions antes de cada partido (ya se guardan las de OddsPapi desde el 19-10-2026) para medir con resultados el reparto de remates y córners movido por el 1X2 en las copas, que hoy solo se mide en las ligas.
 - Guardar el historial de onces previstos para calibrar su β por separado.
-- Un índice de calidad del once más informativo (contribución reciente en xG/xA, minutos), porque el cierre muestra mucha más información de alineación de la que capta el índice actual.
+- Índice de calidad del once: **medido el 14-11-2026** (sección 7, «Otros índices de calidad del once»). La nota y el xG + xA recientes no aportan; contar los titulares habituales junto al índice actual roza su margen (−0,0013 ± 0,0012) y no entra. Repetir `experimentos/validacion/calidad_once.py` al final de la temporada 2026-27.
 - Backtest de props cuando haya cuotas guardadas de Betano: OddsPapi no descarga props de jugador, así que hoy no hay con
   qué compararlos.
 - **Córners y tarjetas frente a Betano** (medido el 29-10-2026 con `experimentos/validacion/estadisticas_betano.py`, 34
