@@ -3,6 +3,7 @@
 Este archivo es para cualquier IA que trabaje en el repositorio (Claude Code, Codex, Cursor, Gemini…). Léelo entero antes de tocar nada. Después lee lo que toque según la tarea:
 
 - [`docs/estado.md`](docs/estado.md): en qué punto está el proyecto, decisiones tomadas y trabajo pendiente. **Léelo siempre.**
+- [`docs/traspaso.md`](docs/traspaso.md): ficha de lo hecho en el último cambio de PC y cómo restaurar la base de datos en una máquina nueva.
 - [`docs/arquitectura.md`](docs/arquitectura.md): módulos, procesos y flujo diario.
 - [`docs/modelos.md`](docs/modelos.md): modelo estadístico, reglas de prudencia y resultados del backtest.
 - [`docs/fuentes.md`](docs/fuentes.md): de dónde salen los datos y cómo se validan.
