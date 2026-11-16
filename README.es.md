@@ -6,13 +6,13 @@
 
 **Un modelo de apuestas de fútbol que te dice cuándo no apostar.** La mayoría de los proyectos de apuestas prometen ganar. Este mide con backtest dónde su modelo no le gana a la casa, lo publica, y solo propone una apuesta del día cuando pasa un corte de valor y confianza. Algunos días la respuesta es «hoy no hay apuesta».
 
-![Milan-Inter, el Derby della Madonnina: alineaciones previstas en el campo, con el rating de cada jugador](docs/img/partido-derbi.png)
+![Milan-Inter, el Derby della Madonnina: alineaciones previstas en el campo, con el rating de cada jugador](docs/img/es/partido-derbi.png)
 
 Análisis **prepartido** de la **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía) y Champions League**, y de la **UEFA Nations League** (selecciones: análisis y cuotas, sin apuesta del día ni mercados de jugador). Calcula la probabilidad de cada mercado (goles, hándicaps, remates, córners, faltas, tarjetas, offsides y jugadores), la compara con la cuota de la casa (bet365, Betano) y con el precio justo de Pinnacle. Se usa desde un **panel web**, desde Claude (u otro agente) por **MCP**, por **API REST** o por **Telegram**. Todo con datos gratuitos.
 
 | Estadísticas esperadas de cada equipo | Sorpresas de la semana |
 |---|---|
-| ![Barcelona-Alavés: remates, córners, faltas, tarjetas y offsides esperados de cada equipo](docs/img/estadisticas.png) | ![Equipo y jugador de la semana: quién superó lo que esperaban la casa y el modelo](docs/img/sorpresas.png) |
+| ![Barcelona-Alavés: remates, córners, faltas, tarjetas y offsides esperados de cada equipo](docs/img/es/estadisticas.png) | ![Equipo y jugador de la semana: quién superó lo que esperaban la casa y el modelo](docs/img/es/sorpresas.png) |
 
 No promete ganancias: el backtest dice con honestidad dónde el modelo no le gana a la casa (ver [más abajo](#resultado-del-backtest-honesto)). ¿Ideas, fallos o una liga que falta? Abre un *issue*, en español o en inglés.
 

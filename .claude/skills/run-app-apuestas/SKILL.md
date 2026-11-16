@@ -126,6 +126,15 @@ cd web && npm run lint && npx tsc --noEmit
   lo cuenta como desborde; en la captura se ven cortados con un difuminado y una flecha, que es lo esperado.
 - **Desde localhost la API no pide clave**; si el panel se abriera desde otro host, pediría la clave en pantalla.
 
+- **Windows sin WSL** (la PC del dueño desde el 15-11-2026): no hay systemd; se arranca con `scripts/arrancar.sh`.
+  El driver encuentra Brave, Chrome o Edge en sus rutas de Windows. En Git Bash, una ruta como `/partidos/5498` se
+  convierte en ruta de Windows antes de llegar al driver: pon `MSYS_NO_PATHCONV=1` delante del comando. `/tmp` no
+  existe igual: usa `SHOTS_DIR=<carpeta>`.
+- **Capturas del README** (`docs/img/`, en inglés; las españolas en `docs/img/es/`): escritorio, tema claro y
+  `--viewport` (1280×900), con `--lang en`: el derbi Milan-Inter (`/partidos/5498`), las estadísticas de
+  Barcelona-Alavés (`/partidos/3989#estadisticas`) y el radar de Sorpresas (sección «On the radar» de
+  `/sorpresas`, recortada a 1280×900).
+
 ## Problemas
 
 - **`panel … → SIN RESPUESTA (ECONNREFUSED)`**: el servicio está parado o recompilando.

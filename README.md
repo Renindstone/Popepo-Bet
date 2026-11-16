@@ -6,13 +6,13 @@
 
 **A football betting model that tells you when *not* to bet.** Most betting projects promise profits. This one backtests where its model does *not* beat the bookmaker, publishes it, and only suggests a bet of the day when a bet clears a value and confidence threshold. Some days the answer is "no bet today".
 
-![Milan-Inter, the Derby della Madonnina: predicted line-ups on the pitch, with each player's rating](docs/img/partido-derbi.png)
+![Milan-Inter, the Derby della Madonnina: line-ups on the pitch, with the derby label](docs/img/partido-derbi.png)
 
 **Pre-match** analysis for the **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Belgium), Süper Lig (Turkey) and Champions League**, plus the **UEFA Nations League** (national teams: analysis and odds, but no bet of the day and no player markets). It computes the probability of every market (goals, handicaps, shots, corners, fouls, cards, offsides and players) and compares it with the bookmaker's odds (bet365, Betano) and with Pinnacle's fair price. Use it from a **web dashboard**, from Claude (or any other agent) through **MCP**, from a **REST API** or from **Telegram**. All on free data.
 
-| Expected stats for each team | Surprises of the week |
+| Expected stats for each team | On the radar: teams on a run and in a slump |
 |---|---|
-| ![Barcelona-Alavés: expected shots, corners, fouls, cards and offsides for each team](docs/img/estadisticas.png) | ![Team and player of the week: who beat what the bookmaker and the model expected](docs/img/sorpresas.png) |
+| ![Barcelona-Alavés: expected shots, corners, fouls, cards and offsides for each team](docs/img/estadisticas.png) | ![Surprises radar: teams that beat or fell short of what the bookmaker expected over the last 4 weeks](docs/img/radar.png) |
 
 It doesn't promise profits: the backtest honestly shows where the model does not beat the bookmaker (see [below](#backtest-results-honest)). Ideas, bugs or a missing league? Open an *issue*, in English or Spanish.
 

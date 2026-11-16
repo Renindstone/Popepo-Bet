@@ -23,7 +23,10 @@ const { chromium } = require("playwright-core");
 const WEB = process.env.APUESTAS_WEB ?? "http://localhost:3000";
 const API = process.env.APUESTAS_API ?? "http://127.0.0.1:8000";
 // Navegadores que sirven (todos Chromium), por orden de preferencia; BROWSER=/ruta va antes que la lista
-const BROWSERS = ["/usr/bin/brave-origin", "/usr/bin/brave-browser", "/usr/bin/chromium-browser", "/usr/bin/chromium", "/usr/bin/google-chrome"];
+const BROWSERS = ["/usr/bin/brave-origin", "/usr/bin/brave-browser", "/usr/bin/chromium-browser", "/usr/bin/chromium", "/usr/bin/google-chrome",
+  // Windows (la PC del dueño desde el 15-11-2026)
+  "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe", "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"];
 const NO_BROWSER =
   "No hay navegador para el driver. Instala Chromium (Fedora: sudo dnf install chromium; Arch: sudo pacman -S chromium) o indica uno con BROWSER=/ruta.";
 const findBrowser = () => [process.env.BROWSER, ...BROWSERS].find((p) => p && existsSync(p));
