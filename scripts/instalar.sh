@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instala Popepo-Bet con un solo comando (Linux, Mac o Windows con WSL): entorno de Python, base de datos
+# Instala Popepo-Bet con un solo comando (Linux, Mac o Windows, con WSL o con Git Bash): entorno de Python, base de datos
 # propia, tablas, dependencias del panel y, la primera vez, el historial y los modelos (3-4 h).
 # Se puede volver a ejecutar: si se corta, sigue donde iba (lo descargado queda en caché), y después de un
 # `git pull` sirve para actualizar sin volver a descargar el historial.
@@ -9,8 +9,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 falta() { echo "Falta $1: mira el paso 1 de docs/instalacion.md para tu sistema." >&2; exit 1; }
 
 PY=""
-for c in python3.14 python3.13 python3.12 python3; do
-  if command -v "$c" >/dev/null 2>&1 && "$c" -c 'import sys; sys.exit(sys.version_info < (3, 12))' 2>/dev/null; then
+# "py -3.x" es el lanzador de Windows sin WSL (Git Bash); allí python3 puede ser una 3.15 sin paquetes compilados
+for c in python3.14 python3.13 python3.12 "py -3.14" "py -3.13" "py -3.12" python3; do
+  if $c -c 'import sys; sys.exit(sys.version_info < (3, 12))' >/dev/null 2>&1; then
     PY="$c"; break
   fi
 done
@@ -21,13 +22,14 @@ command -v node >/dev/null 2>&1 \
 command -v npm >/dev/null 2>&1 || falta "npm"
 
 echo "== Entorno de Python ($PY)"
-[[ -x .venv/bin/python ]] || "$PY" -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+[[ -d .venv ]] || $PY -m venv .venv
+BIN=.venv/bin; [[ -d $BIN ]] || BIN=.venv/Scripts  # Windows
+$BIN/python -m pip install -e ".[dev]"
 
 echo "== Base de datos"
 scripts/db.sh init
 scripts/db.sh start
-.venv/bin/alembic upgrade head
+$BIN/alembic upgrade head
 
 echo "== Panel web"
 if [[ ! -f web/node_modules/.package-lock.json || web/package-lock.json -nt web/node_modules/.package-lock.json ]]; then
@@ -36,8 +38,8 @@ fi
 
 if [[ ! -f var/models/latest.json ]]; then
   echo "== Historial y modelos: la primera vez tarda 3 o 4 horas. Si se corta, vuelve a ejecutar scripts/instalar.sh"
-  .venv/bin/apuestas ingest all --seasons 3 --backfill 8000
-  .venv/bin/apuestas train
+  $BIN/apuestas ingest all --seasons 3 --backfill 8000
+  $BIN/apuestas train
 fi
 
 echo

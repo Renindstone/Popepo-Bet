@@ -36,7 +36,7 @@ No promete ganancias: el backtest dice con honestidad dónde el modelo no le gan
 
 ## Puesta en marcha
 
-Funciona en Linux (Arch, Fedora, Debian, Ubuntu…), Mac y Windows (con WSL). La guía con los pasos de cada sistema, la actualización y los problemas frecuentes está en **[docs/instalacion.md](docs/instalacion.md)**. Resumen:
+Funciona en Linux (Arch, Fedora, Debian, Ubuntu…), Mac y Windows (con WSL o con Git Bash). La guía con los pasos de cada sistema, la actualización y los problemas frecuentes está en **[docs/instalacion.md](docs/instalacion.md)**. Resumen:
 
 1. Instala Git, Python 3.12 o superior, PostgreSQL y Node.js 20.9 o superior (el comando de tu sistema está en la guía).
 2. Descarga e instala; la primera vez tarda 3 o 4 horas porque baja el historial:
@@ -212,7 +212,7 @@ On the 2024-25 and 2025-26 seasons the model **does not beat bet365** on 1X2, ov
 
 ### Getting started
 
-The installation guide for Linux, macOS and Windows (WSL) is [docs/instalacion.md](docs/instalacion.md) (in Spanish; the commands are the same in any language). In short: install Git, Python 3.12+, PostgreSQL and Node.js 20.9+, then run `scripts/instalar.sh`. The first run downloads the match history (since 2023-24) and takes 3-4 hours. With Claude Code, the repository's `.mcp.json` exposes the `apuestas` MCP server: ask Claude to analyse a match or evaluate the odds you see.
+The installation guide for Linux, macOS and Windows (WSL or Git Bash) is [docs/instalacion.md](docs/instalacion.md) (in Spanish; the commands are the same in any language). In short: install Git, Python 3.12+, PostgreSQL and Node.js 20.9+, then run `scripts/instalar.sh`. The first run downloads the match history (since 2023-24) and takes 3-4 hours. With Claude Code, the repository's `.mcp.json` exposes the `apuestas` MCP server: ask Claude to analyse a match or evaluate the odds you see.
 
 ### Contributing
 

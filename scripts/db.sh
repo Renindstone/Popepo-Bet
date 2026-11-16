@@ -9,10 +9,13 @@ RUN_DIR="${APUESTAS_PGRUN:-$HOME/.local/share/apuestas/run}"
 PORT="${APUESTAS_PGPORT:-5433}"
 LOG_FILE="$HOME/.local/share/apuestas/postgres.log"
 ENV_FILE="$PROJECT_DIR/.env"
+# Windows sin WSL (Git Bash): PostgreSQL del instalador oficial, sin socket Unix ni configuración regional C.UTF-8
+WIN=false; case "$OSTYPE" in msys*|cygwin*) WIN=true ;; esac
 
-# Debian/Ubuntu y Homebrew (Mac) dejan los programas de PostgreSQL fuera del PATH: se busca la versión más alta
+# Debian/Ubuntu, Homebrew (Mac) y Windows dejan los programas de PostgreSQL fuera del PATH: se busca la versión más alta
 if ! command -v pg_ctl >/dev/null 2>&1; then
-  for d in /usr/lib/postgresql/*/bin /opt/homebrew/opt/postgresql@*/bin /usr/local/opt/postgresql@*/bin; do
+  for d in /usr/lib/postgresql/*/bin /opt/homebrew/opt/postgresql@*/bin /usr/local/opt/postgresql@*/bin \
+           "/c/Program Files/PostgreSQL/"*/bin; do
     if [[ -x "$d/pg_ctl" ]]; then PATH="$d:$PATH"; fi
   done
 fi
@@ -24,7 +27,8 @@ start() {
     echo "PostgreSQL ya está en marcha"; return 0
   fi
   mkdir -p "$RUN_DIR"
-  pg_ctl -D "$DATA_DIR" -l "$LOG_FILE" -w -o "-p $PORT -k $RUN_DIR -c listen_addresses=127.0.0.1" start
+  SOCKET="-k $RUN_DIR"; if $WIN; then SOCKET=""; fi  # en Windows solo TCP (127.0.0.1)
+  pg_ctl -D "$DATA_DIR" -l "$LOG_FILE" -w -o "-p $PORT $SOCKET -c listen_addresses=127.0.0.1" start
 }
 
 case "${1:-}" in
@@ -36,8 +40,10 @@ case "${1:-}" in
     PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)"
     PWFILE="$(mktemp)"; echo "$PASSWORD" > "$PWFILE"
     # El Mac no tiene la configuración regional C.UTF-8
-    LOCALE=C.UTF-8; if [[ "$(uname)" == Darwin ]]; then LOCALE=en_US.UTF-8; fi
-    initdb -D "$DATA_DIR" -U apuestas --pwfile="$PWFILE" --auth=scram-sha-256 -E UTF8 --locale="$LOCALE" >/dev/null
+    LOCALE=(--locale=C.UTF-8)
+    if [[ "$(uname)" == Darwin ]]; then LOCALE=(--locale=en_US.UTF-8); fi
+    if $WIN; then LOCALE=(--locale=C --locale-provider=builtin --builtin-locale=C.UTF-8); fi
+    initdb -D "$DATA_DIR" -U apuestas --pwfile="$PWFILE" --auth=scram-sha-256 -E UTF8 "${LOCALE[@]}" >/dev/null
     rm -f "$PWFILE"
     start
     PGPASSWORD="$PASSWORD" createdb -h 127.0.0.1 -p "$PORT" -U apuestas apuestas

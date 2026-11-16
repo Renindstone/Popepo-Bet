@@ -27,6 +27,7 @@ es el índice. Actualízala al cambiar de PC o de sistema.
 | 11-11 | El driver de capturas busca solo el navegador (Brave, Chromium o Chrome), no se cae sin partidos y abre en inglés con `--lang en`. Auditoría limpia en los dos idiomas salvo un enlace de 19 px | skills `run-app-apuestas` y `disenio-panel` |
 | 12-11 | **UEFA Nations League** (selecciones): datos y análisis, sin apuesta del día ni mercados de jugador | `AGENTS.md` («Conceptos que se confunden»), `docs/modelos.md` sección 7 |
 | 14-11 | Medidos otros índices de calidad del once: la nota y el xG+xA recientes no aportan; los titulares habituales rozan su margen y **no entran** (el dueño decidió esperar al final de la temporada) | `docs/modelos.md` sección 7, `experimentos/validacion/calidad_once.py` |
+| 15-11 | **La PC pasó a Windows 11, sin WSL.** Restaurada la copia del 15-11 (27.791 partidos, 1,08 M de cuotas, 461 apuestas guardadas), el modelo y la caché. `db.sh`, `instalar.sh` y `arrancar.sh` funcionan en Git Bash; se arranca con `scripts/arrancar.sh` (nada arranca solo al encender) | `docs/instalacion.md` («Windows sin WSL»), `docs/estado.md` |
 
 ## Lo que el dueño preguntó y la respuesta corta (14-11)
 
@@ -66,6 +67,9 @@ Para volver en el sistema nuevo:
    ```bash
    pg_restore --clean --if-exists --no-owner -d "$(grep '^APUESTAS_DATABASE_URL=' .env | cut -d= -f2- | sed 's#+psycopg##')" var/backups/traspaso-20261115.dump
    ```
+
+   En Windows sin WSL (Git Bash), antes: `export PATH="/c/Program Files/PostgreSQL/18/bin:$PATH"`, y en el paso 5
+   `scripts/arrancar.sh` en lugar de `install-services.sh` y `loginctl` (ver `docs/instalacion.md`).
 
 5. `.venv/bin/alembic upgrade head`, `scripts/install-services.sh --with-web` y `loginctl enable-linger "$USER"`.
 6. Comprobar: `systemctl --user is-active apuestas-db apuestas-worker apuestas-api apuestas-web`, el panel en

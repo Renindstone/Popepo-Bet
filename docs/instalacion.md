@@ -6,9 +6,9 @@ Popepo-Bet se instala en tres pasos en cualquier sistema:
 2. **Descargar Popepo-Bet y ejecutar el instalador** (igual en todos).
 3. **Arrancarlo** (en Linux y Windows queda funcionando solo; en Mac, desde una terminal).
 
-En **Windows** funciona dentro de WSL, que es un Ubuntu dentro de Windows: primero se instala WSL y después los pasos son los mismos que en Ubuntu.
+En **Windows** hay dos caminos: dentro de WSL, que es un Ubuntu dentro de Windows (los pasos son los de Ubuntu y queda funcionando solo), o **sin WSL**, con Git Bash (los pasos son los de Mac: se arranca desde una terminal). Donde esta guía dice «Windows» a secas es con WSL.
 
-Se probó en CachyOS (de la familia Arch) y en Fedora (10-11-2026, con Python 3.15 y Node.js 22: los scripts funcionan sin cambios). Los pasos de Debian, Ubuntu, Mac y Windows usan los mismos scripts, pero aún no se han probado en esas máquinas: si algo falla, mira [Problemas frecuentes](#6-problemas-frecuentes).
+Se probó en CachyOS (de la familia Arch), en Fedora (10-11-2026, con Python 3.15 y Node.js 22: los scripts funcionan sin cambios) y en Windows 11 sin WSL (15-11-2026, con Python 3.14, PostgreSQL 18 y Node.js 26). Los pasos de Debian, Ubuntu, Mac y Windows con WSL usan los mismos scripts, pero aún no se han probado en esas máquinas: si algo falla, mira [Problemas frecuentes](#6-problemas-frecuentes).
 
 **Qué necesita:**
 - unos 2 GB de disco (la base de datos ocupa ~0,5 GB, el entorno de Python ~0,8 GB, el panel ~0,5 GB y la caché de descargas ~0,1 GB);
@@ -87,9 +87,31 @@ Al terminar, Homebrew muestra dos comandos en "Next steps" para añadirse al `PA
 brew install git python postgresql@18 node
 ```
 
+### Windows sin WSL
+
+En PowerShell (no hace falta que sea como administrador; el instalador de PostgreSQL pide permiso):
+
+```powershell
+winget install -e --id Git.Git
+```
+
+```powershell
+winget install -e --id Python.Python.3.14 --scope user
+```
+
+```powershell
+winget install -e --id PostgreSQL.PostgreSQL.18
+```
+
+```powershell
+winget install -e --id OpenJS.NodeJS.LTS
+```
+
+Usa Python 3.14 aunque tengas uno más nuevo: con la 3.15 algunas librerías aún no tienen versión para Windows y la instalación falla pidiendo *Microsoft Visual C++*. El instalador elige solo la 3.14 con el lanzador `py`. PostgreSQL deja además un servicio de Windows (`postgresql-x64-18`, puerto 5432) que Popepo-Bet no usa. Todo lo que sigue se escribe en **Git Bash** (menú Inicio).
+
 ## 2. Descargar e instalar (Arch, Fedora, Debian, Ubuntu, Mac y Windows)
 
-Es igual en todos los sistemas. En Mac, usa la app Terminal; en Windows, la ventana de Ubuntu.
+Es igual en todos los sistemas. En Mac, usa la app Terminal; en Windows, la ventana de Ubuntu (o Git Bash, sin WSL).
 
 ```bash
 git clone https://github.com/Renindstone/Popepo-Bet.git && cd Popepo-Bet
@@ -167,6 +189,16 @@ cd Popepo-Bet && scripts/arrancar.sh
 
 En Mac las tareas programadas funcionan mientras la terminal esté abierta, a cualquier hora (el horario de 05:00 a 20:00 es solo de los servicios de Linux y Windows). Si el Mac estuvo apagado, al arrancar recuperan las tareas del día.
 
+### Windows sin WSL
+
+Igual que en Mac, con `scripts/arrancar.sh` en Git Bash. No queda nada funcionando solo: cada vez que enciendas la PC, abre Git Bash y ejecuta:
+
+```bash
+cd ~/Proyectos/Popepo-Bet && scripts/arrancar.sh
+```
+
+(cambia la carpeta por donde lo clonaste). Desde PowerShell también sirve `& 'C:\Program Files\Git\bin\bash.exe' scripts/arrancar.sh` dentro de la carpeta del proyecto. Las tareas programadas funcionan mientras esa ventana esté abierta, a cualquier hora, y al arrancar recuperan las del día.
+
 ## 4. Conectar Claude (Arch, Fedora, Debian, Ubuntu, Mac y Windows)
 
 - **Claude Code**: abre Claude Code en la carpeta del proyecto. El archivo `.mcp.json` registra el servidor `apuestas`; acepta "Use this MCP server" la primera vez.
@@ -213,7 +245,7 @@ El mismo instalador sirve para actualizar: instala lo que haya cambiado y pone a
 git pull && scripts/instalar.sh && systemctl --user restart apuestas-worker apuestas-api apuestas-web
 ```
 
-### Mac
+### Mac y Windows sin WSL
 
 Para Popepo-Bet con **Ctrl+C** en su terminal y luego:
 
@@ -228,7 +260,9 @@ git pull && scripts/instalar.sh && scripts/arrancar.sh
 | El instalador dice *Falta Python 3.12*, *Falta Node.js 20.9* o *Falta PostgreSQL* | Todos | Falta un programa del paso 1 o es demasiado viejo: repasa el paso 1 de tu sistema |
 | El instalador falló en «Base de datos» y al repetirlo dice *El cluster ya existe*, pero luego da errores de conexión | Todos | La base de datos se creó a medias. Bórrala con `rm -rf ~/.local/share/apuestas/pgdata` y vuelve a ejecutar `scripts/instalar.sh` |
 | El panel dice "No hay conexión con la API" | Arch, Fedora, Debian, Ubuntu y Windows | La API no está corriendo: `systemctl --user status apuestas-api` y revisa el registro con `journalctl --user -u apuestas-api` |
-| El panel dice "No hay conexión con la API" | Mac | `scripts/arrancar.sh` no está abierto en ninguna terminal: arráncalo |
+| El panel dice "No hay conexión con la API" | Mac y Windows sin WSL | `scripts/arrancar.sh` no está abierto en ninguna terminal: arráncalo |
+| El instalador falla con *Microsoft Visual C++ 14.0 or greater is required* | Windows sin WSL | Se creó el entorno con Python 3.15. Instala Python 3.14 (paso 1), borra la carpeta `.venv` y vuelve a ejecutar `scripts/instalar.sh` |
+| *WinError 32 … apuestas.exe* al instalar o actualizar | Windows sin WSL | La API o el worker siguen abiertos: páralos con **Ctrl+C** y repite |
 | *address already in use* al arrancar | Todos | Otro programa usa el puerto 3000, 8000 o 5433; por ejemplo, otra copia de Popepo-Bet o un `npm run dev`. Ciérralo y vuelve a arrancar |
 | Durante la instalación salen avisos de una fuente (por ejemplo, *understat.com no devolvió datos (¿está en mantenimiento?)*) | Todos | Es normal si esa fuente está caída o en mantenimiento: se salta y la instalación sigue. Cuando vuelva, el worker recupera sus datos solo |
 | La instalación no escribe nada durante mucho rato | Todos | Está descargando el detalle de miles de partidos de FotMob, despacio a propósito. Avisa cada 100 partidos (*Detalles de FotMob: 100 de 8000 partidos jugados*); entre aviso y aviso pueden pasar varios minutos |
@@ -252,7 +286,7 @@ systemctl --user disable --now apuestas-web apuestas-api apuestas-worker apuesta
 rm ~/.config/systemd/user/apuestas-* && systemctl --user daemon-reload
 ```
 
-### Mac
+### Mac y Windows sin WSL
 
 No instala servicios: basta con no volver a ejecutar `scripts/arrancar.sh`.
 

@@ -8,6 +8,12 @@
       "port": 8000
     },
     {
+      "name": "api-windows",
+      "runtimeExecutable": ".venv/Scripts/apuestas.exe",
+      "runtimeArgs": ["api"],
+      "port": 8000
+    },
+    {
       "name": "panel",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "web", "run", "dev"],

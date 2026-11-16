@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Arranca Popepo-Bet en esta terminal, sin servicios del sistema (Mac, o Linux sin systemd): base de datos,
+# Arranca Popepo-Bet en esta terminal, sin servicios del sistema (Mac, Windows con Git Bash, o Linux sin systemd): base de datos,
 # API (puerto 8000), tareas programadas (worker) y panel (http://localhost:3000). Ctrl+C lo para todo.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -15,9 +15,10 @@ parar() {
 }
 trap parar INT TERM EXIT
 
+BIN=.venv/bin; [[ -d $BIN ]] || BIN=.venv/Scripts  # Windows sin WSL (Git Bash)
 scripts/db.sh start
-.venv/bin/apuestas api --host 127.0.0.1 --port 8000 &
-.venv/bin/apuestas worker &
+$BIN/apuestas api --host 127.0.0.1 --port 8000 &
+$BIN/apuestas worker &
 # El panel se compila al arrancar (1-2 min), igual que el servicio de Linux
 (cd web && NODE_ENV=production npm run build && NODE_ENV=production npm run start -- --hostname 127.0.0.1 --port 3000) &
 
