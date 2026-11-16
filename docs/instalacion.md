@@ -201,7 +201,7 @@ cd ~/Proyectos/Popepo-Bet && scripts/arrancar.sh
 
 ## 4. Conectar Claude (Arch, Fedora, Debian, Ubuntu, Mac y Windows)
 
-- **Claude Code**: abre Claude Code en la carpeta del proyecto. El archivo `.mcp.json` registra el servidor `apuestas`; acepta "Use this MCP server" la primera vez.
+- **Claude Code**: abre Claude Code en la carpeta del proyecto. El archivo `.mcp.json` registra el servidor `apuestas` (lo arranca `scripts/mcp.mjs` con Node.js, en cualquier sistema); acepta "Use this MCP server" la primera vez.
 - **Leer capturas con Claude** (el botón «Leer con Claude» del panel): necesita el programa `claude` con tu sesión iniciada. Para comprobarlo, ejecuta `claude` una vez en una terminal; si pide iniciar sesión, usa `/login`. Usa tu suscripción y solo procesa automáticamente las capturas de tu usuario (`APUESTAS_DEFAULT_USER` en `.env`).
 - **Otros usuarios en tu instalación**: cada uno conecta su propio agente al MCP con su clave. Ver "Varios usuarios" en el [README](../README.md).
 

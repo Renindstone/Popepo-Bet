@@ -1,8 +1,10 @@
 {
   "mcpServers": {
     "apuestas": {
-      "command": ".venv/bin/apuestas",
-      "args": ["mcp"]
+      "command": "node",
+      "args": [
+        "scripts/mcp.mjs"
+      ]
     }
   }
 }

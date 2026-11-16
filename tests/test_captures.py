@@ -1,6 +1,7 @@
 """Capturas de cuotas: validación de imágenes, aislamiento del motor Claude Code y bucle del motor API."""
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -72,6 +73,7 @@ def test_claude_code_runs_isolated(monkeypatch):
     assert allowed == [f"mcp__apuestas__{t}" for t in capture_engines.MCP_TOOLS]
     mcp = json.loads(cmd[cmd.index("--mcp-config") + 1])["mcpServers"]["apuestas"]
     assert mcp["args"] == ["mcp"] and mcp["env"] == {"APUESTAS_MCP_USER": "amigo"}
+    assert Path(mcp["command"]).exists()  # el comando del entorno, también en Windows (apuestas.exe)
     assert "ANTHROPIC_API_KEY" not in env  # usa la suscripción iniciada
     assert workdir.name == "_motor" and workdir.parent == get_settings().captures_dir
 

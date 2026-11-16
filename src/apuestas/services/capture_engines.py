@@ -118,6 +118,11 @@ def recover() -> None:
 # --------------------------------------------------------------------------- motor: Claude Code (suscripción)
 
 
+def apuestas_bin() -> Path:
+    """El comando `apuestas` de este entorno de Python (en Windows lleva .exe y vive en .venv/Scripts)."""
+    return Path(sys.executable).with_name("apuestas.exe" if os.name == "nt" else "apuestas")
+
+
 def claude_code_command(capture_id: int, username: str) -> tuple[list[str], dict[str, str], Path]:
     """Comando, entorno y carpeta de trabajo para `claude -p` (separado para poder probarlo)."""
     st = get_settings()
@@ -125,9 +130,8 @@ def claude_code_command(capture_id: int, username: str) -> tuple[list[str], dict
     if claude is None:
         raise RuntimeError(f"No encuentro el CLI de Claude Code ('{st.claude_bin}'). Instálalo o ajusta "
                            "APUESTAS_CLAUDE_BIN")
-    apuestas_bin = Path(sys.executable).with_name("apuestas")
     mcp_config = {"mcpServers": {"apuestas": {
-        "command": str(apuestas_bin), "args": ["mcp"], "env": {"APUESTAS_MCP_USER": username}}}}
+        "command": str(apuestas_bin()), "args": ["mcp"], "env": {"APUESTAS_MCP_USER": username}}}}
     cmd = [
         claude, "-p",
         "--model", st.captures_cli_model,

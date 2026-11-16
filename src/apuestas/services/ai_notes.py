@@ -16,7 +16,6 @@ import logging
 import os
 import shutil
 import subprocess
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -28,7 +27,7 @@ from apuestas.config import get_settings
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.services import failure, queries, radar, tracker
-from apuestas.services.capture_engines import parse_claude_output
+from apuestas.services.capture_engines import apuestas_bin, parse_claude_output
 
 log = logging.getLogger(__name__)
 
@@ -108,9 +107,8 @@ def claude_command(tools: tuple[str, ...], mcp_tools: tuple[str, ...], model: st
     if claude is None:
         raise RuntimeError(f"No encuentro el CLI de Claude Code ('{st.claude_bin}'). Instálalo o ajusta "
                            "APUESTAS_CLAUDE_BIN")
-    apuestas_bin = Path(sys.executable).with_name("apuestas")
     mcp_config = {"mcpServers": {"apuestas": {
-        "command": str(apuestas_bin), "args": ["mcp"],
+        "command": str(apuestas_bin()), "args": ["mcp"],
         "env": {"APUESTAS_MCP_USER": st.default_user, "APUESTAS_MCP_ENGINE": "true"}}}}
     cmd = [
         claude, "-p",
