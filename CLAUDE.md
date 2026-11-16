@@ -7,7 +7,7 @@ La guía completa para cualquier IA está en `AGENTS.md` (se importa aquí). El 
 ## Solo para Claude
 
 - Herramientas MCP del proyecto (`apuestas`): analizar partidos, evaluar cuotas, capturas, bajas y mis apuestas. Úsalas para consultar datos reales en vez de inventar números.
-- Al terminar cada cambio, actualiza `docs/estado.md` junto con el resto de la documentación.
+- Al terminar cada cambio, actualiza `docs/estado.md` y su copia `docs/es/estado.md` junto con el resto de la documentación (inglés primero, español aparte; ver `AGENTS.md`) y anótalo en `CHANGELOG.md`.
 
 ## Qué skill usar
 

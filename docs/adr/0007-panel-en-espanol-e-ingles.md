@@ -1,34 +1,39 @@
-# ADR 0007: Panel en español e inglés
+# ADR 0007: Dashboard in Spanish and English
 
-**Estado**: aceptada (2026-10-31). Reconstruida el 10-11-2026 con lo que contó el dueño, el commit `6dc31b6`,
-`api/i18n.py` y `docs/arquitectura.md`: el original solo vivía en su PC y se perdió.
+**English** · [Español](../es/adr/0007-panel-en-espanol-e-ingles.md)
 
-## Contexto
-El dueño quiere que el proyecto llegue a más gente en GitHub, también a quien habla inglés. El mismo día el
-repositorio pasó a tener licencia MIT y un README con sección en inglés, pero el panel estaba solo en español.
-Pidió traducir **todo** lo que se ve, también los textos que arma el servidor: razones, avisos, notas y errores.
+**Status**: accepted (2026-10-31). Rebuilt on 10-11-2026 from what the owner said, commit `6dc31b6`,
+`api/i18n.py` and `docs/arquitectura.md`: the original only lived on their PC and was lost.
 
-Todo el programa está escrito en español (servicios, base de datos, bot, MCP y los textos que generan), y
-reescribirlo en dos idiomas tocaría casi todos los módulos.
+## Context
+The owner wants the project to reach more people on GitHub, including English speakers. The same day the
+repository got an MIT license and a README with an English section, but the dashboard was only in Spanish.
+They asked to translate **everything** that's visible, including the texts the server builds: reasons, warnings,
+notes and errors.
 
-## Decisión
-- **Selector ES / EN** en la cabecera del panel. Se recuerda en el navegador y, sin elegir, sigue al idioma del
-  navegador (si no es español ni inglés, español).
-- **Textos del panel**: cada texto lleva sus dos versiones donde se usa (`tr("Hoy", "Today")`,
-  `web/src/lib/i18n.tsx`), sin archivos de traducción aparte. Al cambiar de idioma se vuelve a montar el panel.
-- **Textos de la API**: el panel manda `Accept-Language` en cada petición y, si es inglés, un middleware
-  (`api/i18n.py`) traduce la respuesta JSON con un catálogo de frases fijas y plantillas. Lo que no está en el
-  catálogo sale como está.
-- **Lo que no cambia**: los servicios, la BD, el bot de Telegram y el MCP siguen en español. Los valores que el
-  panel usa como clave («APOSTAR», «con valor», «racha», los niveles de dificultad…) no se traducen en la API sino
-  en el panel, para no romper las comparaciones.
-- Mercados con los nombres de Betano en inglés («Asian Handicap», «Both Teams To Score»), fechas en inglés
-  británico y el dinero siempre en soles.
+The whole program is written in Spanish (services, database, bot, MCP and the texts they generate), and
+rewriting it in two languages would touch almost every module.
 
-## Consecuencias
-- El resto del código no se toca: traducir es una capa encima de la API.
-- Cada texto nuevo del servidor que se vea en el panel necesita su frase o plantilla en `api/i18n.py`; si falta,
-  sale en español (`tests/test_i18n.py` comprueba el catálogo).
-- Siguen en español: el título de la pestaña del navegador (se fija al compilar), las explicaciones de Claude y los
-  resúmenes de capturas (se guardan ya escritos), los errores técnicos de la ingesta y lo que llega tal cual de las
-  fuentes. Lista al día en `docs/estado.md`.
+## Decision
+- **ES / EN selector** in the dashboard header. The browser remembers it and, if nothing was chosen, it follows
+  the browser's language (if it's neither Spanish nor English, Spanish).
+- **Dashboard texts**: every text carries both versions where it's used (`tr("Hoy", "Today")`,
+  `web/src/lib/i18n.tsx`), with no separate translation files. Switching language remounts the dashboard.
+- **API texts**: the dashboard sends `Accept-Language` with every request and, if it's English, a middleware
+  (`api/i18n.py`) translates the JSON response with a catalogue of fixed phrases and templates. Whatever isn't in
+  the catalogue goes out as it is.
+- **What doesn't change**: the services, the database, the Telegram bot and the MCP stay in Spanish. The values the
+  dashboard uses as keys ("APOSTAR", "con valor", "racha", the difficulty levels…) aren't translated in the API but
+  in the dashboard, so the comparisons don't break.
+- Markets with Betano's English names ("Asian Handicap", "Both Teams To Score"), dates in British English and money
+  always in soles.
+
+## Consequences
+- The rest of the code isn't touched: translating is a layer on top of the API.
+- Every new server text shown in the dashboard needs its phrase or template in `api/i18n.py`; if it's missing, it
+  comes out in Spanish (`tests/test_i18n.py` checks the catalogue).
+- Still in Spanish: the browser tab title (set at build time), Claude's explanations and screenshot summaries
+  (saved already written), the ingest's technical errors and whatever arrives as-is from the sources. Up-to-date
+  list in `docs/estado.md`.
+- Since 15-11-2026 the same middleware does the opposite with national teams: they're stored with FotMob's English
+  names and, for the dashboard in Spanish, it swaps them for their Spanish names (`names.NATIONAL_ES`).

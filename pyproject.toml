@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "apuestas"
-version = "0.1.0"
+version = "0.8.0"
 description = "Un modelo de apuestas de fútbol que te dice cuándo no apostar: analiza diferentes ligas (se irán añadiendo más), con panel web y servidor MCP."
 readme = "README.md"
 license = "MIT"

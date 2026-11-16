@@ -1,14 +1,16 @@
-# ADR 0001: Monolito modular + worker en lugar de microservicios
+# ADR 0001: Modular monolith + worker instead of microservices
 
-**Estado**: aceptada (2026-10-19)
+**English** · [Español](../es/adr/0001-monolito-modular.md)
 
-## Contexto
-Proyecto de una persona (con Claude escribiendo el código), que corre en un PC personal, con un volumen pequeño (~1.500 partidos/temporada en las competiciones principales) y sin equipos separados que desplieguen por su cuenta.
+**Status**: accepted (2026-10-19)
 
-## Decisión
-Un único paquete Python con módulos separados (`ingest`, `models`, `features`, `services`, `api`, `mcp_server`, `bot`, `jobs`, `archive`) y tres procesos: worker, API/MCP y bot. Toda la lógica de consulta pasa por `services/queries.py`, así API, MCP y Telegram dan las mismas respuestas.
+## Context
+A one-person project (with Claude writing the code), running on a personal PC, with a small volume (~1,500 matches/season in the main competitions) and no separate teams deploying on their own.
 
-## Consecuencias
-- Un despliegue, una base de datos, depuración sencilla.
-- Si algún módulo necesita escalar por separado (p.ej. la ingesta de cuotas en vivo), puede extraerse porque ya tiene límites claros.
-- Docker no está instalado en el PC: se usa PostgreSQL nativo (cluster propio del proyecto) y servicios systemd de usuario. Se puede pasar a Docker Compose más adelante sin cambiar el código.
+## Decision
+A single Python package with separate modules (`ingest`, `models`, `features`, `services`, `api`, `mcp_server`, `bot`, `jobs`, `archive`) and three processes: worker, API/MCP and bot. All query logic goes through `services/queries.py`, so the API, MCP and Telegram give the same answers.
+
+## Consequences
+- One deployment, one database, simple debugging.
+- If a module ever needs to scale on its own (e.g. live odds ingest), it can be extracted because it already has clear boundaries.
+- Docker isn't installed on the PC: native PostgreSQL is used (the project's own cluster) and systemd user services. It can move to Docker Compose later without changing the code.

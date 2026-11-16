@@ -1,22 +1,24 @@
-# Panel web
+# Web dashboard
 
-Interfaz visual de App Apuestas (Next.js + TypeScript + Tailwind, gráficas con ECharts). En español o inglés (selector ES / EN de la cabecera) y con las horas en hora de Lima.
+**English** · [Español](README.es.md)
 
-Cada texto lleva sus dos versiones donde se usa: `tr("Hoy", "Today")` (`src/lib/i18n.tsx`), también en `format.ts` y `markets.ts`. Lo que manda la API llega ya traducido (el panel envía `Accept-Language`).
+Visual interface of Popepo-Bet (Next.js + TypeScript + Tailwind, charts with ECharts). In Spanish or English (ES / EN switch in the header), with times shown in Lima time.
 
-Consume la API FastAPI del proyecto desde el navegador. Cómo arrancarlo: ver la sección «Panel web» del [README principal](../README.md).
+Every text carries both versions where it's used: `tr("Hoy", "Today")` (`src/lib/i18n.tsx`), also in `format.ts` and `markets.ts`. What the API sends arrives already translated (the dashboard sends `Accept-Language`).
 
-## Estructura
+It consumes the project's FastAPI API from the browser. How to start it: see the "Web dashboard" section of the [main README](../README.md).
 
-- `src/app/`: una carpeta por página (`/`, `/partidos`, `/partidos/[id]`, `/evaluar`, `/rendimiento`, `/datos`).
-- `src/components/`: la vista de cada página y las piezas comunes (`ui.tsx`, `Chart.tsx` con ECharts, `PenMark.tsx`).
-- `src/lib/`: cliente de la API (`api.ts`, con SWR), tipos de las respuestas (`types.ts`), formato de cifras y fechas (`format.ts`) y nombres de mercados (`markets.ts`).
+## Structure
 
-## Comandos
+- `src/app/`: one folder per page (`/`, `/partidos`, `/partidos/[id]`, `/evaluar`, `/rendimiento`, `/datos`).
+- `src/components/`: each page's view and the shared pieces (`ui.tsx`, `Chart.tsx` with ECharts, `PenMark.tsx`).
+- `src/lib/`: API client (`api.ts`, with SWR), response types (`types.ts`), number and date formatting (`format.ts`) and market names (`markets.ts`).
+
+## Commands
 
 ```bash
-npm run dev     # desarrollo en http://localhost:3000
-npm run build   # compilación de producción
-npm start       # sirve la compilación
+npm run dev     # development at http://localhost:3000
+npm run build   # production build
+npm start       # serves the build
 npm run lint
 ```

@@ -1,0 +1,24 @@
+# Panel web
+
+[English](README.md) · **Español**
+
+Interfaz visual de App Apuestas (Next.js + TypeScript + Tailwind, gráficas con ECharts). En español o inglés (selector ES / EN de la cabecera) y con las horas en hora de Lima.
+
+Cada texto lleva sus dos versiones donde se usa: `tr("Hoy", "Today")` (`src/lib/i18n.tsx`), también en `format.ts` y `markets.ts`. Lo que manda la API llega ya traducido (el panel envía `Accept-Language`).
+
+Consume la API FastAPI del proyecto desde el navegador. Cómo arrancarlo: ver la sección «Panel web» del [README principal](../README.es.md).
+
+## Estructura
+
+- `src/app/`: una carpeta por página (`/`, `/partidos`, `/partidos/[id]`, `/evaluar`, `/rendimiento`, `/datos`).
+- `src/components/`: la vista de cada página y las piezas comunes (`ui.tsx`, `Chart.tsx` con ECharts, `PenMark.tsx`).
+- `src/lib/`: cliente de la API (`api.ts`, con SWR), tipos de las respuestas (`types.ts`), formato de cifras y fechas (`format.ts`) y nombres de mercados (`markets.ts`).
+
+## Comandos
+
+```bash
+npm run dev     # desarrollo en http://localhost:3000
+npm run build   # compilación de producción
+npm start       # sirve la compilación
+npm run lint
+```

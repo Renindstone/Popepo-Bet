@@ -1,40 +1,41 @@
-# ADR 0006: Previa guardada y resumen de la semana
+# ADR 0006: Saved preview and weekly summary
 
-**Estado**: aceptada (2026-10-24)
+**English** · [Español](../es/adr/0006-previa-guardada-y-resumen-semanal.md)
 
-## Contexto
-El usuario quiere ver cada semana el equipo, el jugador y el once que más superaron lo esperado: el equipo que
-pasó su línea de córners o de goles, el que ganó siendo el que menos opciones tenía, el jugador que superó sus
-remates, goles o asistencias. Para eso hace falta saber **qué se esperaba antes del partido**:
+**Status**: accepted (2026-10-24)
 
-- De los equipos sí hay vara: las cuotas de la casa guardadas antes del inicio (1X2 de cierre de football-data y
-  las líneas de goles y córners de cada equipo de Pinnacle y Betano por OddsPapi, desde el 19-10-2026).
-- De los jugadores no hay líneas de ninguna casa. La única vara es nuestro modelo, y lo que esperaba antes de cada
-  partido no se guardaba: la tabla `prediction` existía, pero nadie la escribía.
+## Context
+The user wants to see every week the team, the player and the XI that most beat expectations: the team that went
+over its corners or goals line, the one that won while having the fewest chances, the player who beat their
+shots, goals or assists. For that you need to know **what was expected before the match**:
 
-Rehacer el análisis de un partido ya jugado no sirve: las alineaciones probables se reemplazan por las
-confirmadas, las bajas activas son las de hoy y el modelo se reentrena cada día con ese mismo partido.
+- For teams there is a yardstick: the bookmaker's odds saved before kick-off (football-data's closing 1X2 and
+  each team's goals and corners lines from Pinnacle and Betano through OddsPapi, since 19-10-2026).
+- For players there are no lines from any bookmaker. The only yardstick is our model, and what it expected before
+  each match wasn't saved: the `prediction` table existed, but nobody wrote to it.
 
-## Decisión
-- **Previa guardada** (`services/predictions.py`): una fila por partido en `prediction` (restricción única en
-  `match_id`). La escribe `picks.generate`, que corre a las 09:00, en cada búsqueda de la alineación confirmada y
-  al abrir Hoy. Se reescribe solo si cambió y **nunca después del inicio**, así que queda la última previa antes
-  del partido, con el once confirmado si llegó. Guarda, por lado (local o visitante, no por id de equipo, para que
-  la fusión de equipos duplicados no la deje desfasada): goles esperados, 1X2, la media y la dispersión de cada
-  estadística y la proyección de todos los jugadores. Ocupa unos 6 KB por partido; se borra con el partido.
-- **Resumen calculado al leerlo** (`services/weekly.py`, `models/surprise.py`; `GET /week`, MCP `resumen_semana`,
-  `apuestas semana`, página Semana). No se guarda nada más: si el cierre de football-data o las estadísticas
-  llegan tarde, la semana se completa sola.
-- **Vara**, como pidió el usuario: los equipos frente a la casa (resultado, goles y córners; los remates a puerta
-  no, porque ninguna casa los cotiza) y los jugadores frente a la previa del modelo.
-- **Puntuación por sorpresa**: P(menos) − P(más) con la distribución esperada, de −1 a +1, para que cuente el
-  margen. Detalle en `docs/modelos.md`, sección 8.
+Redoing the analysis of a match already played doesn't work: predicted line-ups are replaced by the confirmed
+ones, the active absences are today's and the model is retrained every day with that same match.
 
-## Consecuencias
-- El historial de jugadores empieza el 24-10-2026: las semanas anteriores no tienen jugadores ni once (los equipos
-  sí, con las cuotas guardadas).
-- Si el equipo está apagado todo el día de un partido y no se abrió Hoy antes, ese partido no tiene previa: sus
-  jugadores no cuentan (la cobertura de la página lo dice).
-- Es un resumen de lo que pasó, no una señal para apostar: una semana buena es en parte suerte.
-- La previa guardada sirve también para medir más adelante la calibración de los mercados de jugadores y de
-  estadísticas con lo que realmente se esperaba antes de cada partido.
+## Decision
+- **Saved preview** (`services/predictions.py`): one row per match in `prediction` (unique constraint on
+  `match_id`). It's written by `picks.generate`, which runs at 09:00, on every check for the confirmed line-up and
+  when Today is opened. It's only rewritten if it changed and **never after kick-off**, so what remains is the last
+  preview before the match, with the confirmed XI if it arrived. It stores, by side (home or away, not by team id,
+  so that merging duplicate teams doesn't leave it out of date): expected goals, 1X2, the mean and the dispersion
+  of each stat and the projection of every player. It takes about 6 KB per match; it's deleted with the match.
+- **Summary computed when read** (`services/weekly.py`, `models/surprise.py`; `GET /week`, MCP `resumen_semana`,
+  `apuestas semana`, the Week page). Nothing else is saved: if football-data's closing odds or the stats
+  arrive late, the week completes itself.
+- **Yardstick**, as the user asked: teams against the bookmaker (result, goals and corners; not shots on target,
+  because no bookmaker prices them) and players against the model's preview.
+- **Surprise score**: P(under) − P(over) with the expected distribution, from −1 to +1, so the margin counts.
+  Details in `docs/modelos.md`, section 8.
+
+## Consequences
+- The player history starts on 24-10-2026: earlier weeks have no players or XI (teams do, with the saved odds).
+- If the computer is off the whole day of a match and Today wasn't opened before, that match has no preview: its
+  players don't count (the page's coverage says so).
+- It's a summary of what happened, not a betting signal: a good week is partly luck.
+- The saved preview also makes it possible to measure later the calibration of the player and stat markets with
+  what was really expected before each match.

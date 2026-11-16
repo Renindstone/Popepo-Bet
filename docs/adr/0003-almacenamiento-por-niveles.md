@@ -1,15 +1,17 @@
-# ADR 0003: Almacenamiento por niveles en vez de borrar temporadas
+# ADR 0003: Tiered storage instead of deleting seasons
 
-**Estado**: aceptada (2026-10-19)
+**English** · [Español](../es/adr/0003-almacenamiento-por-niveles.md)
 
-## Contexto
-La idea inicial era borrar cada temporada al terminar y quedarse con un resumen. Pero los modelos necesitan unas 3 temporadas de historial y el backtest necesita aún más.
+**Status**: accepted (2026-10-19)
 
-## Decisión
-- **hot**: temporada actual, todo el detalle.
-- **warm**: temporadas dentro de `history_seasons` (3). Se borran las cuotas intermedias y se conservan apertura, cierre y la primera y última captura de cada selección.
-- **cold**: temporadas más antiguas. Alineaciones, estadísticas de jugadores, observaciones y cuotas se exportan a Parquet (zstd) en `var/archive/` y se borran de PostgreSQL. Se conservan el partido, las estadísticas de equipo y el **resumen de temporada** (equipo/jugador), que sirve de punto de partida para la temporada siguiente.
-- Las cuotas solo se guardan **cuando cambian**.
+## Context
+The initial idea was to delete each season when it ended and keep a summary. But the models need about 3 seasons of history and the backtest needs even more.
 
-## Consecuencias
-Lo que más espacio ocupa son las cuotas, no las estadísticas. Con esto todo cabe en pocos GB durante años. Los Parquet se consultan con DuckDB (`apuestas archive query`).
+## Decision
+- **hot**: current season, full detail.
+- **warm**: seasons within `history_seasons` (3). Intermediate odds are deleted, keeping the opening, closing, and first and last snapshot of each selection.
+- **cold**: older seasons. Line-ups, player stats, observations and odds are exported to Parquet (zstd) in `var/archive/` and deleted from PostgreSQL. The match, the team stats and the **season summary** (team/player) are kept, which serves as the starting point for the next season.
+- Odds are only saved **when they change**.
+
+## Consequences
+What takes the most space is the odds, not the stats. With this everything fits in a few GB for years. The Parquet files are queried with DuckDB (`apuestas archive query`).

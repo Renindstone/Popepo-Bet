@@ -1,13 +1,15 @@
-# ADR 0004: MCP como interfaz principal para agentes de IA
+# ADR 0004: MCP as the main interface for AI agents
 
-**Estado**: aceptada (2026-10-19)
+**English** · [Español](../es/adr/0004-mcp-y-multiusuario.md)
 
-## Decisión
-- Servidor MCP con herramientas en español (`analizar_partido`, `apuesta_del_dia`, `evaluar_cuota`, …).
-- **Local (stdio)** para el dueño: `.mcp.json` en el repo para Claude Code.
-- **HTTP con clave** para otros usuarios: `apuestas user create-key <nombre>` + `apuestas mcp --http`. Cada clave identifica al usuario, así sus apuestas y su rendimiento quedan separados. Las claves se guardan como hash SHA-256.
-- MCP es un estándar abierto: sirve para Claude, ChatGPT, Gemini CLI, Cursor, etc.
+**Status**: accepted (2026-10-19)
 
-## Pendiente
-- OAuth completo (necesario para los conectores de claude.ai/ChatGPT web). Por ahora: token Bearer, que vale para Claude Code, Claude Desktop (vía `mcp-remote`) y la mayoría de clientes.
-- Exposición a internet mediante túnel (Cloudflare Tunnel / Tailscale Funnel), sin abrir puertos del router.
+## Decision
+- MCP server with tools named in Spanish (`analizar_partido`, `apuesta_del_dia`, `evaluar_cuota`, …).
+- **Local (stdio)** for the owner: `.mcp.json` in the repository for Claude Code.
+- **HTTP with a key** for other users: `apuestas user create-key <name>` + `apuestas mcp --http`. Each key identifies the user, so their bets and performance stay separate. Keys are stored as SHA-256 hashes.
+- MCP is an open standard: it works with Claude, ChatGPT, Gemini CLI, Cursor, etc.
+
+## Pending
+- Full OAuth (needed for the claude.ai/ChatGPT web connectors). For now: a Bearer token, which works for Claude Code, Claude Desktop (through `mcp-remote`) and most clients.
+- Exposure to the internet through a tunnel (Cloudflare Tunnel / Tailscale Funnel), without opening router ports.

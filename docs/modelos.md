@@ -1,969 +1,973 @@
-# Modelos y validación
+# Models and validation
 
-## 1. Fuerza de equipos (`models/ratings.py`)
+**English** · [Español](es/modelos.md)
 
-Modelo multiplicativo tipo Poisson ajustado **a la vez para 17 ligas**:
+## 1. Team strength (`models/ratings.py`)
+
+A Poisson-type multiplicative model fitted **jointly for 17 leagues**:
 
 ```
-log E[goles_local]     = mu + ventaja_local + ataque[local]     - defensa[visitante]
-log E[goles_visitante] = mu                 + ataque[visitante] - defensa[local]
+log E[home_goals] = mu + home_advantage + attack[home] - defence[away]
+log E[away_goals] = mu                  + attack[away] - defence[home]
 ```
 
-- **Objetivo**: 15 % goles + 85 % xG (el xG predice mejor que los goles; el peso se eligió con el backtest).
-- **Ratings implícitos del mercado** (`models/market.py`): las cuotas de cierre de cada partido jugado (Pinnacle; si no hay, bet365), sin margen, se invierten a goles esperados (local, visitante): las dos medias cuya matriz Dixon-Coles reproduce el 1X2 y el más/menos 2.5. Entran en el ajuste como observaciones extra con **peso 128** y **vida media de 14 días** (`MARKET_WEIGHT`, `MARKET_HALF_LIFE`). No cuentan como partidos jugados ni para la sobredispersión. Cubren unos 14.000 partidos de las 14 ligas con cuotas (las copas europeas no tienen). En la práctica el rating sigue a la opinión reciente del mercado, y los goles/xG reales mandan solo cuando faltan cuotas recientes (por ejemplo, al empezar la temporada).
-- **Antigüedad**: vida media de 240 días (probados 120, 240 y 400).
-- **Antigüedad del mercado en días con partidos: medida y no aplicada** (29-10-2026, `experimentos/validacion/mercado_jornadas.py`; `fitting.MARKET_MATCHDAYS = False`). La vida media de 14 días de las cuotas de cierre corre también en el parón de verano, así que al empezar la temporada casi no pesan. Contando solo los días con partidos, el parón no las envejece. Log-loss 1X2 del modelo frente a lo de ahora, en agosto-septiembre (unos 400 partidos por temporada): con 10 días con partidos, −0,0019 ± 0,0058 en 2024-25, +0,0004 ± 0,0063 en 2025-26 y −0,0017 ± 0,0058 en 2026-27; con 14 y 20, parecido. En la temporada entera, ±0,001. No se distingue: la meseta de la vida media del mercado (7-14 días) ya aguantaba el arranque.
-- **Ventaja local propia de cada competición** (desde el 29-10-2026, `fitting.GOALS_HOME_L2` = 1.000 y `RatingModel.home_by_comp`). La ventaja local común se ajusta como siempre, y cada competición le suma un desvío contraído hacia 0 con esa L2. Los partidos jugados y las cuotas de cierre de cada liga lo informan. Al 2024-26: Serie A −0,066, Premier −0,038, Ligue 1 −0,022, Bundesliga −0,010 y LaLiga +0,044 sobre una ventaja común de 0,248 (en logaritmo de goles del local). Solo en goles: los conteos siguen con una sola. Medido con `experimentos/validacion/ventaja_local.py`, frente a una sola ventaja en los mismos partidos del backtest (log-loss 1X2 del modelo, margen del 95 % pareado):
+- **Target**: 15 % goals + 85 % xG (xG predicts better than goals; the weight was chosen with the backtest).
+- **Market-implied ratings** (`models/market.py`): the closing odds of each played match (Pinnacle; if there are none, bet365), without margin, are inverted into expected goals (home, away): the two means whose Dixon-Coles matrix reproduces the 1X2 and the over/under 2.5. They enter the fit as extra observations with **weight 128** and a **14-day half-life** (`MARKET_WEIGHT`, `MARKET_HALF_LIFE`). They don't count as played matches or for overdispersion. They cover about 14,000 matches from the 14 leagues with odds (the European cups have none). In practice the rating follows the market's recent opinion, and real goals/xG only rule when recent odds are missing (for example, at the start of the season).
+- **Age**: a 240-day half-life (120, 240 and 400 were tried).
+- **Market age in days with matches: measured and not applied** (29-10-2026, `experimentos/validacion/mercado_jornadas.py`; `fitting.MARKET_MATCHDAYS = False`). The 14-day half-life of the closing odds also runs during the summer break, so at the start of the season they barely weigh. Counting only days with matches, the break doesn't age them. The model's 1X2 log-loss against the current one, in August-September (about 400 matches per season): with 10 days with matches, −0.0019 ± 0.0058 in 2024-25, +0.0004 ± 0.0063 in 2025-26 and −0.0017 ± 0.0058 in 2026-27; with 14 and 20, similar. Over the whole season, ±0.001. Not distinguishable: the plateau of the market's half-life (7-14 days) already held up at the start.
+- **Each competition's own home advantage** (since 29-10-2026, `fitting.GOALS_HOME_L2` = 1,000 and `RatingModel.home_by_comp`). The common home advantage is fitted as always, and each competition adds a deviation shrunk towards 0 with that L2. Each league's played matches and closing odds inform it. On 2024-26: Serie A −0.066, Premier League −0.038, Ligue 1 −0.022, Bundesliga −0.010 and LaLiga +0.044 over a common advantage of 0.248 (in log home goals). Only in goals: the counts keep a single one. Measured with `experimentos/validacion/ventaja_local.py`, against a single advantage on the same backtest matches (model 1X2 log-loss, paired 95 % margin):
 
-  | L2 | 2024-25 (para elegir) | 2025-26 (prueba) | 2024-26 |
+  | L2 | 2024-25 (to choose) | 2025-26 (test) | 2024-26 |
   | --- | --- | --- | --- |
-  | 300 | −0,0005 ± 0,0013 | −0,0013 ± 0,0013 | −0,0009 ± 0,0009 |
-  | **1.000** | −0,0005 ± 0,0010 | −0,0011 ± 0,0010 | −0,0008 ± 0,0007 |
-  | 3.000 | −0,0003 ± 0,0006 | −0,0008 ± 0,0006 | −0,0005 ± 0,0004 |
-  | 10.000 | −0,0002 ± 0,0002 | −0,0003 ± 0,0003 | −0,0003 ± 0,0002 |
+  | 300 | −0.0005 ± 0.0013 | −0.0013 ± 0.0013 | −0.0009 ± 0.0009 |
+  | **1,000** | −0.0005 ± 0.0010 | −0.0011 ± 0.0010 | −0.0008 ± 0.0007 |
+  | 3,000 | −0.0003 ± 0.0006 | −0.0008 ± 0.0006 | −0.0005 ± 0.0004 |
+  | 10,000 | −0.0002 ± 0.0002 | −0.0003 ± 0.0003 | −0.0003 ± 0.0002 |
 
-  Se eligió 1.000: en 2024-25 empata con 300 y contrae más. Por liga (2024-26): LaLiga −0,0021 ± 0,0028, Serie A −0,0028 ± 0,0023, Premier −0,0006, Ligue 1 +0,0005 y Bundesliga +0,0013 ± 0,0009 (algo peor). `apuestas backtest`: modelo 0,9744 → 0,9736 y mezcla con Pinnacle 0,9702 → 0,9700 (igual que Pinnacle). Las apuestas: modelo+mercado 106 → 97, con CLV +2,8 % → +3,0 % y 55 % → 58 % que le ganan al cierre, pero rendimiento −15,8 % → −23,5 % (hándicap asiático −4,5 % → −16,5 %); solo modelo −4,0 % → −5,1 % con CLV +0,6 % → +0,9 %. Con unas 100 apuestas el rendimiento tiene un margen de unos ±20 puntos: se decide por la log-loss y el CLV, que mejoran. `--no-home-by-league` reproduce lo de antes.
-- **Regularización L2**: los equipos con pocos partidos (ascendidos, rivales exóticos de Champions) se acercan a la media.
-- **Escala común**: los partidos de Champions/Europa y los ascensos/descensos (Championship, 2. Bundesliga, Segunda) conectan las ligas. Así un ascendido o un rival portugués de Champions tienen un rating comparable.
-- **Fuerza dinámica (filtro de Kalman): medida y no aplicada** (29-10-2026, `experimentos/validacion/fuerza_dinamica.py`). Es la alternativa de la auditoría: ataque y defensa de cada equipo con un paseo aleatorio, y nivel de goles y ventaja local por competición, actualizados partido a partido con la misma observación (85 % xG + 15 % goles) y con los goles implícitos en el cierre como observación de su logaritmo. Se midió con la BD en los mismos partidos del backtest (cuota previa de bet365 y Pinnacle) y con el mismo rho, así que solo cambia la fuerza. Los parámetros se eligieron con 2024-25 (s_mkt 0,06, q 3·10⁻⁴ por día, sin ruido extra en verano, nivel por competición, ascendidos −0,3) y la prueba honesta es 2025-26:
+  1,000 was chosen: in 2024-25 it ties with 300 and shrinks more. By league (2024-26): LaLiga −0.0021 ± 0.0028, Serie A −0.0028 ± 0.0023, Premier League −0.0006, Ligue 1 +0.0005 and Bundesliga +0.0013 ± 0.0009 (slightly worse). `apuestas backtest`: model 0.9744 → 0.9736 and blend with Pinnacle 0.9702 → 0.9700 (the same as Pinnacle). The bets: model+market 106 → 97, with CLV +2.8 % → +3.0 % and 55 % → 58 % beating the close, but return −15.8 % → −23.5 % (Asian handicap −4.5 % → −16.5 %); model only −4.0 % → −5.1 % with CLV +0.6 % → +0.9 %. With about 100 bets the return has a margin of about ±20 points: the decision is made on log-loss and CLV, which improve. `--no-home-by-league` reproduces the previous behaviour.
+- **L2 regularisation**: teams with few matches (promoted sides, exotic Champions League opponents) are pulled towards the average.
+- **Common scale**: Champions/Europa League matches and promotions/relegations (Championship, 2. Bundesliga, Segunda) connect the leagues. That way a promoted team or a Portuguese Champions League opponent has a comparable rating.
+- **Dynamic strength (Kalman filter): measured and not applied** (29-10-2026, `experimentos/validacion/fuerza_dinamica.py`). It's the audit's alternative: each team's attack and defence with a random walk, and goal level and home advantage per competition, updated match by match with the same observation (85 % xG + 15 % goals) and with the goals implied by the closing odds as an observation of their logarithm. It was measured with the database on the same backtest matches (bet365 and Pinnacle opening odds) and with the same rho, so only the strength changes. The parameters were chosen with 2024-25 (s_mkt 0.06, q 3·10⁻⁴ per day, no extra summer noise, level per competition, promoted teams −0.3) and the honest test is 2025-26:
 
-  | Log-loss 1X2 | 2024-25 (afinado) | 2025-26 (prueba) | 2024-26 |
+  | 1X2 log-loss | 2024-25 (tuned) | 2025-26 (test) | 2024-26 |
   | --- | --- | --- | --- |
-  | Modelo actual (`ratings.fit`) | 0,9708 | 0,9782 | 0,9744 |
-  | Fuerza dinámica | 0,9692 (−0,0017 ± 0,0030) | 0,9762 (−0,0020 ± 0,0032) | 0,9726 (−0,0018 ± 0,0022) |
-  | Pinnacle | 0,9639 | 0,9764 | 0,9700 |
-  | bet365 | 0,9648 | 0,9763 | 0,9704 |
+  | Current model (`ratings.fit`) | 0.9708 | 0.9782 | 0.9744 |
+  | Dynamic strength | 0.9692 (−0.0017 ± 0.0030) | 0.9762 (−0.0020 ± 0.0032) | 0.9726 (−0.0018 ± 0.0022) |
+  | Pinnacle | 0.9639 | 0.9764 | 0.9700 |
+  | bet365 | 0.9648 | 0.9763 | 0.9704 |
 
-  Mejora algo, pero menos que su margen, y sigue detrás de las casas en el conjunto. La auditoría sacaba −0,0047 frente al modelo de solo goles; frente al actual, que ya sigue al mercado con peso 128 y vida media de 14 días, queda menos. Lo mejor sale con el mercado casi sin ruido (s_mkt pequeño) y mucha volatilidad: el filtro se convierte en seguir el cierre, como el modelo actual. Pasarlo a producción cambiaría el modelo de goles y todo lo que cuelga de él (conteos guiados por la fuerza, alineaciones, cobertura del mercado), así que no se aplica con esta mejora. Volver a medirlo con otra temporada de datos.
-- **Fichajes**: el ajuste por alineación (abajo) usa el valor de mercado y el rating de cada jugador. Un fichaje entra en la alineación con su calidad, aunque el equipo aún tenga pocos partidos con él. Los fichajes se detectan cuando un jugador aparece con otro equipo (tabla `transfer`).
+  It improves somewhat, but less than its margin, and is still behind the bookmakers overall. The audit found −0.0047 against the goals-only model; against the current one, which already follows the market with weight 128 and a 14-day half-life, less is left. The best comes with an almost noiseless market (small s_mkt) and a lot of volatility: the filter turns into following the closing odds, like the current model. Putting it into production would change the goals model and everything hanging from it (counts guided by strength, line-ups, market coverage), so it isn't applied with this improvement. Measure it again with another season of data.
+- **Transfers**: the line-up adjustment (below) uses each player's market value and rating. A new signing enters the line-up with their quality, even if the team still has few matches with them. Transfers are detected when a player appears with another team (table `transfer`).
 
-## 2. Goles y mercados (`models/distributions.py`, `services/match_model.py`)
+## 2. Goals and markets (`models/distributions.py`, `services/match_model.py`)
 
-Matriz de marcadores **Dixon-Coles**, con ρ estimado sobre los datos. De ahí salen 1X2, doble oportunidad, empate no válido, hándicap asiático (incluidas las líneas de cuarto, con medias ganadas o perdidas), hándicap europeo, más/menos goles (total y por equipo) y ambos marcan.
+A **Dixon-Coles** scoreline matrix, with ρ estimated from the data. From it come 1X2, double chance, draw no bet, Asian handicap (including quarter lines, with half wins or losses), European handicap, over/under goals (total and per team) and both teams to score.
 
-## 3. Estadísticas: remates, a puerta, córners, faltas, tarjetas y offsides
+## 3. Stats: shots, on target, corners, fouls, cards and offsides
 
-Mismo modelo de fuerza aplicado a cada estadística (cuánto genera cada equipo y cuánto concede), con distribución **binomial negativa** (la sobredispersión se estima de los datos). Los mercados de cada equipo usan su propia binomial negativa; el total del partido, otra con la media de los dos y su propia dispersión (punto siguiente). Los hándicaps y el «ganador» de cada estadística salen de la diferencia entre los dos, con la correlación que implica la dispersión del total (punto siguiente).
+The same strength model applied to each stat (how much each team generates and how much it concedes), with a **negative binomial** distribution (overdispersion is estimated from the data). Each team's markets use their own negative binomial; the match total uses another with the mean of the two and its own dispersion (next point). Handicaps and the "winner" of each stat come from the difference between the two, with the correlation implied by the total's dispersion (next point).
 
-- **Dispersión propia del total** (desde el 29-10-2026, `fitting.COUNT_TOTAL_DISPERSION` y `dist.count_total_pmf`): remates 0,010, a puerta 0,003, córners 0,017, faltas 0,005 y tarjetas 0 (Poisson). Antes el total era la suma de los dos equipos como si fueran independientes, pero no lo son: en los partidos de liga 2024-26, los residuos del local y del visitante se correlacionan −0,22 en remates y −0,19 en córners (si uno ataca, el otro no) y +0,17 en tarjetas (el partido caliente sube a los dos). Sumarlos como independientes daba un total demasiado ancho en remates y córners. La dispersión se midió **fuera de muestra** en el backtest: la del propio ajuste sale la mitad de alta en córners y empeoraba las tarjetas. Ejemplo: 6,0 y 4,5 córners esperados (alfa del equipo 0,07) daban una desviación típica del total de 3,8 córners; ahora, 3,5. Los mercados de cada equipo no cambian. Cifras en la sección 7.
+- **The total's own dispersion** (since 29-10-2026, `fitting.COUNT_TOTAL_DISPERSION` and `dist.count_total_pmf`): shots 0.010, on target 0.003, corners 0.017, fouls 0.005 and cards 0 (Poisson). Before, the total was the sum of the two teams as if they were independent, but they aren't: in the 2024-26 league matches, the home and away residuals correlate −0.22 in shots and −0.19 in corners (if one attacks, the other doesn't) and +0.17 in cards (a heated match raises both). Adding them up as independent gave a total that was too wide in shots and corners. The dispersion was measured **out of sample** in the backtest: the fit's own comes out half as high in corners and made cards worse. Example: 6.0 and 4.5 expected corners (team alpha 0.07) gave a standard deviation of the total of 3.8 corners; now, 3.5. Each team's markets don't change. Figures in section 7.
 
-- **Contracción hacia la media en "partidos equivalentes"** (desde el 21-10-2026, `fitting.COUNT_PRIOR_MATCHES`): remates y remates a puerta 1, córners 5, faltas 5 y tarjetas 10. Un equipo con n partidos (ponderados por antigüedad) conserva más o menos n / (n + K) de lo que se ve en ellos; los de liga (25-45 partidos) apenas cambian. Antes era una L2 fija de 1, la misma que en goles. Pero cada partido pesa en el ajuste tanto como su media (~1,4 goles, ~5 córners, ~12 remates), así que esa L2 casi no contraía: equivalía a 0,1 partidos en remates y faltas, 0,2 en córners y 0,5 en tarjetas.
+- **Shrinkage towards the average in "equivalent matches"** (since 21-10-2026, `fitting.COUNT_PRIOR_MATCHES`): shots and shots on target 1, corners 5, fouls 5 and cards 10. A team with n matches (weighted by age) keeps roughly n / (n + K) of what's seen in them; league teams (25-45 matches) barely change. Before, it was a fixed L2 of 1, the same as in goals. But each match weighs in the fit as much as its mean (~1.4 goals, ~5 corners, ~12 shots), so that L2 barely shrank: it was equivalent to 0.1 matches in shots and fouls, 0.2 in corners and 0.5 in cards.
 
-  Caso real: **Aston Villa-Viking** (Champions, 21-10-2026). Viking es noruego. La liga noruega no entra en el modelo y football-data no trae sus córners, así que solo había dos partidos suyos con estadísticas: 5 córners en Stuttgart y 7 contra el Bayern. Con ellos su ataque en córners salía ×1,8 la media. El modelo esperaba 14,7 córners (Villa 9,1, Viking 5,6) frente a 10,5 de Pinnacle (7,4 y 3,0), y en Hoy salían "Córners: Más de 16.5" a 10,00 con +232 % y "Córners de Viking: Más de 6.5" a 9,75 con +230 %. Con la contracción, 11,3 (7,0 y 4,3); el resto lo corrige la regla de prudencia de la sección 6.
+  Real case: **Aston Villa-Viking** (Champions League, 21-10-2026). Viking is Norwegian. The Norwegian league doesn't enter the model and football-data doesn't bring its corners, so there were only two of their matches with stats: 5 corners in Stuttgart and 7 against Bayern. With them, their corners attack came out at ×1.8 the average. The model expected 14.7 corners (Villa 9.1, Viking 5.6) against Pinnacle's 10.5 (7.4 and 3.0), and Today showed "Corners: over 16.5" at 10.00 with +232 % and "Viking corners: over 6.5" at 9.75 with +230 %. With the shrinkage, 11.3 (7.0 and 4.3); the rest is corrected by the prudence rule in section 6.
 
-- **Remates, remates a puerta y córners guiados por la fuerza del modelo de goles** (desde el 21-10-2026, `fitting.COUNT_STRENGTH_PRIOR`). En estas tres estadísticas, que dependen de cuánto domina cada equipo, la fuerza de un equipo es `b × fuerza_goles + desviación`, con `fuerza_goles` = ataque + defensa en el modelo de goles, `b` ajustado (uno para generar y otro para conceder) y la contracción solo en la desviación. Así, un equipo con pocos datos se acerca a lo que corresponde a su fuerza y no a la media, y la contracción es mayor: K = 8 en remates y a puerta, y 20 en córners. En tarjetas y faltas no mejora (se quedan como estaban).
+- **Shots, shots on target and corners guided by the goals model's strength** (since 21-10-2026, `fitting.COUNT_STRENGTH_PRIOR`). In these three stats, which depend on how much each team dominates, a team's strength is `b × goals_strength + deviation`, with `goals_strength` = attack + defence in the goals model, `b` fitted (one for generating and another for conceding) and the shrinkage only on the deviation. That way, a team with little data gets closer to what corresponds to its strength and not to the average, and the shrinkage is larger: K = 8 in shots and on target, and 20 in corners. In cards and fouls it doesn't improve (they stay as they were).
 
-  Motivo: hasta el 21-10-2026 las ligas solo se cruzaban en estas estadísticas por la Champions (de la Europa League y la Conference solo se bajaban los resultados): unos 14 partidos ponderados para la Eredivisie, 11 para la liga belga y 2 para la escocesa. Dentro de una liga, solo se sabe cuánto domina cada equipo a sus rivales; el nivel de toda la liga frente a las demás lo fijaba la contracción, que suponía todas las ligas igual de fuertes. Por eso un equipo que domina una liga floja salía igual de dominante en la Champions. El modelo de goles, en cambio, sí conoce bien la fuerza de cada liga: tiene las cuotas de cierre y todos los partidos europeos.
+  Reason: until 21-10-2026 the leagues only crossed in these stats through the Champions League (for the Europa League and the Conference only the results were downloaded): about 14 weighted matches for the Eredivisie, 11 for the Belgian league and 2 for the Scottish one. Within a league, you only know how much each team dominates its opponents; the level of the whole league against the others was set by the shrinkage, which assumed all leagues were equally strong. That's why a team dominating a weak league came out just as dominant in the Champions League. The goals model, on the other hand, does know each league's strength well: it has the closing odds and all the European matches.
 
-  Caso real: **Betis-Feyenoord** (Champions, 21-10-2026). El análisis daba 4,3 córners al Betis y 5,6 al Feyenoord; Pinnacle, 5,3 y 4,1. "Córners de Feyenoord: Más de 7.5" a 9,00 salía con +108 % y las cuatro primeras "Otras apuestas con valor" de Hoy eran córners del Feyenoord. Ahora 4,9 y 4,9, y esa cuota da +41 % (la primera de Hoy es otra). Sigue lejos de Pinnacle: es mejor, pero no lo arregla del todo (ver backtest, sección 7).
+  Real case: **Betis-Feyenoord** (Champions League, 21-10-2026). The analysis gave Betis 4.3 corners and Feyenoord 5.6; Pinnacle, 5.3 and 4.1. "Feyenoord corners: over 7.5" at 9.00 came out with +108 % and the first four "Other value bets" on Today were Feyenoord corners. Now 4.9 and 4.9, and that price gives +41 % (Today's first one is a different bet). It's still far from Pinnacle: it's better, but it doesn't fully fix it (see backtest, section 7).
 
-- **Europa League y Conference** (desde el 21-10-2026): sus estadísticas de FotMob entran en los cinco modelos de conteo. Son unos 1.020 partidos desde 2023-24, y casi duplican los cruces entre ligas: la Eredivisie pasa de 13 a 27 partidos ponderados, la belga de 10 a 18, la griega de 4 a 17 y la escocesa de 1 a 10. Su xG, en cambio, **no entra en el modelo de goles** (`fitting.GOALS_XG_SKIP`): con él empeoraba la Champions. Detalle en la sección 7.
+- **Europa League and Conference** (since 21-10-2026): their FotMob stats go into the five count models. That's about 1,020 matches since 2023-24, and they almost double the crossings between leagues: the Eredivisie goes from 13 to 27 weighted matches, the Belgian league from 10 to 18, the Greek from 4 to 17 and the Scottish from 1 to 10. Their xG, on the other hand, **doesn't go into the goals model** (`fitting.GOALS_XG_SKIP`): with it the Champions League got worse. Details in section 7.
 
-- **El 1X2 de la casa mueve el reparto de remates, a puerta y córners** (desde el 22-10-2026, `fitting.COUNT_MARKET_SHIFT` y `fitting.strength_shift`). Esas tres estadísticas se guían por la fuerza del modelo de goles (punto anterior), así que heredan sus errores, y el modelo de goles no le gana al mercado. Si la casa ve a un equipo más fuerte que el modelo, el reparto de esas estadísticas se mueve hacia ella:
-  1. Con el 1X2 y el más/menos 2.5 de Pinnacle (si no hay, de bet365; si tampoco, de Betano) se sacan los goles esperados de la casa (`fitting.prematch_market_goals`).
-  2. δ = ½ × [log(local / visitante) de la casa − log(local / visitante) del modelo de goles], este último ya con las alineaciones, para no contar dos veces las bajas que la casa también conoce. Es la fuerza que hay que sumar al local y restar al visitante para que el modelo de goles diga lo mismo que la casa.
-  3. El conteo del local se multiplica por exp(0,75 × b × δ) y el del visitante se divide por lo mismo, con b el coeficiente de la fuerza en ese conteo (ataque + defensa, guardado en el paquete de modelos: ~0,6 en córners y remates, ~0,73 a puerta). Después se reparte de nuevo para que **el total del partido no cambie**: el 1X2 dice quién domina, no cuánto se juega.
+- **The bookmaker's 1X2 moves the split of shots, on target and corners** (since 22-10-2026, `fitting.COUNT_MARKET_SHIFT` and `fitting.strength_shift`). Those three stats are guided by the goals model's strength (previous point), so they inherit its errors, and the goals model doesn't beat the market. If the bookmaker sees a team as stronger than the model does, the split of those stats moves towards it:
+  1. From Pinnacle's 1X2 and over/under 2.5 (if there are none, bet365's; if not those either, Betano's) the bookmaker's expected goals are derived (`fitting.prematch_market_goals`).
+  2. δ = ½ × [the bookmaker's log(home / away) − the goals model's log(home / away)], the latter already with the line-ups, so as not to count twice the absences the bookmaker also knows about. It's the strength that has to be added to the home team and subtracted from the away team for the goals model to say the same as the bookmaker.
+  3. The home count is multiplied by exp(0.75 × b × δ) and the away count is divided by the same, with b the strength coefficient in that count (attack + defence, saved in the model bundle: ~0.6 in corners and shots, ~0.73 on target). Then it's re-split so that **the match total doesn't change**: the 1X2 says who dominates, not how much is played.
 
-  Sin cuotas de esas casas, todo queda como antes. El análisis guarda la casa y δ en `count_market_shift`. El peso 0,75 es casi el mejor en las tres estadísticas (sección 7).
+  Without odds from those bookmakers, everything stays as before. The analysis saves the bookmaker and δ in `count_market_shift`. The 0.75 weight is almost the best in the three stats (section 7).
 
-  Caso real: **Betis-Feyenoord** (Champions, 21-10-2026). El modelo de goles veía a los dos casi igual de fuertes (1X2 46/22/32); Pinnacle, al Betis claro favorito (60/20/20; δ = 0,18). Los córners salían 4,6-4,7 (Pinnacle 5,3-4,1); ahora 5,0-4,3. En el análisis real, con las alineaciones, de 4,7-4,7 a 5,1-4,4, y la mejor cuota de córners "con valor" del partido pasa de +30 % a +10 %.
+  Real case: **Betis-Feyenoord** (Champions League, 21-10-2026). The goals model saw both as almost equally strong (1X2 46/22/32); Pinnacle, Betis as clear favourites (60/20/20; δ = 0.18). Corners came out 4.6-4.7 (Pinnacle 5.3-4.1); now 5.0-4.3. In the real analysis, with the line-ups, from 4.7-4.7 to 5.1-4.4, and the match's best "value" corners price goes from +30 % to +10 %.
 
-- **Nivel reciente de cada liga en remates y remates a puerta** (desde el 22-10-2026, `fitting.count_levels` y `COUNT_LEVEL_*`). El modelo de conteo recuerda 1.100 días con vida media de 240, así que tarda meses en notar que **toda una liga** cambia. Y en 2026-27 pasó: se remata un 10-20 % más en casi todas las ligas, y el modelo se quedaba corto (sección 7). Sobre el modelo ajustado como siempre, se añade un nivel por liga:
-  1. En los partidos de cada liga de los últimos 400 días, con vida media de **30 días**: nivel = (real + K·g·m) / (esperado + K·m), con m el total de un partido medio, **K = 10 partidos** y g el mismo cociente con todas las competiciones juntas (cada liga se contrae hacia lo que pasa en todas).
-  2. Cada equipo toma el nivel de su liga (la de su último partido de liga); un rival europeo sin liga en los datos toma g. En un partido de liga se aplica el de esa liga a los dos equipos; en una copa, la media de los de las dos ligas.
-  3. En las copas se suma además un **desvío propio de la copa**, medido sobre lo esperado ya con el nivel de las ligas, con vida media de **120 días** y **K = 30**: en la Champions el modelo se quedaba corto en los remates a puerta en las tres últimas temporadas (4 %, 8 % y 17 %), más que en las ligas de sus equipos.
+- **Each league's recent level in shots and shots on target** (since 22-10-2026, `fitting.count_levels` and `COUNT_LEVEL_*`). The count model remembers 1,100 days with a 240-day half-life, so it takes months to notice that **a whole league** changes. And in 2026-27 it happened: there are 10-20 % more shots in almost every league, and the model came up short (section 7). On top of the model fitted as always, a level per league is added:
+  1. In each league's matches over the last 400 days, with a **30-day** half-life: level = (real + K·g·m) / (expected + K·m), with m the total of an average match, **K = 10 matches** and g the same ratio with all competitions together (each league is shrunk towards what happens in all of them).
+  2. Each team takes its league's level (that of its last league match); a European opponent with no league in the data takes g. In a league match, that league's level applies to both teams; in a cup, the average of the two leagues'.
+  3. In the cups a **cup's own deviation** is also added, measured over what's expected already with the leagues' level, with a **120-day** half-life and **K = 30**: in the Champions League the model came up short on shots on target in the last three seasons (4 %, 8 % and 17 %), more than in its teams' leagues.
 
-  El nivel no cambia la fuerza de ningún equipo (ataque y defensa son los mismos) ni el reparto entre los dos: sube o baja el total, y los remates de jugador, que reparten lo del equipo (sección 4), lo heredan. Se guarda en el paquete de modelos (`level` por equipo y `cup_level` por copa) y el análisis lo aplica con la competición del partido. En **córners** se probó y empeora un poco (no hay un cambio común a todas las ligas: Bundesliga +10 %, Premier −6 %); en faltas no se ha validado, y las tarjetas lo llevan con sus propios parámetros (abajo). Niveles al 22-10-2026 en remates: Bundesliga ×1,12, Serie A ×1,10, LaLiga ×1,07, Ligue 1 ×1,06, Premier ×1,05; a puerta: ×1,12, ×1,11, ×1,07, ×1,06 y ×0,99; desvío de la Champions en a puerta, ×1,03.
+  The level doesn't change any team's strength (attack and defence are the same) or the split between the two: it raises or lowers the total, and player shots, which share out the team's (section 4), inherit it. It's saved in the model bundle (`level` per team and `cup_level` per cup) and the analysis applies it with the match's competition. In **corners** it was tried and makes things slightly worse (there's no change common to all leagues: Bundesliga +10 %, Premier League −6 %); in fouls it hasn't been validated, and cards carry it with their own parameters (below). Levels on 22-10-2026 in shots: Bundesliga ×1.12, Serie A ×1.10, LaLiga ×1.07, Ligue 1 ×1.06, Premier League ×1.05; on target: ×1.12, ×1.11, ×1.07, ×1.06 and ×0.99; Champions League deviation on target, ×1.03.
 
-  Caso real (análisis del 22-10-2026, partidos del fin de semana): **Stuttgart-Gladbach**, remates 19,7-10,2 → 22,0-11,4 y a puerta 8,1-3,3 → 9,0-3,7, y Demirović de 3,08 a 3,44 remates; **Torino-Monza**, 13,7-11,7 → 15,0-12,8; **Ipswich-Nottingham Forest**, 11,9-14,4 → 12,5-15,1 (a puerta igual: en la Premier no sube). Los córners no cambian.
+  Real case (analysis of 22-10-2026, weekend matches): **Stuttgart-Gladbach**, shots 19.7-10.2 → 22.0-11.4 and on target 8.1-3.3 → 9.0-3.7, and Demirović from 3.08 to 3.44 shots; **Torino-Monza**, 13.7-11.7 → 15.0-12.8; **Ipswich-Nottingham Forest**, 11.9-14.4 → 12.5-15.1 (on target the same: in the Premier League it doesn't go up). Corners don't change.
 
-- **Árbitro**: factor = (observado + K) / (esperado + K), con K en partidos "neutros". En **faltas** mejora la predicción (K = 20). En **tarjetas**, medido de nuevo con los árbitros de LaLiga y la Bundesliga (FotMob), K = 80. Ayuda claramente en LaLiga y en la Serie A, y algo en la Bundesliga; en la Premier no ayuda. En la Ligue 1 ayuda sobre todo en las faltas (ver backtest).
-- **Hándicap de estadísticas con la correlación entre los dos equipos** (desde el 29-10-2026, `dist.count_diff_dispersion`). Si la dispersión del total ya recoge cuánto se quitan los dos equipos, la de la diferencia sale de las varianzas: Var(local − visitante) = 2 (Var local + Var visitante) − Var total. Cada equipo usa, solo para la diferencia, la dispersión que da esa varianza (sin parámetros nuevos). Con correlación negativa (córners y remates) la diferencia es más ancha que con dos equipos independientes; en tarjetas, cuyo total ya es Poisson, no cambia. Ejemplo: 6,0 y 4,5 córners con alfa 0,07 pasan de una desviación típica de la diferencia de 3,8 a 4,1. `apuestas backtest` (entrada `<stat>+diferencia`, 4.734 partidos de las siete ligas, 2024-26), log-verosimilitud de la diferencia por partido: remates +0,0148 ± 0,0038, córners +0,0094 ± 0,0028, a puerta +0,0007 ± 0,0007, faltas y tarjetas igual.
-- **Offsides** (desde el 30-10-2026, `fitting.COUNT_STATS`, K = 10 en `COUNT_PRIOR_MATCHES`; datos de FotMob en `team_match_stats`, completos desde 2023-24 en las ocho ligas y las copas). El mismo modelo de conteo: el «ataque» es cuánto caen los delanteros de un equipo en fuera de juego y la «defensa», cuánto hace caer al rival (una línea adelantada deja la defensa baja). Idea del dueño: la trampa del Barça. Backtest semanal 2024-08 a 2026-10 (`experimentos/validacion/offsides.py`, 6.026 partidos), frente a la media: total del partido +0,046 ± 0,009 por partido (córners, +0,015) y cada equipo +0,125 ± 0,014 (córners, +0,150); con K = 5, casi igual. La trampa se repite: la «defensa» de cada equipo tiene una correlación de +0,55 entre 2024-25 y 2025-26 (caer en fuera de juego, +0,28). En 2025-26 hacen caer más al rival el Barcelona (×2,52; ×3,05 el año anterior), Westerlo (×2,33), Aston Villa (×2,05), Athletic (×1,92), Betis (×1,81) y Manchester City (×1,70). El análisis avisa cuando un equipo hace caer al rival 1,6 veces la media o más (`analysis.OFFSIDE_TRAP`). El total es la suma de los dos equipos: los residuos casi no se correlacionan (−0,01) y una dispersión propia no mejora (+0,0006 ± 0,0008). Mercados `ou_offsides[_home|_away]`, `ah_offsides` y `1x2_offsides`; OddsPapi no trae esas cuotas de Betano, así que se evalúan a mano. No entran en la apuesta del día.
-- **Clásicos y derbis** (desde el 30-10-2026, `core/rivalries.py`, tabla `rivalry`, `fitting.DERBY_FACTOR`). 46 rivalidades de las ocho ligas (Real Madrid-Barcelona, Liverpool-Everton, Inter-Milan, Galatasaray-Fenerbahçe…). En ellas el modelo esperaba menos faltas y tarjetas de las que hubo, ya contando el árbitro: con los 182 clásicos de 2024-08 a 2026-10 (`experimentos/validacion/clasicos.py`), real / esperado 1,084 en faltas (residuo estandarizado +0,38 ± 0,13) y 1,252 en tarjetas (+0,51 ± 0,15). En remates (0,98), a puerta (0,97), córners (1,02), goles (0,96) y offsides (1,04, frente a la media de los dos equipos) no se distinguen, ni son más imprevisibles que un partido normal (la desviación de los residuos es la misma). Por eso las faltas y las tarjetas de los dos equipos se multiplican por 1,08 y 1,25 en los clásicos (también las tarjetas de jugador, que reparten las del equipo), con el mismo factor para todas las rivalidades: con 4-5 partidos cada una, por rivalidad es ruido (el Barça-Madrid lleva 1,78 veces las tarjetas esperadas, el Bayern-Dortmund 0,71). Prueba honesta: con el factor de los 80 clásicos de 2024-25 (1,083 y 1,196), en los 102 de después el total mejora +0,072 ± 0,061 en faltas y +0,152 ± 0,073 en tarjetas por partido. `apuestas backtest` (entrada `<stat>+clasico`, 166 clásicos de 2024-26): faltas +0,064 ± 0,048 y tarjetas +0,122 ± 0,073. El análisis lleva además el historial de la rivalidad (`rivalry`: los últimos 6 enfrentamientos con faltas, tarjetas, remates y offsides de cada equipo).
-- **Titular poco habitual: medido; el modelo ya lo recoge** (30-10-2026, `experimentos/validacion/titulares.py` y `titulares_modelo.py`). Idea del dueño: el que casi nunca juega sale a probarse y remata más. Con su ritmo de remates en sus titularidades anteriores de 60' o más, corregido por cuánto remató su equipo ese día (unos 100.000 titulares desde 2023), es al revés: los titulares en 8-10 de los 10 partidos anteriores de su equipo hacen 0,98 de su ritmo; en 3-7, 0,91; en 0-2, 0,86 (a puerta, 0,97, 0,90 y 0,85). Pero el modelo de jugadores, que contrae la parte de cada uno hacia la de su posición, ya recoge casi toda la diferencia: fuera de muestra (partes ajustadas cada mes solo con lo anterior, con los minutos y los remates reales del equipo), el poco habitual queda solo un 5 % por debajo del fijo, y el factor relativo aprendido antes de 2025-10 (0,973 en remates, 0,966 a puerta) no mejora lo de después (+0,0000 ± 0,0007 y +0,0004 ± 0,0006). No se aplica ningún factor: el panel lo marca como aviso («Poco habitual: 1 de 10», `features/lineup.recent_starts`, con once publicado). Sin fecha de nacimiento en la BD no se pudo separar a los jóvenes.
-- **Plan probable (forma propia de cada equipo contra los grandes): medido y descartado** (30-10-2026, `experimentos/validacion/estilo.py` y `estilo_entrenador.py`). Idea del dueño: el Madrid de Mourinho se encierra de visita contra grandes, así que sus remates bajan. Se midió si el desvío propio de cada equipo frente a lo esperado contra rivales del 20 % más fuerte de su liga (por encima de su desvío en el resto) se repite. Entre temporadas (unos 115 equipos, 2024-25 frente a lo de después), la correlación va de −0,13 a +0,11 en remates, a puerta, córners, faltas y tarjetas, de local y de visitante, todas compatibles con 0, y usarlo como factor empeora (remates de visitante −0,021 ± 0,014, faltas de local −0,028 ± 0,017). Con el mismo entrenador (5.015 partidos de la Premier, la Bundesliga, LaLiga y las copas europeas rellenados desde la caché de FotMob el 30-10-2026; 1.352 partidos contra grandes con al menos 3 anteriores del mismo técnico), en orden de fecha y solo con lo anterior: con K = 5, remates −0,028 ± 0,014, córners −0,029 ± 0,015, tarjetas −0,023 ± 0,013 y goles −0,021 ± 0,011; con K = 10 y solo de visitante, igual o peor. El plan de cada partido no se repite de forma medible: lo sistemático (cuánto domina cada equipo) ya lo recogen la fuerza y el 1X2 de la casa (sección 3). En el Barça-Madrid del 25-10 el modelo esperaba 31,4 remates y daba 58 % al Menos de 32.5; salieron 28.
-- **Carga de partidos: medida y no aplicada** (30-10-2026, `experimentos/validacion/carga.py`). Unos 12.000 equipo-partido de 2024-08 a 2026-10, con lo que el modelo esperaba de cada equipo frente a lo que hizo (calendario de ligas y copas europeas; las copas nacionales no están en la BD). Con **rival chico entre partidos grandes** (rival en el 40 % más flojo de su liga y, a 4 días o menos antes o después, un grande del 20 % más fuerte o un partido de Champions; 518 casos), los remates (0,99), a puerta (0,98), córners (0,98) y goles (1,00) no cambian, pero las tarjetas (0,83, residuo −0,25 ± 0,07) y las faltas (0,95, −0,18 ± 0,09) bajan. Con **3 días o menos de descanso**, tarjetas 0,94 (−0,10 ± 0,05); con **3 partidos en 14 días**, a puerta 0,95 (−0,09 ± 0,05). Con 4 o más en 14 días baja todo un 4-7 %, pero son 250 casos y no se distingue. Prueba honesta (factor de 2024-25 aplicado a lo de después, log-verosimilitud del equipo por partido): rival chico entre grandes, tarjetas +0,005 ± 0,035 y faltas +0,007 ± 0,026; poco descanso, tarjetas +0,004 ± 0,007 y faltas +0,001 ± 0,007. Ninguno se distingue: el modelo no los usa. El análisis enseña el rival anterior y el siguiente de cada equipo, si son grandes en su competición (`features/context.py`, ataque + defensa del modelo de goles frente a los equipos de esa competición en el último año) y el aviso «Rival chico entre partidos grandes».
-- **Faltas con el nivel reciente de su liga, solo en las ligas** (desde el 29-10-2026, `COUNT_LEVEL_PARAMS["fouls"]`: vida media de 60 días y `leagues_only`, sin nivel en las copas). En las copas empeoraba (sección 7). Medido con `experimentos/validacion/faltas_nivel.py` (backtest 2024-08 a 2026-10, ligas y copas), frente a sin nivel, log-verosimilitud del total de faltas con el factor del árbitro por partido en las ligas: 2024-25 +0,0033 ± 0,0028 (para elegir la vida media), 2025-26 +0,0067 ± 0,0040 y 2026-27 +0,0187 ± 0,0112 (prueba); por equipo, +0,0035, +0,0057 y +0,0203. En las copas, igual. Con 30 días mejora más en 2025-26 y 2026-27 (+0,0101 y +0,0259), pero se eligió con 2024-25, donde empatan.
-- **Nivel reciente de cada liga en tarjetas** (desde el 22-10-2026; el mismo `fitting.count_levels`, con `COUNT_LEVEL_PARAMS["cards"]`). Las tarjetas por equipo bajan de temporada en temporada en casi todas las ligas (Serie A, primera vuelta: 2,29 en 2023-24, 2,05, 2,01 y 1,68 en 2026-27; Bundesliga 2,07 → 1,75; Ligue 1 2,08 → 1,69), y el modelo de tarjetas, con 240 días de vida media, va por detrás: se pasaba un 5 % en las ligas (Serie A +8 %, Champions +8 %). Llevan el nivel de los remates con dos cambios: **K = 20** partidos (en vez de 10) y, en las copas, **solo el nivel de la copa** (`cup_alone`; 120 días y K = 30), sin la media de las ligas de los dos equipos: en tarjetas la Champions va por su cuenta (en las eliminatorias se ven muchas menos), y con esa media empeoraba. El factor del árbitro se ajusta frente al modelo sin el nivel (`expected(..., level=False)`): el nivel de hoy no vale para partidos de hace años, y de media el factor vale 1,00 en cada liga. El análisis guarda el nivel del partido en `data_quality.cards_level`. Al 22-10-2026: Serie A ×0,93, Bundesliga ×0,93, Ligue 1 ×0,95, LaLiga ×1,02, Premier ×1,03 y Champions ×0,93. Cifras en la sección 7.
-- **Alineación**: un once más fuerte de lo habitual genera más remates y córners (efecto atenuado, exponente 0,7).
+- **Referee**: factor = (observed + K) / (expected + K), with K in "neutral" matches. In **fouls** it improves the prediction (K = 20). In **cards**, measured again with LaLiga and Bundesliga referees (FotMob), K = 80. It clearly helps in LaLiga and Serie A, and somewhat in the Bundesliga; in the Premier League it doesn't help. In Ligue 1 it helps above all with fouls (see backtest).
+- **Stat handicaps with the correlation between the two teams** (since 29-10-2026, `dist.count_diff_dispersion`). If the total's dispersion already captures how much the two teams take from each other, the difference's comes from the variances: Var(home − away) = 2 (Var home + Var away) − Var total. Each team uses, only for the difference, the dispersion that gives that variance (no new parameters). With negative correlation (corners and shots) the difference is wider than with two independent teams; in cards, whose total is already Poisson, it doesn't change. Example: 6.0 and 4.5 corners with alpha 0.07 go from a difference standard deviation of 3.8 to 4.1. `apuestas backtest` (entry `<stat>+diferencia`, 4,734 matches from the seven leagues, 2024-26), log-likelihood of the difference per match: shots +0.0148 ± 0.0038, corners +0.0094 ± 0.0028, on target +0.0007 ± 0.0007, fouls and cards the same.
+- **Offsides** (since 30-10-2026, `fitting.COUNT_STATS`, K = 10 in `COUNT_PRIOR_MATCHES`; FotMob data in `team_match_stats`, complete since 2023-24 in the eight leagues and the cups). The same count model: the "attack" is how often a team's forwards are caught offside and the "defence", how often it catches the opponent (a high line leaves the defence's figure low). The owner's idea: Barça's trap. Weekly backtest 2024-08 to 2026-10 (`experimentos/validacion/offsides.py`, 6,026 matches), against the average: match total +0.046 ± 0.009 per match (corners, +0.015) and each team +0.125 ± 0.014 (corners, +0.150); with K = 5, almost the same. The trap repeats: each team's "defence" has a correlation of +0.55 between 2024-25 and 2025-26 (being caught offside, +0.28). In 2025-26 the teams that catch the opponent the most are Barcelona (×2.52; ×3.05 the year before), Westerlo (×2.33), Aston Villa (×2.05), Athletic (×1.92), Betis (×1.81) and Manchester City (×1.70). The analysis warns when a team catches its opponent offside 1.6 times the average or more (`analysis.OFFSIDE_TRAP`). The total is the sum of the two teams: the residuals barely correlate (−0.01) and an own dispersion doesn't improve (+0.0006 ± 0.0008). Markets `ou_offsides[_home|_away]`, `ah_offsides` and `1x2_offsides`; OddsPapi doesn't bring those Betano odds, so they're evaluated by hand. They don't enter the bet of the day.
+- **Derbies and rivalries** (since 30-10-2026, `core/rivalries.py`, table `rivalry`, `fitting.DERBY_FACTOR`). 46 rivalries from the eight leagues (Real Madrid-Barcelona, Liverpool-Everton, Inter-Milan, Galatasaray-Fenerbahçe…). In them the model expected fewer fouls and cards than there were, already counting the referee: with the 182 derbies from 2024-08 to 2026-10 (`experimentos/validacion/clasicos.py`), real / expected 1.084 in fouls (standardised residual +0.38 ± 0.13) and 1.252 in cards (+0.51 ± 0.15). In shots (0.98), on target (0.97), corners (1.02), goals (0.96) and offsides (1.04, against the two teams' average) they aren't distinguishable, nor are they less predictable than a normal match (the residuals' deviation is the same). That's why both teams' fouls and cards are multiplied by 1.08 and 1.25 in derbies (also player cards, which share out the team's), with the same factor for every rivalry: with 4-5 matches each, per rivalry it's noise (Barça-Madrid has 1.78 times the expected cards, Bayern-Dortmund 0.71). Honest test: with the factor of the 80 derbies of 2024-25 (1.083 and 1.196), in the 102 afterwards the total improves +0.072 ± 0.061 in fouls and +0.152 ± 0.073 in cards per match. `apuestas backtest` (entry `<stat>+clasico`, 166 derbies of 2024-26): fouls +0.064 ± 0.048 and cards +0.122 ± 0.073. The analysis also carries the rivalry's history (`rivalry`: the last 6 head-to-heads with each team's fouls, cards, shots and offsides).
+- **Unusual starter: measured; the model already accounts for it** (30-10-2026, `experimentos/validacion/titulares.py` and `titulares_modelo.py`). The owner's idea: someone who hardly ever plays comes out to prove themselves and shoots more. With their shooting rate in their earlier starts of 60' or more, corrected for how much their team shot that day (about 100,000 starters since 2023), it's the other way round: those who started 8-10 of their team's previous 10 matches produce 0.98 of their rate; 3-7, 0.91; 0-2, 0.86 (on target, 0.97, 0.90 and 0.85). But the player model, which shrinks each one's share towards their position's, already captures almost all the difference: out of sample (shares fitted each month only with what came before, with the team's real minutes and shots), the unusual starter is only 5 % below the regular one, and the relative factor learned before 2025-10 (0.973 in shots, 0.966 on target) doesn't improve what came after (+0.0000 ± 0.0007 and +0.0004 ± 0.0006). No factor is applied: the dashboard flags it as a warning ("Unusual: 1 of 10", `features/lineup.recent_starts`, with a published XI). Without dates of birth in the database, young players couldn't be separated.
+- **Likely plan (each team's own way of playing against big teams): measured and discarded** (30-10-2026, `experimentos/validacion/estilo.py` and `estilo_entrenador.py`). The owner's idea: Mourinho's Madrid sits back away against big teams, so its shots go down. It was measured whether each team's own deviation from what's expected against opponents in the strongest 20 % of its league (beyond its deviation in the rest) repeats. Between seasons (about 115 teams, 2024-25 against what came after), the correlation ranges from −0.13 to +0.11 in shots, on target, corners, fouls and cards, home and away, all compatible with 0, and using it as a factor makes things worse (away shots −0.021 ± 0.014, home fouls −0.028 ± 0.017). With the same coach (5,015 Premier League, Bundesliga, LaLiga and European cup matches filled in from the FotMob cache on 30-10-2026; 1,352 matches against big teams with at least 3 earlier ones under the same coach), in date order and only with what came before: with K = 5, shots −0.028 ± 0.014, corners −0.029 ± 0.015, cards −0.023 ± 0.013 and goals −0.021 ± 0.011; with K = 10 and only away, the same or worse. Each match's plan doesn't repeat measurably: the systematic part (how much each team dominates) is already captured by strength and the bookmaker's 1X2 (section 3). In Barça-Madrid on 25-10 the model expected 31.4 shots and gave 58 % to under 32.5; there were 28.
+- **Fixture congestion: measured and not applied** (30-10-2026, `experimentos/validacion/carga.py`). About 12,000 team-matches from 2024-08 to 2026-10, with what the model expected from each team against what it did (league and European cup calendar; domestic cups aren't in the database). With a **small opponent between big matches** (an opponent in the weakest 40 % of its league and, 4 days or fewer before or after, a big team from the strongest 20 % or a Champions League match; 518 cases), shots (0.99), on target (0.98), corners (0.98) and goals (1.00) don't change, but cards (0.83, residual −0.25 ± 0.07) and fouls (0.95, −0.18 ± 0.09) go down. With **3 days' rest or fewer**, cards 0.94 (−0.10 ± 0.05); with **3 matches in 14 days**, on target 0.95 (−0.09 ± 0.05). With 4 or more in 14 days everything drops 4-7 %, but that's 250 cases and isn't distinguishable. Honest test (2024-25 factor applied to what came after, team log-likelihood per match): small opponent between big matches, cards +0.005 ± 0.035 and fouls +0.007 ± 0.026; little rest, cards +0.004 ± 0.007 and fouls +0.001 ± 0.007. None is distinguishable: the model doesn't use them. The analysis shows each team's previous and next opponent, whether they're big in their competition (`features/context.py`, the goals model's attack + defence against that competition's teams over the last year) and the warning "Small opponent between big matches".
+- **Fouls with their league's recent level, only in leagues** (since 29-10-2026, `COUNT_LEVEL_PARAMS["fouls"]`: 60-day half-life and `leagues_only`, no level in the cups). In the cups it made things worse (section 7). Measured with `experimentos/validacion/faltas_nivel.py` (backtest 2024-08 to 2026-10, leagues and cups), against no level, log-likelihood of the fouls total with the referee factor per match in the leagues: 2024-25 +0.0033 ± 0.0028 (to choose the half-life), 2025-26 +0.0067 ± 0.0040 and 2026-27 +0.0187 ± 0.0112 (test); per team, +0.0035, +0.0057 and +0.0203. In the cups, the same. With 30 days it improves more in 2025-26 and 2026-27 (+0.0101 and +0.0259), but it was chosen with 2024-25, where they tie.
+- **Each league's recent level in cards** (since 22-10-2026; the same `fitting.count_levels`, with `COUNT_LEVEL_PARAMS["cards"]`). Cards per team go down season after season in almost every league (Serie A, first half: 2.29 in 2023-24, 2.05, 2.01 and 1.68 in 2026-27; Bundesliga 2.07 → 1.75; Ligue 1 2.08 → 1.69), and the cards model, with a 240-day half-life, lags behind: it was 5 % too high in the leagues (Serie A +8 %, Champions League +8 %). They carry the shots level with two changes: **K = 20** matches (instead of 10) and, in the cups, **only the cup's level** (`cup_alone`; 120 days and K = 30), without the average of the two teams' leagues: in cards the Champions League goes its own way (in the knockouts there are far fewer), and with that average it got worse. The referee factor is fitted against the model without the level (`expected(..., level=False)`): today's level isn't valid for matches from years ago, and on average the factor is 1.00 in each league. The analysis saves the match's level in `data_quality.cards_level`. On 22-10-2026: Serie A ×0.93, Bundesliga ×0.93, Ligue 1 ×0.95, LaLiga ×1.02, Premier League ×1.03 and Champions League ×0.93. Figures in section 7.
+- **Line-up**: an XI stronger than usual generates more shots and corners (attenuated effect, exponent 0.7).
 
-## 4. Jugadores (`services/analysis.py::_player_projections`)
+## 4. Players (`services/analysis.py::_player_projections`)
 
-Tasas por 90' ponderadas por antigüedad (remates, a puerta, goles, xG, asistencias, xA, faltas, amarillas), **contraídas hacia la media de su posición** (equivalente a 4 partidos). Minutos esperados según la alineación: confirmado titular, previsto (85 %), suplente o, si el partido aún no tiene alineación, sus minutos en los últimos partidos de su equipo (abajo, "Minutos sin alineación"). Goles, asistencias, remates, a puerta y tarjetas se reparten a partir de lo que se espera de su equipo en ese partido (abajo); las faltas salen de su tasa por 90' y sus minutos.
+Per-90' rates weighted by age (shots, on target, goals, xG, assists, xA, fouls, yellows), **shrunk towards their position's average** (equivalent to 4 matches). Expected minutes according to the line-up: confirmed starter, predicted (85 %), substitute or, if the match doesn't have a line-up yet, their minutes in their team's last matches (below, "Minutes without a line-up"). Goals, assists, shots, on target and cards are shared out from what's expected from their team in that match (below); fouls come from their per-90' rate and their minutes.
 
-**Goles y asistencias: parte de los goles del equipo** (desde el 20-10-2026). Para cada jugador se calcula qué parte de los goles de su equipo marca, asiste, y su xG y xA, **en los minutos que jugó** (goles del equipo × minutos/90 como exposición), contraída hacia la de su posición con unos 6 goles de equipo de peso. Goles esperados del jugador = (½ parte de goles + ½ parte de xG) × minutos esperados/90 × goles esperados de su equipo en ese partido; igual con asistencias y xA. "Gol o asistencia" suma las dos (un jugador no se asiste a sí mismo).
+**Goals and assists: a share of the team's goals** (since 20-10-2026). For each player, what share of their team's goals they score and assist, and their xG and xA, is computed **in the minutes they played** (team goals × minutes/90 as exposure), shrunk towards their position's with about 6 team goals of weight. The player's expected goals = (½ goal share + ½ xG share) × expected minutes/90 × their team's expected goals in that match; the same with assists and xA. "Goal or assist" adds the two (a player doesn't assist themselves).
 
-Antes se usaban las tasas por 90' escaladas contra la media del equipo "frente a un rival promedio". Ese rival promedio sale de todas las ligas de la BD, incluidas las de segunda y las ligas ligeras, y por eso infla la media de los equipos de las ligas grandes: sus goles reales fueron el 78 % (Premier), 91 % (Bundesliga) y 90 % (LaLiga) de esa media. Los goles de jugador salían bajos en todos los equipos. Comprobación fuera de muestra (modelo entrenado antes del periodo, Premier, Bundesliga, LaLiga y Champions):
+Before, per-90' rates scaled against the team's average "against an average opponent" were used. That average opponent comes from every league in the database, including second divisions and light leagues, and that's why it inflates the average of the big leagues' teams: their real goals were 78 % (Premier League), 91 % (Bundesliga) and 90 % (LaLiga) of that average. Player goals came out low for every team. Out-of-sample check (model trained before the period, Premier League, Bundesliga, LaLiga and Champions League):
 
-| Periodo | Mercado | Esperado antes | Esperado ahora | Real | Log-loss antes → ahora |
+| Period | Market | Expected before | Expected now | Real | Log-loss before → now |
 |---|---|---|---|---|---|
-| 90 días (10.969 jugadores-partido) | Gol | 578 | 712 | 731 | 0,2012 → 0,1981 |
-| | Asistencia | 427 | 531 | 550 | 0,1759 → 0,1732 |
-| | Gol o asistencia | 957 | 1.170 | 1.190 | 0,2840 → 0,2788 |
-| 45 días (7.618) | Gol | 390 | 482 | 530 | 0,2098 → 0,2062 |
-| | Gol o asistencia | 647 | 793 | 869 | 0,2996 → 0,2929 |
+| 90 days (10,969 player-matches) | Goal | 578 | 712 | 731 | 0.2012 → 0.1981 |
+| | Assist | 427 | 531 | 550 | 0.1759 → 0.1732 |
+| | Goal or assist | 957 | 1,170 | 1,190 | 0.2840 → 0.2788 |
+| 45 days (7,618) | Goal | 390 | 482 | 530 | 0.2098 → 0.2062 |
+| | Goal or assist | 647 | 793 | 869 | 0.2996 → 0.2929 |
 
-En los últimos 45 días aún se queda un 9 % corto (en 90 días, un 2-3 %). La misma comprobación con la Serie A y la Ligue 1 está en la sección 7 ("Serie A y Ligue 1 como ligas completas"). **Ningún mercado de jugador tiene backtest contra cuotas**: esta comprobación mide que las probabilidades estén bien calibradas, no que ganen a las casas.
+In the last 45 days it's still 9 % short (over 90 days, 2-3 %). The same check with Serie A and Ligue 1 is in section 7 ("Serie A and Ligue 1 as full leagues"). **No player market has a backtest against odds**: this check measures that the probabilities are well calibrated, not that they beat the bookmakers.
 
-**Remates, a puerta y tarjetas: parte de los del equipo** (desde el 22-10-2026, `fitting.VOLUME_SHARE_STATS`). Igual que los goles: para cada jugador se calcula qué parte de los remates, de los remates a puerta y de las tarjetas (amarillas + rojas, como en el modelo de tarjetas) de su equipo hace **en los minutos que jugó**, contraída hacia la de su posición con el peso de 4 partidos de su equipo (unos 51 remates o 18 a puerta; en tarjetas, 20 partidos, unas 40 tarjetas, desde el 22-10-2026: ver «Tarjeta al jugador» abajo). Remates esperados del jugador = parte × minutos esperados/90 × remates esperados de su equipo en ese partido (con alineaciones, árbitro y 1X2 de la casa, sección 3); igual con a puerta y tarjetas. La suma de los jugadores de un equipo es así el total que espera el modelo del equipo.
+**Shots, on target and cards: a share of the team's** (since 22-10-2026, `fitting.VOLUME_SHARE_STATS`). Like goals: for each player, what share of their team's shots, shots on target and cards (yellows + reds, as in the cards model) they produce **in the minutes they played** is computed, shrunk towards their position's with the weight of 4 of their team's matches (about 51 shots or 18 on target; in cards, 20 matches, about 40 cards, since 22-10-2026: see "Player to be booked" below). The player's expected shots = share × expected minutes/90 × their team's expected shots in that match (with line-ups, referee and the bookmaker's 1X2, section 3); the same with on target and cards. The sum of a team's players is therefore the total the model expects from the team.
 
-Antes era la tasa por 90' × minutos × (remates esperados del equipo en el partido / su media "frente a un rival promedio"), el mismo factor que dejaba cortos los goles hasta el 20-10: vale de media 0,82, y los remates de jugador salían un 15 % cortos en todas las ligas (sección 7, "Serie A y Ligue 1 como ligas completas"). Un detalle de los datos: FotMob deja **vacío, no 0**, el remate de quien no remató (en los porteros, el 99,8 % de las filas); al calcular la parte cuenta como 0, como ya hacían las tasas por 90'. Si no, la parte sale inflada (los jugadores sumaban 1,6 veces el equipo).
+Before, it was the per-90' rate × minutes × (the team's expected shots in the match / its average "against an average opponent"), the same factor that left goals short until 20-10: it's worth 0.82 on average, and player shots came out 15 % short in every league (section 7, "Serie A and Ligue 1 as full leagues"). A data detail: FotMob leaves the shots of someone who didn't shoot **empty, not 0** (for goalkeepers, 99.8 % of the rows); when computing the share it counts as 0, as the per-90' rates already did. Otherwise, the share comes out inflated (players added up to 1.6 times the team).
 
-Comprobación fuera de muestra con las seis competiciones (modelo entrenado hasta el día de corte, partidos con once confirmado de los 90 días siguientes; medias del equipo del modelo de conteo con el factor del árbitro; esperado / real):
+Out-of-sample check with the six competitions (model trained up to the cut-off day, matches with a confirmed XI over the following 90 days; team means from the count model with the referee factor; expected / real):
 
-| Corte (jugadores-partido) | Mercado | Antes | Ahora | Log-loss antes → ahora |
+| Cut-off (player-matches) | Market | Before | Now | Log-loss before → now |
 |---|---|---|---|---|
-| 15-01-2026 (27.220) | Remates | 0,85 | **1,00** | Más de 1.5: 0,3125 → 0,3032 · más de 2.5: 0,1811 → 0,1747 |
-| | Remates a puerta | 0,86 | **1,01** | Más de 0.5: 0,3469 → 0,3435 |
-| | Tarjeta (sí) | 0,95 | 0,97 | 0,2749 → 0,2742 |
-| | Gol / asistencia | 0,99 / 1,00 | igual | igual (0,1853 en el gol) |
-| 23-07-2026 (16.463) | Remates | 0,79 | 0,92 | Más de 1.5: 0,3408 → 0,3291 · más de 2.5: 0,2098 → 0,2024 |
-| | Remates a puerta | 0,79 | 0,93 | Más de 0.5: 0,3630 → 0,3589 |
-| | Tarjeta (sí) | 0,97 | 1,02 | 0,2661 → 0,2658 |
-| | Gol / asistencia | 0,98 / 0,97 | igual | igual (0,1953 en el gol) |
+| 15-01-2026 (27,220) | Shots | 0.85 | **1.00** | Over 1.5: 0.3125 → 0.3032 · over 2.5: 0.1811 → 0.1747 |
+| | Shots on target | 0.86 | **1.01** | Over 0.5: 0.3469 → 0.3435 |
+| | Card (yes) | 0.95 | 0.97 | 0.2749 → 0.2742 |
+| | Goal / assist | 0.99 / 1.00 | same | same (0.1853 for the goal) |
+| 23-07-2026 (16,463) | Shots | 0.79 | 0.92 | Over 1.5: 0.3408 → 0.3291 · over 2.5: 0.2098 → 0.2024 |
+| | Shots on target | 0.79 | 0.93 | Over 0.5: 0.3630 → 0.3589 |
+| | Card (yes) | 0.97 | 1.02 | 0.2661 → 0.2658 |
+| | Goal / assist | 0.98 / 0.97 | same | same (0.1953 for the goal) |
 
-Por competición (remates · a puerta · tarjeta, esperado / real antes → ahora):
+By competition (shots · on target · card, expected / real before → now):
 
-| Liga | 15-01-2026 | 23-07-2026 |
+| League | 15-01-2026 | 23-07-2026 |
 |---|---|---|
-| Premier | 0,78 → 1,00 · 0,84 → 1,07 · 0,94 → 0,95 | 0,75 → 0,96 · 0,83 → 1,05 · 0,91 → 0,93 |
-| Bundesliga | 0,86 → 1,00 · 0,85 → 0,98 · 0,91 → 0,94 | 0,73 → 0,83 · 0,74 → 0,86 · 0,99 → 1,03 |
-| LaLiga | 0,85 → 0,99 · 0,85 → 0,98 · 0,90 → 0,90 | 0,84 → 0,96 · 0,83 → 0,95 · 0,94 → 0,97 |
-| Serie A | 0,88 → 1,01 · 0,92 → 1,04 · 1,01 → 1,05 | 0,80 → 0,89 · 0,81 → 0,88 · 1,03 → 1,10 |
-| Ligue 1 | 0,90 → 1,00 · 0,93 → 1,05 · 0,93 → 0,94 | 0,83 → 0,91 · 0,80 → 0,90 · 1,03 → 1,06 |
-| Champions | 0,79 → 0,98 · 0,73 → 0,93 · 1,04 → 1,06 | 0,77 → 0,94 · 0,73 → 0,90 · 1,03 → 1,07 |
+| Premier League | 0.78 → 1.00 · 0.84 → 1.07 · 0.94 → 0.95 | 0.75 → 0.96 · 0.83 → 1.05 · 0.91 → 0.93 |
+| Bundesliga | 0.86 → 1.00 · 0.85 → 0.98 · 0.91 → 0.94 | 0.73 → 0.83 · 0.74 → 0.86 · 0.99 → 1.03 |
+| LaLiga | 0.85 → 0.99 · 0.85 → 0.98 · 0.90 → 0.90 | 0.84 → 0.96 · 0.83 → 0.95 · 0.94 → 0.97 |
+| Serie A | 0.88 → 1.01 · 0.92 → 1.04 · 1.01 → 1.05 | 0.80 → 0.89 · 0.81 → 0.88 · 1.03 → 1.10 |
+| Ligue 1 | 0.90 → 1.00 · 0.93 → 1.05 · 0.93 → 0.94 | 0.83 → 0.91 · 0.80 → 0.90 · 1.03 → 1.06 |
+| Champions League | 0.79 → 0.98 · 0.73 → 0.93 · 1.04 → 1.06 | 0.77 → 0.94 · 0.73 → 0.90 · 1.03 → 1.07 |
 
-- **El reparto entre jugadores queda bien en las dos fechas.** Escalando lo de cada jugador al total real de su equipo (para medir solo el reparto), los remates pasan de 0,86 a 1,01 (enero) y de 0,88 a 1,02 (julio), y todas las ligas quedan entre 0,99 y 1,04; a puerta, de 0,86 a 1,01 y de 0,89 a 1,03.
-- **Lo que falta en julio es del modelo de remates del equipo**, no del jugador: esperaba 12,8 remates por equipo y hubo 14,2. En la temporada 2026-27 se remata un 10-20 % más en todas las ligas (por equipo, Bundesliga 13,0 → 15,5, Serie A 12,4 → 14,6, Premier 12,7 → 13,9; football-data y FotMob dan lo mismo) y el modelo, con 240 días de vida media, aún no lo recogía. Afecta igual a los mercados de remates del equipo. Desde el 22-10-2026 el modelo de remates lleva el nivel reciente de cada liga (sección 3), y como el paquete de modelos se reajusta cada día, los remates de jugador lo heredan. Este corte de julio no lo puede ver (el modelo queda fijo 91 días, sin la temporada nueva); el walk-forward semanal de la sección 7 sí: en octubre de 2026, 14,1 remates esperados por equipo frente a 14,3 reales.
-- **Tarjetas**: el reparto ya estaba casi bien (el factor del rival promedio en tarjetas apenas se alejaba de 1); lo nuevo mejora un poco la log-loss. Lo que quedaba por liga (Serie A alta, LaLiga baja en enero) venía del modelo de tarjetas del equipo y de cómo se pasaba de λ a probabilidad: corregido el 22-10-2026 (abajo, "Tarjeta al jugador").
-- **Alternativa probada**: dividir entre la media real reciente del equipo (vida media 200 días) en lugar de la del rival promedio. El reparto también queda bien (1,00 y 1,01), pero la log-loss es algo peor en enero (más de 2.5 remates: 0,1756 frente a 0,1747) y en la Champions se queda corta (0,92 frente a 0,98); en julio, empate. Se eligió la parte del equipo: es el mismo método que los goles y sigue bien a un jugador que cambia de equipo.
+- **The split among players is right on both dates.** Scaling each player's figure to their team's real total (to measure only the split), shots go from 0.86 to 1.01 (January) and from 0.88 to 1.02 (July), and every league ends up between 0.99 and 1.04; on target, from 0.86 to 1.01 and from 0.89 to 1.03.
+- **What's missing in July comes from the team shots model**, not the player one: it expected 12.8 shots per team and there were 14.2. In the 2026-27 season there are 10-20 % more shots in every league (per team, Bundesliga 13.0 → 15.5, Serie A 12.4 → 14.6, Premier League 12.7 → 13.9; football-data and FotMob agree) and the model, with a 240-day half-life, hadn't picked it up yet. It affects the team shots markets in the same way. Since 22-10-2026 the shots model carries each league's recent level (section 3), and since the model bundle is refitted every day, player shots inherit it. This July cut-off can't see it (the model stays fixed for 91 days, without the new season); the weekly walk-forward in section 7 can: in October 2026, 14.1 expected shots per team against 14.3 real.
+- **Cards**: the split was already almost right (the average-opponent factor in cards barely moved away from 1); the new approach improves the log-loss a little. What remained by league (Serie A high, LaLiga low in January) came from the team cards model and from how λ was turned into a probability: fixed on 22-10-2026 (below, "Player to be booked").
+- **Alternative tried**: dividing by the team's recent real average (200-day half-life) instead of the average opponent's. The split is also right (1.00 and 1.01), but the log-loss is slightly worse in January (over 2.5 shots: 0.1756 against 0.1747) and in the Champions League it comes up short (0.92 against 0.98); in July, a tie. The team share was chosen: it's the same method as goals and follows a player who changes team well.
 
-Caso real (22-10-2026, alineaciones probables): **Arsenal-Everton**, Saka pasa de 1,79 a 2,69 remates esperados ("Más de 1.5 remates" de 51 % a 70 %) y Havertz de 1,29 a 2,07; **Aston Villa-Manchester City**, Haaland de 2,54 a 2,97 (67 % → 74 %). Con la alineación probable (solo 11 titulares, sin banquillo) la suma de los listados no llega al total del equipo: falta lo de los suplentes, que no están en la lista.
+Real case (22-10-2026, predicted line-ups): **Arsenal-Everton**, Saka goes from 1.79 to 2.69 expected shots ("over 1.5 shots" from 51 % to 70 %) and Havertz from 1.29 to 2.07; **Aston Villa-Manchester City**, Haaland from 2.54 to 2.97 (67 % → 74 %). With the predicted line-up (only 11 starters, no bench) the sum of the listed players doesn't reach the team total: the substitutes' part is missing, since they aren't on the list.
 
-El paquete de modelos guarda la parte de cada jugador (`volume_share` y su exposición `volume_team90`; el archivo pasa de 1,8 a 2,4 MB). Entra al reentrenar (tarea diaria de resultados o `apuestas train`); con un paquete anterior se usa la fórmula de antes. Medición: `medir_jugadores.py` en las notas de la sesión del 22-10-2026 (no está en el repositorio).
+The model bundle saves each player's share (`volume_share` and its exposure `volume_team90`; the file goes from 1.8 to 2.4 MB). It comes in when retraining (daily results task or `apuestas train`); with an older bundle the previous formula is used. Measurement: `medir_jugadores.py` in the notes of the 22-10-2026 session (not in the repository).
 
-**Minutos sin alineación** (desde el 22-10-2026, `fitting.recent_minutes` y `analysis._minutes_without_lineup`). Días antes del partido no hay ninguna alineación, ni probable. Antes entraban todos los jugadores del equipo con al menos 2 titularidades, con probabilidad de ser titular = titularidades / partidos que jugó (como mucho 0,9) y sin suplentes. Esa frecuencia no cuenta los partidos en que el jugador no jugó: el que juega uno de cada dos partidos, pero siempre de titular, salía casi seguro titular, igual que el que se fue cedido a una liga sin datos o lleva meses sin jugar. Los minutos de un equipo sumaban 1.300-1.400 en lugar de los 988 que juega de verdad (11 titulares de ~82' y 4,5 suplentes de ~20', media de 2025-26), y los goles, remates y tarjetas de sus jugadores, un 20-35 % más que lo que el modelo espera del equipo.
+**Minutes without a line-up** (since 22-10-2026, `fitting.recent_minutes` and `analysis._minutes_without_lineup`). Days before the match there's no line-up at all, not even a predicted one. Before, every player in the team with at least 2 starts went in, with probability of starting = starts / matches played (at most 0.9) and no substitutes. That frequency doesn't count the matches the player didn't play: someone who plays one match in two, but always as a starter, came out almost certain to start, just like someone who went on loan to a league without data or hasn't played for months. A team's minutes added up to 1,300-1,400 instead of the 988 it really plays (11 starters of ~82' and 4.5 substitutes of ~20', 2025-26 average), and its players' goals, shots and cards 20-35 % more than what the model expects from the team.
 
-Ahora los minutos esperados de cada jugador son su media en los **últimos 8 partidos de su equipo** con datos de jugadores (`RECENT_TEAM_MATCHES`), con 0 en los que no jugó, y contando solo desde su primer partido con ese equipo: un fichaje que lleva 3 partidos de titular tiene ~90', no 3 × 90 / 8. La probabilidad de ser titular es la misma frecuencia con las titularidades (como mucho 0,9). Después se escalan para que el equipo sume 988 minutos (`TEAM_MINUTES`): los de los lesionados o sancionados se reparten entre el resto, sin pasar de lo que juega cada uno cuando es titular. Con alineación probable o confirmada no cambia nada.
+Now each player's expected minutes are their average over their **team's last 8 matches** with player data (`RECENT_TEAM_MATCHES`), with 0 for those they didn't play, and only counting from their first match with that team: a new signing who has started 3 matches has ~90', not 3 × 90 / 8. The probability of starting is the same frequency with the starts (at most 0.9). Then they're scaled so the team adds up to 988 minutes (`TEAM_MINUTES`): those of injured or suspended players are shared among the rest, without going over what each one plays when starting. With a predicted or confirmed line-up nothing changes.
 
-Comprobación fuera de muestra: modelos reentrenados cada 7 días con los datos anteriores (en producción, cada día) y partidos con once confirmado de los 90 días siguientes, simulando que aún no tenían alineación. Sin lista de bajas (solo se guarda desde el 19-10-2026; la de hoy en partidos de enero sería ruido). Lo real son todos los jugadores del equipo en el partido: los que no salen en la proyección cuentan con 0 esperado. Quedan fuera 16 equipo-partidos de julio de equipos sin ningún dato de jugadores (recién ascendidos y debutantes en la Champions, como Coventry, Schalke, Viking o Feyenoord), que no tienen jugadores ni antes ni ahora.
+Out-of-sample check: models retrained every 7 days with the earlier data (in production, every day) and matches with a confirmed XI over the following 90 days, simulating that they didn't have a line-up yet. Without an absences list (it's only been saved since 19-10-2026; today's applied to January matches would be noise). The real figure is every player in the team in the match: those not in the projection count as 0 expected. Left out are 16 team-matches from July for teams without any player data (newly promoted and Champions League debutants, such as Coventry, Schalke, Viking or Feyenoord), who have no players either before or now.
 
-| Corte | | Antes | Ahora | Con once confirmado |
+| Cut-off | | Before | Now | With confirmed XI |
 |---|---|---|---|---|
-| 15-01-2026 (643 partidos, 37.380 jugadores-partido) | Minutos por equipo | 1.401 | 983 | 1.025 |
-| | Jugadores / equipo: goles · remates · tarjetas | 1,28 · 1,31 · 1,35 | **0,99 · 0,99 · 0,94** | 1,01 · 1,01 · 0,98 |
-| | Esperado / real: goles · asistencias · remates · amarillas | 1,29 · 1,32 · 1,30 · 1,45 | **0,99 · 0,99 · 0,98 · 1,01** | 1,01 · 1,02 · 1,00 · 1,05 |
-| | Log-loss: gol · asistencia · más de 1.5 remates · tarjeta | 0,1608 · 0,1301 · 0,2996 · 0,2439 | **0,1480 · 0,1225 · 0,2689 · 0,2247** | 0,1349 · 0,1143 · 0,2201 · 0,2008 |
-| 23-07-2026 (386 partidos, 22.619 jugadores-partido) | Minutos por equipo | 1.303 | 982 | 1.027 |
-| | Jugadores / equipo: goles · remates · tarjetas | 1,20 · 1,22 · 1,26 | **0,99 · 0,99 · 0,95** | 1,01 · 1,02 · 0,99 |
-| | Esperado / real: goles · asistencias · remates · amarillas | 1,14 · 1,11 · 1,11 · 1,40 | **0,93 · 0,88 · 0,89 · 1,06** | 0,95 · 0,92 · 0,92 · 1,10 |
-| | Log-loss: gol · asistencia · más de 1.5 remates · tarjeta | 0,1861 · 0,1529 · 0,3751 · 0,2565 | **0,1677 · 0,1400 · 0,3255 · 0,2300** | 0,1429 · 0,1240 · 0,2411 · 0,1938 |
+| 15-01-2026 (643 matches, 37,380 player-matches) | Minutes per team | 1,401 | 983 | 1,025 |
+| | Players / team: goals · shots · cards | 1.28 · 1.31 · 1.35 | **0.99 · 0.99 · 0.94** | 1.01 · 1.01 · 0.98 |
+| | Expected / real: goals · assists · shots · yellows | 1.29 · 1.32 · 1.30 · 1.45 | **0.99 · 0.99 · 0.98 · 1.01** | 1.01 · 1.02 · 1.00 · 1.05 |
+| | Log-loss: goal · assist · over 1.5 shots · card | 0.1608 · 0.1301 · 0.2996 · 0.2439 | **0.1480 · 0.1225 · 0.2689 · 0.2247** | 0.1349 · 0.1143 · 0.2201 · 0.2008 |
+| 23-07-2026 (386 matches, 22,619 player-matches) | Minutes per team | 1,303 | 982 | 1,027 |
+| | Players / team: goals · shots · cards | 1.20 · 1.22 · 1.26 | **0.99 · 0.99 · 0.95** | 1.01 · 1.02 · 0.99 |
+| | Expected / real: goals · assists · shots · yellows | 1.14 · 1.11 · 1.11 · 1.40 | **0.93 · 0.88 · 0.89 · 1.06** | 0.95 · 0.92 · 0.92 · 1.10 |
+| | Log-loss: goal · assist · over 1.5 shots · card | 0.1861 · 0.1529 · 0.3751 · 0.2565 | **0.1677 · 0.1400 · 0.3255 · 0.2300** | 0.1429 · 0.1240 · 0.2411 · 0.1938 |
 
-Por competición (minutos antes → ahora · goles de los jugadores / del equipo · esperado / real de goles y de remates, entre paréntesis con once confirmado):
+By competition (minutes before → now · players' goals / team's · expected / real goals and shots, in brackets with confirmed XI):
 
-| Liga | 15-01-2026 | 23-07-2026 |
+| League | 15-01-2026 | 23-07-2026 |
 |---|---|---|
-| Premier | 1.384 → 984 · 1,27 → 0,99 · goles 1,47 → 1,13 (1,18) · remates 1,27 → 0,97 (1,00) | 1.298 → 983 · 1,23 → 0,99 · 1,31 → 1,04 (1,07) · 1,18 → 0,93 (0,95) |
-| Bundesliga | 1.370 → 982 · 1,24 → 0,97 · 1,23 → 0,97 (0,98) · 1,27 → 0,98 (1,00) | 1.226 → 982 · 1,12 → 0,98 · 1,05 → 0,90 (0,90) · 0,99 → 0,84 (0,84) |
-| LaLiga | 1.409 → 983 · 1,29 → 1,01 · 1,20 → 0,96 (0,97) · 1,26 → 0,98 (1,00) | 1.351 → 983 · 1,20 → 0,97 · 1,16 → 0,92 (0,96) · 1,17 → 0,92 (0,96) |
-| Serie A | 1.443 → 983 · 1,34 → 1,00 · 1,32 → 0,97 (1,00) · 1,38 → 1,00 (1,02) | 1.362 → 982 · 1,27 → 1,01 · 1,16 → 0,91 (0,94) · 1,12 → 0,87 (0,91) |
-| Ligue 1 | 1.474 → 983 · 1,35 → 0,99 · 1,43 → 1,05 (1,06) · 1,38 → 1,00 (1,01) | 1.352 → 982 · 1,24 → 1,00 · 1,25 → 1,00 (1,01) · 1,15 → 0,92 (0,94) |
-| Champions | 1.285 → 984 · 1,18 → 0,97 · 1,09 → 0,88 (0,90) · 1,20 → 0,96 (0,98) | 1.128 → 984 · 1,04 → 0,98 · 0,85 → 0,77 (0,80) · 0,97 → 0,88 (0,92) |
+| Premier League | 1,384 → 984 · 1.27 → 0.99 · goals 1.47 → 1.13 (1.18) · shots 1.27 → 0.97 (1.00) | 1,298 → 983 · 1.23 → 0.99 · 1.31 → 1.04 (1.07) · 1.18 → 0.93 (0.95) |
+| Bundesliga | 1,370 → 982 · 1.24 → 0.97 · 1.23 → 0.97 (0.98) · 1.27 → 0.98 (1.00) | 1,226 → 982 · 1.12 → 0.98 · 1.05 → 0.90 (0.90) · 0.99 → 0.84 (0.84) |
+| LaLiga | 1,409 → 983 · 1.29 → 1.01 · 1.20 → 0.96 (0.97) · 1.26 → 0.98 (1.00) | 1,351 → 983 · 1.20 → 0.97 · 1.16 → 0.92 (0.96) · 1.17 → 0.92 (0.96) |
+| Serie A | 1,443 → 983 · 1.34 → 1.00 · 1.32 → 0.97 (1.00) · 1.38 → 1.00 (1.02) | 1,362 → 982 · 1.27 → 1.01 · 1.16 → 0.91 (0.94) · 1.12 → 0.87 (0.91) |
+| Ligue 1 | 1,474 → 983 · 1.35 → 0.99 · 1.43 → 1.05 (1.06) · 1.38 → 1.00 (1.01) | 1,352 → 982 · 1.24 → 1.00 · 1.25 → 1.00 (1.01) · 1.15 → 0.92 (0.94) |
+| Champions League | 1,285 → 984 · 1.18 → 0.97 · 1.09 → 0.88 (0.90) · 1.20 → 0.96 (0.98) | 1,128 → 984 · 1.04 → 0.98 · 0.85 → 0.77 (0.80) · 0.97 → 0.88 (0.92) |
 
-- **Sin alineación queda casi igual que con el once confirmado** en la suma (0,97-1,01 del equipo en goles y remates, en todas las ligas) y en la calibración: lo que aún se separa de lo real (la Premier alta en goles en enero, la Champions y julio cortos) se separa igual con el once confirmado, así que viene de los modelos del equipo (en julio, los remates de la temporada 2026-27, arriba), no de los minutos. La log-loss baja en todos los mercados y en los dos cortes; también contando solo los jugadores que salen en las dos versiones (gol 0,2173 → 0,2158 y 0,2185 → 0,2158; más de 0.5 remates 0,5829 → 0,5692 y 0,5894 → 0,5656). Con once confirmado sigue siendo bastante mejor: saber quién juega vale mucho.
-- **Tarjetas, 0,94-0,95 del equipo**, como con once confirmado (0,98): el modelo de tarjetas del equipo cuenta las rojas, y la parte del jugador, solo sus amarillas. (Desde «Tarjeta al jugador», abajo, la parte cuenta también la roja y los suplentes, unos minutos más.)
-- **Ventana**: 4, 6, 8, 12 y 20 partidos dan casi lo mismo (log-loss del gol 0,1496 / 0,1483 / 0,1480 / 0,1484 / 0,1489 en enero y 0,1668 / 0,1672 / 0,1677 / 0,1682 / 0,1691 en julio); 8 es la mejor o casi en los dos cortes y es la misma ventana que el once típico (sección 5).
-- **Bajas**: sin histórico de bajas no se puede medir el reparto de los minutos de un lesionado con las bajas reales. Haciendo de baja a los que venían jugando y no estaban en la convocatoria (más de lo que se sabe antes del partido), la suma sigue en 986 y 979 minutos y los goles en 1,00 y 0,98 del equipo; saber las bajas baja la log-loss del gol de 0,1480 a 0,1414 en enero (con la regla de antes, de 0,1608 a 0,1523, con 1.218 minutos).
-- **Limitación**: un jugador que vuelve de una lesión larga tarda unos partidos en recuperar sus minutos (el 22-10, Rubén Vargas sale con 5' en Sevilla-Osasuna tras 2 partidos en 8; antes, 59'), y un fichaje no aparece en su equipo nuevo hasta que juega con él.
+- **Without a line-up it's almost the same as with the confirmed XI** in the sum (0.97-1.01 of the team in goals and shots, in every league) and in calibration: what still deviates from reality (the Premier League high in goals in January, the Champions League and July short) deviates the same with the confirmed XI, so it comes from the team models (in July, the 2026-27 season's shots, above), not from the minutes. The log-loss goes down in every market and at both cut-offs; also counting only the players who appear in both versions (goal 0.2173 → 0.2158 and 0.2185 → 0.2158; over 0.5 shots 0.5829 → 0.5692 and 0.5894 → 0.5656). With the confirmed XI it's still quite a bit better: knowing who plays is worth a lot.
+- **Cards, 0.94-0.95 of the team**, as with the confirmed XI (0.98): the team cards model counts reds, and the player's share only their yellows. (Since "Player to be booked", below, the share also counts the red and substitutes get a few more minutes.)
+- **Window**: 4, 6, 8, 12 and 20 matches give almost the same (goal log-loss 0.1496 / 0.1483 / 0.1480 / 0.1484 / 0.1489 in January and 0.1668 / 0.1672 / 0.1677 / 0.1682 / 0.1691 in July); 8 is the best or almost at both cut-offs and is the same window as the usual XI (section 5).
+- **Absences**: without a history of absences, the redistribution of an injured player's minutes can't be measured with real absences. Treating as absent those who had been playing and weren't in the squad (more than what's known before the match), the sum stays at 986 and 979 minutes and goals at 1.00 and 0.98 of the team; knowing the absences lowers the goal log-loss from 0.1480 to 0.1414 in January (with the previous rule, from 0.1608 to 0.1523, with 1,218 minutes).
+- **Limitation**: a player coming back from a long injury takes a few matches to recover their minutes (on 22-10, Rubén Vargas comes out with 5' in Sevilla-Osasuna after 2 matches out of 8; before, 59'), and a new signing doesn't appear in their new team until they play with it.
 
-Caso real (26-28 de octubre, aún sin alineaciones; goles de los jugadores frente a los del equipo): Torino 1,42 → 1,08 (equipo 1,08), Sevilla 1,85 → 1,35 (1,53), Sassuolo 1,77 → 1,44 (1,35). En el Lazio, Pinamonti baja de 61' a 25' (22 % → 10 % de marcar) y Frattesi sube de 27' a 80'. El paquete de modelos guarda `recent_minutes` y `recent_start_rate` de cada jugador; entra al reentrenar, y con un paquete anterior se usa la regla de antes. Medición: `medir_minutos.py` en las notas de la sesión del 22-10-2026 (no está en el repositorio).
+Real case (26-28 October, still without line-ups; players' goals against the team's): Torino 1.42 → 1.08 (team 1.08), Sevilla 1.85 → 1.35 (1.53), Sassuolo 1.77 → 1.44 (1.35). At Lazio, Pinamonti drops from 61' to 25' (22 % → 10 % to score) and Frattesi goes up from 27' to 80'. The model bundle saves each player's `recent_minutes` and `recent_start_rate`; it comes in when retraining, and with an older bundle the previous rule is used. Measurement: `medir_minutos.py` in the notes of the 22-10-2026 session (not in the repository).
 
-**Tarjeta al jugador** (desde el 22-10-2026). Dos fallos que se compensaban en el total, pero no por liga: la probabilidad salía un ~7 % baja y el modelo de tarjetas del equipo se pasaba un 4-8 % (Serie A +12-17 %). Al corregir la probabilidad apareció lo que esa compensación tapaba: la parte de cada jugador salía demasiado dispersa y daba de más a los titulares y de menos a los suplentes. Cambios, medidos juntos:
+**Player to be booked** (since 22-10-2026). Two errors that cancelled out in the total, but not by league: the probability came out ~7 % low and the team cards model was 4-8 % too high (Serie A +12-17 %). Fixing the probability revealed what that compensation hid: each player's share came out too dispersed and gave too much to starters and too little to substitutes. Changes, measured together:
 
-1. **Probabilidad = λ** (con tope de 0,95; `MatchModel._player_outcome`), no 1 − e^(−λ). FotMob registra como mucho una amarilla por jugador y partido (la segunda cuenta como roja: `player_match_stats.yellow_cards` es siempre 0 o 1), así que la parte de cada jugador ya mide la probabilidad de ver tarjeta por cada tarjeta que se espera de su equipo. Con 1 − e^(−λ), como si pudiera ver varias, salía un ~7 % baja.
-2. **Cuenta si vio tarjeta, amarilla o roja** (`fitting._player_volume`), igual que se liquida «Tarjeta al jugador» (`betting/settlement.py`, que ya daba ganada la apuesta con una roja directa). Antes la parte solo contaba amarillas: las 658 rojas directas de la BD no contaban. La doble amarilla cuenta una vez.
-3. **Más contracción hacia su posición en tarjetas**: 20 partidos de su equipo (unas 40 tarjetas) en vez de 4 (`analysis.VOLUME_SHARE_PRIOR_MATCHES`). Con 4, los titulares con menos del 5 % de probabilidad veían tarjeta un 55 % más de lo esperado y los de más del 30 %, un 35-40 % menos. Con 20 y 40 la log-loss es casi igual (diferencias de 0,0001) y mejor que con 10; se eligió 20, la mejor en julio.
-4. **Los suplentes cuentan con 20 minutos más** en tarjetas (`fitting.CARD_SUB_EXTRA_MINUTES`), al ajustar su parte y en el partido (si sale, el 55 % de las veces). Por minuto, un suplente ve 1,7-2,3 veces más tarjetas que un titular de su posición (2023-26: entra al final, cuando hay más tarjetas, y juega el descuento); con 15 minutos más quedan a la par los defensas, con 20 los medios y con 25 los delanteros. Sin esto, la parte de los titulares sale inflada: con los otros tres cambios, sus tarjetas esperadas eran 1,07 (enero) y 1,11 (julio) de las reales.
-5. **Nivel reciente de cada liga en tarjetas** en el modelo del equipo (sección 3).
+1. **Probability = λ** (capped at 0.95; `MatchModel._player_outcome`), not 1 − e^(−λ). FotMob records at most one yellow per player and match (the second counts as a red: `player_match_stats.yellow_cards` is always 0 or 1), so each player's share already measures the probability of being booked per card expected from their team. With 1 − e^(−λ), as if they could get several, it came out ~7 % low.
+2. **It counts whether they were booked, yellow or red** (`fitting._player_volume`), just as "Player to be booked" is settled (`betting/settlement.py`, which already counted the bet as won with a straight red). Before, the share only counted yellows: the database's 658 straight reds didn't count. A second yellow counts once.
+3. **More shrinkage towards their position in cards**: 20 of their team's matches (about 40 cards) instead of 4 (`analysis.VOLUME_SHARE_PRIOR_MATCHES`). With 4, starters with less than a 5 % probability were booked 55 % more than expected and those above 30 %, 35-40 % less. With 20 and 40 the log-loss is almost the same (differences of 0.0001) and better than with 10; 20 was chosen, the best in July.
+4. **Substitutes count with 20 more minutes** in cards (`fitting.CARD_SUB_EXTRA_MINUTES`), when fitting their share and in the match (if they come on, 55 % of the time). Per minute, a substitute is booked 1.7-2.3 times as often as a starter in their position (2023-26: they come on at the end, when there are more cards, and play stoppage time); with 15 more minutes defenders come out even, with 20 midfielders and with 25 forwards. Without this, the starters' share comes out inflated: with the other three changes, their expected cards were 1.07 (January) and 1.11 (July) of the real ones.
+5. **Each league's recent level in cards** in the team model (section 3).
 
-Comprobación fuera de muestra con las seis competiciones: modelo entrenado hasta el corte y **reentrenado cada semana** durante los 90 días siguientes (en producción se reentrena a diario, y así el nivel de cada competición se va poniendo al día), partidos con once confirmado. «Titulares» son los del once confirmado, lo que se suele apostar; «todos» incluye a los suplentes, y el que no sale cuenta como que no vio tarjeta (al liquidar, se anula). Esperado / real, con lo real = vio amarilla o roja:
+Out-of-sample check with the six competitions: model trained up to the cut-off and **retrained every week** over the following 90 days (in production it's retrained daily, so each competition's level keeps up to date), matches with a confirmed XI. "Starters" are those in the confirmed XI, which is what's usually bet on; "all" includes substitutes, and someone who doesn't come on counts as not booked (when settling, it's voided). Expected / real, with real = booked yellow or red:
 
-| Corte | Grupo | Antes | Ahora | Log-loss antes → ahora |
+| Cut-off | Group | Before | Now | Log-loss before → now |
 |---|---|---|---|---|
-| 15-01-2026 | Titulares (14.146) | 0,965 | **0,995** | 0,4166 → **0,4112** |
-| | Todos (27.220) | 0,935 | 1,046 | 0,2805 → **0,2774** |
-| | Tarjetas del equipo (1.286) | 1,038 | **1,011** | −1,6305 → **−1,6288** |
-| 23-07-2026 | Titulares (8.492) | 1,016 | **0,996** | 0,4047 → **0,3992** |
-| | Todos (16.678) | 0,973 | 1,040 | 0,2742 → **0,2709** |
-| | Tarjetas del equipo (772) | 1,080 | **1,003** | −1,6086 → **−1,6016** |
+| 15-01-2026 | Starters (14,146) | 0.965 | **0.995** | 0.4166 → **0.4112** |
+| | All (27,220) | 0.935 | 1.046 | 0.2805 → **0.2774** |
+| | Team cards (1,286) | 1.038 | **1.011** | −1.6305 → **−1.6288** |
+| 23-07-2026 | Starters (8,492) | 1.016 | **0.996** | 0.4047 → **0.3992** |
+| | All (16,678) | 0.973 | 1.040 | 0.2742 → **0.2709** |
+| | Team cards (772) | 1.080 | **1.003** | −1.6086 → **−1.6016** |
 
-Titulares por competición (esperado / real y log-loss, antes → ahora):
+Starters by competition (expected / real and log-loss, before → now):
 
-| Liga | 15-01-2026 | 23-07-2026 |
+| League | 15-01-2026 | 23-07-2026 |
 |---|---|---|
-| Premier | 0,95 → 0,97 · 0,4222 → 0,4207 | 0,92 → 0,92 · 0,4319 → 0,4293 |
-| Bundesliga | 0,96 → 0,97 · 0,4152 → 0,4099 | 1,11 → 1,06 · 0,3891 → 0,3820 |
-| LaLiga | 0,91 → 0,97 · 0,4611 → 0,4524 | 0,97 → 0,97 · 0,4447 → 0,4376 |
-| Serie A | 1,05 → 1,06 · 0,3894 → 0,3828 | 1,11 → 1,05 · 0,3630 → 0,3587 |
-| Ligue 1 | 0,93 → 0,97 · 0,4234 → 0,4176 | 1,03 → 0,97 · 0,3945 → 0,3861 |
-| Champions | 1,06 → 1,07 · 0,3731 → 0,3693 | 1,08 → 1,09 · 0,3806 → 0,3779 |
+| Premier League | 0.95 → 0.97 · 0.4222 → 0.4207 | 0.92 → 0.92 · 0.4319 → 0.4293 |
+| Bundesliga | 0.96 → 0.97 · 0.4152 → 0.4099 | 1.11 → 1.06 · 0.3891 → 0.3820 |
+| LaLiga | 0.91 → 0.97 · 0.4611 → 0.4524 | 0.97 → 0.97 · 0.4447 → 0.4376 |
+| Serie A | 1.05 → 1.06 · 0.3894 → 0.3828 | 1.11 → 1.05 · 0.3630 → 0.3587 |
+| Ligue 1 | 0.93 → 0.97 · 0.4234 → 0.4176 | 1.03 → 0.97 · 0.3945 → 0.3861 |
+| Champions League | 1.06 → 1.07 · 0.3731 → 0.3693 | 1.08 → 1.09 · 0.3806 → 0.3779 |
 
-Tarjetas del equipo por competición (esperadas / reales, antes → ahora): enero, Premier 1,02 → 0,99, Bundesliga 1,04 → 0,99, LaLiga 0,95 → 0,96, Serie A 1,12 → 1,07, Ligue 1 1,05 → 1,03, Champions 1,13 → 1,07; julio, 0,99 → 0,94, 1,14 → 1,04, 1,02 → 0,97, 1,17 → 1,05, 1,14 → 1,02 y 1,14 → 1,09.
+Team cards by competition (expected / real, before → now): January, Premier League 1.02 → 0.99, Bundesliga 1.04 → 0.99, LaLiga 0.95 → 0.96, Serie A 1.12 → 1.07, Ligue 1 1.05 → 1.03, Champions League 1.13 → 1.07; July, 0.99 → 0.94, 1.14 → 1.04, 1.02 → 0.97, 1.17 → 1.05, 1.14 → 1.02 and 1.14 → 1.09.
 
-- **La log-loss mejora en todas las ligas y en los dos cortes**, y la diferencia entre ligas se estrecha (titulares: de 0,91-1,06 a 0,97-1,07 en enero y de 0,92-1,11 a 0,92-1,09 en julio). Antes, en LaLiga salía baja (0,91) porque las dos cosas se sumaban; en la Serie A, la Champions y la Bundesliga de julio, alta, porque el modelo del equipo se pasaba más de lo que la probabilidad se quedaba corta.
-- **Lo que queda es del modelo de tarjetas del equipo**, no del jugador: los titulares siguen a las tarjetas del equipo (en julio, 1,00 frente a 1,00). La Serie A y la Champions quedan algo altas (1,05-1,09: se ven menos tarjetas que nunca y el nivel aún va un poco por detrás) y la Premier de 2026-27, baja (0,92; es la única liga en la que suben, y el nivel la contrae hacia el de todas).
-- **Por tramos de probabilidad** (titulares): en enero, de 0,48 / 0,79 / 0,87 / 1,00 / 1,10 / 1,43 (menos del 5 %, 5-10 %, 10-15 %, 15-20 %, 20-30 % y más del 30 %) a 0,66 / 0,99 / 0,95 / 1,01 / 1,02 / 1,39; en julio, de 0,63 / 0,84 / 0,89 / 1,07 / 1,17 / 1,33 a 1,45 / 1,14 / 0,94 / 1,02 / 0,98 / 0,82. Los extremos tienen pocos casos (el tramo de más del 30 % pasa de 311 a 123 titulares en enero y de 221 a 50 en julio).
-- **Con 1 − e^(−λ)** y los demás cambios, la log-loss es peor en los dos cortes (titulares 0,4117 y 0,3999, frente a 0,4112 y 0,3992; todos 0,2775 y 0,2712, frente a 0,2774 y 0,2709), y los titulares salen cortos (0,92 y 0,92).
-- **«Todos» sale alto (1,05-1,08)** porque el modelo supone que cada suplente del once confirmado sale el 55 % de las veces y juega 22 minutos, y de julio a octubre salió el 45 % y jugó 20. Afecta a todos los mercados de los suplentes (pendiente en "Próximas mejoras"). Además, las apuestas a un suplente que no sale se anulan, y el modelo da su probabilidad contando que puede no salir: para un suplente, «Sí» sale bajo y «No» alto.
-- **Con el modelo fijo los 90 días** (sin reentrenar, como la comprobación de los remates de arriba), los titulares quedan en 0,966 → 0,998 (enero, log-loss 0,4148 → 0,4104) y 1,030 → 1,043 (julio, 0,4007 → 0,3977): el nivel de cada liga no se actualiza y en julio vale el de antes del verano.
+- **The log-loss improves in every league and at both cut-offs**, and the gap between leagues narrows (starters: from 0.91-1.06 to 0.97-1.07 in January and from 0.92-1.11 to 0.92-1.09 in July). Before, LaLiga came out low (0.91) because the two errors added up; Serie A, the Champions League and the Bundesliga in July, high, because the team model was more too-high than the probability was too-low.
+- **What's left comes from the team cards model**, not the player one: starters follow the team's cards (in July, 1.00 against 1.00). Serie A and the Champions League remain somewhat high (1.05-1.09: there are fewer cards than ever and the level still lags a little) and the 2026-27 Premier League low (0.92; it's the only league where they go up, and the level shrinks it towards everyone's).
+- **By probability band** (starters): in January, from 0.48 / 0.79 / 0.87 / 1.00 / 1.10 / 1.43 (under 5 %, 5-10 %, 10-15 %, 15-20 %, 20-30 % and over 30 %) to 0.66 / 0.99 / 0.95 / 1.01 / 1.02 / 1.39; in July, from 0.63 / 0.84 / 0.89 / 1.07 / 1.17 / 1.33 to 1.45 / 1.14 / 0.94 / 1.02 / 0.98 / 0.82. The extremes have few cases (the over-30 % band goes from 311 to 123 starters in January and from 221 to 50 in July).
+- **With 1 − e^(−λ)** and the other changes, the log-loss is worse at both cut-offs (starters 0.4117 and 0.3999, against 0.4112 and 0.3992; all 0.2775 and 0.2712, against 0.2774 and 0.2709), and starters come out short (0.92 and 0.92).
+- **"All" comes out high (1.05-1.08)** because the model assumes each substitute in the confirmed XI comes on 55 % of the time and plays 22 minutes, and from July to October they came on 45 % of the time and played 20. It affects every substitute market (pending in "Upcoming planned improvements"). Also, bets on a substitute who doesn't come on are voided, and the model gives their probability counting that they may not come on: for a substitute, "Yes" comes out low and "No" high.
+- **With the model fixed for the 90 days** (no retraining, like the shots check above), starters stay at 0.966 → 0.998 (January, log-loss 0.4148 → 0.4104) and 1.030 → 1.043 (July, 0.4007 → 0.3977): each league's level isn't updated and in July the pre-summer one applies.
 
-Reproducir: `medir_tarjetas.py DESDE 90 salida.json --semanal` (y `--registros` para cada jugador) y `medir_k.py` para la contracción, en las notas de la sesión del 22-10-2026 (no están en el repositorio).
+To reproduce: `medir_tarjetas.py FROM 90 output.json --semanal` (and `--registros` for each player) and `medir_k.py` for the shrinkage, in the notes of the 22-10-2026 session (not in the repository).
 
-**Bet Builders con jugadores** (`MatchModel.joint_prob`): si el equipo marca k goles, cada uno lo marca el jugador con su parte de los goles esperados del equipo (y lo asiste con su parte de asistencias). Así "gana el Real Madrid y marca Mbappé" se calcula sobre la matriz de marcadores, con su correlación positiva, y "Arsenal o empate y Kane marca o asiste" con su correlación negativa. Varias selecciones de jugadores del mismo equipo se combinan por inclusión-exclusión. Con un solo jugador sale la misma probabilidad que el mercado suelto. Córners, tarjetas, remates y faltas no dependen solo del marcador: en un Bet Builder se multiplican como si fueran independientes y el resultado se marca **aproximado**.
+**Bet Builders with players** (`MatchModel.joint_prob`): if the team scores k goals, each one is scored by the player with their share of the team's expected goals (and assisted with their share of assists). That way "Real Madrid win and Mbappé scores" is computed on the scoreline matrix, with its positive correlation, and "Arsenal or draw and Kane scores or assists" with its negative correlation. Several player selections from the same team are combined by inclusion-exclusion. With a single player the probability is the same as the standalone market. Corners, cards, shots and fouls don't depend only on the scoreline: in a Bet Builder they're multiplied as if independent and the result is marked **approximate**.
 
-## 5. Alineaciones y bajas (`features/lineup.py`)
+## 5. Line-ups and absences (`features/lineup.py`)
 
-`calidad = ln(1 + valor_mercado_M€) + 0,5 × (rating − 6,8)` (rating acotado a ±1).
-Fuerza ofensiva y defensiva del once = media ponderada por posición:
+`quality = ln(1 + market_value_M€) + 0.5 × (rating − 6.8)` (rating capped at ±1).
+The XI's attacking and defensive strength = average weighted by position:
 
-| | POR | DEF | MED | DEL |
+| | GK | DEF | MID | FWD |
 |---|---|---|---|---|
-| Ataque | 0 | 0,25 | 0,7 | 1 |
-| Defensa | 1 | 1 | 0,6 | 0,15 |
+| Attack | 0 | 0.25 | 0.7 | 1 |
+| Defence | 1 | 1 | 0.6 | 0.15 |
 
-Se compara con el **once típico** (media de las últimas 8 titularidades confirmadas):
-`goles_a_favor × exp(0,10 × Δataque)` y `goles_en_contra × exp(−0,10 × Δdefensa)`.
-Sin alineación publicada, se parte del once típico y se resta a los titulares habituales que están de baja.
-El coeficiente 0,10 está calibrado con los onces confirmados históricos de FotMob (2.119 partidos de 2024-26). Antes era 0,30, una estimación a priori que exageraba el efecto (ver backtest).
-Limitación: en partidos antiguos el valor de mercado es el de la fecha de descarga, no el de entonces.
+It's compared with the **usual XI** (average of the last 8 confirmed starting line-ups):
+`goals_for × exp(0.10 × Δattack)` and `goals_against × exp(−0.10 × Δdefence)`.
+Without a published line-up, it starts from the usual XI and subtracts the regular starters who are out.
+The 0.10 coefficient is calibrated with FotMob's historical confirmed XIs (2,119 matches from 2024-26). It used to be 0.30, a prior estimate that exaggerated the effect (see backtest).
+Limitation: in old matches the market value is the one at download time, not the one at the time.
 
-## 6. Valor, confianza y apuesta del día
+## 6. Value, confidence and bet of the day
 
-- **Probabilidad final** = 25 % modelo + 75 % mercado afilado (Pinnacle/Betfair sin margen) cuando existe. Si no existe, solo el modelo.
-- **Valor esperado** = prob × cuota − 1 (corregido por la probabilidad de devolución en líneas asiáticas).
-- **Calibración de los empates: medida y no hace falta** (29-10-2026, `experimentos/validacion/empates.py`). La auditoría veía empates de menos con los datos públicos. Con la BD, el factor que multiplica la diagonal de la matriz de marcadores, aprendido cada mes con los anteriores, queda en 1,00-1,01 y no mejora nada (log-loss 1X2 +0,0001 ± 0,0002). Por tramos, lo que da el modelo y lo que salió: 0,176 y 0,173; 0,243 y 0,232; 0,278 y 0,291; 0,315 y 0,324 (Pinnacle, 0,166-0,310). El rho de Dixon-Coles, que se ajusta en cada reentreno, ya lo recoge.
-- **Comparar precios: Betano frente a Pinnacle sin margen** (desde el 29-10-2026, `services/compare.py`, pestaña «Frente a Pinnacle» de Hoy, `GET /compare`, MCP `comparar_casas`). No usa el modelo. Para cada partido que aún no empezó, cada cuota de Betano se compara con la justa de Pinnacle de la misma línea (todos los lados, `analysis.book_fair_prob`), sin las líneas que la casa ya no ofrece (abajo). Sale si paga al menos un 2 % más. Es la versión al alcance del proyecto de lo único que dio rendimiento positivo en la auditoría. Medido con las cuotas guardadas desde el 19-10-2026 (`experimentos/validacion/betano_pinnacle.py`, 67 partidos terminados; cada selección cuenta una vez, la primera descarga en que lo pasa; CLV frente a Pinnacle sin margen en su última foto antes del inicio, cuando es posterior):
+- **Final probability** = 25 % model + 75 % sharp market (Pinnacle/Betfair without margin) when it exists. If it doesn't, the model only.
+- **Expected value** = prob × odds − 1 (corrected by the probability of a refund on Asian lines).
+- **Draw calibration: measured and not needed** (29-10-2026, `experimentos/validacion/empates.py`). The audit saw too few draws with the public data. With the database, the factor that multiplies the diagonal of the scoreline matrix, learned each month with the earlier ones, stays at 1.00-1.01 and improves nothing (1X2 log-loss +0.0001 ± 0.0002). By band, what the model gives and what happened: 0.176 and 0.173; 0.243 and 0.232; 0.278 and 0.291; 0.315 and 0.324 (Pinnacle, 0.166-0.310). The Dixon-Coles rho, fitted at each retraining, already captures it.
+- **Comparing prices: Betano against no-vig Pinnacle** (since 29-10-2026, `services/compare.py`, Today's "Against Pinnacle" tab, `GET /compare`, MCP `comparar_casas`). It doesn't use the model. For each match that hasn't started yet, each Betano price is compared with Pinnacle's fair price for the same line (all sides, `analysis.book_fair_prob`), without the lines the bookmaker no longer offers (below). It shows up if it pays at least 2 % more. It's the version within the project's reach of the only thing that gave a positive return in the audit. Measured with the odds saved since 19-10-2026 (`experimentos/validacion/betano_pinnacle.py`, 67 finished matches; each selection counts once, the first download in which it passes; CLV against no-vig Pinnacle in its last snapshot before kick-off, when it's later):
 
-  | Mercados | Ventaja | Apuestas | Rendimiento | CLV |
+  | Markets | Edge | Bets | Return | CLV |
   | --- | --- | --- | --- | --- |
-  | Goles (1X2, hándicaps, más/menos, ambos marcan) | ≥ 2 % | 23 | +17 % ± 49 % | +0,4 % (16 con cierre) |
-  | Córners y tarjetas | ≥ 0 % | 288 | +5 % ± 13 % | +3,5 % (163, 80 % positivos) |
-  | Córners y tarjetas | ≥ 2 % | 194 | +7 % ± 16 % | +5,2 % (111, 86 % positivos) |
-  | Córners y tarjetas | ≥ 5 % | 91 | +32 % ± 24 % | +8,3 % (49, 96 % positivos) |
+  | Goals (1X2, handicaps, over/under, both teams to score) | ≥ 2 % | 23 | +17 % ± 49 % | +0.4 % (16 with closing) |
+  | Corners and cards | ≥ 0 % | 288 | +5 % ± 13 % | +3.5 % (163, 80 % positive) |
+  | Corners and cards | ≥ 2 % | 194 | +7 % ± 16 % | +5.2 % (111, 86 % positive) |
+  | Corners and cards | ≥ 5 % | 91 | +32 % ± 24 % | +8.3 % (49, 96 % positive) |
 
-  En goles Betano casi nunca paga más que Pinnacle. En córners y tarjetas, sí y a menudo, y Pinnacle no se mueve después hacia Betano. Lo que no se sabe todavía es si Pinnacle es tan afilado en estadísticas como en goles. Los intervalos son optimistas: las líneas de un mismo partido están correlacionadas. Repetirlo cuando haya unos 200 partidos.
-- **Líneas que la casa ya no ofrece** (desde el 29-10-2026, `OddsSnapshot.last_seen_at`). Solo se guarda una cuota nueva cuando cambia el precio, así que la última guardada de una línea no decía si la casa la sigue ofreciendo: una línea retirada se quedaba con su último precio hasta el partido, y «Con valor», la apuesta del día y el comparador podían salir de ella. Ahora cada descarga apunta en la última fila de cada línea que la volvió a ver, y `analysis._latest_odds` deja fuera las que no salieron en las 12 horas antes de la última descarga de su casa (las 12 horas dejan dentro la de las 08:30 cuando después llega la de Pinnacle de antes del partido, que trae menos partidos). Las filas de antes no tienen esa fecha y cuentan como vigentes, así que el efecto empieza con la descarga de las 08:30 del 30-10. Cuántas líneas retira Betano no se sabía: se verá con los datos.
-- **Mezcla aprendida y probabilidad de valor: medidas y no aplicadas** (29-10-2026, `experimentos/validacion/apilado.py`, 19.241 selecciones candidatas del backtest 2024-26 con Pinnacle). El peso del modelo se aprendió cada mes con los meses anteriores (mínima pérdida logarítmica de la mezcla lineal), por mercado: en 1X2 y hándicap asiático baja a 0 (media 0,08 y 0,11) y en goles 2.5 acaba en 0,27. Ninguna mezcla se distingue de la fija:
+  In goals Betano almost never pays more than Pinnacle. In corners and cards, yes and often, and Pinnacle doesn't move towards Betano afterwards. What isn't known yet is whether Pinnacle is as sharp in stats as in goals. The intervals are optimistic: the lines of the same match are correlated. Repeat it when there are about 200 matches.
+- **Lines the bookmaker no longer offers** (since 29-10-2026, `OddsSnapshot.last_seen_at`). A new price is only saved when it changes, so a line's last saved price didn't say whether the bookmaker still offered it: a withdrawn line kept its last price until the match, and "Value", the bet of the day and the comparison tool could come from it. Now each download notes on each line's last row that it saw it again, and `analysis._latest_odds` leaves out those not seen in the 12 hours before their bookmaker's last download (the 12 hours keep the 08:30 one inside when the pre-match Pinnacle download, which brings fewer matches, arrives later). Earlier rows don't have that date and count as current, so the effect starts with the 08:30 download on 30-10. How many lines Betano withdraws wasn't known: the data will show.
+- **Learned blend and probability of value: measured and not applied** (29-10-2026, `experimentos/validacion/apilado.py`, 19,241 candidate selections from the 2024-26 backtest with Pinnacle). The model's weight was learned each month with the previous months (minimum log-loss of the linear blend), per market: in 1X2 and Asian handicap it drops to 0 (average 0.08 and 0.11) and in goals 2.5 it ends at 0.27. No blend is distinguishable from the fixed one:
 
-  | Mercado | Aprendida − fija | Pinnacle sola − fija | Modelo solo − fija |
+  | Market | Learned − fixed | Pinnacle alone − fixed | Model alone − fixed |
   | --- | --- | --- | --- |
-  | 1X2 | −0,0002 ± 0,0004 | −0,0003 ± 0,0005 | +0,0029 ± 0,0014 |
-  | Más/Menos 2.5 | +0,0001 ± 0,0003 | +0,0002 ± 0,0003 | +0,0006 ± 0,0010 |
-  | Hándicap asiático | −0,0001 ± 0,0006 | −0,0004 ± 0,0006 | +0,0049 ± 0,0019 |
+  | 1X2 | −0.0002 ± 0.0004 | −0.0003 ± 0.0005 | +0.0029 ± 0.0014 |
+  | Over/Under 2.5 | +0.0001 ± 0.0003 | +0.0002 ± 0.0003 | +0.0006 ± 0.0010 |
+  | Asian handicap | −0.0001 ± 0.0006 | −0.0004 ± 0.0006 | +0.0049 ± 0.0019 |
 
-  Pérdida logarítmica por selección, negativo = mejor, margen del 95 % pareado. Con valor ≥ 3 % contra bet365, la aprendida da menos apuestas, pero ninguna regla tiene muestra para decir nada: 1X2, 30 con la fija (rendimiento −30 % ± 47 %, CLV +4,3 %) y 11 con la aprendida (+9 % ± 90 %, CLV +6,0 %); hándicap, 64 y 65 (CLV +1,5 % y −0,9 %). Elegir por la **probabilidad de valor** (P(p > 1/cuota) con la desviación del cierre de bet365 frente a la mezcla en los meses anteriores) tampoco ayuda: en hándicap, con P ≥ 60 %, 133 apuestas con CLV −0,8 % (37 % ganan al cierre), y con P ≥ 75 %, 34 con −38 % ± 28 %. Sin la varianza propia de cada predicción (la daría la fuerza dinámica, sección 1) esta probabilidad es solo el valor dividido por una σ por mercado y ordena casi igual que el valor. Se mantiene el 25 % fijo.
-- **Confianza** (0-1) = alineación (confirmada 1 · prevista 0,85 · solo bajas 0,72; el último once que FotMob da cuando aún no tiene probable cuenta como previsto, y solo el oficial como confirmado) × muestra × tipo de mercado (principal 1 / estadísticas 0,75 / jugador 0,65) × acuerdo modelo-mercado × riesgo de rotación × cobertura del mercado (abajo).
-- **Equipos que el mercado no ha visto** (`analysis.MARKET_COVERED`). Se cuentan los partidos de cada equipo con cuotas de cierre en el último año (`RatingModel.market_matches`). Si alguno de los dos equipos tiene menos de 10:
-  - la confianza se multiplica por un factor que baja linealmente hasta 0,6 con 0 partidos;
-  - en los mercados de goles (1X2, doble oportunidad, empate no válido, ambos marcan, hándicaps y más/menos goles), si no hay mercado afilado, la probabilidad se mezcla con la de la propia cuota sin margen (se supone un 5 %). El peso del modelo es el mismo 25 % de la mezcla con Pinnacle cuando el equipo tiene 0 partidos, y sube hasta 100 % con 10.
+  Log-loss per selection, negative = better, paired 95 % margin. With value ≥ 3 % against bet365, the learned one gives fewer bets, but no rule has the sample to say anything: 1X2, 30 with the fixed one (return −30 % ± 47 %, CLV +4.3 %) and 11 with the learned one (+9 % ± 90 %, CLV +6.0 %); handicap, 64 and 65 (CLV +1.5 % and −0.9 %). Choosing by the **probability of value** (P(p > 1/odds) with the deviation of bet365's closing odds against the blend in the previous months) doesn't help either: in handicap, with P ≥ 60 %, 133 bets with CLV −0.8 % (37 % beat the close), and with P ≥ 75 %, 34 with −38 % ± 28 %. Without each prediction's own variance (dynamic strength would provide it, section 1) this probability is just the value divided by a σ per market and ranks almost the same as the value. The fixed 25 % stays.
+- **Confidence** (0-1) = line-up (confirmed 1 · predicted 0.85 · absences only 0.72; the last XI FotMob gives when it doesn't have a predicted one yet counts as predicted, and only the official one as confirmed) × sample × market type (main 1 / stats 0.75 / player 0.65) × model-market agreement × rotation risk × market coverage (below).
+- **Teams the market hasn't seen** (`analysis.MARKET_COVERED`). Each team's matches with closing odds over the last year are counted (`RatingModel.market_matches`). If either team has fewer than 10:
+  - confidence is multiplied by a factor that falls linearly to 0.6 with 0 matches;
+  - in goals markets (1X2, double chance, draw no bet, both teams to score, handicaps and over/under goals), if there's no sharp market, the probability is blended with that of the price itself without margin (5 % assumed). The model's weight is the same 25 % of the blend with Pinnacle when the team has 0 matches, and rises to 100 % with 10.
 
-  Afecta a equipos de ligas que no se descargan y que solo vemos en copas europeas (Bodø/Glimt, Slavia, Shakhtar…). **Es una regla de prudencia, no un parámetro ajustado**: esos partidos no tienen cuotas en football-data, así que el backtest no puede medirla. En las ligas no cambia nada, porque todos sus equipos tienen cuotas. Ejemplo, Napoli-Bodø/Glimt (UCL, 20-10-2026):
+  It affects teams from leagues that aren't downloaded and that we only see in European cups (Bodø/Glimt, Slavia, Shakhtar…). **It's a prudence rule, not a fitted parameter**: those matches have no odds on football-data, so the backtest can't measure it. In the leagues nothing changes, because all their teams have odds. Example, Napoli-Bodø/Glimt (UCL, 20-10-2026):
 
-  | Cuota | Antes | Ahora |
+  | Price | Before | Now |
   |---|---|---|
-  | Bodø @9,00 | probabilidad 32 %, valor +185 %, confianza 0,65 | probabilidad 15 %, valor +39 %, confianza 0,31 (no puede ser apuesta del día) |
-  | Napoli @1,30 | probabilidad 44 % | probabilidad 66 % |
-- **Apuesta del día**: máxima `valor × confianza` con cuota entre 1,50 y 2,60, prob ≥ 60 %, valor ≥ 3 % y confianza ≥ 0,60. **Si ninguna cumple, no hay apuesta del día.**
-  **Mínimo de 60 %** (5-11-2026, decisión del dueño; antes, 42 %): también se aplica a las listas «Con valor» de Hoy y de la página del partido. La probabilidad y el valor se calculan igual: solo cambia qué apuestas se enseñan. Con 60 % y valor ≥ 3 %, la cuota tiene que ser de 1,72 o más. **No mejora el resultado:** en el backtest de 2024-08 a 2026-10 (`experimentos/validacion/corte_60.py`, cuotas de 1,50 a 2,60, valor ≥ 3 %, sin filtrar por confianza), se acierta más, pero se cobra menos:
-  **Sin líneas de cuarto** (7-11-2026, decisión del dueño): las del hándicap asiático y de Más/Menos goles de 0.25, 0.75, 1.25… no se pueden apostar en sus casas y no se enseñan (`analysis.can_bet`). No cambia ninguna probabilidad: la cuota de cuarto de Pinnacle sigue sirviendo para el precio de referencia.
-  **Veredicto de los revisores** (7-11-2026): no cambia nada de lo anterior. Es una opinión de Claude que se muestra debajo de la apuesta del día. Va «en contra de un equipo en racha» si ese equipo lleva 3 victorias seguidas o 4 de sus últimos 5 partidos, en todas las competiciones, y la apuesta gana cuando ese equipo no gana o no gana por mucho: 1X2, doble oportunidad, empate no válido y hándicaps a favor del rival, y «Menos» en los goles de ese equipo. Sin medir todavía (`experimentos/validacion/veredicto.py`).
+  | Bodø @9.00 | probability 32 %, value +185 %, confidence 0.65 | probability 15 %, value +39 %, confidence 0.31 (can't be the bet of the day) |
+  | Napoli @1.30 | probability 44 % | probability 66 % |
+- **Bet of the day**: the highest `value × confidence` with odds between 1.50 and 2.60, prob ≥ 60 %, value ≥ 3 % and confidence ≥ 0.60. **If none qualifies, there's no bet of the day.**
+  **60 % minimum** (5-11-2026, owner's decision; before, 42 %): it also applies to the "Value" lists on Today and on the match page. Probability and value are computed the same way: only which bets are shown changes. With 60 % and value ≥ 3 %, the odds have to be 1.72 or more. **It doesn't improve the result:** in the 2024-08 to 2026-10 backtest (`experimentos/validacion/corte_60.py`, odds from 1.50 to 2.60, value ≥ 3 %, without filtering by confidence), it hits more often, but collects less:
+  **No quarter lines** (7-11-2026, owner's decision): Asian handicap and over/under goals lines of 0.25, 0.75, 1.25… can't be bet at their bookmakers and aren't shown (`analysis.can_bet`). No probability changes: Pinnacle's quarter-line price still serves as the reference price.
+  **Reviewers' verdict** (7-11-2026): it doesn't change anything above. It's Claude's opinion shown below the bet of the day. A bet goes "against a team on a streak" if that team has 3 wins in a row or 4 of its last 5 matches, in all competitions, and the bet wins when that team doesn't win or doesn't win by much: 1X2, double chance, draw no bet and handicaps in favour of the opponent, and "Under" on that team's goals. Not measured yet (`experimentos/validacion/veredicto.py`).
 
-  | Estrategia | Probabilidad | Apuestas | Cuota media | Esperado | Acierto | ROI | CLV |
+  | Strategy | Probability | Bets | Average odds | Expected | Hit rate | ROI | CLV |
   |---|---|---:|---:|---:|---:|---:|---:|
-  | Solo modelo | Menos de 60 % | 2.583 | 2,02 | 53,5 % | 48,8 % | −1,8 % ± 3,7 | +1,1 % |
-  | Solo modelo | 60 % o más | 515 | 1,80 | 63,7 % | 55,4 % | −1,7 % ± 7,2 | +0,9 % |
-  | Modelo + Pinnacle | Menos de 60 % | 136 | 2,04 | 52,9 % | 47,7 % | −3,1 % ± 16,5 | +1,2 % |
-  | Modelo + Pinnacle | 60 % o más | 30 | 1,79 | 65,7 % | 53,3 % | −7,1 % ± 31,8 | +3,2 % |
+  | Model only | Under 60 % | 2,583 | 2.02 | 53.5 % | 48.8 % | −1.8 % ± 3.7 | +1.1 % |
+  | Model only | 60 % or more | 515 | 1.80 | 63.7 % | 55.4 % | −1.7 % ± 7.2 | +0.9 % |
+  | Model + Pinnacle | Under 60 % | 136 | 2.04 | 52.9 % | 47.7 % | −3.1 % ± 16.5 | +1.2 % |
+  | Model + Pinnacle | 60 % or more | 30 | 1.79 | 65.7 % | 53.3 % | −7.1 % ± 31.8 | +3.2 % |
 
-  Al seleccionar por valor, el modelo acierta menos de lo que promete, y entre las de 60 % o más la diferencia es de 8 a 12 puntos. Con el dinero real pasó igual: de las 144 apuestas guardadas que pasaron el corte y ya tienen resultado, las de 60 % o más (52, probabilidad media 67 %, cuota 1,64) ganaron 26 y perdieron 26, −9,7 unidades; las de menos de 60 % (92, 52 %, cuota 2,08), 48 y 43, +7,2 unidades. Son pocas para sacar conclusiones.
-  Solo puede salir de los **mercados de goles** (1X2, doble oportunidad, empate no válido, ambos marcan, hándicaps y más/menos goles), que son los validados en el backtest contra cuotas reales. Córners, tarjetas, el resto de estadísticas y las props de jugador se muestran como apuestas con valor, pero no pueden ser apuesta del día hasta validarlos (`APUESTAS_PICK_ALLOW_STAT_MARKETS=true` lo cambia).
-- **Discrepancia con la casa en estadísticas.** En córners, tarjetas y el resto de estadísticas, si la casa tiene todos los lados de la línea (más y menos, o los dos equipos del hándicap), se calcula su probabilidad sin margen y se compara con la del modelo:
-  - hasta 5 puntos de diferencia, la confianza no cambia;
-  - de 5 a 20 puntos, baja linealmente hasta ×0,3 (`STAT_DISAGREE_*` en `analysis.py`).
+  When selecting by value, the model hits less often than it promises, and among those of 60 % or more the difference is 8 to 12 points. With real money the same happened: of the 144 saved bets that cleared the threshold and already have a result, those of 60 % or more (52, average probability 67 %, odds 1.64) won 26 and lost 26, −9.7 units; those under 60 % (92, 52 %, odds 2.08), 48 and 43, +7.2 units. Too few to draw conclusions.
+  It can only come from **goals markets** (1X2, double chance, draw no bet, both teams to score, handicaps and over/under goals), which are the ones validated in the backtest against real odds. Corners, cards, the other stats and player props are shown as value bets, but can't be the bet of the day until they're validated (`APUESTAS_PICK_ALLOW_STAT_MARKETS=true` changes that).
+- **Disagreement with the bookmaker in stats.** In corners, cards and the other stats, if the bookmaker has every side of the line (over and under, or both teams of the handicap), its no-vig probability is computed and compared with the model's:
+  - up to 5 points of difference, the confidence doesn't change;
+  - from 5 to 20 points, it falls linearly to ×0.3 (`STAT_DISAGREE_*` in `analysis.py`).
 
-  La probabilidad del modelo no se toca: solo la confianza. Es una regla de prudencia, porque no hay historial de cuotas de estadísticas para ajustarla con el backtest.
+  The model's probability isn't touched: only the confidence. It's a prudence rule, because there's no history of stat odds to fit it with the backtest.
 
-  Motivo: con las cuotas de Betano (OddsPapi, 19-10-2026), el modelo veía "valor" en 412 cuotas de los 9 partidos de Champions del día siguiente. Algunas eran absurdas, como "Napoli más de 10,5 córners" a 9,00 con +164 %. La apuesta del día salía de un hándicap de córners con +41 %.
-- **Equipos con pocos partidos con esa estadística** (`analysis.STAT_COVERED`, desde el 21-10-2026). En córners, tarjetas y el resto de estadísticas, si el equipo menos visto de los dos tiene menos de 10 partidos (ponderados) con esa estadística, la probabilidad se mezcla con la de la casa sin margen (o con la cuota suelta, quitándole un 5 %, si la casa no tiene los dos lados). El peso del modelo es n / 10: con 0 partidos manda la casa y no puede salir valor; con 10 o más, solo el modelo. Es más estricta que la regla de goles (que deja un 25 % de modelo con 0 partidos) porque los modelos de estadísticas no tienen ningún backtest contra cuotas. Afecta a los mismos rivales europeos (Viking, LASK, Slavia, Shakhtar, Bodø/Glimt…). Es una regla de prudencia, no un parámetro ajustado.
+  Reason: with Betano's odds (OddsPapi, 19-10-2026), the model saw "value" in 412 prices of the next day's 9 Champions League matches. Some were absurd, like "Napoli over 10.5 corners" at 9.00 with +164 %. The bet of the day came from a corners handicap with +41 %.
+- **Teams with few matches with that stat** (`analysis.STAT_COVERED`, since 21-10-2026). In corners, cards and the other stats, if the less-seen of the two teams has fewer than 10 (weighted) matches with that stat, the probability is blended with the bookmaker's no-vig one (or with the single price, minus 5 %, if the bookmaker doesn't have both sides). The model's weight is n / 10: with 0 matches the bookmaker rules and no value can come out; with 10 or more, only the model. It's stricter than the goals rule (which leaves 25 % model with 0 matches) because the stat models have no backtest against odds at all. It affects the same European opponents (Viking, LASK, Slavia, Shakhtar, Bodø/Glimt…). It's a prudence rule, not a fitted parameter.
 
-  Aston Villa-Viking (Viking con 1,9 partidos): "Córners de Viking: Más de 5.5" a 6,50 pasa de +73 % (solo con la contracción) a +11 %, con confianza 0,08. Antes, 34 cuotas de córners de ese partido salían con valor y la mayor daba +232 %; ahora la mayor es esa, con +11 %.
-- **Lo que cuenta en los contadores es lo anunciado** (desde el 29-10-2026, `pick.announced_*` y `was_pick_of_day`). Cada recálculo actualiza la apuesta guardada, pero la cuota, la probabilidad y el valor de la primera vez que pasó el corte quedan fijos, y con ellos se miden los aciertos, el beneficio y el CLV. Una apuesta del día o una que pasaba el corte y se retiró después sigue contando y se liquida. Antes, el contador medía el último recálculo y las retiradas desaparecían (lo señaló la auditoría). Al pasar a la copia fija, lo de antes se rellenó con lo que ya contaba, así que las cifras no cambiaron: apuesta del día 5 de 7 (+2,58 u) y las que pasan el corte 22 de 43 (−3,17 u, CLV −3,28 %).
-- **Stake**: Kelly × 0,25, con tope del 3 % de la banca. Límites de pérdida: 5 % diario y 10 % semanal.
-- **CLV de las apuestas guardadas** (`picks.closing_reference`, desde el 2026-10-28). Al liquidar, cada apuesta guardada (y cada apuesta registrada) se compara con la cuota **justa** (sin margen, `betting/odds.py::devig`) de la referencia más afilada que haya antes del partido: CLV = cuota tomada × probabilidad justa − 1. Orden: cierre de Pinnacle o de Betfair (football-data), el último precio de Pinnacle antes del inicio (OddsPapi) y el cierre de bet365. Hace falta que la referencia tenga todos los lados de esa línea (más y menos, los tres del hándicap europeo, los dos del asiático, sí y no); si no, la apuesta queda sin CLV y el panel dice por qué. Se guarda de qué casa sale y cuándo se vio ese precio por primera vez (`pick.closing_source`, `pick.closing_at`).
+  Aston Villa-Viking (Viking with 1.9 matches): "Viking corners: over 5.5" at 6.50 goes from +73 % (with only the shrinkage) to +11 %, with confidence 0.08. Before, 34 corners prices from that match came out with value and the biggest gave +232 %; now the biggest is that one, with +11 %.
+- **What counts in the counters is what was announced** (since 29-10-2026, `pick.announced_*` and `was_pick_of_day`). Each recalculation updates the saved bet, but the odds, probability and value of the first time it cleared the threshold stay fixed, and the hits, profit and CLV are measured with them. A bet of the day or one that cleared the threshold and was later withdrawn still counts and is settled. Before, the counter measured the last recalculation and withdrawn bets disappeared (the audit pointed it out). When moving to the fixed copy, the earlier ones were filled in with what was already counted, so the figures didn't change: bet of the day 5 of 7 (+2.58 u) and those that clear the threshold 22 of 43 (−3.17 u, CLV −3.28 %).
+- **Stake**: Kelly × 0.25, capped at 3 % of the bankroll. Loss limits: 5 % daily and 10 % weekly.
+- **CLV of the saved bets** (`picks.closing_reference`, since 2026-10-28). When settling, each saved bet (and each logged bet) is compared with the **fair** price (no margin, `betting/odds.py::devig`) of the sharpest reference available before the match: CLV = odds taken × fair probability − 1. Order: Pinnacle's or Betfair's closing odds (football-data), Pinnacle's last price before kick-off (OddsPapi) and bet365's closing odds. The reference has to have every side of that line (over and under, the three of the European handicap, the two of the Asian, yes and no); otherwise, the bet has no CLV and the dashboard says why. Which bookmaker it comes from and when that price was first seen are saved (`pick.closing_source`, `pick.closing_at`).
 
-  Por qué no basta el cierre de football-data: solo trae 1X2, Más/Menos 2.5 y el hándicap asiático principal de las ligas, días después del partido, y casi todas las que pasan el corte son de Betano en goles por equipo, hándicap europeo o ambos marcan. Medido el 2026-10-28 con las 40 liquidadas que pasan el corte: el cierre de bet365 o Betfair servía para 2; el último Pinnacle guardado, para las 40, pero solo 24 a menos de 3 horas del inicio (la descarga de las 08:30 queda lejos de los partidos de la tarde o del día siguiente). Por eso, **unos 15 minutos antes de cada hora de inicio con apuestas abiertas que pasan el corte**, el worker baja Pinnacle por OddsPapi (`job_closing_odds`; como mucho `APUESTAS_ODDSPAPI_CLOSING_PER_DAY` = 3 descargas al día, unas 40-90 peticiones más al mes, aprobado por el usuario el 2026-10-28).
+  Why football-data's closing odds aren't enough: they only bring the 1X2, over/under 2.5 and the main Asian handicap for the leagues, days after the match, and almost every bet that clears the threshold is from Betano in team goals, European handicap or both teams to score. Measured on 2026-10-28 with the 40 settled ones that clear the threshold: bet365's or Betfair's closing odds served for 2; the last saved Pinnacle price, for all 40, but only 24 less than 3 hours before kick-off (the 08:30 download is far from afternoon or next-day matches). That's why, **about 15 minutes before each kick-off time with open bets that clear the threshold**, the worker downloads Pinnacle through OddsPapi (`job_closing_odds`; at most `APUESTAS_ODDSPAPI_CLOSING_PER_DAY` = 3 downloads a day, about 40-90 more requests a month, approved by the user on 2026-10-28).
 
-  Primeros resultados (2026-10-28, sin la descarga de antes del inicio): **CLV medio −3,5 %** en las 40 que pasan el corte (9 de 40 positivas): las cuotas de Betano y bet365 que el modelo elige quedan, de media, un 3,5 % por debajo de la justa de Pinnacle. Por antigüedad de la referencia: al cierre (Betfair) +2,8 % en 2; a menos de 3 h −3,2 % en 22; de 3 a 12 h −1,1 % en 4; más de 12 h −6,1 % en 12. Cuadra con el backtest (el modelo no le gana al mercado en goles). Con unos cientos de apuestas el CLV dirá si hay ventaja mucho antes que el ROI: con 40, el ROI tiene un margen de unos ±15 puntos.
+  First results (2026-10-28, without the pre-kick-off download): **average CLV −3.5 %** across the 40 that clear the threshold (9 of 40 positive): the Betano and bet365 prices the model picks are, on average, 3.5 % below Pinnacle's fair price. By age of the reference: at the close (Betfair) +2.8 % in 2; under 3 h −3.2 % in 22; 3 to 12 h −1.1 % in 4; over 12 h −6.1 % in 12. It matches the backtest (the model doesn't beat the market in goals). With a few hundred bets the CLV will say whether there's an edge much sooner than the ROI: with 40, the ROI has a margin of about ±15 points.
 
 ## 7. Backtest (`backtest/engine.py`)
 
-> **Scripts de medición que no se conservan** (10-11-2026). Los scripts citados en esta sección por nombre suelto (`bt.py`, `cmp.py`, `wf.py`, `ana.py`, `frente_casas.py`, `medir_k.py`… y las carpetas de notas de sesión como `nivel-liga/`) vivían en la PC anterior del dueño y se perdieron: nunca estuvieron en el repositorio. Las cifras quedan como registro de lo que se midió. Para volver a medir, usa `apuestas backtest` y los scripts de `experimentos/`, que sí están en el repositorio.
+> **Measurement scripts that weren't kept** (10-11-2026). The scripts cited in this section by bare name (`bt.py`, `cmp.py`, `wf.py`, `ana.py`, `frente_casas.py`, `medir_k.py`… and session-notes folders like `nivel-liga/`) lived on the owner's previous PC and were lost: they were never in the repository. The figures stay as a record of what was measured. To measure again, use `apuestas backtest` and the scripts in `experimentos/`, which are in the repository.
 
-Walk-forward: cada semana se reajusta con datos anteriores y se apuesta contra la **cuota previa de bet365**. CLV contra el cierre de bet365.
+Walk-forward: each week it's refitted with earlier data and bets are placed against **bet365's opening odds**. CLV against bet365's closing odds.
 
-**Temporadas 2024-25 y 2025-26** (2.132 partidos de EPL, BUN y LAL; la log-loss se mide en los 1.998 con cuotas de bet365 y Pinnacle). Ya con los detalles de FotMob completos: alineaciones, árbitros y xG de todos los partidos desde 2023. El "modelo anterior" se ha vuelto a medir con los datos completos (antes daba 0,992 con datos parciales).
+**Seasons 2024-25 and 2025-26** (2,132 EPL, BUN and LAL matches; the log-loss is measured on the 1,998 with bet365 and Pinnacle odds). Already with complete FotMob details: line-ups, referees and xG for every match since 2023. The "previous model" was measured again with complete data (it used to give 0.992 with partial data).
 
-| Log-loss 1X2 | Modelo | bet365 | Pinnacle | Mezcla 25/75 |
+| 1X2 log-loss | Model | bet365 | Pinnacle | 25/75 blend |
 |---|---|---|---|---|
-| Modelo anterior (solo goles/xG) | 0,993 | 0,975 | 0,975 | 0,977 |
-| **Con ratings del mercado** | **0,981** | 0,975 | 0,975 | 0,976 |
+| Previous model (goals/xG only) | 0.993 | 0.975 | 0.975 | 0.977 |
+| **With market ratings** | **0.981** | 0.975 | 0.975 | 0.976 |
 
-Mejora pareada por partido: −0,0116 ± 0,0029 (unos 4 errores estándar). Brier: 0,591 → 0,584 (bet365 0,581). La distancia con Pinnacle baja de 0,017 a 0,006.
+Paired improvement per match: −0.0116 ± 0.0029 (about 4 standard errors). Brier: 0.591 → 0.584 (bet365 0.581). The distance to Pinnacle falls from 0.017 to 0.006.
 
-Peso y vida media de las observaciones del mercado (log-loss del modelo):
+Weight and half-life of the market observations (model log-loss):
 
-| Peso \ vida media | 7 días | 14 días | 28 días | 60 días |
+| Weight \ half-life | 7 days | 14 days | 28 days | 60 days |
 |---|---|---|---|---|
-| 8 | 0,9877 | 0,9859 | 0,9850 | 0,9854 |
-| 32 | 0,9836 | 0,9824 | 0,9827 | 0,9846 |
-| 64 | 0,9819 | 0,9815 | 0,9824 | 0,9845 |
-| 128 | 0,9809 | **0,9811** | 0,9822 | 0,9845 |
+| 8 | 0.9877 | 0.9859 | 0.9850 | 0.9854 |
+| 32 | 0.9836 | 0.9824 | 0.9827 | 0.9846 |
+| 64 | 0.9819 | 0.9815 | 0.9824 | 0.9845 |
+| 128 | 0.9809 | **0.9811** | 0.9822 | 0.9845 |
 
-Con más peso apenas cambia (256 y 512 con 7 días: 0,9804 y 0,9803). Las diferencias dentro de la meseta son ruido. Se eligió 14 días porque aguanta mejor el arranque de temporada (agosto-septiembre: 0,956 frente a 0,958 con 7 días).
+With more weight it barely changes (256 and 512 with 7 days: 0.9804 and 0.9803). The differences within the plateau are noise. 14 days was chosen because it holds up better at the start of the season (August-September: 0.956 against 0.958 with 7 days).
 
-| Estrategia (valor ≥ 3 %) | Anterior: apuestas | ROI | CLV medio | Nuevo: apuestas | ROI | CLV medio |
+| Strategy (value ≥ 3 %) | Previous: bets | ROI | Average CLV | New: bets | ROI | Average CLV |
 |---|---|---|---|---|---|---|
-| Solo modelo | 2.668 | −4,2 % | +0,2 % | 1.559 | −6,8 % | +0,5 % |
-| · hándicap asiático | 1.289 | +0,3 % | +0,2 % | 849 | −4,2 % | +0,2 % |
-| · más/menos 2.5 | 770 | −8,6 % | +0,2 % | 282 | −3,1 % | +2,1 % |
-| · 1X2 | 609 | −8,2 % | +0,1 % | 428 | −14,4 % | −0,2 % |
-| Modelo + mercado | 290 | −11,1 % | +1,1 % | 82 | −23,4 % | +2,2 % |
-| bet365 frente a Pinnacle (sin margen) | 4 | — | — | 4 | — | — |
+| Model only | 2,668 | −4.2 % | +0.2 % | 1,559 | −6.8 % | +0.5 % |
+| · Asian handicap | 1,289 | +0.3 % | +0.2 % | 849 | −4.2 % | +0.2 % |
+| · over/under 2.5 | 770 | −8.6 % | +0.2 % | 282 | −3.1 % | +2.1 % |
+| · 1X2 | 609 | −8.2 % | +0.1 % | 428 | −14.4 % | −0.2 % |
+| Model + market | 290 | −11.1 % | +1.1 % | 82 | −23.4 % | +2.2 % |
+| bet365 against Pinnacle (no-vig) | 4 | — | — | 4 | — | — |
 
-El error estándar del ROI con 1.500-2.700 apuestas a cuota ~2,2 es de 2-3 puntos, así que la caída del ROI no es significativa. La subida del CLV (y del % de apuestas que baten el cierre, 42 % → 45 %) es pequeña.
+The ROI's standard error with 1,500-2,700 bets at odds ~2.2 is 2-3 points, so the drop in ROI isn't significant. The rise in CLV (and in the % of bets that beat the close, 42 % → 45 %) is small.
 
-**Alineaciones** (`apuestas backtest --lineups`; 1.986 partidos con el once confirmado de ambos equipos y cuotas). Regresión de Poisson de goles/xG reales sobre la media del modelo y la diferencia entre el once y el once típico (4.238 equipo-partido, errores agrupados por partido):
+**Line-ups** (`apuestas backtest --lineups`; 1,986 matches with both teams' confirmed XI and odds). Poisson regression of real goals/xG on the model's mean and the difference between the XI and the usual XI (4,238 team-matches, errors clustered by match):
 
-| Objetivo | β ataque | β defensa |
+| Target | β attack | β defence |
 |---|---|---|
-| Goles | 0,11 ± 0,05 | 0,10 ± 0,06 |
-| xG | 0,06 ± 0,03 | 0,08 ± 0,04 |
+| Goals | 0.11 ± 0.05 | 0.10 ± 0.06 |
+| xG | 0.06 ± 0.03 | 0.08 ± 0.04 |
 
-| Log-loss 1X2 | Sin ajuste | β = 0,05 | **β = 0,10** | β = 0,15 | β = 0,30 (anterior) | bet365 | Pinnacle previa | Pinnacle cierre |
+| 1X2 log-loss | No adjustment | β = 0.05 | **β = 0.10** | β = 0.15 | β = 0.30 (previous) | bet365 | Pinnacle opening | Pinnacle closing |
 |---|---|---|---|---|---|---|---|---|
-| | 0,9812 | 0,9803 | **0,9798** | 0,9797 | 0,9818 | 0,9759 | 0,9759 | 0,9630 |
+| | 0.9812 | 0.9803 | **0.9798** | 0.9797 | 0.9818 | 0.9759 | 0.9759 | 0.9630 |
 
-Con β = 0,10 la mejora frente a no ajustar es −0,0014 ± 0,0010; con 0,30 el modelo empeoraba. La mejora viene sobre todo de LaLiga (−0,003); en la Premier es nula. Las apuestas del backtest no usan este ajuste: el once sale ~1 h antes del partido y la cuota previa es de días antes.
+With β = 0.10 the improvement over no adjustment is −0.0014 ± 0.0010; with 0.30 the model got worse. The improvement comes mainly from LaLiga (−0.003); in the Premier League it's nil. The backtest's bets don't use this adjustment: the XI comes out ~1 h before the match and the opening odds are from days before.
 
-Variantes probadas sin mejora (diferencia de log-loss frente a no ajustar; 2.119 partidos de liga + 361 de Champions):
+Variants tried without improvement (log-loss difference against no adjustment; 2,119 league matches + 361 Champions League):
 
-| Variante (β = 0,10 salvo indicación) | Ligas | Champions |
+| Variant (β = 0.10 unless stated) | Leagues | Champions League |
 |---|---|---|
-| Once típico de todas las competiciones (se mantiene) | −0,0014 ± 0,0009 | −0,0011 ± 0,0024 |
-| Once típico de la misma competición | −0,0012 ± 0,0009 | −0,0018 ± 0,0024 |
-| Once típico de liga frente a copas europeas | −0,0012 ± 0,0009 | −0,0018 ± 0,0024 |
-| Tope del ajuste (±10 % en la media de goles) | −0,0015 ± 0,0009 | −0,0010 ± 0,0024 |
-| β = 0,30 (anterior) | +0,0013 ± 0,0028 | +0,0004 ± 0,0072 |
+| Usual XI from all competitions (kept) | −0.0014 ± 0.0009 | −0.0011 ± 0.0024 |
+| Usual XI from the same competition | −0.0012 ± 0.0009 | −0.0018 ± 0.0024 |
+| League usual XI against European cups | −0.0012 ± 0.0009 | −0.0018 ± 0.0024 |
+| Adjustment cap (±10 % on the goals mean) | −0.0015 ± 0.0009 | −0.0010 ± 0.0024 |
+| β = 0.30 (previous) | +0.0013 ± 0.0028 | +0.0004 ± 0.0072 |
 
-**Otros índices de calidad del once** (14-11-2026, `experimentos/validacion/calidad_once.py`; 6.566 partidos con el once confirmado de los dos equipos, de agosto de 2024 al 9-11-2026: 6.128 de las ocho ligas y 438 de la Champions). Se probó si un índice hecho con lo que hizo cada jugador antes del partido capta más que el actual, que es casi solo el valor de mercado (la nota de temporada solo viene en 807 de 223.595 filas de alineación). Cada índice mide el once de hoy frente al once típico (los titulares de los últimos 8 onces, pesados por las veces que salieron); sus β se ajustan con dos temporadas y se miden en la tercera, así que todo es fuera de muestra menos el actual con β = 0,10. Diferencia de pérdida logarítmica del 1X2 (negativo = mejor):
+**Other XI quality indices** (14-11-2026, `experimentos/validacion/calidad_once.py`; 6,566 matches with both teams' confirmed XI, from August 2024 to 9-11-2026: 6,128 from the eight leagues and 438 from the Champions League). It was tested whether an index made from what each player did before the match captures more than the current one, which is almost only market value (the season rating only comes in 807 of 223,595 line-up rows). Each index measures today's XI against the usual XI (the starters of the last 8 XIs, weighted by how many times they started); their β are fitted on two seasons and measured on the third, so everything is out of sample except the current one with β = 0.10. 1X2 log-loss difference (negative = better):
 
-| Índice | Ligas, frente a sin ajuste | Ligas, frente al actual | Champions, frente a sin ajuste | Champions, frente al actual | Todas, frente al actual |
+| Index | Leagues, vs no adjustment | Leagues, vs current | Champions, vs no adjustment | Champions, vs current | All, vs current |
 |---|---|---|---|---|---|
-| Actual, β = 0,10 (producción) | −0,0012 ± 0,0009 | — | −0,0007 ± 0,0039 | — | — |
-| Actual, β ajustada (0,15 y 0,13) | −0,0012 ± 0,0012 | 0,0000 ± 0,0004 | −0,0005 ± 0,0056 | +0,0002 ± 0,0018 | 0,0000 ± 0,0004 |
-| Nota de FotMob de sus últimos 10 partidos | −0,0004 ± 0,0011 | +0,0008 ± 0,0012 | −0,0023 ± 0,0047 | −0,0016 ± 0,0049 | +0,0007 ± 0,0012 |
-| xG + xA por 90 de sus últimos 10 partidos | −0,0002 ± 0,0006 | +0,0010 ± 0,0010 | −0,0006 ± 0,0026 | +0,0001 ± 0,0041 | +0,0009 ± 0,0010 |
-| Titulares habituales (en cuántos de los últimos 8 onces salió) | −0,0015 ± 0,0015 | −0,0003 ± 0,0015 | −0,0080 ± 0,0064 | −0,0073 ± 0,0060 | −0,0008 ± 0,0014 |
-| **Actual + titulares habituales** | −0,0022 ± 0,0018 | −0,0009 ± 0,0013 | −0,0070 ± 0,0081 | −0,0063 ± 0,0055 | **−0,0013 ± 0,0012** |
-| Los cuatro juntos | −0,0020 ± 0,0019 | −0,0008 ± 0,0014 | −0,0067 ± 0,0087 | −0,0060 ± 0,0063 | −0,0011 ± 0,0014 |
+| Current, β = 0.10 (production) | −0.0012 ± 0.0009 | — | −0.0007 ± 0.0039 | — | — |
+| Current, fitted β (0.15 and 0.13) | −0.0012 ± 0.0012 | 0.0000 ± 0.0004 | −0.0005 ± 0.0056 | +0.0002 ± 0.0018 | 0.0000 ± 0.0004 |
+| FotMob rating over their last 10 matches | −0.0004 ± 0.0011 | +0.0008 ± 0.0012 | −0.0023 ± 0.0047 | −0.0016 ± 0.0049 | +0.0007 ± 0.0012 |
+| xG + xA per 90 over their last 10 matches | −0.0002 ± 0.0006 | +0.0010 ± 0.0010 | −0.0006 ± 0.0026 | +0.0001 ± 0.0041 | +0.0009 ± 0.0010 |
+| Usual starters (in how many of the last 8 XIs they started) | −0.0015 ± 0.0015 | −0.0003 ± 0.0015 | −0.0080 ± 0.0064 | −0.0073 ± 0.0060 | −0.0008 ± 0.0014 |
+| **Current + usual starters** | −0.0022 ± 0.0018 | −0.0009 ± 0.0013 | −0.0070 ± 0.0081 | −0.0063 ± 0.0055 | **−0.0013 ± 0.0012** |
+| All four together | −0.0020 ± 0.0019 | −0.0008 ± 0.0014 | −0.0067 ± 0.0087 | −0.0060 ± 0.0063 | −0.0011 ± 0.0014 |
 
-Lectura:
+Reading:
 
-1. **La nota y el xG + xA recientes no aportan nada.** La forma reciente de los jugadores ya está en la fuerza del equipo; lo que añade el once es quién juega, no cómo venía jugando. (La nota ya había salido neutra en octubre con otra réplica.)
-2. **Subir la β del índice actual no cambia nada**: 0,10 sigue bien.
-3. **Contar cuántos titulares habituales salen es lo único que suma**, y sobre todo en la Champions, donde más se rota. Junto al índice actual llega justo a su margen con todos los partidos (−0,0013 ± 0,0012) y en la Champions (−0,0063 ± 0,0055), no en las ligas solas (−0,0009 ± 0,0013). Por temporada, frente a no ajustar: 2024-25 −0,0035 ± 0,0025, 2025-26 −0,0005 ± 0,0028 y 2026-27 −0,0058 ± 0,0043. Se probaron seis variantes en tres grupos, así que una que roza su margen puede ser suerte: **no entra en producción**; se vuelve a medir al final de la temporada 2026-27 (unos 2.500 partidos más), y si aguanta se le propone al dueño.
-4. **El tamaño importa más que el signo.** En los 3.951 partidos de liga con cuotas: modelo sin ajuste 0,9603, con el índice actual 0,9588, con el actual y los habituales 0,9584; bet365 de días antes 0,9571, Pinnacle de días antes 0,9565 y el cierre de Pinnacle 0,9537. Con el once ya publicado, el modelo sigue detrás de la cuota que la casa daba días antes sin conocerlo. Ningún índice de alineación cierra esa distancia: lo que el cierre sabe de más no está en estos datos.
+1. **Recent rating and xG + xA add nothing.** Players' recent form is already in the team's strength; what the XI adds is who plays, not how they had been playing. (The rating had already come out neutral in October with another replication.)
+2. **Raising the current index's β changes nothing**: 0.10 is still fine.
+3. **Counting how many usual starters play is the only thing that adds**, above all in the Champions League, where there's more rotation. Together with the current index it reaches just its margin with all matches (−0.0013 ± 0.0012) and in the Champions League (−0.0063 ± 0.0055), not in the leagues alone (−0.0009 ± 0.0013). By season, against no adjustment: 2024-25 −0.0035 ± 0.0025, 2025-26 −0.0005 ± 0.0028 and 2026-27 −0.0058 ± 0.0043. Six variants were tried in three groups, so one that grazes its margin may be luck: **it doesn't go into production**; it's measured again at the end of the 2026-27 season (about 2,500 more matches), and if it holds it's proposed to the owner.
+4. **Size matters more than sign.** In the 3,951 league matches with odds: model without adjustment 0.9603, with the current index 0.9588, with the current one and usual starters 0.9584; bet365 days before 0.9571, Pinnacle days before 0.9565 and Pinnacle's closing odds 0.9537. With the XI already published, the model is still behind the price the bookmaker gave days earlier without knowing it. No line-up index closes that gap: what the closing odds know beyond it isn't in this data.
 
-Límite de la medición: el valor de mercado guardado es el del día de la descarga (noviembre de 2026 para todo el historial), así que el índice actual ve el futuro en los partidos antiguos. No se nota una ventaja mayor en las temporadas viejas (2024-25 −0,0021, 2025-26 −0,0001, 2026-27 −0,0021 en las ligas), pero la comparación favorece al actual, no a los nuevos.
+Limit of the measurement: the saved market value is the one on the download day (November 2026 for the whole history), so the current index sees the future in old matches. No bigger advantage is noticed in the old seasons (2024-25 −0.0021, 2025-26 −0.0001, 2026-27 −0.0021 in the leagues), but the comparison favours the current one, not the new ones.
 
-Los onces *previstos* (FotMob) no se pueden calibrar porque no se guarda su historial: cuando sale el confirmado, la fila se sobrescribe. Se les aplica el mismo β, que probablemente es algo alto para ellos, porque un once previsto mal acertado mete ruido. Ejemplo: en Liverpool-Villarreal (UCL, 20-10-2026) el once previsto de Liverpool incluye a varios suplentes y el de Villarreal es el de Champions (en liga rota). Con β = 0,30 el modelo daba 0,43 al local; con 0,10 da 0,59; el mercado, ~0,66.
+*Predicted* XIs (FotMob) can't be calibrated because their history isn't saved: when the confirmed one comes out, the row is overwritten. The same β is applied to them, which is probably somewhat high for them, because a badly guessed predicted XI adds noise. Example: in Liverpool-Villarreal (UCL, 20-10-2026) Liverpool's predicted XI includes several substitutes and Villarreal's is the Champions League one (in the league it rotates). With β = 0.30 the model gave the home team 0.43; with 0.10 it gives 0.59; the market, ~0.66.
 
-**Árbitro en tarjetas** (mejora de log-verosimilitud por partido frente al modelo sin árbitro; 2.105 partidos):
+**Referee in cards** (log-likelihood improvement per match against the model without referee; 2,105 matches):
 
-| K | Total | Premier | Bundesliga | LaLiga |
+| K | Total | Premier League | Bundesliga | LaLiga |
 |---|---|---|---|---|
-| 20 | +0,0041 | −0,0105 | +0,0066 | +0,0170 |
-| 40 | +0,0048 | −0,0066 | +0,0060 | +0,0155 |
-| **80** | **+0,0044** | −0,0034 | +0,0046 | +0,0122 |
-| 120 (anterior) | +0,0037 | −0,0022 | +0,0036 | +0,0099 |
-| 250 | +0,0024 | −0,0009 | +0,0021 | +0,0061 |
+| 20 | +0.0041 | −0.0105 | +0.0066 | +0.0170 |
+| 40 | +0.0048 | −0.0066 | +0.0060 | +0.0155 |
+| **80** | **+0.0044** | −0.0034 | +0.0046 | +0.0122 |
+| 120 (previous) | +0.0037 | −0.0022 | +0.0036 | +0.0099 |
+| 250 | +0.0024 | −0.0009 | +0.0021 | +0.0061 |
 
-K = 80 mejora a 120 en +0,0006 ± 0,0004. K = 40 da algo más de media, pero con más varianza. En la Premier el historial del árbitro no predice las tarjetas con ningún K (−0,003 ± 0,002 con K = 80). No se ha puesto una excepción por liga para no ajustarla a la misma muestra. En faltas se mantiene K = 20 (con 40 la diferencia es menor que su error).
+K = 80 improves on 120 by +0.0006 ± 0.0004. K = 40 gives slightly more on average, but with more variance. In the Premier League the referee's history doesn't predict cards with any K (−0.003 ± 0.002 with K = 80). No per-league exception has been set, so as not to fit it to the same sample. In fouls K = 20 stays (with 40 the difference is smaller than its error).
 
-**Copas europeas** (`--europa`; no hay cuotas de football-data, así que solo se mide el modelo). Log-loss 1X2 del modelo: Champions 0,903 (377 partidos), Europa League 0,984 (371) y Conference 1,021 (282). Sin referencia de mercado no se puede decir cuánto le falta. Hay dos limitaciones conocidas:
-- 102 equipos solo aparecen en copas europeas: son de ligas que el modelo no usa. No tienen ratings del mercado, así que su rating sale solo de pocos partidos europeos. Ejemplo: Bodø/Glimt sale casi tan fuerte como el Napoli (+0,62 frente a +0,67), mientras que la cuota de 1,30 del Napoli implica ~77 %. Una ventaja local propia por equipo (Bodø: +0,3 de xG en casa y −1,7 fuera) se probó y no mejora: empeora las ligas en +0,001 y no cambia la Champions. Las ligas extra de football-data cubren 43 de esos 102 equipos, pero con el modelo actual no ayudan (abajo); los otros 59 son de ligas que football-data no tiene (Chequia, Croacia, Serbia, Ucrania, Chipre, Israel...).
-- **Ligas extra de football-data** (19-10-2026): Austria, Dinamarca, Noruega, Suiza, Polonia, Suecia, Rumanía, Finlandia e Irlanda, con 6.852 partidos con cuota de cierre desde 2023. Con ellas tienen ratings del mercado 43 de los 102 equipos: 35 de esas ligas (Bodø/Glimt, Salzburg, Young Boys, Copenhague, Legia, Malmö, FCSB...) y 8 que eran duplicados. **Se descargan, pero no se usan para entrenar** (`APUESTAS_EXTRA_LEAGUES_IN_MODEL=false`), porque no mejoran el modelo actual. A/B sobre la misma BD, con log-loss por partido en los partidos que se evalúan en las dos versiones:
+**European cups** (`--europa`; there are no football-data odds, so only the model is measured). The model's 1X2 log-loss: Champions League 0.903 (377 matches), Europa League 0.984 (371) and Conference 1.021 (282). Without a market reference, how far off it is can't be said. There are two known limitations:
+- 102 teams only appear in European cups: they're from leagues the model doesn't use. They have no market ratings, so their rating comes only from a few European matches. Example: Bodø/Glimt comes out almost as strong as Napoli (+0.62 against +0.67), while Napoli's 1.30 odds imply ~77 %. A team-specific home advantage (Bodø: +0.3 xG at home and −1.7 away) was tried and doesn't improve: it makes the leagues worse by +0.001 and doesn't change the Champions League. The football-data extra leagues cover 43 of those 102 teams, but with the current model they don't help (below); the other 59 are from leagues football-data doesn't have (Czechia, Croatia, Serbia, Ukraine, Cyprus, Israel...).
+- **football-data extra leagues** (19-10-2026): Austria, Denmark, Norway, Switzerland, Poland, Sweden, Romania, Finland and Ireland, with 6,852 matches with closing odds since 2023. With them, 43 of the 102 teams have market ratings: 35 from those leagues (Bodø/Glimt, Salzburg, Young Boys, Copenhagen, Legia, Malmö, FCSB...) and 8 that were duplicates. **They're downloaded, but not used for training** (`APUESTAS_EXTRA_LEAGUES_IN_MODEL=false`), because they don't improve the current model. A/B on the same database, with log-loss per match on the matches evaluated in both versions:
 
-  | Log-loss 1X2 del modelo | Sin ligas extra | Con ligas extra | Diferencia |
+  | Model 1X2 log-loss | Without extra leagues | With extra leagues | Difference |
   |---|---|---|---|
-  | Ligas (2.132 partidos) | 0,9801 | 0,9800 | −0,0001 |
-  | Champions (377) | 0,9017 | 0,9064 | +0,0046 ± 0,0061 |
-  | Europa League (371) | 0,9856 | 0,9842 | −0,0014 ± 0,0074 |
-  | Conference (282) | 1,0150 | 1,0236 | +0,0085 ± 0,0108 |
+  | Leagues (2,132 matches) | 0.9801 | 0.9800 | −0.0001 |
+  | Champions League (377) | 0.9017 | 0.9064 | +0.0046 ± 0.0061 |
+  | Europa League (371) | 0.9856 | 0.9842 | −0.0014 ± 0.0074 |
+  | Conference (282) | 1.0150 | 1.0236 | +0.0085 ± 0.0108 |
 
-  Con las ligas extra se evalúan además 5 partidos de Europa League y 8 de Conference de equipos que antes no tenían rating. Así, `APUESTAS_EXTRA_LEAGUES_IN_MODEL=true apuestas backtest --lineups --europa` da 0,906 (377) / 0,984 (376) / 1,026 (290).
+  With the extra leagues, 5 Europa League and 8 Conference matches of teams that previously had no rating are also evaluated. So `APUESTAS_EXTRA_LEAGUES_IN_MODEL=true apuestas backtest --lineups --europa` gives 0.906 (377) / 0.984 (376) / 1.026 (290).
 
-  El motivo es que el modelo no tiene un nivel por liga. La L2 encoge cada equipo hacia 0, así que una liga entera, conectada con las demás solo por sus partidos europeos, se acerca en bloque a la media: Irlanda sale al nivel de la Eredivisie. Los mejores de cada liga, que le sacan mucha ventaja al resto, quedan inflados. Bodø/Glimt pasa de +0,62 a +0,93 (Napoli +0,73) y Napoli-Bodø pasa de 47/25/28 a 39/24/37, con el mercado en ~77 % para el Napoli. Además, esos equipos dejarían de activar la regla de prudencia para equipos que el mercado no ha visto (sección 6). Bajar la L2 (0,5 o 0,1) separa más las ligas, pero no corrige a Bodø (+0,93 y +0,96).
+  The reason is that the model doesn't have a level per league. The L2 shrinks each team towards 0, so a whole league, connected to the others only by its European matches, moves as a block towards the average: Ireland comes out at the Eredivisie's level. The best teams in each league, who are far ahead of the rest, end up inflated. Bodø/Glimt goes from +0.62 to +0.93 (Napoli +0.73) and Napoli-Bodø goes from 47/25/28 to 39/24/37, with the market at ~77 % for Napoli. Also, those teams would stop triggering the prudence rule for teams the market hasn't seen (section 6). Lowering the L2 (0.5 or 0.1) separates the leagues more, but doesn't fix Bodø (+0.93 and +0.96).
 
-  Experimento no aplicado: fuerza = nivel de la liga + desviación del equipo, con la L2 solo en la desviación (liga = la de su último partido de liga). Sin ligas extra: Champions 0,8966, Europa League 0,9757, Conference 1,0122 y ligas 0,9798. Con ellas: 0,8957 / 0,9719 / 1,0122 y ligas 0,9797. La mejora viene sobre todo del nivel por liga, y con él las ligas extra dejan de empeorar. Pero ninguna diferencia es significativa (copas juntas −0,008 ± 0,006 frente al modelo actual) y Napoli-Bodø sigue lejos del mercado (50/23/27).
-- ~~Hay equipos duplicados entre fuentes~~ **Corregido el 19-10-2026** (`ingest/dedupe.py`). Se fusionaron 9 equipos:
-  - AEK, PAOK, NEC Nijmegen, Royal Antwerp, Union Saint-Gilloise y Vitória de Guimarães: su registro de copas europeas no estaba conectado con el de su liga.
-  - Verona, Clermont y Saint-Étienne: cada partido suyo de Serie A o Ligue 1 estaba **duplicado** (182 en total), uno de FotMob y otro de football-data. El rival de cada jornada "jugaba dos veces".
+  Experiment not applied: strength = league level + team deviation, with the L2 only on the deviation (league = that of its last league match). Without extra leagues: Champions League 0.8966, Europa League 0.9757, Conference 1.0122 and leagues 0.9798. With them: 0.8957 / 0.9719 / 1.0122 and leagues 0.9797. The improvement comes mainly from the level per league, and with it the extra leagues stop making things worse. But no difference is significant (cups together −0.008 ± 0.006 against the current model) and Napoli-Bodø is still far from the market (50/23/27).
+- ~~There are duplicate teams across sources~~ **Fixed on 19-10-2026** (`ingest/dedupe.py`). 9 teams were merged:
+  - AEK, PAOK, NEC Nijmegen, Royal Antwerp, Union Saint-Gilloise and Vitória de Guimarães: their European cups record wasn't connected to their league one.
+  - Verona, Clermont and Saint-Étienne: each of their Serie A or Ligue 1 matches was **duplicated** (182 in total), one from FotMob and another from football-data. Each matchday's opponent "played twice".
 
-  La causa era que, en las ligas ligeras con FotMob, football-data creaba el partido en vez de buscarlo. Además, Gladbach nunca tenía enlazadas sus cuotas de football-data y quedaba sin ratings del mercado; ahora sí las tiene.
+  The cause was that, in the light leagues with FotMob, football-data created the match instead of looking it up. Also, Gladbach never had its football-data odds linked and was left without market ratings; now it has them.
 
-  La ingesta fusiona sola los pares seguros: nombre igual tras normalizar, fuentes distintas, sin enfrentamientos entre ellos y sin partidos distintos el mismo día. Los dudosos se listan con `apuestas equipos duplicados`, por ejemplo Aris (Grecia) frente a Aris Limassol (Chipre), que son clubes distintos.
+  The ingest merges the safe pairs by itself: the same name after normalising, different sources, no matches between them and no different matches on the same day. The doubtful ones are listed with `apuestas equipos duplicados`, for example Aris (Greece) against Aris Limassol (Cyprus), which are different clubs.
 
-  | Log-loss 1X2 del modelo | Antes | Después de fusionar |
+  | Model 1X2 log-loss | Before | After merging |
   |---|---|---|
-  | Ligas (2.132 partidos) | 0,9811 | **0,9801** (bet365 0,9749) |
-  | Champions | 0,903 | 0,902 |
-  | Europa League | 0,984 | 0,986 |
-  | Conference | 1,021 | 1,015 |
+  | Leagues (2,132 matches) | 0.9811 | **0.9801** (bet365 0.9749) |
+  | Champions League | 0.903 | 0.902 |
+  | Europa League | 0.984 | 0.986 |
+  | Conference | 1.021 | 1.015 |
 
-  En el backtest de apuestas, solo modelo: 1.594 apuestas, ROI −6,3 % (antes −6,8 %), una diferencia que es ruido.
-- El modelo solo se entrena con las competiciones definidas en `core/competitions.py`. La BD es compartida, y una rama puede cargar ligas nuevas que aún no se han validado.
+  In the betting backtest, model only: 1,594 bets, ROI −6.3 % (before −6.8 %), a difference that is noise.
+- The model is only trained with the competitions defined in `core/competitions.py`. The database is shared, and a branch can load new leagues that haven't been validated yet.
 
-| Estadísticas (log-verosimilitud del total por partido) | Mejora frente a la media de la liga |
+| Stats (log-likelihood of the total per match) | Improvement over the league average |
 |---|---|
-| Faltas | +0,160 (árbitro: +0,006 más) |
-| Remates | +0,036 |
-| Remates a puerta | +0,024 |
-| Tarjetas | +0,022 (árbitro: +0,004 más) |
-| Córners | +0,008 |
+| Fouls | +0.160 (referee: +0.006 more) |
+| Shots | +0.036 |
+| Shots on target | +0.024 |
+| Cards | +0.022 (referee: +0.004 more) |
+| Corners | +0.008 |
 
-**Contracción de las estadísticas** (21-10-2026; `apuestas backtest --europa`, frente a `--count-l2 1` para la L2 fija de antes). Log-verosimilitud por partido, del total y de los dos equipos por separado (`<stat> por equipo`), en 2.132 partidos de liga y 378 de Champions. En la Champions, 108 partidos tienen un equipo con menos de 10 partidos con estadísticas ("pocos datos"; `:pocos_datos` en la salida). Diferencia frente a la L2 fija, con el error estándar pareado:
+**Stats shrinkage** (21-10-2026; `apuestas backtest --europa`, against `--count-l2 1` for the previous fixed L2). Log-likelihood per match, of the total and of the two teams separately (`<stat> por equipo`), on 2,132 league matches and 378 Champions League ones. In the Champions League, 108 matches have a team with fewer than 10 matches with stats ("little data"; `:pocos_datos` in the output). Difference against the fixed L2, with the paired standard error:
 
-| Estadística (K) | Ligas: total | Ligas: por equipo | Champions: total | Champions: por equipo | Pocos datos: total | Pocos datos: por equipo |
+| Stat (K) | Leagues: total | Leagues: per team | Champions: total | Champions: per team | Little data: total | Little data: per team |
 |---|---|---|---|---|---|---|
-| Córners (5) | +0,0030 ± 0,0011 | +0,0008 ± 0,0040 | +0,019 ± 0,008 | −0,004 ± 0,023 | +0,043 ± 0,022 | +0,014 ± 0,056 |
-| Tarjetas (10) | +0,0082 ± 0,0019 | +0,0111 ± 0,0024 | +0,015 ± 0,012 | +0,025 ± 0,015 | +0,026 ± 0,038 | +0,056 ± 0,045 |
-| Faltas (5) | +0,0028 ± 0,0018 | +0,0081 ± 0,0027 | +0,045 ± 0,018 | +0,044 ± 0,027 | +0,111 ± 0,059 | +0,137 ± 0,082 |
-| Remates (1) | +0,0014 ± 0,0005 | −0,0022 ± 0,0023 | +0,014 ± 0,006 | +0,004 ± 0,023 | +0,038 ± 0,019 | +0,065 ± 0,052 |
-| Remates a puerta (1) | +0,0013 ± 0,0004 | −0,0022 ± 0,0015 | +0,022 ± 0,008 | +0,019 ± 0,014 | +0,070 ± 0,028 | +0,114 ± 0,040 |
+| Corners (5) | +0.0030 ± 0.0011 | +0.0008 ± 0.0040 | +0.019 ± 0.008 | −0.004 ± 0.023 | +0.043 ± 0.022 | +0.014 ± 0.056 |
+| Cards (10) | +0.0082 ± 0.0019 | +0.0111 ± 0.0024 | +0.015 ± 0.012 | +0.025 ± 0.015 | +0.026 ± 0.038 | +0.056 ± 0.045 |
+| Fouls (5) | +0.0028 ± 0.0018 | +0.0081 ± 0.0027 | +0.045 ± 0.018 | +0.044 ± 0.027 | +0.111 ± 0.059 | +0.137 ± 0.082 |
+| Shots (1) | +0.0014 ± 0.0005 | −0.0022 ± 0.0023 | +0.014 ± 0.006 | +0.004 ± 0.023 | +0.038 ± 0.019 | +0.065 ± 0.052 |
+| Shots on target (1) | +0.0013 ± 0.0004 | −0.0022 ± 0.0015 | +0.022 ± 0.008 | +0.019 ± 0.014 | +0.070 ± 0.028 | +0.114 ± 0.040 |
 
-K se eligió con una rejilla (0,5 a 30) en ese mismo walk-forward: el valor que mejora el total sin empeorar "por equipo" en las ligas. Más contracción sigue mejorando el total, pero empeora el reparto entre los dos equipos: en córners, con K = 20, "por equipo" baja −0,005 en ligas y −0,12 con pocos datos. El orden coincide con el que da la variación real entre equipos (empírico: K ≈ 2-3 en remates, 8 en córners, 30-60 en tarjetas), con más contracción donde los equipos se parecen más entre sí. En remates, "por equipo" en ligas baja un poco con cualquier K (−0,002, a 1-1,5 errores estándar); se acepta por la mejora en la Champions, que alimenta las props de jugadores de esos rivales. El 1X2 y las apuestas no cambian (el modelo de goles es el mismo). Antes, el total de córners en la Champions predecía peor que la media de la liga (−0,002); ahora, +0,017. (Después, los remates y los córners pasaron a contraerse hacia la fuerza del modelo de goles, con otra K: ver abajo.)
+K was chosen with a grid (0.5 to 30) in that same walk-forward: the value that improves the total without making "per team" worse in the leagues. More shrinkage keeps improving the total, but makes the split between the two teams worse: in corners, with K = 20, "per team" drops −0.005 in leagues and −0.12 with little data. The order matches the one given by the real variation between teams (empirical: K ≈ 2-3 in shots, 8 in corners, 30-60 in cards), with more shrinkage where teams are more alike. In shots, "per team" in leagues drops a little with any K (−0.002, at 1-1.5 standard errors); it's accepted because of the improvement in the Champions League, which feeds the player props of those opponents. The 1X2 and the bets don't change (the goals model is the same). Before, the Champions League corners total predicted worse than the league average (−0.002); now, +0.017. (Later, shots and corners were shrunk towards the goals model's strength instead, with another K: see below.)
 
-Comprobación con las cuotas guardadas de Pinnacle (47 partidos del 19 al 21-10-2026 con córners y 38 con tarjetas; modelo entrenado hasta el 19-10): error medio de la media de córners de cada equipo frente a la de Pinnacle (raíz del error cuadrático en logaritmo) 0,158 → 0,128, y en equipos con menos de 10 partidos, 0,281 → 0,167. En el total, 0,105 → 0,068. En tarjetas, 0,212 → 0,162 por equipo y 0,170 → 0,128 en el total.
+Check with the saved Pinnacle odds (47 matches from 19 to 21-10-2026 with corners and 38 with cards; model trained up to 19-10): average error of each team's corners mean against Pinnacle's (root mean squared error in logarithm) 0.158 → 0.128, and in teams with fewer than 10 matches, 0.281 → 0.167. In the total, 0.105 → 0.068. In cards, 0.212 → 0.162 per team and 0.170 → 0.128 in the total.
 
-**Córners y remates entre ligas: la fuerza del modelo de goles como guía** (21-10-2026; `apuestas backtest --europa`, frente a `--no-count-strength` para el modelo anterior). Con la contracción de arriba seguía un problema con equipos bien conocidos: frente a Pinnacle, el error por equipo en córners era 0,178 en la Champions y 0,095 en las ligas. Betis-Feyenoord daba 4,2 córners al Betis y 5,6 al Feyenoord (Pinnacle: 5,3 y 4,1). La causa es la de la sección 3: las ligas solo se cruzan en estas estadísticas por la Champions, y el nivel de cada liga lo fijaba la contracción.
+**Corners and shots across leagues: the goals model's strength as a guide** (21-10-2026; `apuestas backtest --europa`, against `--no-count-strength` for the previous model). With the shrinkage above a problem remained with well-known teams: against Pinnacle, the per-team error in corners was 0.178 in the Champions League and 0.095 in the leagues. Betis-Feyenoord gave Betis 4.2 corners and Feyenoord 5.6 (Pinnacle: 5.3 and 4.1). The cause is the one in section 3: the leagues only cross in these stats through the Champions League, and each league's level was set by the shrinkage.
 
-Se probaron dos arreglos en el mismo walk-forward: un **nivel por liga** (fuerza = nivel de la liga + desviación del equipo, con la contracción solo en la desviación y la liga de su último partido de liga, como el experimento de goles), y la **fuerza del modelo de goles como guía** (sección 3). En la salida, `:entre_ligas` son los 260 partidos de Champions entre equipos conocidos de ligas distintas, y `:pocos_datos` los 108 con un equipo de menos de 10 partidos. Diferencia de log-verosimilitud por partido frente al modelo anterior, con el error estándar pareado:
+Two fixes were tried in the same walk-forward: a **level per league** (strength = league level + team deviation, with the shrinkage only on the deviation and the league of its last league match, like the goals experiment), and the **goals model's strength as a guide** (section 3). In the output, `:entre_ligas` are the 260 Champions League matches between known teams from different leagues, and `:pocos_datos` the 108 with a team with fewer than 10 matches. Log-likelihood difference per match against the previous model, with the paired standard error:
 
-| Córners: variante (K) | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo |
+| Corners: variant (K) | Leagues: total | Leagues: per team | Cross-league: total | Cross-league: per team | Little data: total | Little data: per team |
 |---|---|---|---|---|---|---|
-| Nivel por liga (5) | +0,0007 ± 0,0004 | +0,0074 ± 0,0022 | −0,0025 ± 0,0036 | +0,007 ± 0,031 | −0,020 ± 0,013 | +0,064 ± 0,044 |
-| Nivel por liga y fuerza (5) | +0,0011 ± 0,0006 | +0,0124 ± 0,0036 | −0,0029 ± 0,0041 | +0,012 ± 0,031 | −0,018 ± 0,015 | +0,065 ± 0,051 |
-| Fuerza (5) | +0,0014 ± 0,0006 | +0,0132 ± 0,0036 | −0,0016 ± 0,0031 | +0,041 ± 0,014 | +0,003 ± 0,006 | +0,060 ± 0,029 |
-| Fuerza (10) | +0,0034 ± 0,0009 | +0,0205 ± 0,0037 | +0,0005 ± 0,0033 | +0,047 ± 0,014 | −0,001 ± 0,009 | +0,053 ± 0,029 |
-| **Fuerza (20, aplicada)** | **+0,0045 ± 0,0016** | **+0,0275 ± 0,0043** | **+0,0019 ± 0,0050** | **+0,053 ± 0,015** | **−0,009 ± 0,014** | **+0,039 ± 0,033** |
-| Fuerza (40) | +0,0034 ± 0,0026 | +0,0311 ± 0,0054 | +0,0015 ± 0,0075 | +0,056 ± 0,017 | −0,018 ± 0,018 | +0,023 ± 0,037 |
+| Level per league (5) | +0.0007 ± 0.0004 | +0.0074 ± 0.0022 | −0.0025 ± 0.0036 | +0.007 ± 0.031 | −0.020 ± 0.013 | +0.064 ± 0.044 |
+| Level per league and strength (5) | +0.0011 ± 0.0006 | +0.0124 ± 0.0036 | −0.0029 ± 0.0041 | +0.012 ± 0.031 | −0.018 ± 0.015 | +0.065 ± 0.051 |
+| Strength (5) | +0.0014 ± 0.0006 | +0.0132 ± 0.0036 | −0.0016 ± 0.0031 | +0.041 ± 0.014 | +0.003 ± 0.006 | +0.060 ± 0.029 |
+| Strength (10) | +0.0034 ± 0.0009 | +0.0205 ± 0.0037 | +0.0005 ± 0.0033 | +0.047 ± 0.014 | −0.001 ± 0.009 | +0.053 ± 0.029 |
+| **Strength (20, applied)** | **+0.0045 ± 0.0016** | **+0.0275 ± 0.0043** | **+0.0019 ± 0.0050** | **+0.053 ± 0.015** | **−0.009 ± 0.014** | **+0.039 ± 0.033** |
+| Strength (40) | +0.0034 ± 0.0026 | +0.0311 ± 0.0054 | +0.0015 ± 0.0075 | +0.056 ± 0.017 | −0.018 ± 0.018 | +0.023 ± 0.037 |
 
-| Otras estadísticas: variante (K) | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo |
+| Other stats: variant (K) | Leagues: total | Leagues: per team | Cross-league: total | Cross-league: per team | Little data: total | Little data: per team |
 |---|---|---|---|---|---|---|
-| **Remates: fuerza (8, aplicada)** | +0,0062 ± 0,0015 | +0,0230 ± 0,0033 | −0,0029 ± 0,0041 | +0,043 ± 0,014 | +0,034 ± 0,019 | +0,114 ± 0,045 |
-| **A puerta: fuerza (8, aplicada)** | +0,0067 ± 0,0015 | +0,0161 ± 0,0023 | −0,0014 ± 0,0048 | +0,025 ± 0,011 | +0,089 ± 0,034 | +0,147 ± 0,044 |
-| Tarjetas: fuerza (10, no aplicada) | −0,0002 ± 0,0003 | +0,0024 ± 0,0011 | +0,0000 ± 0,0021 | −0,003 ± 0,004 | −0,002 ± 0,002 | +0,009 ± 0,007 |
-| Faltas: fuerza (5, no aplicada) | +0,0010 ± 0,0005 | +0,0014 ± 0,0006 | −0,0048 ± 0,0031 | −0,008 ± 0,004 | +0,005 ± 0,005 | −0,001 ± 0,006 |
+| **Shots: strength (8, applied)** | +0.0062 ± 0.0015 | +0.0230 ± 0.0033 | −0.0029 ± 0.0041 | +0.043 ± 0.014 | +0.034 ± 0.019 | +0.114 ± 0.045 |
+| **On target: strength (8, applied)** | +0.0067 ± 0.0015 | +0.0161 ± 0.0023 | −0.0014 ± 0.0048 | +0.025 ± 0.011 | +0.089 ± 0.034 | +0.147 ± 0.044 |
+| Cards: strength (10, not applied) | −0.0002 ± 0.0003 | +0.0024 ± 0.0011 | +0.0000 ± 0.0021 | −0.003 ± 0.004 | −0.002 ± 0.002 | +0.009 ± 0.007 |
+| Fouls: strength (5, not applied) | +0.0010 ± 0.0005 | +0.0014 ± 0.0006 | −0.0048 ± 0.0031 | −0.008 ± 0.004 | +0.005 ± 0.005 | −0.001 ± 0.006 |
 
-Con la fuerza como guía, más contracción mejora, al revés que antes: sin la fuerza, K = 10 en córners empeora el reparto (−0,0008 ± 0,0019 por equipo en ligas y −0,054 ± 0,018 con pocos datos). Se eligió el K que mejora las ligas y los partidos entre ligas sin empeorar de forma apreciable los de pocos datos; estos, además, se mezclan con la casa (sección 6). En toda la Champions (378 partidos), córners por equipo +0,047 ± 0,014, remates +0,061 ± 0,016 y a puerta +0,059 ± 0,015; el total no empeora en ninguno. Usar ataque y defensa de goles por separado (cuatro coeficientes en vez de dos) da lo mismo que su suma. El 1X2, las apuestas del backtest, las tarjetas y las faltas no cambian.
+With strength as a guide, more shrinkage improves, the opposite of before: without strength, K = 10 in corners makes the split worse (−0.0008 ± 0.0019 per team in leagues and −0.054 ± 0.018 with little data). The K chosen was the one that improves the leagues and cross-league matches without noticeably worsening the little-data ones; those are also blended with the bookmaker (section 6). Across the whole Champions League (378 matches), corners per team +0.047 ± 0.014, shots +0.061 ± 0.016 and on target +0.059 ± 0.015; the total gets worse in none of them. Using goals attack and defence separately (four coefficients instead of two) gives the same as their sum. The 1X2, the backtest bets, cards and fouls don't change.
 
-Comprobación con las cuotas guardadas (modelo entrenado hasta el 20-10-2026; la media de cada equipo sale de todas las líneas de más/menos y hándicap de córners de la casa, sin margen). Error de la media de córners de cada equipo (raíz del error cuadrático en logaritmo):
+Check with the saved odds (model trained up to 20-10-2026; each team's mean comes from all the bookmaker's corners over/under and handicap lines, without margin). Error of each team's corners mean (root mean squared error in logarithm):
 
-| Córners, error por equipo | Ligas | Champions, equipos conocidos | Champions, pocos datos | Todos | Total del partido |
+| Corners, error per team | Leagues | Champions, known teams | Champions, little data | All | Match total |
 |---|---|---|---|---|---|
-| Pinnacle (41 partidos: 25 / 9 / 7), modelo anterior | 0,095 | 0,178 | 0,170 | 0,132 | 0,068 |
-| Pinnacle, nivel por liga (5) | 0,090 | 0,160 | 0,150 | 0,120 | 0,069 |
-| Pinnacle, nivel por liga (10) | 0,087 | 0,151 | 0,139 | 0,114 | 0,059 |
-| **Pinnacle, fuerza (20)** | **0,072** | **0,120** | **0,083** | **0,086** | **0,049** |
-| Betano (47 partidos: 29 / 11 / 7), modelo anterior | 0,083 | 0,180 | 0,147 | 0,123 | 0,062 |
-| **Betano, fuerza (20)** | **0,058** | **0,131** | **0,066** | **0,082** | **0,046** |
+| Pinnacle (41 matches: 25 / 9 / 7), previous model | 0.095 | 0.178 | 0.170 | 0.132 | 0.068 |
+| Pinnacle, level per league (5) | 0.090 | 0.160 | 0.150 | 0.120 | 0.069 |
+| Pinnacle, level per league (10) | 0.087 | 0.151 | 0.139 | 0.114 | 0.059 |
+| **Pinnacle, strength (20)** | **0.072** | **0.120** | **0.083** | **0.086** | **0.049** |
+| Betano (47 matches: 29 / 11 / 7), previous model | 0.083 | 0.180 | 0.147 | 0.123 | 0.062 |
+| **Betano, strength (20)** | **0.058** | **0.131** | **0.066** | **0.082** | **0.046** |
 
-| Córners (local-visitante) | Pinnacle | Modelo anterior | Nivel por liga | Fuerza |
+| Corners (home-away) | Pinnacle | Previous model | Level per league | Strength |
 |---|---|---|---|---|
-| Betis-Feyenoord | 5,3-4,1 | 4,2-5,6 | 4,6-5,2 | 4,8-4,9 |
-| Porto-PSV | 5,6-4,2 | 5,0-4,6 | 4,3-5,2 | 5,2-4,2 |
-| Brujas-Lens | 5,5-4,6 | 5,5-4,8 | 4,5-5,8 | 5,4-4,6 |
-| Real Madrid-Leipzig | 7,0-3,5 | 7,2-4,3 | 7,2-4,2 | 7,0-3,9 |
-| Manchester City-AEK | 7,8-2,2 | 5,5-3,5 | 7,9-2,4 | 6,4-3,1 |
-| Napoli-Bodø/Glimt | 6,2-3,7 | 8,2-3,0 | 8,8-2,7 | 6,7-3,5 |
+| Betis-Feyenoord | 5.3-4.1 | 4.2-5.6 | 4.6-5.2 | 4.8-4.9 |
+| Porto-PSV | 5.6-4.2 | 5.0-4.6 | 4.3-5.2 | 5.2-4.2 |
+| Club Brugge-Lens | 5.5-4.6 | 5.5-4.8 | 4.5-5.8 | 5.4-4.6 |
+| Real Madrid-Leipzig | 7.0-3.5 | 7.2-4.3 | 7.2-4.2 | 7.0-3.9 |
+| Manchester City-AEK | 7.8-2.2 | 5.5-3.5 | 7.9-2.4 | 6.4-3.1 |
+| Napoli-Bodø/Glimt | 6.2-3.7 | 8.2-3.0 | 8.8-2.7 | 6.7-3.5 |
 
-**Por qué no el nivel por liga.** Con tan pocos partidos entre ligas, el nivel de cada liga sale con mucho ruido: la Eredivisie, con 14 partidos ponderados, queda casi al nivel de la Segunda española, y la belga sale tan baja que el Brujas tendría menos córners que el Lens en su campo. Mejora el reparto de las ligas, pero en la Champions apenas (+0,007 ± 0,031 entre ligas) y estropea casos que estaban bien (Porto-PSV, Brujas-Lens). Con la fuerza como guía, el nivel de cada liga sale del modelo de goles, que tiene muchos más datos para comparar ligas (cuotas de cierre y todos los partidos de las tres copas europeas). Juntar las dos cosas es peor que la fuerza sola. (Se volvió a probar con las estadísticas de la Europa League y la Conference, con casi el doble de cruces, y tampoco mejora: ver "Nivel por liga con los cruces de la Europa League y la Conference" abajo.)
+**Why not the level per league.** With so few cross-league matches, each league's level comes out very noisy: the Eredivisie, with 14 weighted matches, ends up almost at the level of the Spanish Segunda, and the Belgian league comes out so low that Club Brugge would have fewer corners than Lens at home. It improves the split within leagues, but barely in the Champions League (+0.007 ± 0.031 cross-league) and spoils cases that were fine (Porto-PSV, Club Brugge-Lens). With strength as a guide, each league's level comes from the goals model, which has much more data to compare leagues (closing odds and every match of the three European cups). Combining the two is worse than strength alone. (It was tried again with the Europa League and Conference stats, with almost twice as many crossings, and it doesn't improve either: see "Level per league with the Europa League and Conference crossings" below.)
 
-**Lo que queda.** Con equipos grandes aún hay diferencias con Pinnacle: Betis-Feyenoord (4,8-4,9 frente a 5,3-4,1) y Bayern-Arsenal (4,6-4,2 frente a 5,5-4,2). En el análisis del 21-10, "Córners de Feyenoord: Más de 7.5" a 9,00 pasa de +108 % a +41 %, pero su confianza sube de 0,36 a 0,73, porque el modelo y la casa discrepan menos (sección 6). Los córners no pueden ser apuesta del día (solo los mercados de goles). (Explicado y corregido en parte el 22-10-2026: ver "Córners del local grande en la Champions" más abajo.)
+**What remains.** With big teams there are still differences with Pinnacle: Betis-Feyenoord (4.8-4.9 against 5.3-4.1) and Bayern-Arsenal (4.6-4.2 against 5.5-4.2). In the 21-10 analysis, "Feyenoord corners: over 7.5" at 9.00 goes from +108 % to +41 %, but its confidence rises from 0.36 to 0.73, because the model and the bookmaker disagree less (section 6). Corners can't be the bet of the day (only goals markets). (Explained and partly fixed on 22-10-2026: see "Corners of the big home team in the Champions League" below.)
 
-**Estadísticas de la Europa League y la Conference** (21-10-2026). FotMob trae de estas copas las mismas estadísticas que de la Champions. Se bajaron los 1.020 partidos jugados desde 2023-24 a una copia de la base de datos y se midió con el mismo walk-forward, en los mismos partidos, quitando sus estadísticas solo de los datos de entrenamiento. Diferencia de log-verosimilitud por partido (positivo = mejor), con el error estándar pareado:
+**Europa League and Conference stats** (21-10-2026). FotMob brings the same stats for these cups as for the Champions League. The 1,020 matches played since 2023-24 were downloaded into a copy of the database and measured with the same walk-forward, on the same matches, removing their stats only from the training data. Log-likelihood difference per match (positive = better), with the paired standard error:
 
-| Con las estadísticas de UEL/UECL | Ligas: total | Ligas: por equipo | Champions: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: por equipo |
+| With UEL/UECL stats | Leagues: total | Leagues: per team | Champions: per team | Cross-league: total | Cross-league: per team | Little data: per team |
 |---|---|---|---|---|---|---|
-| Córners | +0,0000 ± 0,0004 | +0,0012 ± 0,0008 | +0,0015 ± 0,0036 | +0,0025 ± 0,0012 | +0,0043 ± 0,0023 | −0,005 ± 0,012 |
-| Remates | +0,0001 ± 0,0006 | +0,0051 ± 0,0013 | +0,0079 ± 0,0075 | +0,0011 ± 0,0022 | +0,0129 ± 0,0046 | −0,003 ± 0,024 |
-| A puerta | +0,0008 ± 0,0007 | +0,0029 ± 0,0010 | +0,0040 ± 0,0091 | −0,0013 ± 0,0026 | +0,0024 ± 0,0039 | +0,008 ± 0,031 |
-| Faltas | −0,0011 ± 0,0010 | +0,0004 ± 0,0012 | +0,0202 ± 0,0066 | +0,0010 ± 0,0031 | +0,0076 ± 0,0052 | +0,052 ± 0,019 |
-| Tarjetas | +0,0012 ± 0,0009 | +0,0012 ± 0,0009 | +0,0023 ± 0,0036 | +0,0005 ± 0,0022 | +0,0021 ± 0,0025 | +0,002 ± 0,011 |
+| Corners | +0.0000 ± 0.0004 | +0.0012 ± 0.0008 | +0.0015 ± 0.0036 | +0.0025 ± 0.0012 | +0.0043 ± 0.0023 | −0.005 ± 0.012 |
+| Shots | +0.0001 ± 0.0006 | +0.0051 ± 0.0013 | +0.0079 ± 0.0075 | +0.0011 ± 0.0022 | +0.0129 ± 0.0046 | −0.003 ± 0.024 |
+| On target | +0.0008 ± 0.0007 | +0.0029 ± 0.0010 | +0.0040 ± 0.0091 | −0.0013 ± 0.0026 | +0.0024 ± 0.0039 | +0.008 ± 0.031 |
+| Fouls | −0.0011 ± 0.0010 | +0.0004 ± 0.0012 | +0.0202 ± 0.0066 | +0.0010 ± 0.0031 | +0.0076 ± 0.0052 | +0.052 ± 0.019 |
+| Cards | +0.0012 ± 0.0009 | +0.0012 ± 0.0009 | +0.0023 ± 0.0036 | +0.0005 ± 0.0022 | +0.0021 ± 0.0025 | +0.002 ± 0.011 |
 
-(Los grupos de la Champions se definen con el modelo sin las copas: 260 partidos entre ligas y 108 con pocos datos.) La mejora es pequeña pero va en la misma dirección en casi todo: sobre todo remates y faltas, y córners entre ligas. En los partidos de las dos copas, que antes ni se podían medir, la mejora es grande (remates por equipo +0,082 ± 0,024 en la Europa League y +0,130 ± 0,057 en la Conference; faltas +0,10 en las dos), pero esos partidos no se analizan en el panel.
+(The Champions League groups are defined with the model without the cups: 260 cross-league matches and 108 with little data.) The improvement is small but goes in the same direction in almost everything: above all shots and fouls, and cross-league corners. In the two cups' own matches, which couldn't even be measured before, the improvement is large (shots per team +0.082 ± 0.024 in the Europa League and +0.130 ± 0.057 in the Conference; fouls +0.10 in both), but those matches aren't analysed in the dashboard.
 
-- **El xG de las copas, fuera del modelo de goles.** Si su xG entra con el peso normal (85 %), la log-loss 1X2 del modelo empeora en la Champions (+0,0062 ± 0,0025 por partido; 0,9018 → 0,9079 en `apuestas backtest --europa`) y en la Europa League (+0,0071 ± 0,0070), mejora en la Conference (−0,027 ± 0,014) y no cambia en las ligas (+0,0001 ± 0,0001). Como los partidos que se analizan son los de liga y Champions, sus partidos entran en el modelo de goles solo con el resultado, como antes. Con eso, el 1X2, la log-loss por competición y las apuestas del backtest no cambian (0,9801; Champions 0,9018 → 0,9017 por los resultados nuevos).
-- **K y fuerza.** Con estos datos, la fuerza del modelo de goles sigue haciendo falta: sin ella, córners por equipo −0,024 ± 0,004 en las ligas y −0,036 ± 0,013 entre ligas frente al modelo actual. Duplicar K mejora las ligas (córners por equipo +0,0045 ± 0,0018) pero empeora los equipos con pocos datos (−0,019 ± 0,010), igual que sin las copas; K se queda como estaba.
-- **Frente a las casas** (los mismos 41 partidos con cuotas de Pinnacle y 47 de Betano de arriba, modelo hasta el 20-10): casi igual. Error por equipo en córners con Pinnacle: ligas 0,072 → 0,072, Champions con equipos conocidos 0,120 → 0,119, pocos datos 0,083 → 0,081; con Betano 0,058 → 0,060, 0,130 → 0,128 y 0,066 → 0,066. Betis-Feyenoord pasa de 4,8-4,9 a 4,6-4,7 (Pinnacle 5,3-4,1): la falta de datos de la Europa League no explicaba esas diferencias.
+- **The cups' xG, out of the goals model.** If their xG goes in with the normal weight (85 %), the model's 1X2 log-loss gets worse in the Champions League (+0.0062 ± 0.0025 per match; 0.9018 → 0.9079 in `apuestas backtest --europa`) and in the Europa League (+0.0071 ± 0.0070), improves in the Conference (−0.027 ± 0.014) and doesn't change in the leagues (+0.0001 ± 0.0001). Since the matches analysed are league and Champions League ones, their matches go into the goals model with the result only, as before. With that, the 1X2, the log-loss per competition and the backtest bets don't change (0.9801; Champions League 0.9018 → 0.9017 because of the new results).
+- **K and strength.** With this data, the goals model's strength is still needed: without it, corners per team −0.024 ± 0.004 in the leagues and −0.036 ± 0.013 cross-league against the current model. Doubling K improves the leagues (corners per team +0.0045 ± 0.0018) but makes teams with little data worse (−0.019 ± 0.010), the same as without the cups; K stays as it was.
+- **Against the bookmakers** (the same 41 matches with Pinnacle odds and 47 with Betano as above, model up to 20-10): almost the same. Per-team error in corners with Pinnacle: leagues 0.072 → 0.072, Champions League with known teams 0.120 → 0.119, little data 0.083 → 0.081; with Betano 0.058 → 0.060, 0.130 → 0.128 and 0.066 → 0.066. Betis-Feyenoord goes from 4.8-4.9 to 4.6-4.7 (Pinnacle 5.3-4.1): the lack of Europa League data didn't explain those differences.
 
-Reproducir: `apuestas backtest --europa` con y sin las estadísticas en la base de datos (salidas en `var/backtests/uel_stats_{antes,final}_2024_2026.json`; `uel_stats_despues` es la variante con el xG de las copas).
+To reproduce: `apuestas backtest --europa` with and without the stats in the database (outputs in `var/backtests/uel_stats_{antes,final}_2024_2026.json`; `uel_stats_despues` is the variant with the cups' xG).
 
-**Nivel por liga con los cruces de la Europa League y la Conference** (21-10-2026; probado y **no aplicado**). Con las estadísticas de las dos copas, las ligas se cruzan en córners y remates casi el doble que antes. Partidos entre ligas ponderados por antigüedad a 20-10-2026: Portugal 29, Eredivisie 26, Bélgica 18, Turquía 18, Grecia 16 y Escocia 10; las cinco grandes, de 42 a 58. Se repitió la prueba del nivel por liga en el mismo walk-forward 2024-26, con todas las estadísticas en el entrenamiento. Igual que antes: fuerza = nivel de la liga + desviación del equipo, contracción solo en la desviación, y la liga de cada equipo es la de su último partido de liga. Variantes:
+**Level per league with the Europa League and Conference crossings** (21-10-2026; tried and **not applied**). With the two cups' stats, the leagues cross in corners and shots almost twice as much as before. Cross-league matches weighted by age on 20-10-2026: Portugal 29, Eredivisie 26, Belgium 18, Turkey 18, Greece 16 and Scotland 10; the big five, from 42 to 58. The level-per-league test was repeated in the same 2024-26 walk-forward, with all stats in training. As before: strength = league level + team deviation, shrinkage only on the deviation, and each team's league is that of its last league match. Variants:
 
-- **Nivel por liga** sin la fuerza de goles, con la K de antes (5 en córners, 1 en remates) o con la de la fuerza (20 y 8).
-- **Nivel y fuerza**: nivel por liga más la fuerza de goles como guía. G es la contracción del nivel de cada liga hacia 0, en partidos equivalentes: con G = 0,1 el nivel queda casi libre; con G = 30 solo se aparta de 0 si los cruces lo piden.
-- **Ritmo y fuerza**: solo el ritmo de cada liga (más o menos córners para los dos equipos, sin tocar cuánto domina una liga a otra), más la fuerza.
-- **Nivel solo para equipos sin liga**: los equipos de ligas que no se descargan (Bodø/Glimt, Slavia...) comparten un nivel; los demás, como ahora.
+- **Level per league** without goals strength, with the earlier K (5 in corners, 1 in shots) or with the strength one (20 and 8).
+- **Level and strength**: level per league plus the goals strength as a guide. G is the shrinkage of each league's level towards 0, in equivalent matches: with G = 0.1 the level is almost free; with G = 30 it only moves away from 0 if the crossings demand it.
+- **Pace and strength**: only each league's pace (more or fewer corners for both teams, without touching how much one league dominates another), plus strength.
+- **Level only for teams without a league**: teams from leagues that aren't downloaded (Bodø/Glimt, Slavia...) share a level; the rest, as now.
 
-Diferencia de log-verosimilitud por partido frente al modelo de ese día (fuerza de goles como guía, antes del reparto por el 1X2 del 22-10; positivo = mejor), con el error estándar pareado. Con las estadísticas de las copas, en la Champions hay 260 partidos entre ligas y 96 con pocos datos. La última columna son los 199 partidos de Europa League y Conference entre equipos conocidos de ligas distintas (no se analizan en el panel):
+Log-likelihood difference per match against that day's model (goals strength as a guide, before the split by the 1X2 of 22-10; positive = better), with the paired standard error. With the cups' stats, in the Champions League there are 260 cross-league matches and 96 with little data. The last column is the 199 Europa League and Conference matches between known teams from different leagues (not analysed in the dashboard):
 
-| Córners: variante | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo | UEL/UECL entre ligas: por equipo |
+| Corners: variant | Leagues: total | Leagues: per team | Cross-league: total | Cross-league: per team | Little data: total | Little data: per team | UEL/UECL cross-league: per team |
 |---|---|---|---|---|---|---|---|
-| Nivel por liga (K de antes) | −0,0032 ± 0,0016 | −0,0201 ± 0,0033 | −0,0010 ± 0,0053 | −0,008 ± 0,019 | −0,012 ± 0,013 | +0,023 ± 0,027 | −0,003 ± 0,021 |
-| Nivel por liga (K de la fuerza) | −0,0029 ± 0,0010 | −0,0253 ± 0,0052 | −0,0008 ± 0,0053 | −0,013 ± 0,019 | −0,020 ± 0,008 | +0,028 ± 0,029 | +0,007 ± 0,022 |
-| Nivel y fuerza (G 0,1) | −0,0007 ± 0,0006 | −0,0018 ± 0,0008 | +0,0007 ± 0,0022 | +0,004 ± 0,016 | −0,017 ± 0,009 | +0,040 ± 0,027 | +0,013 ± 0,017 |
-| Nivel y fuerza (G 30) | −0,0005 ± 0,0005 | −0,0009 ± 0,0006 | +0,0007 ± 0,0014 | +0,006 ± 0,008 | −0,005 ± 0,003 | +0,019 ± 0,009 | +0,016 ± 0,008 |
-| Ritmo y fuerza | −0,0008 ± 0,0006 | −0,0010 ± 0,0006 | −0,0001 ± 0,0009 | +0,000 ± 0,001 | −0,014 ± 0,008 | −0,012 ± 0,008 | −0,001 ± 0,001 |
-| Nivel solo para equipos sin liga | −0,0000 ± 0,0001 | −0,0002 ± 0,0002 | −0,0003 ± 0,0003 | −0,000 ± 0,001 | −0,012 ± 0,007 | +0,016 ± 0,018 | −0,001 ± 0,001 |
+| Level per league (earlier K) | −0.0032 ± 0.0016 | −0.0201 ± 0.0033 | −0.0010 ± 0.0053 | −0.008 ± 0.019 | −0.012 ± 0.013 | +0.023 ± 0.027 | −0.003 ± 0.021 |
+| Level per league (strength K) | −0.0029 ± 0.0010 | −0.0253 ± 0.0052 | −0.0008 ± 0.0053 | −0.013 ± 0.019 | −0.020 ± 0.008 | +0.028 ± 0.029 | +0.007 ± 0.022 |
+| Level and strength (G 0.1) | −0.0007 ± 0.0006 | −0.0018 ± 0.0008 | +0.0007 ± 0.0022 | +0.004 ± 0.016 | −0.017 ± 0.009 | +0.040 ± 0.027 | +0.013 ± 0.017 |
+| Level and strength (G 30) | −0.0005 ± 0.0005 | −0.0009 ± 0.0006 | +0.0007 ± 0.0014 | +0.006 ± 0.008 | −0.005 ± 0.003 | +0.019 ± 0.009 | +0.016 ± 0.008 |
+| Pace and strength | −0.0008 ± 0.0006 | −0.0010 ± 0.0006 | −0.0001 ± 0.0009 | +0.000 ± 0.001 | −0.014 ± 0.008 | −0.012 ± 0.008 | −0.001 ± 0.001 |
+| Level only for teams without a league | −0.0000 ± 0.0001 | −0.0002 ± 0.0002 | −0.0003 ± 0.0003 | −0.000 ± 0.001 | −0.012 ± 0.007 | +0.016 ± 0.018 | −0.001 ± 0.001 |
 
-| Remates y a puerta: variante | Ligas: total | Ligas: por equipo | Entre ligas: total | Entre ligas: por equipo | Pocos datos: total | Pocos datos: por equipo | UEL/UECL entre ligas: por equipo |
+| Shots and on target: variant | Leagues: total | Leagues: per team | Cross-league: total | Cross-league: per team | Little data: total | Little data: per team | UEL/UECL cross-league: per team |
 |---|---|---|---|---|---|---|---|
-| Remates: nivel por liga (K de la fuerza) | −0,0020 ± 0,0010 | −0,0185 ± 0,0047 | +0,0061 ± 0,0038 | +0,011 ± 0,021 | +0,010 ± 0,010 | +0,097 ± 0,036 | +0,055 ± 0,031 |
-| Remates: nivel y fuerza (G 0,1) | −0,0011 ± 0,0006 | −0,0008 ± 0,0012 | −0,0009 ± 0,0024 | +0,011 ± 0,019 | +0,008 ± 0,009 | +0,089 ± 0,031 | +0,040 ± 0,028 |
-| Remates: nivel y fuerza (G 30) | −0,0009 ± 0,0004 | −0,0003 ± 0,0007 | −0,0005 ± 0,0012 | +0,010 ± 0,009 | +0,005 ± 0,003 | +0,039 ± 0,010 | +0,029 ± 0,011 |
-| Remates: nivel solo para equipos sin liga | +0,0002 ± 0,0001 | +0,0001 ± 0,0003 | +0,0000 ± 0,0002 | −0,000 ± 0,001 | +0,002 ± 0,006 | +0,034 ± 0,017 | −0,002 ± 0,001 |
-| A puerta: nivel por liga (K de la fuerza) | −0,0003 ± 0,0011 | −0,0088 ± 0,0037 | +0,0055 ± 0,0037 | +0,007 ± 0,013 | +0,008 ± 0,012 | +0,029 ± 0,031 | +0,015 ± 0,025 |
-| A puerta: nivel y fuerza (G 30) | −0,0005 ± 0,0005 | +0,0004 ± 0,0006 | −0,0007 ± 0,0011 | +0,004 ± 0,004 | +0,005 ± 0,003 | +0,018 ± 0,008 | +0,009 ± 0,008 |
+| Shots: level per league (strength K) | −0.0020 ± 0.0010 | −0.0185 ± 0.0047 | +0.0061 ± 0.0038 | +0.011 ± 0.021 | +0.010 ± 0.010 | +0.097 ± 0.036 | +0.055 ± 0.031 |
+| Shots: level and strength (G 0.1) | −0.0011 ± 0.0006 | −0.0008 ± 0.0012 | −0.0009 ± 0.0024 | +0.011 ± 0.019 | +0.008 ± 0.009 | +0.089 ± 0.031 | +0.040 ± 0.028 |
+| Shots: level and strength (G 30) | −0.0009 ± 0.0004 | −0.0003 ± 0.0007 | −0.0005 ± 0.0012 | +0.010 ± 0.009 | +0.005 ± 0.003 | +0.039 ± 0.010 | +0.029 ± 0.011 |
+| Shots: level only for teams without a league | +0.0002 ± 0.0001 | +0.0001 ± 0.0003 | +0.0000 ± 0.0002 | −0.000 ± 0.001 | +0.002 ± 0.006 | +0.034 ± 0.017 | −0.002 ± 0.001 |
+| On target: level per league (strength K) | −0.0003 ± 0.0011 | −0.0088 ± 0.0037 | +0.0055 ± 0.0037 | +0.007 ± 0.013 | +0.008 ± 0.012 | +0.029 ± 0.031 | +0.015 ± 0.025 |
+| On target: level and strength (G 30) | −0.0005 ± 0.0005 | +0.0004 ± 0.0006 | −0.0007 ± 0.0011 | +0.004 ± 0.004 | +0.005 ± 0.003 | +0.018 ± 0.008 | +0.009 ± 0.008 |
 
-Comprobación con las cuotas guardadas (los mismos partidos que arriba; modelo entrenado hasta el 20-10-2026). Error de la media de córners de cada equipo:
+Check with the saved odds (the same matches as above; model trained up to 20-10-2026). Error of each team's corners mean:
 
-| Córners, error por equipo | Pinnacle: ligas | Champions, conocidos | Champions, pocos datos | Todos | Betano: ligas | Champions, conocidos | Champions, pocos datos | Todos |
+| Corners, error per team | Pinnacle: leagues | Champions, known | Champions, little data | All | Betano: leagues | Champions, known | Champions, little data | All |
 |---|---|---|---|---|---|---|---|---|
-| **Modelo actual (fuerza)** | 0,073 | **0,119** | **0,081** | **0,086** | 0,060 | **0,128** | **0,066** | **0,082** |
-| Nivel por liga (K de antes) | 0,089 | 0,141 | 0,177 | 0,120 | 0,077 | 0,160 | 0,172 | 0,119 |
-| Nivel y fuerza (G 0,1) | 0,071 | 0,122 | 0,132 | 0,097 | 0,058 | 0,142 | 0,137 | 0,098 |
-| Nivel y fuerza (G 30) | 0,072 | 0,120 | 0,084 | 0,087 | 0,059 | 0,133 | 0,080 | 0,085 |
-| Ritmo y fuerza | 0,071 | 0,119 | 0,088 | 0,087 | 0,059 | 0,129 | 0,074 | 0,083 |
+| **Current model (strength)** | 0.073 | **0.119** | **0.081** | **0.086** | 0.060 | **0.128** | **0.066** | **0.082** |
+| Level per league (earlier K) | 0.089 | 0.141 | 0.177 | 0.120 | 0.077 | 0.160 | 0.172 | 0.119 |
+| Level and strength (G 0.1) | 0.071 | 0.122 | 0.132 | 0.097 | 0.058 | 0.142 | 0.137 | 0.098 |
+| Level and strength (G 30) | 0.072 | 0.120 | 0.084 | 0.087 | 0.059 | 0.133 | 0.080 | 0.085 |
+| Pace and strength | 0.071 | 0.119 | 0.088 | 0.087 | 0.059 | 0.129 | 0.074 | 0.083 |
 
-| Córners (local-visitante) | Pinnacle | Modelo actual | Nivel por liga | Nivel y fuerza (G 30) |
+| Corners (home-away) | Pinnacle | Current model | Level per league | Level and strength (G 30) |
 |---|---|---|---|---|
-| Betis-Feyenoord | 5,3-4,1 | 4,6-4,7 | 4,4-4,9 | 4,6-4,8 |
-| Bayern-Arsenal | 5,5-4,2 | 4,8-4,1 | 4,6-4,2 | 4,7-4,2 |
-| Porto-PSV | 5,6-4,2 | 5,2-4,2 | 4,5-5,0 | 4,8-4,5 |
-| Brujas-Lens | 5,5-4,6 | 5,4-4,6 | 4,9-5,3 | 5,2-4,8 |
-| Manchester City-AEK | 7,8-2,2 | 6,5-3,1 | 7,3-2,7 | 6,8-2,9 |
-| Napoli-Bodø/Glimt | 6,2-3,7 | 6,8-3,4 | 9,1-2,5 | 7,2-3,2 |
+| Betis-Feyenoord | 5.3-4.1 | 4.6-4.7 | 4.4-4.9 | 4.6-4.8 |
+| Bayern-Arsenal | 5.5-4.2 | 4.8-4.1 | 4.6-4.2 | 4.7-4.2 |
+| Porto-PSV | 5.6-4.2 | 5.2-4.2 | 4.5-5.0 | 4.8-4.5 |
+| Club Brugge-Lens | 5.5-4.6 | 5.4-4.6 | 4.9-5.3 | 5.2-4.8 |
+| Manchester City-AEK | 7.8-2.2 | 6.5-3.1 | 7.3-2.7 | 6.8-2.9 |
+| Napoli-Bodø/Glimt | 6.2-3.7 | 6.8-3.4 | 9.1-2.5 | 7.2-3.2 |
 
-**Por qué sigue sin servir.** Ahora el nivel de cada liga sí se distingue cuando va solo. Remuestreando los partidos (bootstrap a 20-10-2026), la ventaja en córners de una liga frente a las demás (nivel de ataque + nivel de defensa, relativo a la Premier) es −0,29 ± 0,10 en LaLiga, −0,58 ± 0,10 en la Eredivisie, −0,84 ± 0,11 en Portugal y −0,98 ± 0,12 en Escocia. Pero casi todo eso ya lo explica la fuerza del modelo de goles. Lo que queda por liga encima de la fuerza va de +0,04 a −0,44, con errores de ±0,04 a ±0,15, y no predice mejor:
-- **Córners**: ninguna variante mejora entre ligas (la mejor, +0,006 ± 0,008 por equipo) y todas empeoran un poco las ligas. El nivel por liga sin la fuerza queda muy por debajo (−0,020 ± 0,003 por equipo en las ligas). Además estropea Porto-PSV y Brujas-Lens, igual que sin las copas.
-- **Remates y a puerta**: con nivel y fuerza mejora el reparto entre los dos equipos de la Champions cuando uno tiene pocos datos (remates +0,039 ± 0,010 con G = 30) y en las copas. Pero el total no mejora en ningún grupo, en las ligas empeora un poco (−0,0009 ± 0,0004) y G se eligió mirando estos mismos partidos. Parte de esa mejora la da solo el nivel compartido de los equipos sin liga (+0,034 ± 0,017). No hay cuotas de remates guardadas para comprobarlo con las casas.
-- **Frente a Pinnacle y Betano**, ninguna variante mejora en la Champions, y Betis-Feyenoord y Bayern-Arsenal casi no cambian. Lo que falta en esos dos partidos tampoco es la contracción: con K = 40 en córners salen 4,8-4,6 y 4,8-4,2. Tampoco es un sesgo de local: en los 16 partidos de Champions, la media del local en el modelo queda solo un 2,5 % ± 2,4 % por debajo de la de Pinnacle. La causa resultó ser otra y se corrigió el 22-10-2026: ver "Córners del local grande en la Champions frente a Pinnacle" abajo.
+**Why it still doesn't work.** Now each league's level is distinguishable when it goes alone. Resampling the matches (bootstrap on 20-10-2026), a league's corners advantage over the others (attack level + defence level, relative to the Premier League) is −0.29 ± 0.10 in LaLiga, −0.58 ± 0.10 in the Eredivisie, −0.84 ± 0.11 in Portugal and −0.98 ± 0.12 in Scotland. But almost all of that is already explained by the goals model's strength. What's left per league on top of strength ranges from +0.04 to −0.44, with errors of ±0.04 to ±0.15, and doesn't predict better:
+- **Corners**: no variant improves cross-league (the best, +0.006 ± 0.008 per team) and all make the leagues slightly worse. The level per league without strength falls well below (−0.020 ± 0.003 per team in the leagues). It also spoils Porto-PSV and Club Brugge-Lens, the same as without the cups.
+- **Shots and on target**: with level and strength, the split between the two Champions League teams improves when one has little data (shots +0.039 ± 0.010 with G = 30) and in the cups. But the total doesn't improve in any group, in the leagues it gets slightly worse (−0.0009 ± 0.0004) and G was chosen looking at these same matches. Part of that improvement comes just from the shared level of teams without a league (+0.034 ± 0.017). There are no saved shots odds to check it against the bookmakers.
+- **Against Pinnacle and Betano**, no variant improves in the Champions League, and Betis-Feyenoord and Bayern-Arsenal barely change. What's missing in those two matches isn't the shrinkage either: with K = 40 in corners they come out 4.8-4.6 and 4.8-4.2. Nor is it a home bias: in the 16 Champions League matches, the model's home mean is only 2.5 % ± 2.4 % below Pinnacle's. The cause turned out to be something else and was fixed on 22-10-2026: see "Corners of the big home team in the Champions League against Pinnacle" below.
 
-Se queda la fuerza de goles como guía, sin nivel por liga. La versión de `ratings.fit` con nivel por liga para los conteos no se ha guardado en el código.
+The goals strength as a guide stays, without a level per league. The version of `ratings.fit` with a level per league for the counts wasn't kept in the code.
 
-**Serie A y Ligue 1 como ligas completas** (21-10-2026, a petición del usuario). Hasta entonces eran ligas ligeras: entraban en el modelo con el resultado, los conteos de football-data y las cuotas de cierre, pero sin xG (football-data no lo trae hasta 2026-27), sin árbitro, sin alineaciones y sin jugadores. Ahora tienen lo mismo que la Premier, la Bundesliga y LaLiga: xG de FotMob y de Understat, estadísticas Opta, árbitro, alineaciones y jugadores. Se bajaron los 2.191 partidos jugados desde 2023-24 a una copia de la base de datos y se repitió el walk-forward de siempre (2024-25 y 2025-26) sobre la copia de antes y la de después, en los mismos partidos. `apuestas backtest` evalúa ahora por defecto las cinco ligas y da la log-loss de cada una; `--ligas EPL,BUN,LAL` repite las cifras anteriores.
+**Serie A and Ligue 1 as full leagues** (21-10-2026, at the user's request). Until then they were light leagues: they went into the model with the result, football-data's counts and the closing odds, but without xG (football-data doesn't bring it until 2026-27), without referee, without line-ups and without players. Now they have the same as the Premier League, the Bundesliga and LaLiga: FotMob and Understat xG, Opta stats, referee, line-ups and players. The 2,191 matches played since 2023-24 were downloaded into a copy of the database and the usual walk-forward (2024-25 and 2025-26) was repeated on the before and after copies, on the same matches. `apuestas backtest` now evaluates the five leagues by default and gives the log-loss of each one; `--ligas EPL,BUN,LAL` repeats the earlier figures.
 
-Log-loss 1X2 del modelo por competición, en todos los partidos con rating (diferencia pareada después − antes; negativo = mejor). El "antes" de la Premier, la Bundesliga, LaLiga y las copas es el backtest de antes, con tres ligas; el de la Serie A y la Ligue 1, la copia de antes evaluando también esas dos ligas:
+Model 1X2 log-loss by competition, on all matches with a rating (paired difference after − before; negative = better). The "before" for the Premier League, the Bundesliga, LaLiga and the cups is the earlier backtest, with three leagues; for Serie A and Ligue 1, the before copy also evaluating those two leagues:
 
-| Competición | Partidos | Antes | Después | Diferencia |
+| Competition | Matches | Before | After | Difference |
 |---|---|---|---|---|
-| Premier | 760 | 0,9935 | 0,9938 | +0,0003 ± 0,0002 |
-| Bundesliga | 612 | 0,9801 | 0,9800 | −0,0001 ± 0,0002 |
-| LaLiga | 760 | 0,9648 | 0,9647 | −0,0001 ± 0,0002 |
-| Serie A | 755 | 0,9695 | 0,9695 | −0,0001 ± 0,0009 |
-| Ligue 1 | 608 | 0,9664 | 0,9670 | +0,0007 ± 0,0011 |
-| Champions | 377 | 0,9017 | 0,9022 | +0,0005 ± 0,0005 |
-| Europa League | 371 | 0,9858 | 0,9855 | −0,0003 ± 0,0004 |
-| Conference | 282 | 1,0149 | 1,0151 | +0,0003 ± 0,0004 |
+| Premier League | 760 | 0.9935 | 0.9938 | +0.0003 ± 0.0002 |
+| Bundesliga | 612 | 0.9801 | 0.9800 | −0.0001 ± 0.0002 |
+| LaLiga | 760 | 0.9648 | 0.9647 | −0.0001 ± 0.0002 |
+| Serie A | 755 | 0.9695 | 0.9695 | −0.0001 ± 0.0009 |
+| Ligue 1 | 608 | 0.9664 | 0.9670 | +0.0007 ± 0.0011 |
+| Champions League | 377 | 0.9017 | 0.9022 | +0.0005 ± 0.0005 |
+| Europa League | 371 | 0.9858 | 0.9855 | −0.0003 ± 0.0004 |
+| Conference | 282 | 1.0149 | 1.0151 | +0.0003 ± 0.0004 |
 
-De la Premier, +0,0002 sale solo de estimar ρ (Dixon-Coles) con cinco ligas en vez de tres. Ninguna diferencia llega a dos errores estándar.
+For the Premier League, +0.0002 comes just from estimating ρ (Dixon-Coles) with five leagues instead of three. No difference reaches two standard errors.
 
-Frente a las casas (partidos con cuotas de bet365 y Pinnacle):
+Against the bookmakers (matches with bet365 and Pinnacle odds):
 
-| Log-loss 1X2 | Modelo antes | Modelo después | bet365 | Pinnacle | Mezcla 25/75 |
+| 1X2 log-loss | Model before | Model after | bet365 | Pinnacle | 25/75 blend |
 |---|---|---|---|---|---|
-| Premier | 0,9975 | 0,9978 | 0,9995 | 0,9974 | 0,9966 |
-| Bundesliga | 0,9749 | 0,9748 | 0,9652 | 0,9669 | 0,9681 |
-| LaLiga | 0,9668 | 0,9667 | 0,9578 | 0,9585 | 0,9595 |
-| Serie A | 0,9657 | 0,9656 | 0,9623 | 0,9602 | 0,9608 |
-| Ligue 1 | 0,9644 | 0,9651 | 0,9646 | 0,9649 | 0,9639 |
-| Las cinco (3.495) | 0,9743 | 0,9744 | 0,9704 | 0,9700 | 0,9702 |
+| Premier League | 0.9975 | 0.9978 | 0.9995 | 0.9974 | 0.9966 |
+| Bundesliga | 0.9749 | 0.9748 | 0.9652 | 0.9669 | 0.9681 |
+| LaLiga | 0.9668 | 0.9667 | 0.9578 | 0.9585 | 0.9595 |
+| Serie A | 0.9657 | 0.9656 | 0.9623 | 0.9602 | 0.9608 |
+| Ligue 1 | 0.9644 | 0.9651 | 0.9646 | 0.9649 | 0.9639 |
+| The five (3,495) | 0.9743 | 0.9744 | 0.9704 | 0.9700 | 0.9702 |
 
-Apuestas del backtest (solo modelo, valor ≥ 3 %): Serie A, de 565 apuestas con ROI −3,4 % a 562 con +2,7 % (CLV +0,3 % → +0,5 %); Ligue 1, de 437 con −4,2 % a 422 con −7,4 % (CLV +1,3 % en los dos). Las cinco ligas juntas: 2.584 apuestas, ROI −4,1 %, CLV +0,6 %. Con unas 500 apuestas a cuota ~2, el error estándar del ROI es de 4-5 puntos: ninguna de estas diferencias es significativa.
+Backtest bets (model only, value ≥ 3 %): Serie A, from 565 bets with ROI −3.4 % to 562 with +2.7 % (CLV +0.3 % → +0.5 %); Ligue 1, from 437 with −4.2 % to 422 with −7.4 % (CLV +1.3 % in both). The five leagues together: 2,584 bets, ROI −4.1 %, CLV +0.6 %. With about 500 bets at odds ~2, the ROI's standard error is 4-5 points: none of these differences is significant.
 
-El xG casi no mueve el 1X2 porque el modelo ya seguía las cuotas de cierre de esas dos ligas (ratings del mercado, sección 1), que son lo que más pesa. En la Ligue 1 el modelo queda a la par de las casas (0,9651 frente a 0,9646 de bet365), pero, como en las demás ligas, eso no da apuestas rentables.
+xG barely moves the 1X2 because the model already followed those two leagues' closing odds (market ratings, section 1), which weigh the most. In Ligue 1 the model is level with the bookmakers (0.9651 against bet365's 0.9646), but, as in the other leagues, that doesn't produce profitable bets.
 
-Estadísticas (mejora de la log-verosimilitud por partido frente a la media de la liga; "por equipo" = los dos equipos por separado; el árbitro, frente al mismo modelo sin árbitro):
+Stats (log-likelihood improvement per match against the league average; "per team" = the two teams separately; the referee, against the same model without referee):
 
-| Después | Premier | Bundesliga | LaLiga | Serie A | Ligue 1 |
+| After | Premier League | Bundesliga | LaLiga | Serie A | Ligue 1 |
 |---|---|---|---|---|---|
-| Córners por equipo | +0,191 | +0,109 | +0,123 | +0,126 | +0,130 |
-| Remates por equipo | +0,347 | +0,257 | +0,352 | +0,283 | +0,317 |
-| A puerta por equipo | +0,150 | +0,236 | +0,234 | +0,191 | +0,255 |
-| Faltas por equipo | +0,200 | +0,273 | +0,248 | +0,266 | +0,098 |
-| Tarjetas por equipo | +0,048 | +0,046 | +0,023 | +0,078 | +0,038 |
-| Árbitro en tarjetas | −0,004 ± 0,002 | +0,004 ± 0,003 | +0,011 ± 0,004 | +0,013 ± 0,002 | +0,003 ± 0,002 |
-| Árbitro en faltas | +0,007 ± 0,005 | −0,005 ± 0,006 | +0,014 ± 0,006 | +0,006 ± 0,005 | +0,024 ± 0,008 |
+| Corners per team | +0.191 | +0.109 | +0.123 | +0.126 | +0.130 |
+| Shots per team | +0.347 | +0.257 | +0.352 | +0.283 | +0.317 |
+| On target per team | +0.150 | +0.236 | +0.234 | +0.191 | +0.255 |
+| Fouls per team | +0.200 | +0.273 | +0.248 | +0.266 | +0.098 |
+| Cards per team | +0.048 | +0.046 | +0.023 | +0.078 | +0.038 |
+| Referee in cards | −0.004 ± 0.002 | +0.004 ± 0.003 | +0.011 ± 0.004 | +0.013 ± 0.002 | +0.003 ± 0.002 |
+| Referee in fouls | +0.007 ± 0.005 | −0.005 ± 0.006 | +0.014 ± 0.006 | +0.006 ± 0.005 | +0.024 ± 0.008 |
 
-Los modelos de la Serie A y la Ligue 1 mejoran a la media de la liga tanto como los de las otras ligas, y ya lo hacían antes con los conteos de football-data (FotMob y football-data dan casi siempre las mismas cifras; difieren en el 13-14 % de las filas, como en LaLiga). Lo nuevo es el árbitro, que football-data no trae fuera de Inglaterra: ayuda claramente en las tarjetas de la Serie A y en las faltas de la Ligue 1. En las ligas de siempre las estadísticas no cambian (±0,0002), y en la Champions mejoran un poco los remates (por equipo +0,0026 ± 0,0008; entre ligas +0,0032 ± 0,0011), sin que nada empeore más allá del ruido.
+The Serie A and Ligue 1 models beat the league average as much as those of the other leagues, and already did so before with football-data's counts (FotMob and football-data almost always give the same figures; they differ in 13-14 % of the rows, as in LaLiga). What's new is the referee, which football-data doesn't bring outside England: it clearly helps with Serie A cards and Ligue 1 fouls. In the usual leagues the stats don't change (±0.0002), and in the Champions League shots improve a little (per team +0.0026 ± 0.0008; cross-league +0.0032 ± 0.0011), with nothing getting worse beyond noise.
 
-Jugadores, fuera de muestra (modelo entrenado hasta el día de corte; partidos con once confirmado de los 90 días siguientes; esperado / real y log-loss frente a la tasa media):
+Players, out of sample (model trained up to the cut-off day; matches with a confirmed XI over the following 90 days; expected / real and log-loss against the average rate):
 
-| Corte | Liga | Jugador-partidos | Gol | Asistencia | Gol o asistencia | Log-loss del gol |
+| Cut-off | League | Player-matches | Goal | Assist | Goal or assist | Goal log-loss |
 |---|---|---|---|---|---|---|
-| 15-01-2026 | Serie A | 5.612 | 275 / 292 | 195 / 192 | 448 / 461 | 0,168 (media 0,205) |
-| | Ligue 1 | 4.184 | 265 / 251 | 193 / 193 | 433 / 417 | 0,183 (media 0,227) |
-| | Las seis competiciones | 27.220 | 1.623 / 1.633 | 1.175 / 1.171 | 2.645 / 2.654 | 0,185 (media 0,227) |
-| 23-07-2026 | Serie A | 3.360 | 178 / 184 | 127 / 141 | 289 / 310 | 0,182 (media 0,212) |
-| | Ligue 1 | 1.957 | 132 / 122 | 99 / 93 | 218 / 200 | 0,197 (media 0,233) |
+| 15-01-2026 | Serie A | 5,612 | 275 / 292 | 195 / 192 | 448 / 461 | 0.168 (average 0.205) |
+| | Ligue 1 | 4,184 | 265 / 251 | 193 / 193 | 433 / 417 | 0.183 (average 0.227) |
+| | The six competitions | 27,220 | 1,623 / 1,633 | 1,175 / 1,171 | 2,645 / 2,654 | 0.185 (average 0.227) |
+| 23-07-2026 | Serie A | 3,360 | 178 / 184 | 127 / 141 | 289 / 310 | 0.182 (average 0.212) |
+| | Ligue 1 | 1,957 | 132 / 122 | 99 / 93 | 218 / 200 | 0.197 (average 0.233) |
 
-Los goles y las asistencias de jugador salen igual de bien calibrados que en las otras ligas. **Los remates de jugador, en cambio, salen cortos en todas las ligas** (15-01-2026: 13.868 esperados frente a 16.401 reales; Serie A −12 %, Ligue 1 −10 %, Premier −22 %). No viene de las ligas nuevas: las tasas por 90' de cada jugador están bien (con los minutos reales, 0,99 de lo real), pero el paso del equipo al jugador divide los remates esperados del equipo entre su media frente a un "rival promedio" de toda la base de datos, con las ligas de segunda y las ligeras, y ese factor vale de media 0,82. Es el mismo problema que tenían los goles de jugador hasta el 20-10 (sección 4). Corregido el 22-10-2026 con la parte de los remates del equipo (sección 4).
+Player goals and assists come out as well calibrated as in the other leagues. **Player shots, on the other hand, come out short in every league** (15-01-2026: 13,868 expected against 16,401 real; Serie A −12 %, Ligue 1 −10 %, Premier League −22 %). It doesn't come from the new leagues: each player's per-90' rates are fine (with the real minutes, 0.99 of the real figure), but the step from team to player divides the team's expected shots by its average against an "average opponent" from the whole database, with second divisions and light leagues, and that factor is 0.82 on average. It's the same problem player goals had until 20-10 (section 4). Fixed on 22-10-2026 with the share of the team's shots (section 4).
 
-Alineaciones: con las cinco ligas, la regresión da β ataque 0,13 ± 0,04 y β defensa 0,10 ± 0,05 en goles (7.694 equipo-partido), coherente con el 0,10 que se usa. En la Serie A el ajuste por once no cambia la log-loss (+0,0001) y en la Ligue 1 la mejora poco (−0,0006), como en la Premier.
+Line-ups: with the five leagues, the regression gives β attack 0.13 ± 0.04 and β defence 0.10 ± 0.05 in goals (7,694 team-matches), consistent with the 0.10 in use. In Serie A the XI adjustment doesn't change the log-loss (+0.0001) and in Ligue 1 it improves it slightly (−0.0006), as in the Premier League.
 
-Reproducir: `apuestas backtest --lineups --europa` con el código de antes y el de ahora (`--ligas EPL,BUN,LAL`) sobre la base de datos de antes y la de después (salidas por partido en `var/backtests/ligue1_serie_a_{antes3,antes5,despues5}_2024_2026.json`).
+To reproduce: `apuestas backtest --lineups --europa` with the earlier code and the current one (`--ligas EPL,BUN,LAL`) on the before and after databases (per-match outputs in `var/backtests/ligue1_serie_a_{antes3,antes5,despues5}_2024_2026.json`).
 
-**Portugal y Bélgica como ligas completas** (29-10-2026, a petición del dueño). Como la Serie A y la Ligue 1 una semana antes: eran ligas ligeras que entraban en el modelo con el resultado, los conteos de football-data y las cuotas de cierre, pero sin xG, sin árbitro, sin alineaciones y sin jugadores. Ahora tienen los detalles de FotMob (xG, estadísticas Opta, árbitro, once y jugadores) de los 2.018 partidos jugados desde 2023-24; Understat no cubre estas dos ligas. A diferencia de la Serie A y la Ligue 1, FotMob no las bajaba ni siquiera como ligeras: los 2.014 partidos que había los había creado football-data, y FotMob los reutiliza en lugar de duplicarlos (`store.upsert_fotmob_match`; nueve equipos necesitaron una variante en `names._TEAM_SEEDS`, como "OH Leuven" frente a "Oud-Heverlee Leuven"). Bélgica juega fase regular y playoffs (con los puntos divididos a la mitad, que no afecta al modelo de goles): FotMob y football-data traen los dos, y FotMob suma la final del playoff europeo de cada temporada. En 2026-27 FotMob la da con 18 equipos y 34 jornadas. Walk-forward de siempre (2024-25 y 2025-26) sobre la copia de la base de datos de antes y la de después, con el código de `main` del 29-10-2026 (ventaja local por competición incluida). `apuestas backtest` evalúa ahora por defecto las siete ligas; `--ligas EPL,BUN,LAL,SA,L1` repite las cifras anteriores.
+**Portugal and Belgium as full leagues** (29-10-2026, at the owner's request). Like Serie A and Ligue 1 a week earlier: they were light leagues that went into the model with the result, football-data's counts and the closing odds, but without xG, referee, line-ups or players. Now they have FotMob's details (xG, Opta stats, referee, XI and players) for the 2,018 matches played since 2023-24; Understat doesn't cover these two leagues. Unlike Serie A and Ligue 1, FotMob didn't download them even as light leagues: the 2,014 existing matches had been created by football-data, and FotMob reuses them instead of duplicating them (`store.upsert_fotmob_match`; nine teams needed a variant in `names._TEAM_SEEDS`, like "OH Leuven" against "Oud-Heverlee Leuven"). Belgium plays a regular season and playoffs (with points halved, which doesn't affect the goals model): FotMob and football-data bring both, and FotMob adds the final of the European playoff each season. In 2026-27 FotMob has it with 18 teams and 34 matchdays. The usual walk-forward (2024-25 and 2025-26) on the before and after database copies, with `main`'s code of 29-10-2026 (home advantage per competition included). `apuestas backtest` now evaluates the seven leagues by default; `--ligas EPL,BUN,LAL,SA,L1` repeats the earlier figures.
 
-Log-loss 1X2 del modelo, en los mismos partidos (diferencia pareada después − antes; negativo = mejor):
+Model 1X2 log-loss, on the same matches (paired difference after − before; negative = better):
 
-| Competición | Partidos | Antes | Después | Diferencia |
+| Competition | Matches | Before | After | Difference |
 |---|---|---|---|---|
-| Portugal | 608 | 0,9185 | 0,9191 | +0,0006 ± 0,0010 |
-| Bélgica | 613 | 1,0038 | 1,0029 | −0,0009 ± 0,0009 |
-| Las cinco de antes | 3.495 | 0,9745 | 0,9745 | 0,0000 ± 0,0000 |
-| Copas (UCL, UEL, UECL) | 1.030 | 0,9621 | 0,9621 | 0,0000 ± 0,0002 |
+| Portugal | 608 | 0.9185 | 0.9191 | +0.0006 ± 0.0010 |
+| Belgium | 613 | 1.0038 | 1.0029 | −0.0009 ± 0.0009 |
+| The five earlier ones | 3,495 | 0.9745 | 0.9745 | 0.0000 ± 0.0000 |
+| Cups (UCL, UEL, UECL) | 1,030 | 0.9621 | 0.9621 | 0.0000 ± 0.0002 |
 
-Ese "antes" ya evalúa las siete ligas. Lo que cambia en producción es además que ρ (Dixon-Coles) se estima con siete ligas en vez de cinco: frente al backtest de cinco ligas, las cinco de antes +0,0001 ± 0,0001 (Premier +0,0003 ± 0,0002, Ligue 1 −0,0003 ± 0,0003) y la Champions −0,0010 ± 0,0003 (copas −0,0007 ± 0,0002). El xG de FotMob casi no mueve el 1X2 de las dos ligas porque el modelo ya seguía sus cuotas de cierre (sección 1).
+That "before" already evaluates the seven leagues. What also changes in production is that ρ (Dixon-Coles) is estimated with seven leagues instead of five: against the five-league backtest, the five earlier ones +0.0001 ± 0.0001 (Premier League +0.0003 ± 0.0002, Ligue 1 −0.0003 ± 0.0003) and the Champions League −0.0010 ± 0.0003 (cups −0.0007 ± 0.0002). FotMob's xG barely moves the two leagues' 1X2 because the model already followed their closing odds (section 1).
 
-Frente a las casas (partidos con cuotas de bet365 y Pinnacle; diferencia pareada del modelo frente a bet365):
+Against the bookmakers (matches with bet365 and Pinnacle odds; paired difference of the model against bet365):
 
-| Log-loss 1X2 | Modelo antes | Modelo después | bet365 | Pinnacle | Mezcla 25/75 | Modelo − bet365 |
+| 1X2 log-loss | Model before | Model after | bet365 | Pinnacle | 25/75 blend | Model − bet365 |
 |---|---|---|---|---|---|---|
-| Portugal (588) | 0,9135 | 0,9145 | 0,9173 | 0,9176 | 0,9157 | −0,0028 ± 0,0036 |
-| Bélgica (587) | 1,0049 | 1,0041 | 1,0065 | 1,0100 | 1,0062 | −0,0024 ± 0,0034 |
-| Las siete (4.563) | 0,9700 | 0,9700 | 0,9682 | 0,9684 | 0,9677 | +0,0018 ± 0,0014 |
+| Portugal (588) | 0.9135 | 0.9145 | 0.9173 | 0.9176 | 0.9157 | −0.0028 ± 0.0036 |
+| Belgium (587) | 1.0049 | 1.0041 | 1.0065 | 1.0100 | 1.0062 | −0.0024 ± 0.0034 |
+| The seven (4,563) | 0.9700 | 0.9700 | 0.9682 | 0.9684 | 0.9677 | +0.0018 ± 0.0014 |
 
-En las dos ligas nuevas el modelo queda **a la par** de bet365: va algo por delante, pero a menos de un error estándar, igual que antes del cambio. En Bélgica, Pinnacle (hasta 2025-26) predice peor que bet365. Apuestas del backtest (solo modelo, valor ≥ 3 %): Portugal, de 347 apuestas con ROI +6,1 % a 352 con +4,2 % (CLV +1,7 % → +1,4 %); Bélgica, de 307 con −0,1 % a 264 con +1,4 % (CLV +1,3 % → +1,5 %). Con unas 300 apuestas a cuota ~2 el error estándar del ROI es de unos 6 puntos: **no es una ventaja demostrada**. Las siete ligas juntas: 2.966 apuestas, ROI −4,0 %, CLV +0,9 %.
+In the two new leagues the model is **level** with bet365: slightly ahead, but by less than one standard error, the same as before the change. In Belgium, Pinnacle (up to 2025-26) predicts worse than bet365. Backtest bets (model only, value ≥ 3 %): Portugal, from 347 bets with ROI +6.1 % to 352 with +4.2 % (CLV +1.7 % → +1.4 %); Belgium, from 307 with −0.1 % to 264 with +1.4 % (CLV +1.3 % → +1.5 %). With about 300 bets at odds ~2 the ROI's standard error is about 6 points: **it's not a proven edge**. The seven leagues together: 2,966 bets, ROI −4.0 %, CLV +0.9 %.
 
-Estadísticas (mejora de la log-verosimilitud por partido frente a la media de la liga, después; el árbitro, frente al mismo modelo sin árbitro):
+Stats (log-likelihood improvement per match against the league average, after; the referee, against the same model without referee):
 
-| Después | Portugal | Bélgica |
+| After | Portugal | Belgium |
 |---|---|---|
-| Córners por equipo | +0,286 | +0,070 |
-| Remates por equipo | +0,482 | +0,271 |
-| A puerta por equipo | +0,323 | +0,187 |
-| Faltas por equipo | +0,419 | +0,122 |
-| Tarjetas por equipo | +0,066 | +0,048 |
-| Árbitro en tarjetas | +0,013 ± 0,004 | +0,007 ± 0,003 |
-| Árbitro en faltas | +0,007 ± 0,006 | +0,004 ± 0,007 |
+| Corners per team | +0.286 | +0.070 |
+| Shots per team | +0.482 | +0.271 |
+| On target per team | +0.323 | +0.187 |
+| Fouls per team | +0.419 | +0.122 |
+| Cards per team | +0.066 | +0.048 |
+| Referee in cards | +0.013 ± 0.004 | +0.007 ± 0.003 |
+| Referee in fouls | +0.007 ± 0.006 | +0.004 ± 0.007 |
 
-Mejoran a la media de la liga como las demás ligas (antes, con los conteos de football-data, casi lo mismo: remates por equipo +0,482 y +0,270, córners +0,285 y +0,068). Lo nuevo es el árbitro, que ayuda en las tarjetas de las dos. La comparación pareada de las estadísticas de estas dos ligas no sirve, porque cambia lo observado: ahora mandan las cifras de FotMob (como en las demás ligas), que en Portugal difieren de las de football-data en el 31 % de las filas de remates (FotMob +0,4 por equipo), el 19 % de a puerta y el 12 % de faltas; en Bélgica, en el 13 % de los remates; en la Serie A, en el 4,5 %. En las cinco ligas de siempre las estadísticas no cambian (por equipo, ±0,0004 como mucho).
+They beat the league average like the other leagues (before, with football-data's counts, almost the same: shots per team +0.482 and +0.270, corners +0.285 and +0.068). What's new is the referee, which helps with both leagues' cards. The paired comparison of these two leagues' stats isn't valid, because what's observed changes: FotMob's figures now rule (as in the other leagues), and in Portugal they differ from football-data's in 31 % of the shots rows (FotMob +0.4 per team), 19 % of on target and 12 % of fouls; in Belgium, in 13 % of shots; in Serie A, in 4.5 %. In the five usual leagues the stats don't change (per team, ±0.0004 at most).
 
-Jugadores, fuera de muestra (modelo entrenado hasta el corte; partidos con once confirmado de los 90 días siguientes; esperado / real y log-loss frente a la tasa media):
+Players, out of sample (model trained up to the cut-off; matches with a confirmed XI over the following 90 days; expected / real and log-loss against the average rate):
 
-| Corte | Liga | Jugador-partidos | Gol | Asistencia | Remates | Log-loss del gol |
+| Cut-off | League | Player-matches | Goal | Assist | Shots | Goal log-loss |
 |---|---|---|---|---|---|---|
-| 15-01-2026 | Portugal | 4.231 | 234 / 255 | 166 / 177 | 2.466 / 2.546 | 0,1882 (media 0,2277) |
-| | Bélgica | 3.911 | 237 / 242 | 182 / 165 | 2.421 / 2.516 | 0,2005 (media 0,2321) |
-| 23-07-2026 | Portugal | 2.583 | 141 / 137 | 97 / 99 | 1.386 / 1.383 | 0,1681 (media 0,2074) |
-| | Bélgica | 2.320 | 144 / 159 | 108 / 114 | 1.431 / 1.604 | 0,2120 (media 0,2498) |
+| 15-01-2026 | Portugal | 4,231 | 234 / 255 | 166 / 177 | 2,466 / 2,546 | 0.1882 (average 0.2277) |
+| | Belgium | 3,911 | 237 / 242 | 182 / 165 | 2,421 / 2,516 | 0.2005 (average 0.2321) |
+| 23-07-2026 | Portugal | 2,583 | 141 / 137 | 97 / 99 | 1,386 / 1,383 | 0.1681 (average 0.2074) |
+| | Belgium | 2,320 | 144 / 159 | 108 / 114 | 1,431 / 1,604 | 0.2120 (average 0.2498) |
 
-Calibrados como en las demás ligas (en las siete, goles 2.040 / 2.130 y 1.256 / 1.318), y mejor que la tasa media en todos los mercados. Los remates de Bélgica en julio (0,89) se quedan cortos como los de las otras ligas en 2026-27 (sección 3, nivel reciente de cada liga; este corte deja el modelo fijo 91 días).
+Calibrated as in the other leagues (across the seven, goals 2,040 / 2,130 and 1,256 / 1,318), and better than the average rate in every market. Belgium's shots in July (0.89) come up short like the other leagues' in 2026-27 (section 3, each league's recent level; this cut-off leaves the model fixed for 91 days).
 
-Gasto de OddsPapi, con el calendario real de agosto de 2025 a noviembre de 2026: la API admite 5 competiciones por petición y con ocho casi cada día juegan más de 5 en los próximos 3 días, así que la descarga diaria de Betano y Pinnacle pasa de 38-68 a 70-106 peticiones al mes; con los catálogos y el CLV, unas 120-210 de 250. El dueño lo aprobó el 29-10-2026. Reproducir: scripts `bt.py`, `cmp.py`, `frente_casas.py`, `ligas_conteos.py`, `players.py` y `gasto_oddspapi.py` en las notas de la sesión del 29-10-2026 (no están en el repositorio).
+OddsPapi spend, with the real calendar from August 2025 to November 2026: the API allows 5 competitions per request and with eight, almost every day more than 5 play in the next 3 days, so the daily Betano and Pinnacle download goes from 38-68 to 70-106 requests a month; with the catalogues and CLV, about 120-210 of 250. The owner approved it on 29-10-2026. To reproduce: scripts `bt.py`, `cmp.py`, `frente_casas.py`, `ligas_conteos.py`, `players.py` and `gasto_oddspapi.py` in the notes of the 29-10-2026 session (not in the repository).
 
-**Turquía como liga completa** (30-10-2026, a petición del dueño), igual que Portugal y Bélgica: los 1.109 partidos de football-data desde 2023-24 pasan a tener los detalles de FotMob (xG, estadísticas, árbitro, once y jugadores; Understat no la cubre). Walk-forward 2024-26 sobre la copia de antes y la de después, con el código de `main` del 30-10-2026; `apuestas backtest` evalúa por defecto las ocho ligas.
+**Turkey as a full league** (30-10-2026, at the owner's request), the same as Portugal and Belgium: football-data's 1,109 matches since 2023-24 now have FotMob's details (xG, stats, referee, XI and players; Understat doesn't cover it). 2024-26 walk-forward on the before and after copies, with `main`'s code of 30-10-2026; `apuestas backtest` evaluates the eight leagues by default.
 
-| Log-loss 1X2 (mismos partidos) | Partidos | Antes | Después | Diferencia |
+| 1X2 log-loss (same matches) | Matches | Before | After | Difference |
 |---|---|---|---|---|
-| Turquía | 643 | 0,9523 | 0,9517 | −0,0006 ± 0,0010 |
-| Las siete de antes | 4.719 | 0,9710 | 0,9710 | 0,0000 ± 0,0000 |
-| Copas | 1.030 | 0,9627 | 0,9623 | −0,0004 ± 0,0002 |
+| Turkey | 643 | 0.9523 | 0.9517 | −0.0006 ± 0.0010 |
+| The seven earlier ones | 4,719 | 0.9710 | 0.9710 | 0.0000 ± 0.0000 |
+| Cups | 1,030 | 0.9627 | 0.9623 | −0.0004 ± 0.0002 |
 
-Con ρ estimada con ocho ligas en vez de siete (lo que cambia además en producción), las siete de antes −0,0002 ± 0,0001 y las copas +0,0003 ± 0,0003.
+With ρ estimated with eight leagues instead of seven (which also changes in production), the seven earlier ones −0.0002 ± 0.0001 and the cups +0.0003 ± 0.0003.
 
-**En Turquía el modelo predice peor que las casas**: log-loss 0,9497 frente a 0,9378 de bet365 y 0,9365 de Pinnacle (625 partidos con las dos; modelo − bet365 +0,0119 ± 0,0045, antes del cambio +0,0122 ± 0,0044). Es lo mismo que en la Bundesliga (+0,0105 ± 0,0036) y algo más que en LaLiga (+0,0071 ± 0,0037). Apuestas del backtest (solo modelo, valor ≥ 3 %): de 326 con ROI −13,7 % a 337 con −9,6 % (CLV +2,1 % → +2,6 %); con la mezcla con el mercado, 30 apuestas con −22,8 % (muestra muy pequeña).
+**In Turkey the model predicts worse than the bookmakers**: log-loss 0.9497 against bet365's 0.9378 and Pinnacle's 0.9365 (625 matches with both; model − bet365 +0.0119 ± 0.0045, before the change +0.0122 ± 0.0044). It's the same as in the Bundesliga (+0.0105 ± 0.0036) and slightly more than in LaLiga (+0.0071 ± 0.0037). Backtest bets (model only, value ≥ 3 %): from 326 with ROI −13.7 % to 337 with −9.6 % (CLV +2.1 % → +2.6 %); with the market blend, 30 bets with −22.8 % (very small sample).
 
-Estadísticas (mejora por partido frente a la media de la liga, después): córners por equipo +0,112, remates +0,307, a puerta +0,230, faltas +0,246, tarjetas +0,037. El árbitro pesa más que en ninguna otra liga: tarjetas +0,019 ± 0,005 y faltas +0,027 ± 0,007. FotMob y football-data difieren en el 25 % de los remates por equipo (FotMob +0,2) y en el 13 % de las faltas; manda FotMob.
+Stats (improvement per match against the league average, after): corners per team +0.112, shots +0.307, on target +0.230, fouls +0.246, cards +0.037. The referee weighs more than in any other league: cards +0.019 ± 0.005 and fouls +0.027 ± 0.007. FotMob and football-data differ in 25 % of team shots (FotMob +0.2) and in 13 % of fouls; FotMob rules.
 
-Jugadores fuera de muestra (como en Portugal y Bélgica): corte del 15-01-2026, 4.497 jugador-partidos, goles 269 esperados / 254 reales, asistencias 195 / 186, remates 2.820 / 2.693, log-loss del gol 0,1778 (tasa media 0,2172); corte del 23-07-2026, 2.036, goles 129 / 116, asistencias 89 / 81, remates 1.313 / 1.431, log-loss del gol 0,1816 (0,2186). Los goles salen algo altos (1,06-1,11), en línea con un modelo de goles que en Turquía va por detrás de las casas.
+Players out of sample (as in Portugal and Belgium): cut-off 15-01-2026, 4,497 player-matches, goals 269 expected / 254 real, assists 195 / 186, shots 2,820 / 2,693, goal log-loss 0.1778 (average rate 0.2172); cut-off 23-07-2026, 2,036, goals 129 / 116, assists 89 / 81, shots 1,313 / 1,431, goal log-loss 0.1816 (0.2186). Goals come out somewhat high (1.06-1.11), in line with a goals model that lags behind the bookmakers in Turkey.
 
-OddsPapi: con ocho competiciones ya eran 2 peticiones por casa casi cada día y la API admite 5 torneos por petición, así que la novena añade de 0 a 10 al mes (70-112 con el calendario de 2025-26). Lo aprobó el dueño el 30-10-2026.
+OddsPapi: with eight competitions it was already 2 requests per bookmaker almost every day and the API allows 5 tournaments per request, so the ninth adds 0 to 10 a month (70-112 with the 2025-26 calendar). The owner approved it on 30-10-2026.
 
-**Selecciones: UEFA Nations League** (10 y 11-11-2026, a petición del dueño; `experimentos/validacion/selecciones.py`). Entra como competición completa para el análisis, **sin apuesta del día y sin mercados de jugador** (decisiones del dueño), con los clasificatorios europeos al Mundial 2026, el Mundial 2026 y la Eurocopa 2024 como historial (683 partidos, 86 selecciones; `docs/fuentes.md`). Lo que cambia frente a un club:
+**National teams: UEFA Nations League** (10 and 11-11-2026, at the owner's request; `experimentos/validacion/selecciones.py`). It goes in as a full competition for analysis, **without bet of the day and without player markets** (owner's decisions), with the European qualifiers for the 2026 World Cup, the 2026 World Cup and Euro 2024 as history (683 matches, 86 national teams; `docs/fuentes.md`). What changes compared with a club:
 
-- **Sin cuotas de cierre ni ratings del mercado.** football-data no cubre selecciones, así que su fuerza sale solo de goles y xG de FotMob, con entre 14 y 35 partidos por selección europea en tres años (mediana 19; antes de pedir el historial se estimaron 25-35). Las reglas de prudencia de siempre se aplican solas: `market_matches = 0`, así que la confianza lleva el factor mínimo (×0,6) y la probabilidad se mezcla con la de la casa (25 % modelo). La apuesta lleva además la razón «Selecciones: no entra en la apuesta del día ni pasa el corte…» y nunca da «APOSTAR».
-- **No se puede medir contra bet365.** No hay cuotas históricas gratuitas de selecciones. La única referencia posible es la más simple: las dos selecciones como el equipo medio, con la ventaja local (`logloss_equipos_iguales`, nuevo en `apuestas backtest --selecciones`). Ganarle es pedir muy poco (España contra San Marino no es un partido igualado): **no dice que el modelo sirva para apostar.**
-- **Mismo modelo que los clubes.** Las selecciones nunca se cruzan con los clubes, pero comparten la media de goles, la ventaja local general (con su desvío por competición: Nations League −0,013 sobre 0,217), ρ, la dispersión de los conteos y los árbitros. El Mundial y la Eurocopa van como sede neutral.
-- **Jugadores.** `fit_players` deja fuera los partidos de selecciones: las proyecciones de club no cambian (5.512 jugadores antes y después) y en selecciones no hay props (lo que se sabe del jugador es de su club, con otro papel y otros compañeros). Las alineaciones sí se usan para el ajuste por once, frente al once típico de la selección.
+- **No closing odds or market ratings.** football-data doesn't cover national teams, so their strength comes only from FotMob goals and xG, with between 14 and 35 matches per European national team over three years (median 19; before requesting the history, 25-35 was estimated). The usual prudence rules apply by themselves: `market_matches = 0`, so confidence carries the minimum factor (×0.6) and the probability is blended with the bookmaker's (25 % model). The bet also carries the reason "Selecciones: no entra en la apuesta del día ni pasa el corte…" ("national teams: not part of the bet of the day and never clears the threshold") and never gives "APOSTAR" ("BET").
+- **It can't be measured against bet365.** There are no free historical national team odds. The only possible reference is the simplest one: both national teams as the average team, with home advantage (`logloss_equipos_iguales`, new in `apuestas backtest --selecciones`). Beating it is a very low bar (Spain against San Marino isn't an even match): **it doesn't say the model is useful for betting.**
+- **The same model as the clubs.** National teams never cross with clubs, but they share the goals average, the general home advantage (with its deviation per competition: Nations League −0.013 over 0.217), ρ, the dispersion of the counts and the referees. The World Cup and the Euros go as a neutral venue.
+- **Players.** `fit_players` leaves out national team matches: club projections don't change (5,512 players before and after) and there are no props for national teams (what's known about the player comes from their club, with another role and other team-mates). Line-ups are used for the XI adjustment, against the national team's usual XI.
 
-*Clubes, antes y después de entrenar con las selecciones* (`apuestas backtest --europa`, 2024-08 → 2026-06, 5.362 partidos con cuotas):
+*Clubs, before and after training with the national teams* (`apuestas backtest --europa`, 2024-08 → 2026-06, 5,362 matches with odds):
 
-| | Sin selecciones | Con selecciones |
+| | Without national teams | With national teams |
 |---|---|---|
-| Log-loss 1X2 del modelo (bet365 0,9645, Pinnacle 0,9645, mezcla 0,9641) | 0,9674 | 0,9674 |
-| Por liga (EPL, BUN, LAL, SA, L1, BEL, TUR) | 0,9933 / 0,9810 / 0,9632 / 0,9673 / 0,9671 / 1,0035 / 0,9517 | iguales |
-| Portugal | 0,9189 | 0,9188 |
-| Champions / Europa League / Conference | 0,9011 / 0,9856 / 1,0149 | 0,9010 / 0,9856 / 1,0146 |
-| Apuestas solo modelo | 3.306, ROI −4,38 %, CLV +1,11 % | 3.305, ROI −4,50 %, CLV +1,10 % |
-| Apuestas modelo + mercado | 188, ROI −11,69 %, CLV +2,51 % | iguales |
-| Remates / córners / tarjetas / faltas / offsides (mejora del total por partido frente a la media) | 0,0467 / 0,0153 / 0,0399 / 0,1675 / 0,0488 | 0,0476 / 0,0156 / 0,0396 / 0,1676 / 0,0503 |
+| Model 1X2 log-loss (bet365 0.9645, Pinnacle 0.9645, blend 0.9641) | 0.9674 | 0.9674 |
+| By league (EPL, BUN, LAL, SA, L1, BEL, TUR) | 0.9933 / 0.9810 / 0.9632 / 0.9673 / 0.9671 / 1.0035 / 0.9517 | the same |
+| Portugal | 0.9189 | 0.9188 |
+| Champions League / Europa League / Conference | 0.9011 / 0.9856 / 1.0149 | 0.9010 / 0.9856 / 1.0146 |
+| Model-only bets | 3,306, ROI −4.38 %, CLV +1.11 % | 3,305, ROI −4.50 %, CLV +1.10 % |
+| Model + market bets | 188, ROI −11.69 %, CLV +2.51 % | the same |
+| Shots / corners / cards / fouls / offsides (total improvement per match against the average) | 0.0467 / 0.0153 / 0.0399 / 0.1675 / 0.0488 | 0.0476 / 0.0156 / 0.0396 / 0.1676 / 0.0503 |
 
-Nada cambia más allá del cuarto decimal: una sola apuesta de 3.306 es distinta. El modelo sigue sin ganarle a bet365.
+Nothing changes beyond the fourth decimal: a single bet out of 3,306 is different. The model still doesn't beat bet365.
 
-*Selecciones: modelo frente a «equipos iguales»* (log-loss 1X2, walk-forward semanal; más bajo es mejor):
+*National teams: model against "equal teams"* (1X2 log-loss, weekly walk-forward; lower is better):
 
-| Torneo y ventana | Partidos | Modelo | Equipos iguales | Mejora |
+| Tournament and window | Matches | Model | Equal teams | Improvement |
 |---|---|---|---|---|
-| Nations League 2024-25 (2024-08 → 2026-06; arranca casi sin historial) | 133 | 0,9791 | 1,0822 | +0,103 ± 0,061 |
-| Clasificatorios al Mundial 2026 | 204 | 0,8135 | 1,0576 | +0,244 ± 0,066 |
-| Mundial 2026, junio | 55 | 0,9238 | 1,0846 | +0,161 ± 0,111 |
-| **Nations League 2026-27** (2026-07 → 2026-11, ya con el Mundial y los clasificatorios) | 104 | 0,9521 | 1,0991 | +0,147 ± 0,065 |
-| Mundial 2026, julio | 25 | 0,7771 | 1,0570 | +0,280 ± 0,086 |
+| Nations League 2024-25 (2024-08 → 2026-06; starts with almost no history) | 133 | 0.9791 | 1.0822 | +0.103 ± 0.061 |
+| 2026 World Cup qualifiers | 204 | 0.8135 | 1.0576 | +0.244 ± 0.066 |
+| 2026 World Cup, June | 55 | 0.9238 | 1.0846 | +0.161 ± 0.111 |
+| **Nations League 2026-27** (2026-07 → 2026-11, already with the World Cup and the qualifiers) | 104 | 0.9521 | 1.0991 | +0.147 ± 0.065 |
+| 2026 World Cup, July | 25 | 0.7771 | 1.0570 | +0.280 ± 0.086 |
 
-*Estadísticas en la Nations League* (mejora del total por partido frente a la media): en 2024-25 (168 partidos), remates +0,059 ± 0,042, tarjetas +0,048 ± 0,041 y faltas +0,160 ± 0,097; a puerta +0,022 ± 0,044 y córners −0,008 ± 0,028 no se distinguen de la media. En 2026-27 (104), **ninguna se distingue de la media**: remates +0,045 ± 0,065, a puerta −0,007 ± 0,061, córners +0,017 ± 0,025, tarjetas −0,024 ± 0,059 y faltas +0,030 ± 0,077. Con tan pocos partidos por selección, las cuotas de córners y tarjetas que salen «con valor» en estos partidos no son de fiar (y salen: para el 12-11 se guardaron 99 apuestas con valor, de tarjetas, goles y córners; ninguna pasa el corte).
+*Stats in the Nations League* (total improvement per match against the average): in 2024-25 (168 matches), shots +0.059 ± 0.042, cards +0.048 ± 0.041 and fouls +0.160 ± 0.097; on target +0.022 ± 0.044 and corners −0.008 ± 0.028 aren't distinguishable from the average. In 2026-27 (104), **none is distinguishable from the average**: shots +0.045 ± 0.065, on target −0.007 ± 0.061, corners +0.017 ± 0.025, cards −0.024 ± 0.059 and fouls +0.030 ± 0.077. With so few matches per national team, the corners and cards prices that come out "with value" in these matches can't be trusted (and they do come out: for 12-11, 99 value bets were saved, in cards, goals and corners; none clears the threshold).
 
-*xG de las selecciones en el modelo de goles*: entra, como en las ligas (`GOALS_XG_SKIP` solo deja fuera el de la Europa League y la Conference). Emparejado en los mismos partidos, con xG − sin xG: Nations League +0,027 ± 0,027 (algo peor con xG, en el borde del margen), clasificatorios 0,000 ± 0,026, Mundial −0,036 ± 0,052 (mejor con xG) y los 521 juntos +0,007 ± 0,018. No se distingue: se deja como en las ligas y se vuelve a medir con la ventana de noviembre.
+*National teams' xG in the goals model*: it goes in, as in the leagues (`GOALS_XG_SKIP` only leaves out the Europa League and Conference one). Paired on the same matches, with xG − without xG: Nations League +0.027 ± 0.027 (slightly worse with xG, at the edge of the margin), qualifiers 0.000 ± 0.026, World Cup −0.036 ± 0.052 (better with xG) and the 521 together +0.007 ± 0.018. Not distinguishable: it's left as in the leagues and measured again with the November window.
 
-OddsPapi: la Nations League es un solo torneo y se juega en los parones de clubes, así que es 1 petición por casa y día: unas 14 por ventana (7 días × Betano y Pinnacle). Sin CLV de antes del partido, porque sus apuestas nunca pasan el corte. Lo aprobó el dueño el 10-11-2026 (iban 42 de 250; 46 tras la primera descarga).
+OddsPapi: the Nations League is a single tournament and is played during club breaks, so it's 1 request per bookmaker and day: about 14 per window (7 days × Betano and Pinnacle). No pre-match CLV, because its bets never clear the threshold. The owner approved it on 10-11-2026 (42 of 250 had been used; 46 after the first download).
 
-**Córners del local grande en la Champions frente a Pinnacle** (22-10-2026). Con la fuerza de goles como guía y las estadísticas de las copas, el modelo seguía dando al local unos 0,7 córners menos que Pinnacle en Betis-Feyenoord (4,6-4,7 frente a 5,3-4,1; Betano 5,4-4,1) y Bayern-Arsenal (4,8-4,1 frente a 5,5-4,2; Betano 5,7-4,1). Ya estaban descartados el nivel por liga, más contracción (K 40) y un sesgo del local en toda la Champions.
+**Corners of the big home team in the Champions League against Pinnacle** (22-10-2026). With the goals strength as a guide and the cups' stats, the model still gave the home team about 0.7 fewer corners than Pinnacle in Betis-Feyenoord (4.6-4.7 against 5.3-4.1; Betano 5.4-4.1) and Bayern-Arsenal (4.8-4.1 against 5.5-4.2; Betano 5.7-4.1). The level per league, more shrinkage (K 40) and a home bias across the whole Champions League had already been ruled out.
 
-*De dónde sale cada número.* Bayern-Arsenal: 4,79 = exp(media 1,457 + local 0,202 + ataque del Bayern 0,500 − defensa del Arsenal 0,593). El Arsenal es el equipo que menos córners concede (2,8 en casa y 3,8 fuera en la Premier) y, en el modelo de goles, más fuerte que el Bayern (1,83 frente a 1,62; 1X2 del modelo 38/24/38, Pinnacle 43/26/32). Betis-Feyenoord: solo con la fuerza de goles salía 5,2-4,3; las desviaciones de cada equipo lo llevaban a 4,6-4,7, porque el Betis saca en LaLiga menos córners de los que le tocan por su fuerza (−0,08 de dominio) y el Feyenoord en la Eredivisie más (+0,13). Su fuerza de goles es casi igual (0,63 y 0,67), así que el modelo los veía parejos, y Pinnacle no (1X2 60/20/20).
+*Where each number comes from.* Bayern-Arsenal: 4.79 = exp(mean 1.457 + home 0.202 + Bayern attack 0.500 − Arsenal defence 0.593). Arsenal is the team that concedes the fewest corners (2.8 at home and 3.8 away in the Premier League) and, in the goals model, stronger than Bayern (1.83 against 1.62; model 1X2 38/24/38, Pinnacle 43/26/32). Betis-Feyenoord: with the goals strength alone it came out 5.2-4.3; each team's deviations took it to 4.6-4.7, because Betis win fewer corners in LaLiga than their strength warrants (−0.08 dominance) and Feyenoord more in the Eredivisie (+0.13). Their goals strength is almost the same (0.63 and 0.67), so the model saw them as even, and Pinnacle didn't (1X2 60/20/20).
 
-*Descartado, con los córners reales* (walk-forward semanal 2024-08 → 2026-10, mismo modelo de producción; 2.344 partidos de liga, 414 de Champions y 738 de las otras dos copas):
-- **Un sesgo del local grande.** Real frente a esperado en la Champions: local +1,8 % y visitante −0,6 %. Por fuerza del local no sale un patrón: 0,5-1,0 → −12,7 % ± 4,7 %; 1,0-1,4 → +9,7 % ± 5,3 %; más de 1,4 → +1,7 % ± 7,1 %. Entre dos grandes (fuerza ≥ 1), +8,5 % ± 5,9 % (93 partidos) y en las ligas +4,9 % ± 6,6 % (63): ruido. Esta temporada (36 partidos de Champions hasta el 19-10) el local saca un 16 % **menos** de lo esperado, al revés de lo que dice Pinnacle.
-- **Que la desviación de cada equipo no sirva en Europa.** Con m(λ) = solo fuerza × (modelo / solo fuerza)^λ, el λ que mejor predice en la Champions entre ligas es 0,91 ± 0,24 (1 = la desviación se cumple entera); en las copas, 0,75 ± 0,28. Quitarla en esos partidos empeora los córners por equipo (−0,024 ± 0,014 en la Champions entre ligas). El Feyenoord en concreto rinde por debajo del modelo en Europa (−10 % de córners a favor), pero un efecto "Europa" por equipo sería ruido para casi todos.
-- **Una pendiente distinta por liga** (que el fuerte domine más en una liga floja): ninguna se distingue de la general (Eredivisie +0,06 ± 0,05, LaLiga −0,02 ± 0,04, Premier +0,09 ± 0,05).
-- **Una memoria más corta.** El Bayern lleva 9,7 córners por partido en la Bundesliga 2026-27 (el modelo esperaba 7,3), y Pinnacle parece pesar más esa racha: con una vida media de 120 días en vez de 240, el error por equipo frente a Pinnacle baja de 0,087 a 0,078 en los 41 partidos y el Bayern sube a 5,1. Pero predice peor los córners reales: Champions por equipo −0,0058 ± 0,0042, copas −0,0063 ± 0,0028, y esta temporada, Champions entre ligas −0,038 ± 0,019. Con 180 días, casi igual que ahora.
+*Ruled out, with the real corners* (weekly walk-forward 2024-08 → 2026-10, the same production model; 2,344 league matches, 414 Champions League and 738 from the other two cups):
+- **A big-home-team bias.** Real against expected in the Champions League: home +1.8 % and away −0.6 %. By home team strength no pattern emerges: 0.5-1.0 → −12.7 % ± 4.7 %; 1.0-1.4 → +9.7 % ± 5.3 %; over 1.4 → +1.7 % ± 7.1 %. Between two big teams (strength ≥ 1), +8.5 % ± 5.9 % (93 matches) and in the leagues +4.9 % ± 6.6 % (63): noise. This season (36 Champions League matches up to 19-10) the home team wins 16 % **fewer** than expected, the opposite of what Pinnacle says.
+- **That each team's deviation doesn't hold in Europe.** With m(λ) = strength only × (model / strength only)^λ, the λ that predicts best in cross-league Champions League matches is 0.91 ± 0.24 (1 = the deviation holds in full); in the cups, 0.75 ± 0.28. Removing it in those matches makes corners per team worse (−0.024 ± 0.014 in cross-league Champions League). Feyenoord in particular underperform the model in Europe (−10 % corners for), but a per-team "Europe" effect would be noise for almost everyone.
+- **A different slope per league** (the strong team dominating more in a weak league): none is distinguishable from the general one (Eredivisie +0.06 ± 0.05, LaLiga −0.02 ± 0.04, Premier League +0.09 ± 0.05).
+- **A shorter memory.** Bayern have 9.7 corners per match in the 2026-27 Bundesliga (the model expected 7.3), and Pinnacle seems to weigh that streak more: with a 120-day half-life instead of 240, the per-team error against Pinnacle drops from 0.087 to 0.078 across the 41 matches and Bayern rise to 5.1. But it predicts real corners worse: Champions League per team −0.0058 ± 0.0042, cups −0.0063 ± 0.0028, and this season, cross-league Champions League −0.038 ± 0.019. With 180 days, almost the same as now.
 
-*La causa: la diferencia de fuerza del modelo de goles.* Si la diferencia de fuerza entre los dos fuera la del 1X2 de Pinnacle, Betis-Feyenoord saldría 5,1-4,2 y Bayern-Arsenal 5,0-3,9. Las casas ven la diferencia mejor que el modelo de goles (no le ganamos al mercado en 1X2), y los conteos la heredan. Se probó mover el reparto hacia la del 1X2 de cierre del partido (sección 3) en el mismo walk-forward, con las cuotas de cierre de Pinnacle o bet365 de 14 ligas (las tres principales y 11 ligas "light" que traen estadísticas); en la Champions y las otras copas no hay cuotas de cierre guardadas, así que ahí no se puede medir con resultados. Diferencia de log-verosimilitud por equipo y partido frente al modelo actual (el total queda igual por construcción: −0,0001 ± 0,0000 o menos):
+*The cause: the goals model's strength difference.* If the strength difference between the two were that of Pinnacle's 1X2, Betis-Feyenoord would come out 5.1-4.2 and Bayern-Arsenal 5.0-3.9. The bookmakers see the difference better than the goals model (we don't beat the market in 1X2), and the counts inherit it. Moving the split towards that of the match's closing 1X2 (section 3) was tried in the same walk-forward, with Pinnacle or bet365 closing odds from 14 leagues (the three main ones and 11 "light" leagues that bring stats); in the Champions League and the other cups there are no saved closing odds, so there it can't be measured with results. Log-likelihood difference per team and match against the current model (the total stays the same by construction: −0.0001 ± 0.0000 or less):
 
-| Peso del 1X2 | Córners: 3 ligas (2.342) | Córners: otras 11 (8.227) | Remates: 3 ligas | Remates: otras 11 | A puerta: 3 ligas | A puerta: otras 11 |
+| 1X2 weight | Corners: 3 leagues (2,342) | Corners: other 11 (8,227) | Shots: 3 leagues | Shots: other 11 | On target: 3 leagues | On target: other 11 |
 |---|---|---|---|---|---|---|
-| 0,5 | +0,0062 ± 0,0017 | +0,0083 ± 0,0009 | +0,0149 ± 0,0025 | +0,0161 ± 0,0014 | +0,0085 ± 0,0019 | +0,0106 ± 0,0011 |
-| **0,75 (aplicado)** | **+0,0074 ± 0,0026** | **+0,0105 ± 0,0013** | **+0,0183 ± 0,0037** | **+0,0196 ± 0,0021** | **+0,0098 ± 0,0028** | **+0,0126 ± 0,0016** |
-| 1 | +0,0075 ± 0,0034 | +0,0115 ± 0,0018 | +0,0190 ± 0,0050 | +0,0200 ± 0,0028 | +0,0091 ± 0,0037 | +0,0124 ± 0,0022 |
+| 0.5 | +0.0062 ± 0.0017 | +0.0083 ± 0.0009 | +0.0149 ± 0.0025 | +0.0161 ± 0.0014 | +0.0085 ± 0.0019 | +0.0106 ± 0.0011 |
+| **0.75 (applied)** | **+0.0074 ± 0.0026** | **+0.0105 ± 0.0013** | **+0.0183 ± 0.0037** | **+0.0196 ± 0.0021** | **+0.0098 ± 0.0028** | **+0.0126 ± 0.0016** |
+| 1 | +0.0075 ± 0.0034 | +0.0115 ± 0.0018 | +0.0190 ± 0.0050 | +0.0200 ± 0.0028 | +0.0091 ± 0.0037 | +0.0124 ± 0.0022 |
 
-La mejora se concentra donde la casa y el modelo de goles discrepan mucho (|δ| > 0,2, 317 partidos: córners +0,107 ± 0,020, remates +0,167 ± 0,032 por partido), que es lo habitual en la Champions (Betis-Feyenoord 0,18; Manchester City-AEK 0,34). Es igual en las tres temporadas (córners en las otras 11 ligas, con peso 1 y sin fijar el total: 2024-25 +0,0121 ± 0,0027, 2025-26 +0,0109 ± 0,0026, 2026-27 +0,0096 ± 0,0062). Con `apuestas backtest --europa` (2.132 partidos de liga, frente a `--no-count-market`): córners por equipo −4,6526 → −4,6458 (+0,0068), remates −5,8053 → −5,7897 (+0,0156), a puerta −4,3054 → −4,2967 (+0,0087); los totales, el 1X2 (0,9801), las apuestas, las tarjetas y las faltas, idénticos.
+The improvement is concentrated where the bookmaker and the goals model disagree a lot (|δ| > 0.2, 317 matches: corners +0.107 ± 0.020, shots +0.167 ± 0.032 per match), which is common in the Champions League (Betis-Feyenoord 0.18; Manchester City-AEK 0.34). It's the same in all three seasons (corners in the other 11 leagues, with weight 1 and without fixing the total: 2024-25 +0.0121 ± 0.0027, 2025-26 +0.0109 ± 0.0026, 2026-27 +0.0096 ± 0.0062). With `apuestas backtest --europa` (2,132 league matches, against `--no-count-market`): corners per team −4.6526 → −4.6458 (+0.0068), shots −5.8053 → −5.7897 (+0.0156), on target −4.3054 → −4.2967 (+0.0087); the totals, the 1X2 (0.9801), the bets, cards and fouls, identical.
 
-Frente a las cuotas guardadas (modelo hasta el 20-10; δ del 1X2 de Pinnacle), error de la media de córners de cada equipo:
+Against the saved odds (model up to 20-10; δ from Pinnacle's 1X2), error of each team's corners mean:
 
-| Córners, error por equipo | Ligas | Champions, equipos conocidos | Champions, pocos datos | Todos |
+| Corners, error per team | Leagues | Champions, known teams | Champions, little data | All |
 |---|---|---|---|---|
-| Pinnacle (41 partidos: 25 / 9 / 7), antes | 0,073 | 0,119 | 0,082 | 0,087 |
-| **Pinnacle, con el 1X2 (0,75)** | **0,072** | **0,070** | **0,075** | **0,072** |
-| Betano (47 partidos: 29 / 11 / 7), antes | 0,060 | 0,129 | 0,066 | 0,082 |
-| **Betano, con el 1X2 (0,75)** | **0,059** | **0,091** | **0,077** | **0,071** |
+| Pinnacle (41 matches: 25 / 9 / 7), before | 0.073 | 0.119 | 0.082 | 0.087 |
+| **Pinnacle, with the 1X2 (0.75)** | **0.072** | **0.070** | **0.075** | **0.072** |
+| Betano (47 matches: 29 / 11 / 7), before | 0.060 | 0.129 | 0.066 | 0.082 |
+| **Betano, with the 1X2 (0.75)** | **0.059** | **0.091** | **0.077** | **0.071** |
 
-En la Champions, el error de la diferencia local − visitante frente a Pinnacle baja de 0,99 a 0,59 córners. Los equipos con pocos datos apenas cambian (y en sus mercados ya se mezcla con la casa, sección 6). En los 17 de esos partidos que ya se jugaron no se distingue nada (−0,003 ± 0,024 por partido frente al modelo actual; son muy pocos).
+In the Champions League, the error of the home − away difference against Pinnacle drops from 0.99 to 0.59 corners. Teams with little data barely change (and in their markets it's already blended with the bookmaker, section 6). In the 17 of those matches already played nothing is distinguishable (−0.003 ± 0.024 per match against the current model; they're very few).
 
-| Córners (local-visitante) | Pinnacle | Betano | Antes | Con el 1X2 | Reales |
+| Corners (home-away) | Pinnacle | Betano | Before | With the 1X2 | Real |
 |---|---|---|---|---|---|
-| Betis-Feyenoord | 5,3-4,1 | 5,4-4,1 | 4,6-4,7 | 5,0-4,3 | 4-4 |
-| Bayern-Arsenal | 5,5-4,2 | 5,7-4,1 | 4,8-4,1 | 4,9-4,0 | 3-5 |
-| Manchester City-AEK | 7,8-2,2 | 7,9-2,3 | 6,5-3,1 | 7,1-2,5 | 8-3 |
-| Porto-PSV | 5,6-4,2 | 5,9-4,0 | 5,2-4,2 | 5,4-4,0 | 2-3 |
+| Betis-Feyenoord | 5.3-4.1 | 5.4-4.1 | 4.6-4.7 | 5.0-4.3 | 4-4 |
+| Bayern-Arsenal | 5.5-4.2 | 5.7-4.1 | 4.8-4.1 | 4.9-4.0 | 3-5 |
+| Manchester City-AEK | 7.8-2.2 | 7.9-2.3 | 6.5-3.1 | 7.1-2.5 | 8-3 |
+| Porto-PSV | 5.6-4.2 | 5.9-4.0 | 5.2-4.2 | 5.4-4.0 | 2-3 |
 
-*Lo que queda.* En Bayern-Arsenal la diferencia de fuerza apenas cambia (δ = 0,07): lo que falta es el total (Pinnacle 9,7 córners, el modelo 8,9), es decir, la racha del Bayern y que los partidos del Arsenal tienen pocos córners. Los datos no apoyan subirlo (memoria más corta, arriba), así que no se toca. En el análisis real, con las alineaciones confirmadas, "Bayern Menos de 3.5 córners" a 4,25 pasa de +57 % a +42 %: sigue saliendo con valor por ese total (el Bayern sacó 3).
+*What remains.* In Bayern-Arsenal the strength difference barely changes (δ = 0.07): what's missing is the total (Pinnacle 9.7 corners, the model 8.9), that is, Bayern's streak and the fact that Arsenal's matches have few corners. The data doesn't support raising it (shorter memory, above), so it isn't touched. In the real analysis, with the confirmed line-ups, "Bayern under 3.5 corners" at 4.25 goes from +57 % to +42 %: it still comes out with value because of that total (Bayern won 3).
 
-Reproducir: scripts en la carpeta de notas de la sesión (`wf_cor.py` y `wf_stat.py` para el walk-forward, `cmp_cor.py`, `mkt_final.py` y `bins.py` para las cifras, `pindiag.py` y `played.py` para las casas), y `apuestas backtest --europa` con y sin `--no-count-market` (salidas en `var/backtests/conteos_mercado_{antes,despues}_2024_2026.json`).
+To reproduce: scripts in the session notes folder (`wf_cor.py` and `wf_stat.py` for the walk-forward, `cmp_cor.py`, `mkt_final.py` and `bins.py` for the figures, `pindiag.py` and `played.py` for the bookmakers), and `apuestas backtest --europa` with and without `--no-count-market` (outputs in `var/backtests/conteos_mercado_{antes,despues}_2024_2026.json`).
 
 
-**Remates de 2026-27: nivel reciente de cada liga** (22-10-2026). Desde julio de 2026 se remata más en casi todas las ligas. Remates por equipo en agosto-octubre de cada temporada (BD, FotMob y football-data dan lo mismo):
+**2026-27 shots: each league's recent level** (22-10-2026). Since July 2026 there are more shots in almost every league. Shots per team in August-October of each season (database; FotMob and football-data agree):
 
-| Agosto-octubre | Premier | Bundesliga | LaLiga | Serie A | Ligue 1 | Champions |
+| August-October | Premier League | Bundesliga | LaLiga | Serie A | Ligue 1 | Champions League |
 |---|---|---|---|---|---|---|
-| 2023-24 | 13,5 | 13,7 | 12,6 | 12,5 | 12,7 | 13,8 |
-| 2024-25 | 13,5 | 13,8 | 12,1 | 12,8 | 12,4 | 13,3 |
-| 2025-26 | 11,9 | 13,3 | 12,4 | 12,3 | 12,4 | 13,6 |
-| 2026-27 | 13,7 | 15,6 | 13,5 | 14,6 | 13,7 | 14,8 |
+| 2023-24 | 13.5 | 13.7 | 12.6 | 12.5 | 12.7 | 13.8 |
+| 2024-25 | 13.5 | 13.8 | 12.1 | 12.8 | 12.4 | 13.3 |
+| 2025-26 | 11.9 | 13.3 | 12.4 | 12.3 | 12.4 | 13.6 |
+| 2026-27 | 13.7 | 15.6 | 13.5 | 14.6 | 13.7 | 14.8 |
 
-Lo mismo en las demás: Eredivisie 14,0 → 15,0, Escocia 12,4 → 14,4, Turquía 12,9 → 14,0, 2. Bundesliga 13,5 → 15,2; solo Portugal no cambia. A puerta sube en la Bundesliga (4,6 → 5,5), la Serie A (4,0 → 4,9), la Ligue 1, LaLiga y la Champions, no en la Premier. Los córners apenas cambian (Bundesliga 5,0 → 5,4; Premier 4,9 → 4,7).
+The same in the others: Eredivisie 14.0 → 15.0, Scotland 12.4 → 14.4, Turkey 12.9 → 14.0, 2. Bundesliga 13.5 → 15.2; only Portugal doesn't change. On target goes up in the Bundesliga (4.6 → 5.5), Serie A (4.0 → 4.9), Ligue 1, LaLiga and the Champions League, not in the Premier League. Corners barely change (Bundesliga 5.0 → 5.4; Premier League 4.9 → 4.7).
 
-*Desde cuándo.* Walk-forward semanal (agosto de 2024 a octubre de 2026, el modelo de producción reajustado cada semana con los datos anteriores), real / esperado por temporada:
+*Since when.* Weekly walk-forward (August 2024 to October 2026, the production model refitted each week with earlier data), real / expected per season:
 
-| Real / esperado | Premier | Bundesliga | LaLiga | Serie A | Ligue 1 | Champions | Otras 11 ligas |
+| Real / expected | Premier League | Bundesliga | LaLiga | Serie A | Ligue 1 | Champions League | Other 11 leagues |
 |---|---|---|---|---|---|---|---|
-| Remates 2024-25 | 0,97 → 0,99 | 0,97 → 0,99 | 0,99 → 1,00 | 0,96 → 0,99 | 0,99 → 1,00 | 1,02 → 1,01 | 0,99 → 1,00 |
-| Remates 2025-26 | 0,99 → 1,01 | 1,01 → 1,01 | 1,02 → 1,00 | 0,99 → 1,00 | 1,00 → 1,01 | 1,05 → 1,02 | 1,01 → 1,01 |
-| Remates 2026-27 | 1,06 → 1,01 | 1,16 → 1,05 | 1,07 → 1,05 | 1,14 → 1,06 | 1,08 → 1,01 | 1,10 → 1,05 | 1,07 → 1,02 |
-| A puerta 2024-25 | 0,94 → 0,98 | 0,97 → 0,99 | 0,99 → 1,01 | 0,97 → 0,99 | 1,02 → 1,00 | 1,04 → 1,03 | 0,99 → 1,00 |
-| A puerta 2025-26 | 0,96 → 1,00 | 1,03 → 1,02 | 1,02 → 1,01 | 0,98 → 1,00 | 0,97 → 1,00 | 1,08 → 1,04 | 1,00 → 1,01 |
-| A puerta 2026-27 | 0,98 → 0,98 | 1,15 → 1,05 | 1,07 → 1,04 | 1,16 → 1,09 | 1,08 → 1,04 | 1,17 → 1,10 | 1,05 → 1,02 |
+| Shots 2024-25 | 0.97 → 0.99 | 0.97 → 0.99 | 0.99 → 1.00 | 0.96 → 0.99 | 0.99 → 1.00 | 1.02 → 1.01 | 0.99 → 1.00 |
+| Shots 2025-26 | 0.99 → 1.01 | 1.01 → 1.01 | 1.02 → 1.00 | 0.99 → 1.00 | 1.00 → 1.01 | 1.05 → 1.02 | 1.01 → 1.01 |
+| Shots 2026-27 | 1.06 → 1.01 | 1.16 → 1.05 | 1.07 → 1.05 | 1.14 → 1.06 | 1.08 → 1.01 | 1.10 → 1.05 | 1.07 → 1.02 |
+| On target 2024-25 | 0.94 → 0.98 | 0.97 → 0.99 | 0.99 → 1.01 | 0.97 → 0.99 | 1.02 → 1.00 | 1.04 → 1.03 | 0.99 → 1.00 |
+| On target 2025-26 | 0.96 → 1.00 | 1.03 → 1.02 | 1.02 → 1.01 | 0.98 → 1.00 | 0.97 → 1.00 | 1.08 → 1.04 | 1.00 → 1.01 |
+| On target 2026-27 | 0.98 → 0.98 | 1.15 → 1.05 | 1.07 → 1.04 | 1.16 → 1.09 | 1.08 → 1.04 | 1.17 → 1.10 | 1.05 → 1.02 |
 
-(antes → con el nivel). Mes a mes, el hueco aparece de golpe en agosto-septiembre de 2026; antes, en toda una temporada ninguna liga se separaba más de un 3-4 % (la Premier, la Bundesliga y la Serie A de 2024-25, en las que el modelo esperaba un 3 % de más). En las cinco ligas, por equipo: en 2026-27, 12,9 remates esperados → 13,7 (reales 14,1); en octubre de 2026, 13,1 → 14,1 (reales 14,3); a puerta en octubre, 4,5 → 4,8 (reales 5,0). Lo que queda corto es sobre todo el arranque de la temporada (agosto), hasta que el nivel tiene partidos nuevos, y los remates a puerta de la Serie A y la Champions, que siguieron subiendo en octubre.
+(before → with the level). Month by month, the gap appears suddenly in August-September 2026; before, over a whole season no league deviated more than 3-4 % (the 2024-25 Premier League, Bundesliga and Serie A, in which the model expected 3 % too many). In the five leagues, per team: in 2026-27, 12.9 expected shots → 13.7 (real 14.1); in October 2026, 13.1 → 14.1 (real 14.3); on target in October, 4.5 → 4.8 (real 5.0). What's still short is mainly the start of the season (August), until the level has new matches, and shots on target in Serie A and the Champions League, which kept rising in October.
 
-*Variantes* (mejora de la log-verosimilitud por equipo y partido frente al modelo de antes, en el mismo walk-forward; positivo = mejor):
+*Variants* (improvement in log-likelihood per team and match against the previous model, in the same walk-forward; positive = better):
 
-| Variante | Remates, 5 ligas: 24-25 / 25-26 / 26-27 | A puerta, Champions: 24-25 / 25-26 / 26-27 |
+| Variant | Shots, 5 leagues: 24-25 / 25-26 / 26-27 | On target, Champions League: 24-25 / 25-26 / 26-27 |
 |---|---|---|
-| Todo el modelo con vida media de 120 días | +0,0095 / +0,0022 / +0,0306 | +0,0078 / −0,0238 / −0,0175 |
-| Nivel de liga, vida media 120 días (K 10) | +0,0016 / −0,0000 / +0,0172 | −0,0089 / +0,0026 / +0,0124 |
-| Nivel de liga, 60 días (K 10) | +0,0037 / +0,0003 / +0,0388 | −0,0142 / +0,0009 / +0,0316 |
-| Nivel de liga, 45 días (K 10) | +0,0042 / +0,0002 / +0,0472 | −0,0164 / +0,0000 / +0,0389 |
-| 45 días, contraído hacia todas, más desvío de copa | +0,0043 / +0,0003 / +0,0548 | −0,0058 / +0,0243 / +0,0640 |
-| **30 días, contraído hacia todas, más desvío de copa (aplicada)** | **+0,0050 / +0,0000 / +0,0665** | **−0,0078 / +0,0220 / +0,0714** |
-| 20 días, ídem | +0,0054 / −0,0007 / +0,0711 | −0,0098 / +0,0244 / +0,0720 |
-| Nivel por temporada (solo la actual, K 10), más desvío de copa | +0,0014 / −0,0014 / +0,0647 | −0,0092 / +0,0228 / +0,0649 |
-| Techo: el desvío real de cada liga y temporada, sabido de antemano | +0,0059 / +0,0010 / +0,0904 | +0,0080 / +0,0284 / +0,1224 |
+| The whole model with a 120-day half-life | +0.0095 / +0.0022 / +0.0306 | +0.0078 / −0.0238 / −0.0175 |
+| League level, 120-day half-life (K 10) | +0.0016 / −0.0000 / +0.0172 | −0.0089 / +0.0026 / +0.0124 |
+| League level, 60 days (K 10) | +0.0037 / +0.0003 / +0.0388 | −0.0142 / +0.0009 / +0.0316 |
+| League level, 45 days (K 10) | +0.0042 / +0.0002 / +0.0472 | −0.0164 / +0.0000 / +0.0389 |
+| 45 days, shrunk towards all, plus cup deviation | +0.0043 / +0.0003 / +0.0548 | −0.0058 / +0.0243 / +0.0640 |
+| **30 days, shrunk towards all, plus cup deviation (applied)** | **+0.0050 / +0.0000 / +0.0665** | **−0.0078 / +0.0220 / +0.0714** |
+| 20 days, same | +0.0054 / −0.0007 / +0.0711 | −0.0098 / +0.0244 / +0.0720 |
+| Level per season (current only, K 10), plus cup deviation | +0.0014 / −0.0014 / +0.0647 | −0.0092 / +0.0228 / +0.0649 |
+| Ceiling: each league and season's real deviation, known in advance | +0.0059 / +0.0010 / +0.0904 | +0.0080 / +0.0284 / +0.1224 |
 
-- **Memoria corta solo para el nivel, no para todo el modelo.** Acortar la vida media de todo el modelo de remates (120 días) también ayuda en 2026-27, pero mucho menos y empeora la Champions (a puerta −0,024 en 2025-26 y −0,018 en 2026-27): la fuerza de cada equipo necesita memoria larga; el nivel de la liga, no.
-- **Contraído hacia todas las competiciones** mejora 2026-27 (+0,044 frente a +0,039 con 60 días) sin cambiar nada antes: el cambio es común a casi todas las ligas.
-- **Desvío de copa.** Si la copa solo toma la media de las ligas, en la Champions empeoran los remates a puerta de 2024-25 (−0,014 ± 0,003), porque ese año las ligas remataban a puerta menos de lo esperado y la Champions más. Con el desvío propio queda en −0,008 ± 0,004 (ruido) y mejora 2025-26 y 2026-27. Su vida media (120 días) y K (30) son más largas que las de las ligas porque la Champions tiene pocos partidos y su desvío se repite de temporada en temporada.
-- **30 días** es el mejor compromiso: 20 días mejora un poco más 2026-27 pero empieza a empeorar 2025-26 y la Champions de 2024-25. K entre 3 y 30 casi no cambia nada (con 60 días: +0,042, +0,039 y +0,032 en 2026-27).
-- **Por temporada** (todos los partidos de la temporada actual con el mismo peso) da lo mismo en 2026-27, pero empeora un poco 2025-26 y las otras 11 ligas (−0,003 ± 0,001 en 2024-26).
-- **Córners**: con el mismo nivel, −0,0012, −0,0005 y −0,0019 en las cinco ligas y −0,023 ± 0,007 en la Europa League y la Conference de 2026-27. No se aplica.
+- **Short memory only for the level, not for the whole model.** Shortening the half-life of the whole shots model (120 days) also helps in 2026-27, but much less and makes the Champions League worse (on target −0.024 in 2025-26 and −0.018 in 2026-27): each team's strength needs a long memory; the league level doesn't.
+- **Shrunk towards all competitions** improves 2026-27 (+0.044 against +0.039 with 60 days) without changing anything before: the change is common to almost every league.
+- **Cup deviation.** If the cup only takes the average of the leagues, 2024-25 shots on target get worse in the Champions League (−0.014 ± 0.003), because that year the leagues had fewer shots on target than expected and the Champions League more. With its own deviation it stays at −0.008 ± 0.004 (noise) and improves 2025-26 and 2026-27. Its half-life (120 days) and K (30) are longer than the leagues' because the Champions League has few matches and its deviation repeats from season to season.
+- **30 days** is the best compromise: 20 days improves 2026-27 a little more but starts making 2025-26 and the 2024-25 Champions League worse. K between 3 and 30 barely changes anything (with 60 days: +0.042, +0.039 and +0.032 in 2026-27).
+- **Per season** (every match of the current season with the same weight) gives the same in 2026-27, but makes 2025-26 and the other 11 leagues slightly worse (−0.003 ± 0.001 in 2024-26).
+- **Corners**: with the same level, −0.0012, −0.0005 and −0.0019 in the five leagues and −0.023 ± 0.007 in the 2026-27 Europa League and Conference. Not applied.
 
-Resultado de la variante aplicada, con el error estándar pareado (remates · a puerta, por equipo):
+Result of the applied variant, with the paired standard error (shots · on target, per team):
 
-| Grupo | 2024-25 | 2025-26 | 2026-27 |
+| Group | 2024-25 | 2025-26 | 2026-27 |
 |---|---|---|---|
-| 5 ligas | +0,0050 ± 0,0025 · +0,0015 ± 0,0024 | +0,0000 ± 0,0016 · −0,0002 ± 0,0028 | +0,067 ± 0,016 · +0,023 ± 0,010 |
-| Champions | +0,0027 ± 0,0052 · −0,0078 ± 0,0043 | +0,0069 ± 0,0088 · +0,022 ± 0,012 | +0,060 ± 0,026 · +0,071 ± 0,028 |
-| Otras 11 ligas | +0,0009 ± 0,0012 · +0,0001 ± 0,0015 (2024-26) | | +0,038 ± 0,009 · +0,008 ± 0,005 |
-| Europa League y Conference | −0,0012 ± 0,0030 · −0,0052 ± 0,0029 (2024-26) | | +0,027 ± 0,016 · +0,014 ± 0,010 |
+| 5 leagues | +0.0050 ± 0.0025 · +0.0015 ± 0.0024 | +0.0000 ± 0.0016 · −0.0002 ± 0.0028 | +0.067 ± 0.016 · +0.023 ± 0.010 |
+| Champions League | +0.0027 ± 0.0052 · −0.0078 ± 0.0043 | +0.0069 ± 0.0088 · +0.022 ± 0.012 | +0.060 ± 0.026 · +0.071 ± 0.028 |
+| Other 11 leagues | +0.0009 ± 0.0012 · +0.0001 ± 0.0015 (2024-26) | | +0.038 ± 0.009 · +0.008 ± 0.005 |
+| Europa League and Conference | −0.0012 ± 0.0030 · −0.0052 ± 0.0029 (2024-26) | | +0.027 ± 0.016 · +0.014 ± 0.010 |
 
-En la Europa League y la Conference los remates a puerta de 2024-26 empeoran un poco (−0,005 ± 0,003); esas copas solo sirven para entrenar, no se analizan en el panel.
+In the Europa League and the Conference, 2024-26 shots on target get slightly worse (−0.005 ± 0.003); those cups are only used for training, they aren't analysed in the dashboard.
 
-Con `apuestas backtest --europa` por temporada, frente a `--no-count-level` (log-verosimilitud por equipo y partido): remates en las ligas −5,7730 → −5,7680 (2024-25), −5,7756 → −5,7758 (2025-26) y −6,0711 → −6,0047 (2026-27, 346 partidos hasta el 21-10); a puerta −4,2910 → −4,2895, −4,2961 → −4,2962 y −4,4723 → −4,4501; en la Champions, remates −6,0336 → −6,0309, −5,8715 → −5,8638 y −5,9200 → −5,8691, y a puerta −4,5514 → −4,5592, −4,6298 → −4,6056 y −4,6036 → −4,5384. El 1X2 (0,9708, 0,9790 y 0,9561), las apuestas, los córners, las faltas y las tarjetas, idénticos.
+With `apuestas backtest --europa` per season, against `--no-count-level` (log-likelihood per team and match): shots in the leagues −5.7730 → −5.7680 (2024-25), −5.7756 → −5.7758 (2025-26) and −6.0711 → −6.0047 (2026-27, 346 matches up to 21-10); on target −4.2910 → −4.2895, −4.2961 → −4.2962 and −4.4723 → −4.4501; in the Champions League, shots −6.0336 → −6.0309, −5.8715 → −5.8638 and −5.9200 → −5.8691, and on target −4.5514 → −4.5592, −4.6298 → −4.6056 and −4.6036 → −4.5384. The 1X2 (0.9708, 0.9790 and 0.9561), the bets, corners, fouls and cards, identical.
 
-*Faltas y tarjetas*: un nivel de liga de 60 días, sin desvío de copa, mejora las cinco ligas (tarjetas +0,0051 ± 0,0021 en 2024-25 y +0,0086 ± 0,0059 en 2026-27; faltas +0,0065 ± 0,0026 en 2025-26 y +0,017 ± 0,007 en 2026-27), pero empeora las copas (tarjetas en la Champions de 2024-25 −0,007 ± 0,004, faltas en la de 2026-27 −0,014 ± 0,014) y las dos pasan por el factor del árbitro. El modelo de tarjetas, además, espera de más en casi todas las ligas (real / esperado 0,93-1,00 en 2024-26 y 0,86-0,89 en la Serie A, la Ligue 1 y la Bundesliga de 2026-27). Las faltas quedan sin aplicar ("Próximas mejoras"); las tarjetas lo llevan desde el 22-10-2026, con sus propios parámetros (abajo, "Tarjetas: nivel reciente de cada liga").
+*Fouls and cards*: a 60-day league level, without cup deviation, improves the five leagues (cards +0.0051 ± 0.0021 in 2024-25 and +0.0086 ± 0.0059 in 2026-27; fouls +0.0065 ± 0.0026 in 2025-26 and +0.017 ± 0.007 in 2026-27), but makes the cups worse (cards in the 2024-25 Champions League −0.007 ± 0.004, fouls in the 2026-27 one −0.014 ± 0.014) and both go through the referee factor. The cards model also expects too many in almost every league (real / expected 0.93-1.00 in 2024-26 and 0.86-0.89 in the 2026-27 Serie A, Ligue 1 and Bundesliga). Fouls stay unapplied ("Upcoming planned improvements"); cards have carried it since 22-10-2026, with their own parameters (below, "Cards: each league's recent level").
 
-Reproducir: scripts en la carpeta de notas de la sesión (`nivel-liga/`: `wf.py` para el walk-forward en paralelo, `ana.py` para las cifras, `oraculo.py` para el techo y `nivel_hoy.py` para los niveles de hoy), y `apuestas backtest --europa --start … --end …` con y sin `--no-count-level`.
+To reproduce: scripts in the session notes folder (`nivel-liga/`: `wf.py` for the parallel walk-forward, `ana.py` for the figures, `oraculo.py` for the ceiling and `nivel_hoy.py` for today's levels), and `apuestas backtest --europa --start … --end …` with and without `--no-count-level`.
 
-**Tarjetas: nivel reciente de cada liga** (22-10-2026). El modelo de tarjetas del equipo se pasaba en casi todas las competiciones: en el walk-forward semanal de 2024-08 a 2026-10, 1,049 de lo real en las ligas (Premier 1,048, Bundesliga 1,061, LaLiga 1,020, Serie A 1,079, Ligue 1 1,045) y 1,075 en la Champions. No es el árbitro (su factor vale de media 1,00 en cada liga), sino que las tarjetas bajan de temporada en temporada y, dentro de cada temporada, de la primera vuelta a la segunda (Serie A 2023-24: 2,29 y 2,04 por equipo; 2026-27: 1,68), y el modelo, con 240 días de vida media, va por detrás.
+**Cards: each league's recent level** (22-10-2026). The team cards model was too high in almost every competition: in the weekly walk-forward from 2024-08 to 2026-10, 1.049 of the real figure in the leagues (Premier League 1.048, Bundesliga 1.061, LaLiga 1.020, Serie A 1.079, Ligue 1 1.045) and 1.075 in the Champions League. It's not the referee (its factor is 1.00 on average in each league), but that cards go down season after season and, within each season, from the first half to the second (Serie A 2023-24: 2.29 and 2.04 per team; 2026-27: 1.68), and the model, with a 240-day half-life, lags behind.
 
-*Primera exploración* (nivel de la competición del partido, contraído hacia 1; solo el modelo de tarjetas, en el mismo walk-forward; diferencia de log-verosimilitud por equipo y partido, con el árbitro, frente al modelo actual; ligas: 3.849 partidos, Champions: 423):
+*First exploration* (level of the match's competition, shrunk towards 1; only the cards model, in the same walk-forward; log-likelihood difference per team and match, with the referee, against the current model; leagues: 3,849 matches, Champions League: 423):
 
-| Variante | Ligas (esperadas / reales) | Premier | Bundesliga | LaLiga | Serie A | Ligue 1 | Champions |
+| Variant | Leagues (expected / real) | Premier League | Bundesliga | LaLiga | Serie A | Ligue 1 | Champions League |
 |---|---|---|---|---|---|---|---|
-| Modelo actual | 1,049 | | | | | | |
-| Nivel de 30 días, K 20 | +0,0049 ± 0,0015 (1,027) | +0,0084 ± 0,0042 | +0,0020 ± 0,0031 | +0,0018 ± 0,0030 | +0,0086 ± 0,0032 | +0,0025 ± 0,0028 | +0,0032 ± 0,0039 |
-| Nivel de 30 días, K 10 | +0,0047 ± 0,0018 (1,022) | +0,0085 | +0,0013 | +0,0013 | +0,0093 | +0,0022 | +0,0028 |
-| Nivel de 60 días, K 20 | +0,0039 ± 0,0013 (1,025) | +0,0047 | +0,0023 | +0,0004 | +0,0088 | +0,0028 | +0,0038 |
-| Nivel de 120 días, K 20 | +0,0032 ± 0,0009 (1,027) | +0,0028 | +0,0033 | −0,0003 | +0,0075 | +0,0024 | +0,0042 |
-| Nivel de 180 días, K 20 | +0,0025 ± 0,0007 (1,032) | +0,0015 | +0,0032 | −0,0004 | +0,0061 | +0,0023 | +0,0028 |
-| Solo un nivel largo (365 días) | +0,0003 ± 0,0004 (1,044) | −0,0030 | +0,0015 | −0,0008 | +0,0023 | +0,0024 | −0,0022 |
-| 30 días, contraído hacia el de 365 | +0,0049 ± 0,0015 (1,025) | +0,0078 | +0,0024 | +0,0015 | +0,0090 | +0,0029 | +0,0020 |
-| Modelo con vida media de 120 días | −0,0009 ± 0,0012 (1,043) | −0,0013 | +0,0019 | −0,0025 | −0,0030 | +0,0013 | −0,0035 |
+| Current model | 1.049 | | | | | | |
+| 30-day level, K 20 | +0.0049 ± 0.0015 (1.027) | +0.0084 ± 0.0042 | +0.0020 ± 0.0031 | +0.0018 ± 0.0030 | +0.0086 ± 0.0032 | +0.0025 ± 0.0028 | +0.0032 ± 0.0039 |
+| 30-day level, K 10 | +0.0047 ± 0.0018 (1.022) | +0.0085 | +0.0013 | +0.0013 | +0.0093 | +0.0022 | +0.0028 |
+| 60-day level, K 20 | +0.0039 ± 0.0013 (1.025) | +0.0047 | +0.0023 | +0.0004 | +0.0088 | +0.0028 | +0.0038 |
+| 120-day level, K 20 | +0.0032 ± 0.0009 (1.027) | +0.0028 | +0.0033 | −0.0003 | +0.0075 | +0.0024 | +0.0042 |
+| 180-day level, K 20 | +0.0025 ± 0.0007 (1.032) | +0.0015 | +0.0032 | −0.0004 | +0.0061 | +0.0023 | +0.0028 |
+| Only a long level (365 days) | +0.0003 ± 0.0004 (1.044) | −0.0030 | +0.0015 | −0.0008 | +0.0023 | +0.0024 | −0.0022 |
+| 30 days, shrunk towards the 365-day one | +0.0049 ± 0.0015 (1.025) | +0.0078 | +0.0024 | +0.0015 | +0.0090 | +0.0029 | +0.0020 |
+| Model with a 120-day half-life | −0.0009 ± 0.0012 (1.043) | −0.0013 | +0.0019 | −0.0025 | −0.0030 | +0.0013 | −0.0035 |
 
-Memoria corta (30 días) para el nivel, sí; para todo el modelo, no; un nivel largo no aporta (el de cada liga ya lo recogen sus equipos). Lo que queda es sobre todo el retraso de un nivel que no deja de bajar; el mes a mes es muy ruidoso (septiembre suele tener más tarjetas y agosto menos), así que no se ajusta por fecha de la temporada.
+Short memory (30 days) for the level, yes; for the whole model, no; a long level adds nothing (each league's is already captured by its teams). What remains is mainly the lag of a level that keeps going down; month by month it's very noisy (September usually has more cards and August fewer), so it isn't adjusted by date within the season.
 
-*Con el nivel de los remates* (`fitting.count_levels`, fusionado el mismo día; el nivel por liga va dentro del modelo de conteo). Se probaron sus parámetros en las tarjetas con `apuestas backtest --europa` frente a `--no-count-level` (3.504 partidos de liga y 378 de Champions en 2024-26; 345 y 45 en 2026-27; diferencia de log-verosimilitud por equipo y partido):
+*With the shots level* (`fitting.count_levels`, merged the same day; the level per league goes inside the count model). Its parameters were tried on cards with `apuestas backtest --europa` against `--no-count-level` (3,504 league matches and 378 Champions League in 2024-26; 345 and 45 in 2026-27; log-likelihood difference per team and match):
 
-| Variante | Ligas 2024-26 | Ligas 2026-27 | Champions 2024-26 | Champions 2026-27 | Ligas, con árbitro 2024-26 |
+| Variant | Leagues 2024-26 | Leagues 2026-27 | Champions 2024-26 | Champions 2026-27 | Leagues, with referee 2024-26 |
 |---|---|---|---|---|---|
-| Como los remates (K 10; copas: media de las ligas más su desvío, 120 días, K 30) | +0,0042 ± 0,0020 | +0,0105 ± 0,0093 | −0,0059 ± 0,0046 | +0,0024 ± 0,021 | +0,0050 |
-| K 20 | +0,0050 ± 0,0017 | +0,0123 ± 0,0086 | −0,0043 ± 0,0043 | +0,0060 ± 0,020 | +0,0056 |
-| K 20, desvío de copa de 30 días y K 20 | +0,0050 | +0,0123 | −0,0048 ± 0,0051 | +0,0047 | +0,0056 |
-| 60 días, K 10 | +0,0028 ± 0,0015 | +0,0099 ± 0,0065 | −0,0039 ± 0,0042 | +0,0044 | +0,0034 |
-| K 20, en las copas solo el nivel de la copa (30 días, K 20) | +0,0050 | +0,0123 | +0,0013 ± 0,0040 | +0,0100 ± 0,0066 | +0,0056 |
-| **K 20, en las copas solo el de la copa (120 días, K 30; aplicada)** | **+0,0050 ± 0,0017** | **+0,0123 ± 0,0086** | **+0,0016 ± 0,0032** | **+0,0167 ± 0,0106** | **+0,0056 ± 0,0017** |
-| Primera exploración (nivel de la competición, 30 días, K 20, hacia 1) | +0,0041 ± 0,0016 | +0,0066 ± 0,0057 | +0,0011 ± 0,0043 | +0,0107 ± 0,0073 | +0,0047 |
+| Like shots (K 10; cups: average of the leagues plus their deviation, 120 days, K 30) | +0.0042 ± 0.0020 | +0.0105 ± 0.0093 | −0.0059 ± 0.0046 | +0.0024 ± 0.021 | +0.0050 |
+| K 20 | +0.0050 ± 0.0017 | +0.0123 ± 0.0086 | −0.0043 ± 0.0043 | +0.0060 ± 0.020 | +0.0056 |
+| K 20, 30-day cup deviation and K 20 | +0.0050 | +0.0123 | −0.0048 ± 0.0051 | +0.0047 | +0.0056 |
+| 60 days, K 10 | +0.0028 ± 0.0015 | +0.0099 ± 0.0065 | −0.0039 ± 0.0042 | +0.0044 | +0.0034 |
+| K 20, in the cups only the cup's level (30 days, K 20) | +0.0050 | +0.0123 | +0.0013 ± 0.0040 | +0.0100 ± 0.0066 | +0.0056 |
+| **K 20, in the cups only the cup's (120 days, K 30; applied)** | **+0.0050 ± 0.0017** | **+0.0123 ± 0.0086** | **+0.0016 ± 0.0032** | **+0.0167 ± 0.0106** | **+0.0056 ± 0.0017** |
+| First exploration (competition level, 30 days, K 20, towards 1) | +0.0041 ± 0.0016 | +0.0066 ± 0.0057 | +0.0011 ± 0.0043 | +0.0107 ± 0.0073 | +0.0047 |
 
-- **Contraído hacia todas las competiciones** (como los remates) es mejor que hacia 1 en las ligas, sobre todo en 2026-27: las tarjetas bajan en casi todas a la vez.
-- **En las copas, solo el nivel de la copa** (`cup_alone` en el modelo de tarjetas). Con la media de las ligas de los dos equipos, la Champions empeora en 2024-26 (−0,004 a −0,006), con cualquier desvío de copa: en tarjetas, la Champions no sigue a las ligas de sus equipos (en las eliminatorias, de febrero a abril, se ven 1,3-1,8 por equipo; en las ligas, 1,9-2,1).
-- **Árbitro.** Se ajusta frente al modelo sin el nivel (`RatingModel.expected(..., level=False)`): el nivel de hoy no vale para partidos de hace años. En la primera exploración, ajustarlo frente al nivel de la fecha de cada partido daba lo mismo (+0,0050 frente a +0,0049).
+- **Shrunk towards all competitions** (like shots) is better than towards 1 in the leagues, above all in 2026-27: cards go down in almost all of them at once.
+- **In the cups, only the cup's level** (`cup_alone` in the cards model). With the average of the two teams' leagues, the Champions League gets worse in 2024-26 (−0.004 to −0.006), with any cup deviation: in cards, the Champions League doesn't follow its teams' leagues (in the knockouts, from February to April, there are 1.3-1.8 per team; in the leagues, 1.9-2.1).
+- **Referee.** It's fitted against the model without the level (`RatingModel.expected(..., level=False)`): today's level isn't valid for matches from years ago. In the first exploration, fitting it against the level at each match's date gave the same (+0.0050 against +0.0049).
 
-Variante aplicada, por liga (por equipo, 2024-26): Premier +0,0080 ± 0,0050, Bundesliga +0,0015 ± 0,0034, LaLiga +0,0042 ± 0,0034, Serie A +0,0078 ± 0,0034, Ligue 1 +0,0021 ± 0,0032; Europa League −0,0029 ± 0,0019 y Conference −0,0030 ± 0,0031 (no se analizan en el panel). En 2026-27: Serie A +0,032 ± 0,024, Ligue 1 +0,033 ± 0,023, Bundesliga +0,007 ± 0,027, Premier −0,004 ± 0,012, LaLiga −0,002 ± 0,011; Conference −0,039 ± 0,015 (18 partidos). En valores: tarjetas por equipo en las ligas −3,3214 → −3,3165 (2024-26) y −3,2199 → −3,2076 (2026-27); total −2,1103 → −2,1053; con el árbitro −2,1063 → −2,1006; Champions por equipo −3,2432 → −3,2415 y −3,1788 → −3,1621. El 1X2 (0,9727), las apuestas y el resto de estadísticas, idénticos.
+Applied variant, by league (per team, 2024-26): Premier League +0.0080 ± 0.0050, Bundesliga +0.0015 ± 0.0034, LaLiga +0.0042 ± 0.0034, Serie A +0.0078 ± 0.0034, Ligue 1 +0.0021 ± 0.0032; Europa League −0.0029 ± 0.0019 and Conference −0.0030 ± 0.0031 (not analysed in the dashboard). In 2026-27: Serie A +0.032 ± 0.024, Ligue 1 +0.033 ± 0.023, Bundesliga +0.007 ± 0.027, Premier League −0.004 ± 0.012, LaLiga −0.002 ± 0.011; Conference −0.039 ± 0.015 (18 matches). In values: cards per team in the leagues −3.3214 → −3.3165 (2024-26) and −3.2199 → −3.2076 (2026-27); total −2.1103 → −2.1053; with the referee −2.1063 → −2.1006; Champions League per team −3.2432 → −3.2415 and −3.1788 → −3.1621. The 1X2 (0.9727), the bets and the other stats, identical.
 
-Reproducir: `wf_tarj.py` y `wf_tarj2.py` (primera exploración), `ana_tabla.py` (su tabla), `bt_tarj2.py` + `cmp_var.py` (`apuestas backtest --europa` partido a partido con los parámetros de tarjetas) y `medir_tarjetas.py --semanal` (jugadores, sección 4), en las notas de la sesión del 22-10-2026.
+To reproduce: `wf_tarj.py` and `wf_tarj2.py` (first exploration), `ana_tabla.py` (its table), `bt_tarj2.py` + `cmp_var.py` (`apuestas backtest --europa` match by match with the cards parameters) and `medir_tarjetas.py --semanal` (players, section 4), in the notes of the 22-10-2026 session.
 
-**Dispersión propia del total de las estadísticas** (29-10-2026; `apuestas backtest`, entrada `<stat>+total`, y `experimentos/validacion/dispersion_total.py`). Log-verosimilitud del total por partido en las cinco ligas, 2024-26 (3.504 partidos), frente a sumar los dos equipos como independientes, con el margen del 95 % pareado:
+**The stats' own total dispersion** (29-10-2026; `apuestas backtest`, entry `<stat>+total`, and `experimentos/validacion/dispersion_total.py`). Log-likelihood of the total per match in the five leagues, 2024-26 (3,504 matches), against adding up the two teams as independent, with the paired 95 % margin:
 
-| Estadística | Alfa del total | Antes | Después | Mejora | Prueba honesta (alfa de 2024-25, evaluada en 2025-26) |
+| Stat | Total alpha | Before | After | Improvement | Honest test (2024-25 alpha, evaluated on 2025-26) |
 | --- | --- | --- | --- | --- | --- |
-| Remates | 0,010 | −3,1443 | −3,1373 | +0,0071 ± 0,0040 | +0,0099 ± 0,0056 |
-| A puerta | 0,003 | −2,5052 | −2,5044 | +0,0008 ± 0,0008 | +0,0008 ± 0,0012 |
-| Córners | 0,017 | −2,6174 | −2,6131 | +0,0043 ± 0,0032 | +0,0047 ± 0,0052 |
-| Faltas | 0,005 | −3,0565 | −3,0535 | +0,0031 ± 0,0026 | +0,0035 ± 0,0024 |
-| Tarjetas | 0 | −2,1053 | −2,1053 | 0 | 0 |
+| Shots | 0.010 | −3.1443 | −3.1373 | +0.0071 ± 0.0040 | +0.0099 ± 0.0056 |
+| On target | 0.003 | −2.5052 | −2.5044 | +0.0008 ± 0.0008 | +0.0008 ± 0.0012 |
+| Corners | 0.017 | −2.6174 | −2.6131 | +0.0043 ± 0.0032 | +0.0047 ± 0.0052 |
+| Fouls | 0.005 | −3.0565 | −3.0535 | +0.0031 ± 0.0026 | +0.0035 ± 0.0024 |
+| Cards | 0 | −2.1053 | −2.1053 | 0 | 0 |
 
-Las alfas salen de los mismos partidos del backtest (columna "Mejora"); la última columna las estima solo con 2024-25 y mide en 2025-26, y da lo mismo, así que no es sobreajuste. Con la alfa del propio ajuste (en muestra) la mejora era menor: remates +0,0059, córners +0,0021, y tarjetas −0,0006 en 2025-26. Fuera de muestra, la alfa del equipo sale algo más alta que la del ajuste (córners 0,084 frente a 0,067), pero la del total sigue muy por debajo de la mitad de la del equipo, que es lo que equivale a sumar dos independientes. En tarjetas el total ya sale Poisson: los equipos van por debajo de una Poisson (alfa −0,07 fuera de muestra) y la correlación positiva lo compensa. El 1X2, las apuestas y los mercados de cada equipo, idénticos. Frente a Betano (`estadisticas_betano.py`, 36 partidos), la pérdida logarítmica de córners pasa de −0,0010 ± 0,0064 a −0,0012 ± 0,0055 (modelo − Betano): con tan pocos partidos no se distingue. Queda abierto el hándicap de estadísticas, que sigue suponiendo independencia (con correlación negativa, la diferencia entre los dos equipos es más ancha de lo que dice el modelo).
+The alphas come from the same backtest matches ("Improvement" column); the last column estimates them only with 2024-25 and measures on 2025-26, and it gives the same, so it isn't overfitting. With the fit's own alpha (in sample) the improvement was smaller: shots +0.0059, corners +0.0021, and cards −0.0006 in 2025-26. Out of sample, the team alpha comes out somewhat higher than the fit's (corners 0.084 against 0.067), but the total's is still well below half the team's, which is what adding up two independent teams amounts to. In cards the total already comes out Poisson: the teams are below a Poisson (alpha −0.07 out of sample) and the positive correlation compensates for it. The 1X2, the bets and each team's markets, identical. Against Betano (`estadisticas_betano.py`, 36 matches), the corners log-loss goes from −0.0010 ± 0.0064 to −0.0012 ± 0.0055 (model − Betano): with so few matches it isn't distinguishable. The stat handicap remains open, as it still assumes independence (with negative correlation, the difference between the two teams is wider than the model says).
 
-**Lectura**:
-1. En los mercados principales, **bet365 sigue siendo más preciso que el modelo**, también con los ratings del mercado. Ahora el modelo está mucho más cerca (lo que hacen los profesionales), pero no hay ninguna estrategia rentable en 1X2, goles o hándicap. Con el modelo tan cerca del mercado, las pocas "apuestas con valor" que quedan son sobre todo ruido: el ROI no mejora aunque el CLV sí lo haga un poco.
-2. bet365 casi nunca paga más que la probabilidad justa de Pinnacle en 1X2 o goles 2.5 (4 casos en dos años), así que comparar casas no sirve con bet365 en esos mercados.
-3. El cierre de Pinnacle (0,963) es mucho mejor que su cuota previa (0,976): entre la previa y el partido llega mucha información (alineaciones, noticias). El índice de calidad del once solo capta una parte (β = 0,10).
-4. Donde el modelo sí aporta información (faltas, remates, tarjetas, jugadores) es justo donde las casas tienen menos precisión. Ahí hay que comparar las cuotas de Betano con la **cuota mínima** que da el sistema. El árbitro ayuda en las tarjetas de LaLiga, la Serie A y la Bundesliga, no en las de la Premier, y en las faltas de la Ligue 1.
+**Reading**:
+1. In the main markets, **bet365 is still more accurate than the model**, also with the market ratings. Now the model is much closer (which is what professionals do), but there's no profitable strategy in 1X2, goals or handicap. With the model so close to the market, the few "value bets" that remain are mostly noise: the ROI doesn't improve even though the CLV does a little.
+2. bet365 almost never pays more than Pinnacle's fair probability in 1X2 or goals 2.5 (4 cases in two years), so comparing bookmakers doesn't work with bet365 in those markets.
+3. Pinnacle's closing odds (0.963) are much better than its opening odds (0.976): a lot of information arrives between the opening and the match (line-ups, news). The XI quality index only captures part of it (β = 0.10).
+4. Where the model does add information (fouls, shots, cards, players) is exactly where the bookmakers are less precise. There, Betano's odds have to be compared with the **minimum odds** the system gives. The referee helps with cards in LaLiga, Serie A and the Bundesliga, not in the Premier League, and with fouls in Ligue 1.
 
-Reproducir: `apuestas backtest --lineups --europa --out var/backtests/x.json` (desde el 21-10-2026 evalúa por defecto las cinco ligas completas; `--ligas EPL,BUN,LAL` para las cifras de antes; `--market-weight 0` para el modelo sin mercado; `--no-count-strength` para las estadísticas sin la fuerza de goles, `--no-count-market` para remates y córners sin el 1X2 de la casa, `--no-count-level` para remates, a puerta y tarjetas sin el nivel reciente de cada liga, `--count-l2 1` para la L2 fija de antes y `--no-home-by-league` para una sola ventaja local).
+To reproduce: `apuestas backtest --lineups --europa --out var/backtests/x.json` (since 21-10-2026 it evaluates the full leagues by default; `--ligas EPL,BUN,LAL` for the earlier figures; `--market-weight 0` for the model without market; `--no-count-strength` for stats without goals strength, `--no-count-market` for shots and corners without the bookmaker's 1X2, `--no-count-level` for shots, on target and cards without each league's recent level, `--count-l2 1` for the earlier fixed L2 and `--no-home-by-league` for a single home advantage).
 
-## 8. Resumen de la semana: sorpresa frente a lo esperado (`models/surprise.py`, `services/weekly.py`)
+## 8. Weekly summary: surprise against expectations (`models/surprise.py`, `services/weekly.py`)
 
-No cambia el modelo ni las apuestas (no hace falta backtest): resume cada semana quién superó lo esperado.
+It doesn't change the model or the bets (no backtest needed): it sums up each week who beat expectations.
 
-- **Puntuación de cada dato**: `P(X < real) − P(X > real)` con la distribución esperada, de −1 a +1 (0 = lo
-  esperado). Cuenta el margen: con 9,9 córners esperados, 10 suma +0,09, 12 +0,43, 15 +0,77 y 6 −0,65.
-- **Resultado**: `(puntos − puntos esperados) / 3`, con el 1X2 sin margen. Ganar con un 15 % de probabilidad suma
-  +0,77; ganar con un 75 %, +0,19; empatar siendo ese favorito, −0,47.
-- **Equipos, frente a la casa** (la última cuota antes del inicio de cada tipo; el cierre primero):
-  - Resultado: 1X2 de Pinnacle, Betfair, bet365, Betano o la media, en ese orden; si no hay, el de la previa.
-  - Goles y córners de cada equipo: la línea principal (la más cercana al 50 % sin margen) de Pinnacle o Betano. Con
-    esa línea y su probabilidad se despeja la media de una Poisson (goles) o de la binomial negativa del modelo
-    (córners, con su alfa). Sin línea de goles por equipo, los goles implícitos en el 1X2 y el más/menos 2.5
-    (`fitting.prematch_market_goals`); si tampoco, la previa del modelo.
-  - Los remates a puerta no cuentan: ninguna casa los cotiza.
-- **Jugadores, frente a la previa del modelo** (`services/predictions.py`): remates y remates a puerta (binomial
-  negativa, alfa 0,15), goles y asistencias (Poisson). La tasa se ajusta a los minutos jugados (`λ × minutos /
-  minutos esperados`), para medir cómo jugó y no que entrara en el once por sorpresa. Hacen falta 30 minutos.
-  Porteros y defensas con 60 minutos o más suman además los goles recibidos frente a la vara de goles del rival, con
-  el signo cambiado.
-- **Semana**: la suma de los partidos (se muestran también los partidos jugados y la media). Once en 4-3-3 por
-  posición.
-- **Límites**: el dato tiene techo (un gol con λ 0,08 suma +0,92 y dos +0,997), así que el detalle muestra lo real
-  y lo esperado. Sumar favorece a quien jugó dos partidos. El jugador de la semana suele ser un delantero: tiene más
-  datos con recorrido al alza. Una semana buena es en parte suerte: no predice la siguiente.
+- **Score of each item**: `P(X < real) − P(X > real)` with the expected distribution, from −1 to +1 (0 = as
+  expected). The margin counts: with 9.9 expected corners, 10 adds +0.09, 12 +0.43, 15 +0.77 and 6 −0.65.
+- **Result**: `(points − expected points) / 3`, with the no-vig 1X2. Winning with a 15 % probability adds
+  +0.77; winning with 75 %, +0.19; drawing as that favourite, −0.47.
+- **Teams, against the bookmaker** (the last price of each type before kick-off; closing first):
+  - Result: 1X2 from Pinnacle, Betfair, bet365, Betano or the average, in that order; if there's none, the preview's.
+  - Each team's goals and corners: the main line (the closest to 50 % without margin) from Pinnacle or Betano. With
+    that line and its probability, the mean of a Poisson (goals) or of the model's negative binomial (corners, with
+    its alpha) is solved for. Without a team goals line, the goals implied by the 1X2 and the over/under 2.5
+    (`fitting.prematch_market_goals`); if not that either, the model's preview.
+  - Shots on target don't count: no bookmaker prices them.
+- **Players, against the model's preview** (`services/predictions.py`): shots and shots on target (negative
+  binomial, alpha 0.15), goals and assists (Poisson). The rate is adjusted to the minutes played (`λ × minutes /
+  expected minutes`), to measure how they played and not whether they made the XI by surprise. 30 minutes are needed.
+  Goalkeepers and defenders with 60 minutes or more also add the goals conceded against the opponent's goals
+  yardstick, with the sign reversed.
+- **Week**: the sum of the matches (matches played and the average are also shown). XI in a 4-3-3 by
+  position.
+- **Limits**: each item has a ceiling (a goal with λ 0.08 adds +0.92 and two +0.997), so the detail shows the real
+  and the expected figures. Adding up favours whoever played two matches. The player of the week is usually a
+  forward: they have more items with upside. A good week is partly luck: it doesn't predict the next one.
 
-### Mes, radar y avisos (`services/radar.py`, desde el 29-10-2026)
+### Month, radar and warnings (`services/radar.py`, since 29-10-2026)
 
-- **Mes**: las 4 semanas completas que terminan en la semana elegida, con la misma puntuación (`weekly.score_range`).
-  Se abre cuando sus 4 semanas tienen previa (la primera, del 26-10 al 22-11-2026).
-- **Radar**, sobre los últimos 28 días: un equipo está **en racha** con una suma de +1,0 o un **batacazo** (ganar cuando
-  el 1X2 sin margen de la vara daba un 25 % o menos) y **en baja** con −1,0 o un **pinchazo** (perder con un 60 % o
-  más). Jugadores en racha: +1,5 y 90 minutos. Figuras: hasta 2 jugadores del equipo con +1,5 en sus partidos. Como
-  mucho 8 por lista.
-- **Avisos**: la ficha del radar de cada equipo de un partido próximo, con sus figuras en el once o no. **No cambian
-  la probabilidad, la confianza ni el corte**: falta medir si los que dan la sorpresa la repiten.
-- **¿Se repiten las sorpresas? No** (medido el 29-10-2026 con `experimentos/sorpresas/repiten.py`: 11.352 partidos de
-  equipo desde 2023-07 de las seis competiciones, resultado contra el 1X2 sin margen antes del partido). En el
-  partido siguiente, la puntuación del resultado frente a la casa es +0,000 ± 0,013 en racha (n = 3.322; ganan un
-  37,7 % frente al 37,8 % de la casa), +0,000 ± 0,021 en racha con batacazo (30,5 % frente a 31,0 %), −0,003 ± 0,014
-  en baja y +0,034 ± 0,039 en baja con pinchazo (si acaso rebotan, no siguen cayendo). La casa ya lo recoge: el aviso
-  se queda como aviso, sin tocar la confianza, y lo dice.
-- **Por qué falló**: la previa frente a lo que pasó en la apuesta del día perdida, con la misma puntuación, y si el
-  radar marcaba a alguno de los equipos cuando se generó la apuesta. Ejemplo real: Sassuolo +1 (3 vías) del 27-10
-  perdió 2-6; Lazio estaba en racha tras ganar 0-3 en Turín con un 17 % y su figura Kenneth Taylor jugó.
+- **Month**: the 4 full weeks ending in the chosen week, with the same score (`weekly.score_range`).
+  It opens when its 4 weeks have a preview (the first, from 26-10 to 22-11-2026).
+- **Radar**, over the last 28 days: a team is **on a hot streak** with a sum of +1.0 or an **upset win** (winning
+  when the yardstick's no-vig 1X2 gave 25 % or less) and **on a cold streak** with −1.0 or a **slip** (losing at 60 %
+  or more). Players on a hot streak: +1.5 and 90 minutes. Key players: up to 2 of the team's players with +1.5 in
+  their matches. At most 8 per list.
+- **Warnings**: the radar card of each team in an upcoming match, with or without its key players in the XI. **They
+  don't change the probability, the confidence or the threshold**: it still has to be measured whether those who
+  surprise do it again.
+- **Do surprises repeat? No** (measured on 29-10-2026 with `experimentos/sorpresas/repiten.py`: 11,352 team-matches
+  since 2023-07 in the six competitions, result against the pre-match no-vig 1X2). In the next match, the result's
+  score against the bookmaker is +0.000 ± 0.013 on a hot streak (n = 3,322; they win 37.7 % against the bookmaker's
+  37.8 %), +0.000 ± 0.021 on a hot streak with an upset win (30.5 % against 31.0 %), −0.003 ± 0.014 on a cold streak
+  and +0.034 ± 0.039 on a cold streak with a slip (if anything they bounce back, they don't keep falling). The
+  bookmaker already accounts for it: the warning stays a warning, without touching the confidence, and says so.
+- **Why it failed**: the preview against what happened in the lost bet of the day, with the same score, and whether
+  the radar flagged either team when the bet was generated. Real example: Sassuolo +1 (3-way) on 27-10
+  lost 2-6; Lazio were on a hot streak after winning 0-3 in Turin at 17 % and their key player Kenneth Taylor played.
 
-## Próximas mejoras previstas
+## Upcoming planned improvements
 
-- **Propuestas de la auditoría de octubre de 2026** ([auditoria-modelo.md](auditoria-modelo.md)), repasadas con la BD el 29-10-2026: aplicados el valor de las líneas de cuarto, la copia fija de lo anunciado y la dispersión propia del total en los conteos (sección 3); medidos y no aplicados la fuerza dinámica (sección 1, −0,0018 ± 0,0022), el apilado con el mercado y elegir por la probabilidad de valor (sección 6). Después, el mismo día: aplicada la ventaja local por liga (sección 1), medida y sin hacer falta la calibración de los empates, y hecho el comparador de Betano contra Pinnacle sin margen (sección 6). Quedan sin probar: remates a puerta como observación de la fuerza dinámica y Kelly contraído con la varianza (necesita una varianza por predicción, que daría la fuerza dinámica).
-- Guardar cuotas de 1X2 de la Champions antes de cada partido (ya se guardan las de OddsPapi desde el 19-10-2026) para medir con resultados el reparto de remates y córners movido por el 1X2 en las copas, que hoy solo se mide en las ligas.
-- Guardar el historial de onces previstos para calibrar su β por separado.
-- Índice de calidad del once: **medido el 14-11-2026** (sección 7, «Otros índices de calidad del once»). La nota y el xG + xA recientes no aportan; contar los titulares habituales junto al índice actual roza su margen (−0,0013 ± 0,0012) y no entra. Repetir `experimentos/validacion/calidad_once.py` al final de la temporada 2026-27.
-- Backtest de props cuando haya cuotas guardadas de Betano: OddsPapi no descarga props de jugador, así que hoy no hay con
-  qué compararlos.
-- **Córners y tarjetas frente a Betano** (medido el 29-10-2026 con `experimentos/validacion/estadisticas_betano.py`, 34
-  partidos con previa y cuotas de Betano): pérdida logarítmica del modelo menos la de Betano sin margen +0,0016 ± 0,0063
-  en córners (1.128 líneas) y +0,0050 ± 0,0134 en tarjetas (576); apostar lo que el modelo ve con valor ≥ 3 % rinde
-  −15 % ± 20 % en córners (204) y +2 % ± 11 % en tarjetas (223), con intervalos optimistas porque las líneas de un
-  partido están correlacionadas. Ni mejor ni peor que Betano de forma clara: siguen fuera de la apuesta del día
-  (`pick_allow_stat_markets=False`). Repetirlo cuando haya unos 150 partidos (hacia diciembre).
-- Tarjetas del equipo en 2026-27: con el nivel de cada liga, la Serie A y la Bundesliga quedan en 1,04-1,05 y la Champions en 1,09 (aún algo altas: las tarjetas siguen bajando), y la Premier en 0,94 (en 2026-27 sube, al revés que las demás, y el nivel la contrae hacia el de todas). Volver a medirlo cuando haya más partidos de la temporada.
-- Suplentes del once confirmado: **ajustado el 29-10-2026** a lo medido (9.701 suplentes de julio a octubre de 2026: salen el 44,3 % y juegan 20,1 min; `analysis.SUB_PLAY_RATE` y `SUB_MINUTES`). Los minutos esperados de un suplente bajan de 12,1 a 8,9, lo que de verdad juega; antes todos sus mercados salían ~36 % altos. Desde el 29-10-2026 sus mercados van **condicionados a que juegue** (`PlayerProjection.play_prob`): las apuestas a un jugador que no sale se anulan, así que la probabilidad es la de lo que hace si juega (λ / probabilidad de jugar; en tarjetas, la probabilidad entre la de jugar). Antes contaba que podía no salir y el «Sí» salía bajo. Los minutos esperados y el reparto de lo del equipo no cambian. Con el once confirmado, la probabilidad de jugar es 1 para los titulares y 0,443 para los suplentes; sin once publicado se queda en 1 (la media de minutos ya cuenta los partidos en que no jugó). Comprobado con las previas guardadas (`experimentos/validacion/suplentes.py`, 196 suplentes desde el 24-10, 78 salieron): remates esperados si juega 29,1 frente a 43 reales (sin condicionar, 24,7), a puerta 10,0 frente a 15 y goles 3,0 frente a 5. Mejora, pero aún se queda corto: los suplentes que salieron jugaron 23,9 min (se suponen 20,1) y quizá rematan más por minuto que los titulares. Repetirlo con unos cientos de suplentes.
-- Minutos sin alineación de un jugador que vuelve de una lesión larga: los partidos en que estuvo de baja cuentan como 0 (sección 4). Con el histórico de bajas que se guarda desde el 19-10-2026 se podrán quitar de su ventana; medirlo con `medir_minutos.py` cuando haya unos meses.
+- **Proposals from the October 2026 audit** ([auditoria-modelo.md](auditoria-modelo.md)), reviewed with the database on 29-10-2026: applied the value of quarter lines, the fixed copy of what was announced and the total's own dispersion in the counts (section 3); measured and not applied dynamic strength (section 1, −0.0018 ± 0.0022), stacking with the market and choosing by the probability of value (section 6). Later the same day: per-league home advantage applied (section 1), draw calibration measured and not needed, and the model-free comparison of Betano against no-vig Pinnacle built (section 6). Still untested: shots on target as an observation of dynamic strength and Kelly shrunk with the variance (it needs a variance per prediction, which dynamic strength would provide).
+- Save Champions League 1X2 odds before each match (OddsPapi's have been saved since 19-10-2026) to measure with results the split of shots and corners moved by the 1X2 in the cups, which today is only measured in the leagues.
+- Save the history of predicted XIs to calibrate their β separately.
+- XI quality index: **measured on 14-11-2026** (section 7, "Other XI quality indices"). Recent rating and xG + xA add nothing; counting usual starters alongside the current index grazes its margin (−0.0013 ± 0.0012) and doesn't go in. Repeat `experimentos/validacion/calidad_once.py` at the end of the 2026-27 season.
+- Props backtest when there are saved Betano odds: OddsPapi doesn't download player props, so today there's nothing
+  to compare them with.
+- **Corners and cards against Betano** (measured on 29-10-2026 with `experimentos/validacion/estadisticas_betano.py`, 34
+  matches with a preview and Betano odds): the model's log-loss minus Betano's no-vig one +0.0016 ± 0.0063
+  in corners (1,128 lines) and +0.0050 ± 0.0134 in cards (576); betting what the model sees with value ≥ 3 % returns
+  −15 % ± 20 % in corners (204) and +2 % ± 11 % in cards (223), with optimistic intervals because a match's lines
+  are correlated. Neither clearly better nor worse than Betano: they stay out of the bet of the day
+  (`pick_allow_stat_markets=False`). Repeat when there are about 150 matches (around December).
+- Team cards in 2026-27: with each league's level, Serie A and the Bundesliga stay at 1.04-1.05 and the Champions League at 1.09 (still somewhat high: cards keep going down), and the Premier League at 0.94 (in 2026-27 it goes up, the opposite of the others, and the level shrinks it towards everyone's). Measure again when there are more matches this season.
+- Substitutes in the confirmed XI: **adjusted on 29-10-2026** to what was measured (9,701 substitutes from July to October 2026: they come on 44.3 % of the time and play 20.1 min; `analysis.SUB_PLAY_RATE` and `SUB_MINUTES`). A substitute's expected minutes go down from 12.1 to 8.9, what they really play; before, all their markets came out ~36 % high. Since 29-10-2026 their markets are **conditional on playing** (`PlayerProjection.play_prob`): bets on a player who doesn't come on are voided, so the probability is that of what they do if they play (λ / probability of playing; in cards, the probability divided by that of playing). Before, it counted that they might not come on and "Yes" came out low. Expected minutes and the split of the team's figures don't change. With the confirmed XI, the probability of playing is 1 for starters and 0.443 for substitutes; without a published XI it stays at 1 (the average minutes already count the matches they didn't play). Checked with the saved previews (`experimentos/validacion/suplentes.py`, 196 substitutes since 24-10, 78 came on): expected shots if they play 29.1 against 43 real (unconditional, 24.7), on target 10.0 against 15 and goals 3.0 against 5. It improves, but still comes up short: the substitutes who came on played 23.9 min (20.1 assumed) and perhaps shoot more per minute than starters. Repeat with a few hundred substitutes.
+- Minutes without a line-up for a player coming back from a long injury: the matches they were out count as 0 (section 4). With the absences history saved since 19-10-2026 they can be removed from their window; measure it with `medir_minutos.py` when there are a few months.
+

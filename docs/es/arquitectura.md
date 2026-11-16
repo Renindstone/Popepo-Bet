@@ -1,0 +1,85 @@
+# Arquitectura
+
+[English](../arquitectura.md) · **Español**
+
+**Monolito modular + worker.** Un único paquete Python (`src/apuestas`) con módulos de responsabilidades claras, y tres procesos que lo usan: el worker (tareas programadas), la API/MCP (consultas) y el bot.
+
+```
+Fuentes gratis                         src/apuestas/
+──────────────                         ─────────────
+football-data.co.uk ─┐   ingest/      descarga educada (caché en disco, ritmo, reintentos, pausa de hosts caídos)
+FotMob (Opta)        ├─► store.py     resolución de entidades entre fuentes + validación de stats
+Understat            │   pipeline.py  orden y frecuencia de la ingesta
+OddsPapi (opcional) ─┘        │
+                              ▼
+                    PostgreSQL (cluster propio, puerto 5433)
+                              │
+         ┌────────────────────┼─────────────────────────────┐
+         ▼                    ▼                             ▼
+   models/               features/                    archive/
+   ratings (ataque/def)  lineup (once vs típico)      niveles hot/warm/cold
+   distributions         context (descanso,           resúmenes de temporada
+   fitting (paquete)     rotación, dificultad)        Parquet + DuckDB
+         └──────────┬─────────┘
+                    ▼
+   services/  analysis (partido completo) · picks (apuesta del día, liquidación) · predictions (previa) · weekly (semana y mes) · radar · failure (por qué falló) · ai_notes (Claude) · verdict (veredicto de los revisores) · compare (Betano frente a Pinnacle) · rivalries (clásicos)
+              tracker (usuarios, apuestas, banca) · queries (capa común)
+                    │
+      ┌─────────────┼──────────────┬───────────────┐
+      ▼             ▼              ▼               ▼
+  mcp_server/    api/ (FastAPI)  bot/ (Telegram)  jobs/ (worker APScheduler)
+  Claude y       /docs           alertas y         05:30 resultados + reentrenar
+  agentes de                      consultas        09:00 apuesta del día
+  otros usuarios                                   cada 20' alineaciones
+```
+
+El **panel web** (`web/`, Next.js + ECharts) es una interfaz más sobre `api/`: el navegador llama a la API REST (CORS abierto solo a `localhost:3000`) y no tiene lógica de apuestas propia.
+
+**Idiomas del panel** (español e inglés, [ADR 0007](adr/0007-panel-en-espanol-e-ingles.md)): cada texto del panel lleva sus dos versiones donde se usa (`tr("Hoy", "Today")`, `web/src/lib/i18n.tsx`); al cambiar el selector se vuelve a montar el panel. El panel manda `Accept-Language` en cada petición y, si es inglés, un middleware de la API (`api/i18n.py`) traduce los textos de la respuesta JSON con un catálogo de frases fijas y plantillas. Si es español, el mismo middleware solo cambia los nombres de las selecciones (guardados en inglés, como los da FotMob) por su nombre en español (`names.NATIONAL_ES`). Los servicios, la BD, el bot y el MCP siguen en español; los valores que el panel usa como clave («APOSTAR», «con valor», «racha», los niveles de dificultad) no se traducen en la API sino en el panel.
+
+**Previa guardada y resumen de la semana** (ADR 0006): `picks.generate` guarda en `prediction` lo que el modelo esperaba de cada partido (una fila por partido, la última antes del inicio y nunca después; `services/predictions.py`). `services/weekly.py` compara cada semana lo que pasó con la casa (equipos) y con esa previa (jugadores), al leerlo: `GET /week`, MCP `resumen_semana`, `apuestas semana` y la página Sorpresas.
+
+**Sorpresas** (desde el 29-10-2026): `weekly.score_range` puntúa cualquier rango de fechas, así que el mes son 4 semanas. `services/radar.py` saca de los últimos 28 días los equipos en racha o en baja y los jugadores en racha, con caché de 5 minutos, y pone sus avisos en `picks.generate`, `/matches` y el análisis del partido (`alerts`); no tocan la probabilidad ni el corte. `services/failure.py` compara la previa con lo que pasó en la apuesta del día perdida (`GET /picks/{id}/failure`). `services/ai_notes.py` escribe con `claude -p` (suscripción de la PC, aislado como el motor de capturas pero con WebSearch y WebFetch) la explicación en `ai_note`: la pide `settle_all` al perder la apuesta del día y la escribe la tarea `notas_ia` del worker (min 5, 25 y 45), o la API al pulsar «Investigar con Claude» (`POST /radar/investigate`, solo el dueño). `guardar_explicacion` solo existe en el MCP del motor (`APUESTAS_MCP_ENGINE`). Cada usuario tiene su interruptor de la IA (`app_user.ai_enabled`, `GET/PUT /me`).
+
+**Apuestas que pasan el corte:** cada apuesta con valor de un partido que aún no empezó se guarda en `pick` (`picks.generate`) y se actualiza en cada recálculo; `pick.qualifies` dice si pasa el corte de la apuesta del día (`picks.qualifies`: valor, probabilidad, confianza, rango de cuota y, por ahora, solo mercados de goles). El análisis que se enseña es el último antes del partido: si deja de tener valor se retira (`status = "withdrawn"`) y si deja de pasar el corte se desmarca; si lo recupera el mismo día, se reabre la misma fila. Pero los contadores miden **lo que se anunció** (desde el 29-10-2026): la primera vez que una apuesta pasa el corte se guarda fija su cuota, probabilidad y valor (`announced_*`), y `was_pick_of_day` recuerda si llegó a ser la apuesta del día. Las retiradas que se anunciaron se liquidan igual y cuentan. La liquidación es la de siempre (`picks.settle_all`, que aísla cada apuesta para que una rota no pare las demás), y `GET /picks/qualified` da sus aciertos desde el inicio y las de los últimos días. `picks.generate` toma un cerrojo de PostgreSQL por día (`pg_advisory_xact_lock`) para que el worker y la API no la calculen a la vez.
+
+**Veredicto de los revisores** (desde el 7-11-2026, [ADR 0009](adr/0009-veredicto-de-los-revisores.md)): la tarea `job_verdict` del worker corre cada 5 minutos (`verdict.process_due`). Crea una fila en `pick_review` para la apuesta del día de hoy cuando su alineación está confirmada, o a 30 minutos del inicio si no llega. Como mucho hay 3 por día, y solo si alguien de los motores tiene la IA encendida. Luego lanza tres `claude -p` aislados (`ai_notes.claude_command`, Sonnet con esfuerzo alto):
+- A favor y En contra pueden leer noticias, y ninguno ve el texto del otro.
+- El juez no tiene internet: lee los dos textos como datos.
+
+Las herramientas MCP `datos_veredicto`, `guardar_revisor` y `guardar_veredicto` solo existen en el MCP del motor. Este solo ve sus herramientas y las de las notas.
+
+Si la apuesta cambia o el partido empieza a mitad, la revisión se descarta. Si falta un papel, se reintenta una vez y no hay veredicto. La confianza frente al 80 % y la racha (3 victorias seguidas o 4 de 5 contra el equipo al que se apuesta en contra) las calcula el código y se guardan en la copia `numbers`.
+
+El panel lo lee con `GET /picks/{pick_id}/review` (`verdict.for_user`), y `experimentos/validacion/veredicto.py` mide los aciertos por palabra.
+
+**Combinadas registradas:** una apuesta con `market = "combo"` en `user_bet`, cuyo partido es el que termina último, y sus selecciones en `user_bet_leg`. La liquidación (`picks.settle_all` y `betting.settlement.combo_profit`) resuelve cada selección y la combinada: una perdida basta para perderla; una anulada divide su cuota de la total.
+
+**Quién es local:** la API solo atiende sin clave las peticiones que llegan desde la propia máquina **sin** cabeceras de proxy o túnel (`X-Forwarded-For`, `CF-Connecting-IP`…). Todo lo demás necesita `X-API-Key`.
+
+**Capturas de cuotas** (`services/captures.py`, `services/capture_engines.py`): el panel sube la imagen a la API. Un hilo de la API lanza Claude Code (`claude -p`), aislado y con el servidor MCP del proyecto. Claude lee la imagen con `ver_captura`, manda las cuotas a `evaluar_captura` (las evalúa el mismo modelo que `evaluar_cuota`) y guarda un resumen. Ver [ADR 0005](adr/0005-capturas-con-ia.md).
+
+## Flujo diario (hora de Lima)
+
+1. **05:30**: resultados de ayer (FotMob, football-data, Understat), detalles de partidos jugados, fusión de equipos duplicados, liquidación de picks y apuestas, reentrenamiento (`var/models/latest.json`).
+2. **08:30**: detalles de los próximos 4 días (alineación prevista, bajas, árbitro), cuotas y, si hay clave, Betano y Pinnacle por OddsPapi.
+3. **09:00**: apuesta del día (solo mercados de goles) → Telegram.
+4. **70, 50, 35, 20 y 10 minutos antes de cada partido** de las ocho ligas, la Champions y la Nations League (la tarea corre cada 5 min; la Europa League y la Conference no, porque sus alineaciones no se usan): si aún no tiene alineación confirmada (solo cuenta el once oficial de FotMob, no el probable ni el último once titular), se descarga de FotMob, se recalcula y se avisa si cambia la apuesta del día. FotMob suele publicarla una hora antes; la búsqueda de los 50 minutos deja margen si se retrasa.
+5. **15 minutos antes de cada partido con apuestas abiertas que pasan el corte** (la tarea corre cada 5 min): Pinnacle por OddsPapi para esas competiciones, la referencia del CLV. Como mucho 3 descargas al día (`APUESTAS_ODDSPAPI_CLOSING_PER_DAY`); las demás se quedan con el último precio guardado.
+6. **A los :15 y :45**: si un partido empezó hace más de 3 horas y hay algo pendiente, se descarga su resultado y se liquidan los picks y las apuestas (con su CLV frente a la cuota justa de Pinnacle o del cierre; ver `docs/modelos.md`, sección 6).
+7. **Cada 3 horas (:10)**: cuotas de bet365 y Betfair de los próximos partidos (`fixtures.csv` de football-data).
+8. **02:00**: descarga de detalles históricos pendientes (400 por noche).
+9. **Lunes 04:00**: niveles de almacenamiento (resumen y archivo de temporadas cerradas).
+
+**Horario del worker:** solo funciona de 05:00 a 20:00: a las 20:00 lo apaga `apuestas-worker-stop.timer` y a las 05:00 lo enciende `apuestas-worker-start.timer`; fuera de ese horario no arranca ni al encender el PC (desde el 2026-10-26). Así no gasta recursos por la noche; las tareas de las 02:00 se recuperan al arrancar.
+
+**Si el equipo estaba apagado** a la hora de una tarea diaria (05:30, 08:30, 09:00, 02:00 o la del lunes), el worker la ejecuta al arrancar, en ese orden. La hora del último éxito de cada una se guarda en `var/worker_state.json`. La apuesta del día solo se recupera hasta 12 horas después de las 09:00; las demás, hasta 20 horas. **Si estaba suspendido**, la tarea atrasada corre al despertar si no pasó más de una hora.
+
+**Si no hay internet** (al encender el equipo la red tarda en llegar; el 23-10-2026 la recuperación arrancó sin ella y todas las fuentes fallaron): las tareas que descargan esperan a que se resuelva el nombre de FotMob, Understat o football-data (`scheduler.network_ready`, sin hacer peticiones). Las diarias esperan hasta 10 minutos; si sigue sin haber, no se marcan como hechas y la recuperación vuelve a probar a los 15, sin calcular la apuesta del día con datos viejos. Las periódicas (alineaciones, liquidación, cuotas) se saltan esa vuelta. Un fallo de nombre no da el host por caído (`ingest/http.py`), y una tarea no corre dos veces a la vez.
+
+## Principios
+
+- **Los números los calcula el modelo**; el agente de IA interpreta, explica y aporta información cualitativa (por ejemplo, registra bajas leídas en noticias con `registrar_baja`).
+- **Ninguna fuente es imprescindible**: cada tarea se registra en `ingestion_run` y un fallo no detiene a las demás.
+- **No se esquivan protecciones anti-bots**: si una fuente bloquea (SofaScore lo hace), se descarta.
+- **Sin ajustes sin evidencia**: los parámetros (peso del xG, vida media, mezcla con el mercado) se eligieron con el backtest. Los ajustes por alineación usan valores prudentes hasta tener picks reales con los que calibrarlos.

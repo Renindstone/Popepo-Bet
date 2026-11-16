@@ -1,51 +1,55 @@
-# ADR 0009: Veredicto de los revisores
+# ADR 0009: Reviewers' verdict
 
-**Estado**: aceptada (2026-11-06). Reconstruida el 10-11-2026 a partir del código, los commits del 6 y 7-11 y
-`docs/estado.md`: el original solo vivía en la PC del dueño y se perdió.
+**English** · [Español](../es/adr/0009-veredicto-de-los-revisores.md)
 
-## Contexto
-El dueño duda de algunas apuestas del día por dos motivos que se repiten:
+**Status**: accepted (2026-11-06). Rebuilt on 10-11-2026 from the code, the commits of 6 and 7-11 and
+`docs/estado.md`: the original only lived on the owner's PC and was lost.
 
-- **La confianza.** Su regla personal es apostar solo si la cifra «confianza» de la ficha llega al 80 %.
-- **Ir contra un equipo en racha.** El radar de Sorpresas no basta: con la fecha del partido no marcaba al PSG
-  contra el Villarreal, que llegaba con 5 victorias en 5 partidos.
+## Context
+The owner doubts some bets of the day for two recurring reasons:
 
-Además apuesta después de ver la alineación, y antes de eso la confianza casi nunca llega al 80 %. Quería una
-segunda opinión que reuniera noticias, alineación, forma y esas dos cifras, sin que la IA pudiera inventar o
-cambiar los números.
+- **Confidence.** Their personal rule is to bet only if the "confidence" figure on the card reaches 80 %.
+- **Going against a team on a streak.** The Surprises radar isn't enough: by the match date it didn't flag PSG
+  against Villarreal, who arrived with 5 wins in 5 matches.
 
-## Decisión
-- **Tres papeles de Claude por separado** (no modelos de otra empresa; Sonnet con esfuerzo alto,
-  `verdict_cli_model` y `verdict_effort`), cada uno en su propio `claude -p` aislado (`ai_notes.claude_command`:
-  sin archivos ni terminal, carpeta vacía, MCP del proyecto en modo motor):
-  - **A favor** y **En contra** pueden buscar y leer noticias, y ninguno ve el texto del otro, para que no se
-    contagien. Si un revisor escribe también la parte del otro, falla: el veredicto nunca sale de un solo revisor.
-  - **Juez**, sin internet: lee los dos textos como datos (no como instrucciones) y deja «Apostar», «Dudosa» o
-    «Mejor no» con 2 a 4 motivos. Así una página de noticias no puede darle órdenes directamente.
-  - Herramientas MCP `datos_veredicto`, `guardar_revisor` y `guardar_veredicto`, que solo existen en el MCP del
-    motor. Se rechazan textos que prometan («apuesta segura», «sin riesgo», «garantizado»).
-- **Los números los pone el código.** La confianza frente al 80 % (`verdict_min_confidence`) y la racha (3
-  victorias seguidas o 4 de las últimas 5, en todas las competiciones, del equipo contra el que va la apuesta) se
-  calculan en `services/verdict.py` y se guardan en la copia `numbers` de la revisión. El juez no puede usar las
-  etiquetas «Confianza» ni «Racha»: esos motivos los añade el sistema.
-- **Cuándo se escribe.** Tarea `job_verdict` del worker, cada 5 minutos y aparte de la generación de apuestas (un
-  fallo aquí no la toca). Se revisa la apuesta del día cuando su alineación está confirmada o, si no llega, a 30
-  minutos del partido. No hay revisión de la mañana: gastaría la suscripción en algo que el dueño no usa. Como
-  mucho 3 por día, contando las descartadas que ya gastaron la suscripción, y solo si algún usuario de los motores
-  tiene la IA encendida. Sin once confirmado basta con una; otra solo vale la pena con la alineación de verdad.
-- **Descartes y reintentos.** Si la apuesta cambia o el partido empieza a mitad, la revisión se descarta. Si
-  falta un papel, se reintenta una vez y si no, no hay veredicto. Al arrancar el worker, las que se cortaron
-  vuelven a la cola.
-- **Qué se ve** (`GET /picks/{pick_id}/review`, `verdict.for_user`; opción A de tres maquetas): debajo de la
-  apuesta del día en Hoy, la palabra y sus motivos a la vista y la discusión plegada. Hoy se muestra la confianza
-  actual y se avisa si cruzó el 80 % o si la cuota se movió más de un 5 % desde la revisión; los días pasados se
-  ven como se revisaron. Con la IA apagada no se escribe ni se ve nada.
+They also bet after seeing the line-up, and before that the confidence almost never reaches 80 %. They wanted a
+second opinion bringing together news, line-up, form and those two figures, without the AI being able to make up
+or change the numbers.
 
-## Consecuencias
-- **Es una opinión, no un cálculo.** No cambia la probabilidad, la confianza, el corte ni qué apuesta sale. La
-  decisión sigue siendo del dueño, y el panel lo dice.
-- Gasta la suscripción de Claude de la PC: unas 9 ejecuciones al día como mucho (3 revisiones × 3 papeles), más
-  los reintentos. Falta medir cuánto tarda y cuánto gasta una revisión real.
-- **Sin medir todavía.** Cada veredicto se guarda para comprobar si «Mejor no» pierde de verdad más que
-  «Apostar» (`experimentos/validacion/veredicto.py`). Hasta tener unas 30 apuestas del día contadas no se usa
-  para nada automático, y usarlo así necesita el OK del dueño.
+## Decision
+- **Three separate Claude roles** (not models from another company; Sonnet with high effort,
+  `verdict_cli_model` and `verdict_effort`), each in its own isolated `claude -p` (`ai_notes.claude_command`:
+  no files or terminal, an empty folder, the project's MCP in engine mode):
+  - **For** and **Against** can search and read the news, and neither sees the other's text, so they don't
+    influence each other. If a reviewer also writes the other's part, it fails: the verdict never comes from a
+    single reviewer.
+  - **Judge**, with no internet: reads both texts as data (not as instructions) and leaves "Bet", "Doubtful" or
+    "Better not" with 2 to 4 reasons. That way a news page can't give it orders directly.
+  - MCP tools `datos_veredicto`, `guardar_revisor` and `guardar_veredicto`, which only exist in the engine's MCP.
+    Texts that make promises ("safe bet", "no risk", "guaranteed") are rejected.
+- **The code provides the numbers.** The confidence against 80 % (`verdict_min_confidence`) and the streak (3
+  wins in a row or 4 of the last 5, in all competitions, for the team the bet goes against) are computed in
+  `services/verdict.py` and saved in the review's `numbers` copy. The judge can't use the labels "Confidence" or
+  "Streak": the system adds those reasons.
+- **When it's written.** The worker's `job_verdict` task, every 5 minutes and separate from bet generation (a
+  failure here doesn't touch it). The bet of the day is reviewed when its line-up is confirmed or, if it doesn't
+  arrive, 30 minutes before the match. There's no morning review: it would spend the subscription on something
+  the owner doesn't use. At most 3 a day, counting the discarded ones that already spent the subscription, and
+  only if some user of the engines has the AI switched on. Without a confirmed XI, one is enough; another is only
+  worth it with the real line-up.
+- **Discards and retries.** If the bet changes or the match kicks off halfway through, the review is discarded. If
+  a role is missing, it's retried once and otherwise there's no verdict. When the worker starts, the ones that
+  were cut off go back to the queue.
+- **What's shown** (`GET /picks/{pick_id}/review`, `verdict.for_user`; option A of three mock-ups): below the bet
+  of the day on Today, the word and its reasons in view and the discussion folded. Today shows the current
+  confidence and warns if it crossed 80 % or if the odds moved more than 5 % since the review; past days are shown
+  as they were reviewed. With the AI switched off nothing is written or shown.
+
+## Consequences
+- **It's an opinion, not a calculation.** It doesn't change the probability, the confidence, the threshold or
+  which bet is picked. The decision is still the owner's, and the dashboard says so.
+- It uses the PC's Claude subscription: about 9 runs a day at most (3 reviews × 3 roles), plus retries. How long a
+  real review takes and how much it uses still has to be measured.
+- **Not measured yet.** Every verdict is saved to check whether "Better not" really loses more than "Bet"
+  (`experimentos/validacion/veredicto.py`). Until there are about 30 counted bets of the day it isn't used for
+  anything automatic, and using it that way needs the owner's OK.

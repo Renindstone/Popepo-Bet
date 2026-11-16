@@ -1,15 +1,17 @@
-# ADR 0002: Solo fuentes gratuitas y sin saltar protecciones
+# ADR 0002: Free sources only, without bypassing protections
 
-**Estado**: aceptada (2026-10-19)
+**English** · [Español](../es/adr/0002-fuentes-gratuitas.md)
 
-## Contexto
-Presupuesto 0 para el primer mes. Se pidió usar FotMob, Opta y SofaScore, y cuotas de bet365 y Betano.
+**Status**: accepted (2026-10-19)
 
-## Decisión
-- FotMob (que muestra datos Opta), football-data.co.uk y Understat, con caché en disco y una petición cada 1,5 s.
-- Cuotas de bet365 vía football-data.co.uk. Betano vía OddsPapi (clave gratuita, opcional) y, mientras tanto, por evaluación manual (`evaluar_cuota`).
-- SofaScore descartado porque bloquea (403). **No se usan técnicas para esquivar protecciones anti-bots.**
+## Context
+A budget of 0 for the first month. The request was to use FotMob, Opta and SofaScore, and bet365 and Betano odds.
 
-## Consecuencias
-- Si una fuente cambia su formato, falla solo esa tarea (registrada en `ingestion_run`).
-- Los datos son para uso personal. Para monetizar habría que pasar a una fuente con licencia: el diseño (`ingest/` por fuente + `store.py`) lo permite añadiendo un adaptador.
+## Decision
+- FotMob (which shows Opta data), football-data.co.uk and Understat, with a disk cache and one request every 1.5 s.
+- bet365 odds through football-data.co.uk. Betano through OddsPapi (free key, optional) and, meanwhile, through manual evaluation (`evaluar_cuota`).
+- SofaScore discarded because it blocks (403). **No techniques are used to get around anti-bot protections.**
+
+## Consequences
+- If a source changes its format, only that task fails (logged in `ingestion_run`).
+- The data is for personal use. To monetise it, a licensed source would be needed: the design (`ingest/` per source + `store.py`) allows it by adding an adapter.

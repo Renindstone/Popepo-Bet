@@ -1,79 +1,81 @@
-# Ficha de traspaso
+# Handover sheet
 
-Resumen de lo que se hizo del 10 al 15 de noviembre de 2026, para que cualquier sesión de IA (o el dueño en otra
-máquina) siga sin depender de conversaciones que se pierden. El detalle vive en los documentos enlazados; esta ficha
-es el índice. Actualízala al cambiar de PC o de sistema.
+**English** · [Español](es/traspaso.md)
 
-## Por qué existe
+Summary of what was done from 10 to 15 November 2026, so that any AI session (or the owner on another machine) can
+carry on without depending on conversations that get lost. The detail lives in the linked documents; this sheet is
+the index. Update it when changing PC or operating system.
 
-- **31-10 al 10-11**: las instrucciones de la IA solo vivían en la PC del dueño (CachyOS) y se perdieron al cambiarla.
-- **10-11**: el dueño pasó a Fedora. Se reinstaló todo desde cero; la base de datos anterior **se perdió sin copia**
-  (confirmado por el dueño el 12-11): historial de la apuesta del día, CLV, apuestas registradas, banca, cuotas de
-  Betano guardadas y previas. Todo eso empezó de cero el 11-11-2026.
-- **15-11**: el dueño va a cambiar otra vez de distro. Esta vez hay copia de la base de datos (abajo).
+## Why it exists
 
-## Qué se hizo (en `main`)
+- **31-10 to 10-11**: the AI instructions only lived on the owner's PC (CachyOS) and were lost when it was replaced.
+- **10-11**: the owner moved to Fedora. Everything was reinstalled from scratch; the previous database **was lost with
+  no backup** (confirmed by the owner on 12-11): bet of the day history, CLV, logged bets, bankroll, saved Betano odds
+  and previews. All of that started from zero on 11-11-2026.
+- **15-11**: the owner is about to change distro again. This time there's a database backup (below).
 
-| Fecha | Qué | Dónde está el detalle |
+## What was done (on `main`)
+
+| Date | What | Where the detail is |
 |---|---|---|
-| 10-11 | Instrucciones de la IA, skills, `DESIGN.md`, `PRODUCT.md`, `.impeccable/` y ADR 0001-0006 recuperados del historial y publicados | `AGENTS.md`, `docs/estado.md` (decisión del 10-11) |
-| 10-11 | ADR 0007 (panel en español e inglés) y 0009 (veredicto de los revisores) rehechos con el código. El 0008 sigue perdido | `docs/adr/` |
-| 10-11 | Regla del dueño: **todo el contexto de la IA va al repositorio** | `AGENTS.md` |
-| 10-11 | Instalación en Fedora probada: los scripts funcionan sin cambios. La descarga de FotMob se cortó y se completó con un servicio temporal (10.604 partidos con detalle) | `docs/instalacion.md`, `docs/estado.md` |
-| 10-11 | Una fuente en mantenimiento sale en una línea y la descarga larga avisa cada 100 partidos | commit `0fa1c50` |
-| 10-11 | `DESIGN.md`, `PRODUCT.md` y las skills de diseño al día con el selector ES/EN, el veredicto y «Frente a Pinnacle» | commit `55d0a2a` |
-| 10-11 | Prueba `test_qualified_picks` corregida: dependía de la fecha | commit `55d0a2a` |
-| 10-12-11 | Plan de faltantes tras el cambio de PC, con sus cinco tareas hechas | `docs/superpowers/plans/2026-11-10-faltantes-tras-cambio-de-pc.md` |
-| 11-11 | El driver de capturas busca solo el navegador (Brave, Chromium o Chrome), no se cae sin partidos y abre en inglés con `--lang en`. Auditoría limpia en los dos idiomas salvo un enlace de 19 px | skills `run-app-apuestas` y `disenio-panel` |
-| 12-11 | **UEFA Nations League** (selecciones): datos y análisis, sin apuesta del día ni mercados de jugador | `AGENTS.md` («Conceptos que se confunden»), `docs/modelos.md` sección 7 |
-| 14-11 | Medidos otros índices de calidad del once: la nota y el xG+xA recientes no aportan; los titulares habituales rozan su margen y **no entran** (el dueño decidió esperar al final de la temporada) | `docs/modelos.md` sección 7, `experimentos/validacion/calidad_once.py` |
-| 15-11 | **La PC pasó a Windows 11, sin WSL.** Restaurada la copia del 15-11 (27.791 partidos, 1,08 M de cuotas, 461 apuestas guardadas), el modelo y la caché. `db.sh`, `instalar.sh` y `arrancar.sh` funcionan en Git Bash; se arranca con `scripts/arrancar.sh` (nada arranca solo al encender) | `docs/instalacion.md` («Windows sin WSL»), `docs/estado.md` |
+| 10-11 | AI instructions, skills, `DESIGN.md`, `PRODUCT.md`, `.impeccable/` and ADRs 0001-0006 recovered from the history and published | `AGENTS.md`, `docs/estado.md` (decision of 10-11) |
+| 10-11 | ADR 0007 (dashboard in Spanish and English) and 0009 (reviewers' verdict) redone from the code. 0008 is still lost | `docs/adr/` |
+| 10-11 | Owner's rule: **all the AI's context goes into the repository** | `AGENTS.md` |
+| 10-11 | Installation on Fedora tested: the scripts work unchanged. The FotMob download was cut off and completed with a temporary service (10,604 matches with details) | `docs/instalacion.md`, `docs/estado.md` |
+| 10-11 | A source under maintenance shows up in one line and the long download reports every 100 matches | commit `0fa1c50` |
+| 10-11 | `DESIGN.md`, `PRODUCT.md` and the design skills brought up to date with the ES/EN selector, the verdict and "Against Pinnacle" | commit `55d0a2a` |
+| 10-11 | Test `test_qualified_picks` fixed: it depended on the date | commit `55d0a2a` |
+| 10-12-11 | Plan for what was missing after the PC change, with its five tasks done | `docs/superpowers/plans/2026-11-10-faltantes-tras-cambio-de-pc.md` |
+| 11-11 | The screenshot driver finds the browser by itself (Brave, Chromium or Chrome), doesn't crash without matches and opens in English with `--lang en`. Clean audit in both languages except for a 19 px link | skills `run-app-apuestas` and `disenio-panel` |
+| 12-11 | **UEFA Nations League** (national teams): data and analysis, no bet of the day and no player markets | `AGENTS.md` ("Conceptos que se confunden"), `docs/modelos.md` section 7 |
+| 14-11 | Other XI quality indices measured: recent rating and xG+xA add nothing; the usual starters graze their margin and **don't go in** (the owner decided to wait until the end of the season) | `docs/modelos.md` section 7, `experimentos/validacion/calidad_once.py` |
+| 15-11 | **The PC moved to Windows 11, without WSL.** The 15-11 backup restored (27,791 matches, 1.08 M odds, 461 saved bets), plus the model and the cache. `db.sh`, `instalar.sh` and `arrancar.sh` work in Git Bash; it's started with `scripts/arrancar.sh` (nothing starts by itself at boot) | `docs/instalacion.md` ("Windows without WSL"), `docs/estado.md` |
 
-## Lo que el dueño preguntó y la respuesta corta (14-11)
+## What the owner asked and the short answer (14-11)
 
-¿Se puede mejorar ya la apuesta del día o hay que esperar datos? Las dos cosas. Subir el porcentaje de acierto no es
-la meta: exigir más probabilidad solo elige cuotas más bajas. Lo que cuenta es el CLV, que se acumula desde el 11-11.
-Analizar una apuesta perdida suelta es casi siempre ruido. Lo que se puede medir ya se mide con el historial
-(backtest). Pistas por orden: calidad del once (hecha, no entra), córners y tarjetas frente a Pinnacle (hacia enero,
-cuando haya ~150 partidos), fuerza de goles dinámica (poco prometedora) y el veredicto de los revisores (con ~30
-apuestas del día contadas).
+Can the bet of the day be improved now, or do we have to wait for data? Both. Raising the hit rate isn't the goal:
+demanding more probability only picks lower odds. What counts is CLV, which has been accumulating since 11-11.
+Analysing a single lost bet is almost always noise. What can already be measured is measured with the history
+(backtest). Leads, in order: XI quality (done, doesn't go in), corners and cards against Pinnacle (around January,
+when there are ~150 matches), dynamic goal strength (not very promising) and the reviewers' verdict (with ~30
+counted bets of the day).
 
-## Pendiente (resumen; la lista viva está en `docs/estado.md`)
+## Pending (summary; the live list is in `docs/estado.md`)
 
-- Decisiones del dueño: Ollama para leer capturas o solo Claude; borrar la rama `claude/wizardly-davinci-mrc9zr`;
-  claves de los conocidos y banca inicial; de qué trataba el ADR 0008; bot de Telegram.
-- Por medir con datos: comparador frente a Pinnacle y córners/tarjetas (enero), CLV, suplentes, Turquía, veredicto de
-  los revisores, titulares habituales (final de la temporada 2026-27).
-- Diseño: un enlace de 19 px en Mis apuestas en el celular (skill `disenio-panel`).
+- Owner's decisions: Ollama to read screenshots or only Claude; deleting the branch `claude/wizardly-davinci-mrc9zr`;
+  keys for acquaintances and starting bankroll; what ADR 0008 was about; Telegram bot.
+- To measure with data: the comparison against Pinnacle and corners/cards (January), CLV, substitutes, Turkey,
+  the reviewers' verdict, usual starters (end of the 2026-27 season).
+- Design: a 19 px link in My bets on mobile (skill `disenio-panel`).
 
-## Cambio de distro: qué guardar y cómo volver
+## Changing distro: what to keep and how to come back
 
-Lo que **no** está en el repositorio y hay que copiar a un disco externo o a otra partición antes de formatear:
+What is **not** in the repository and has to be copied to an external disk or another partition before formatting:
 
-| Qué | Por qué |
+| What | Why |
 |---|---|
-| `.env` | Claves (OddsPapi) y configuración. Nunca va al repositorio |
-| `var/backups/traspaso-20261115.dump` | La base de datos completa del 15-11-2026 (24 MB): partidos, cuotas, apuestas del día desde el 11-11, previas |
-| `var/models/latest.json` | El modelo entrenado. Si está, `instalar.sh` se salta la descarga de 3-4 horas |
-| `var/cache/` (opcional, ~330 MB) | Caché de FotMob y football-data: evita volver a pedir lo ya bajado |
+| `.env` | Keys (OddsPapi) and configuration. It never goes into the repository |
+| `var/backups/traspaso-20261115.dump` | The full database of 15-11-2026 (24 MB): matches, odds, bets of the day since 11-11, previews |
+| `var/models/latest.json` | The trained model. If it's there, `instalar.sh` skips the 3-4 hour download |
+| `var/cache/` (optional, ~330 MB) | FotMob and football-data cache: avoids requesting again what was already downloaded |
 
-Para volver en el sistema nuevo:
+To come back on the new system:
 
-1. Instalar los requisitos del sistema (`docs/instalacion.md`, paso 1) y clonar el repositorio.
-2. Copiar `.env` a la raíz y `var/` (con `backups/`, `models/` y, si se guardó, `cache/`) dentro del proyecto.
-3. `scripts/instalar.sh`: crea el entorno y una base de datos vacía; con el modelo en su sitio no descarga el historial.
-4. Restaurar la copia sobre esa base vacía:
+1. Install the system requirements (`docs/instalacion.md`, step 1) and clone the repository.
+2. Copy `.env` to the root and `var/` (with `backups/`, `models/` and, if it was kept, `cache/`) into the project.
+3. `scripts/instalar.sh`: creates the environment and an empty database; with the model in place it doesn't download the history.
+4. Restore the backup onto that empty database:
 
    ```bash
    pg_restore --clean --if-exists --no-owner -d "$(grep '^APUESTAS_DATABASE_URL=' .env | cut -d= -f2- | sed 's#+psycopg##')" var/backups/traspaso-20261115.dump
    ```
 
-   En Windows sin WSL (Git Bash), antes: `export PATH="/c/Program Files/PostgreSQL/18/bin:$PATH"`, y en el paso 5
-   `scripts/arrancar.sh` en lugar de `install-services.sh` y `loginctl` (ver `docs/instalacion.md`).
+   On Windows without WSL (Git Bash), first: `export PATH="/c/Program Files/PostgreSQL/18/bin:$PATH"`, and in step 5
+   `scripts/arrancar.sh` instead of `install-services.sh` and `loginctl` (see `docs/instalacion.md`).
 
-5. `.venv/bin/alembic upgrade head`, `scripts/install-services.sh --with-web` y `loginctl enable-linger "$USER"`.
-6. Comprobar: `systemctl --user is-active apuestas-db apuestas-worker apuestas-api apuestas-web`, el panel en
-   `http://localhost:3000` y `.venv/bin/pytest`. El worker recupera solo los días que la PC estuvo apagada.
+5. `.venv/bin/alembic upgrade head`, `scripts/install-services.sh --with-web` and `loginctl enable-linger "$USER"`.
+6. Check: `systemctl --user is-active apuestas-db apuestas-worker apuestas-api apuestas-web`, the dashboard at
+   `http://localhost:3000` and `.venv/bin/pytest`. The worker catches up by itself the days the PC was off.
 
-Si la copia se pierde, `scripts/instalar.sh` lo rehace todo desde las fuentes públicas (3-4 horas), pero lo propio
-(apuestas, CLV, previas, cuotas de Betano) vuelve a empezar de cero.
+If the backup is lost, `scripts/instalar.sh` rebuilds everything from the public sources (3-4 hours), but what's your
+own (bets, CLV, previews, Betano odds) starts again from zero.

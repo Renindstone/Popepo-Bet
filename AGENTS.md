@@ -10,6 +10,9 @@ Este archivo es para cualquier IA que trabaje en el repositorio (Claude Code, Co
 - [`docs/instalacion.md`](docs/instalacion.md): instalación desde cero y servicios.
 - [`docs/adr/`](docs/adr/): decisiones de arquitectura y su porqué.
 - [`web/AGENTS.md`](web/AGENTS.md): antes de tocar el panel (Next.js 16 tiene cambios incompatibles con lo que conoces).
+- [`CHANGELOG.md`](CHANGELOG.md): versiones y qué cambió en cada una.
+
+**La documentación está en inglés primero** (decisión del dueño del 16-11-2026, para llegar a más gente): `README.md`, `web/README.md` y todo `docs/` (ADR incluidos) en inglés, en las rutas de siempre; la copia en español vive en `README.es.md`, `web/README.es.md` y `docs/es/` (misma estructura), con un selector de idioma arriba de cada archivo. Los dos idiomas dicen lo mismo: si cambias uno, cambia el otro en el mismo commit. Siguen solo en español el código y sus comentarios, la CLI, este archivo, `CLAUDE.md`, `web/AGENTS.md`, las skills, `DESIGN.md`, `PRODUCT.md` y `docs/superpowers/`. Con el dueño se habla siempre en español.
 
 Las skills de la IA (`.claude/`), el contexto de diseño (`DESIGN.md`, `PRODUCT.md`, `.impeccable/`), las decisiones de arquitectura (`docs/adr/`) y `CLAUDE.md` están en el repositorio desde el 10-11-2026, para que cualquier sesión (también en la nube) las tenga. Entre el 31-10 y el 10-11 solo vivían en la PC del dueño y se perdieron; lo que falta por reconstruir está en `docs/estado.md`.
 
@@ -45,7 +48,7 @@ Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga,
 2. Escribe código y comentarios en español, con el estilo del módulo que tocas.
 3. Añade o ajusta pruebas en `tests/` y ejecuta `.venv/bin/pytest` y `.venv/bin/ruff check src tests`. Si tocas `web/`: `cd web && npm run lint && npm run build`.
 4. Si cambia el esquema de la BD: `.venv/bin/alembic revision --autogenerate -m "…"` y `.venv/bin/alembic upgrade head`.
-5. Actualiza la documentación: README (cómo se usa), `docs/` (cómo funciona), un ADR si es una decisión de arquitectura y `docs/estado.md` (qué cambió y qué queda pendiente).
+5. Actualiza la documentación, en inglés y en su copia en español: README (cómo se usa), `docs/` (cómo funciona), un ADR si es una decisión de arquitectura y `docs/estado.md` (qué cambió y qué queda pendiente). Anota el cambio en `CHANGELOG.md`, en **Unreleased**. Si es un cambio grande (una liga o competición nueva, un cambio del modelo justificado con el backtest, una página nueva del panel o una forma nueva de instalar o usar el proyecto), corta versión: pasa **Unreleased** a un número nuevo con la fecha, sube la versión en `pyproject.toml`, `src/apuestas/__init__.py`, `web/package.json` y `web/package-lock.json`, y crea la etiqueta `git tag vX.Y.Z` (súbela con `git push --tags`).
 6. Commit en español que explique el porqué, y `git push` a `main` (está permitido subir directo; para cambios grandes o dudosos usa una rama y un PR).
 7. Reinicia lo que cambió: `systemctl --user restart apuestas-api apuestas-worker`, y `apuestas-web` si tocaste `web/` (se recompila al arrancar). Comprueba que quedan `active`.
 8. Si existe `graphify-out/`, ejecuta `graphify update .`.
