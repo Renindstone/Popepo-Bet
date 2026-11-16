@@ -12,6 +12,7 @@ import re
 from collections.abc import Callable
 from functools import lru_cache
 
+from apuestas.core import names
 from apuestas.services import analysis, compare, queries, radar, sync, weekly
 
 
@@ -246,6 +247,24 @@ def text(s: str) -> str:
         if m:
             return repl(m) if callable(repl) else _fill(repl, m)
     return s
+
+
+# Nombres de selecciones (en la BD, en inglés de FotMob) dentro de cualquier texto: «Faroe Islands vs Moldova»,
+# «Tarjetas de Moldova: Menos de 2.5». Los más largos primero («Northern Ireland» antes que «Ireland»); no cambia un
+# nombre seguido de otra palabra en mayúscula, que sería un jugador («Jordan Pickford»).
+_NATIONAL = re.compile(
+    r"(?<!\w)(" + "|".join(re.escape(n) for n in sorted(names.NATIONAL_ES, key=len, reverse=True)) + r")(?!\w|\s[A-Z])")
+
+
+def spanish(value):
+    """Los nombres de las selecciones en español en una respuesta JSON ya decodificada (el panel en español)."""
+    if isinstance(value, str):
+        return _NATIONAL.sub(lambda m: names.NATIONAL_ES[m.group(1)], value)
+    if isinstance(value, list):
+        return [spanish(v) for v in value]
+    if isinstance(value, dict):
+        return {k: spanish(v) for k, v in value.items()}
+    return value
 
 
 def translate(value):

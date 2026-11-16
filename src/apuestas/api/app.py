@@ -61,14 +61,16 @@ app.add_middleware(
 
 @app.middleware("http")
 async def english(request: Request, call_next):
-    """Con `Accept-Language: en` (el panel en inglés) los textos de las respuestas JSON salen traducidos (api/i18n.py)."""
+    """Con `Accept-Language: en` (el panel en inglés) los textos de las respuestas JSON salen traducidos, y con `es`
+    (el panel en español) las selecciones salen con su nombre en español (api/i18n.py)."""
     response = await call_next(request)
     response.headers.append("Vary", "Accept-Language")
-    if not i18n.wants_english(request.headers.get("accept-language")) or \
-            response.headers.get("content-type") != "application/json":
+    accept = (request.headers.get("accept-language") or "").strip().lower()
+    english = i18n.wants_english(accept)
+    if not (english or accept.startswith("es")) or response.headers.get("content-type") != "application/json":
         return response
     body = b"".join([chunk async for chunk in response.body_iterator])
-    data = i18n.translate(json.loads(body))
+    data = (i18n.translate if english else i18n.spanish)(json.loads(body))
     headers = {k: v for k, v in response.headers.items() if k != "content-length"}
     return Response(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode(), response.status_code,
                     headers=headers, media_type="application/json")

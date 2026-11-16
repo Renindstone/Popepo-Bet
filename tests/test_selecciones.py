@@ -174,3 +174,13 @@ def test_notes_for_national_teams_are_translated():
     assert i18n.text(analysis.NO_PLAYERS_NOTE) != analysis.NO_PLAYERS_NOTE
     reason = f"Modelo 60% · cuota sin margen 55% · mezcla 56%: {analysis.NO_MARKET_NATIONAL}"
     assert "Selecciones" not in i18n.text(reason)
+
+
+def test_national_team_names_in_spanish_for_the_spanish_panel():
+    data = {"match": "Faroe Islands vs Moldova", "label": "Tarjetas de Moldova: Menos de 2.5",
+            "teams": ["Northern Ireland", "Ireland", "Andorra (Selección)"], "player": "Jordan Pickford", "id": 3}
+    assert i18n.spanish(data) == {
+        "match": "Islas Feroe vs Moldavia", "label": "Tarjetas de Moldavia: Menos de 2.5",
+        "teams": ["Irlanda del Norte", "Irlanda", "Andorra"], "player": "Jordan Pickford", "id": 3}
+    for en, es in names.NATIONAL_ES.items():  # el nombre que se ve también se encuentra al buscar
+        assert names.similarity(es, en) == 100

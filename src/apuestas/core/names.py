@@ -151,6 +151,30 @@ def best_match(name: str, candidates: dict[int, str], threshold: float = 80.0) -
     return (best_id, best_score) if best_score >= threshold else (None, best_score)
 
 
+# Selecciones: nombre de FotMob (el de la BD) -> nombre en español que muestra la API al panel en español
+NATIONAL_ES = {
+    "Albania": "Albania", "Algeria": "Argelia", "Andorra (Selección)": "Andorra", "Australia": "Australia",
+    "Azerbaijan": "Azerbaiyán", "Belarus": "Bielorrusia", "Belgium": "Bélgica", "Bosnia and Herzegovina":
+    "Bosnia y Herzegovina", "Brazil": "Brasil", "Canada": "Canadá", "Cape Verde": "Cabo Verde", "Croatia": "Croacia",
+    "Curacao": "Curazao", "Cyprus": "Chipre", "Czechia": "Chequia", "DR Congo": "RD del Congo", "Denmark": "Dinamarca",
+    "Egypt": "Egipto", "England": "Inglaterra", "Faroe Islands": "Islas Feroe", "Finland": "Finlandia",
+    "France": "Francia", "Germany": "Alemania", "Greece": "Grecia", "Haiti": "Haití", "Hungary": "Hungría",
+    "Iceland": "Islandia", "Iran": "Irán", "Iraq": "Irak", "Ireland": "Irlanda", "Italy": "Italia",
+    "Ivory Coast": "Costa de Marfil", "Japan": "Japón", "Jordan": "Jordania", "Kazakhstan": "Kazajistán",
+    "Latvia": "Letonia", "Lithuania": "Lituania", "Luxembourg": "Luxemburgo", "Mexico": "México",
+    "Moldova": "Moldavia", "Morocco": "Marruecos", "Netherlands": "Países Bajos", "New Zealand": "Nueva Zelanda",
+    "North Macedonia": "Macedonia del Norte", "Northern Ireland": "Irlanda del Norte", "Norway": "Noruega",
+    "Panama": "Panamá", "Poland": "Polonia", "Qatar": "Catar", "Romania": "Rumania", "Saudi Arabia": "Arabia Saudita",
+    "Scotland": "Escocia", "Slovakia": "Eslovaquia", "Slovenia": "Eslovenia", "South Africa": "Sudáfrica",
+    "South Korea": "Corea del Sur", "Spain": "España", "Sweden": "Suecia", "Switzerland": "Suiza",
+    "Tunisia": "Túnez", "Turkiye": "Turquía", "USA": "Estados Unidos", "Ukraine": "Ucrania",
+    "Uzbekistan": "Uzbekistán", "Wales": "Gales",
+}
+# El nombre en español también se encuentra al buscar o al evaluar una cuota
+for _en, _es in NATIONAL_ES.items():
+    _TEAM_SEEDS.setdefault(normalize(_es), team_key(_en))
+
+
 def person_key(name: str) -> str:
     return normalize(name)
 
