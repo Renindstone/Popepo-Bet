@@ -600,12 +600,27 @@ export type PeriodRecap = WeekRecap | MonthUnavailable;
 // --------------------------------------------------------------------------- radar de Sorpresas (GET /radar)
 
 /** Explicación escrita por Claude (solo si el usuario usa la IA) */
-/** Veredicto de los revisores de la apuesta del día */
+/** Voto de un agente de la mesa de apostadores, con su motivo en los dos idiomas */
+export interface TableVote {
+  agent: string;
+  name: string;
+  name_en: string;
+  vote: boolean;
+  text: string;
+  text_en: string;
+}
+
+/** La mesa de apostadores sobre la apuesta del día (ADR 0010) */
 export interface PickReview {
   status: "espera" | "pendiente" | "trabajando" | "error" | "lista";
   error: string | null;
-  word: "Apostar" | "Dudosa" | "Mejor no" | null;
-  motives?: { label: string; text: string }[];
+  outcome: "aprobado" | "medianamente" | "desaprobado" | null;
+  yes?: number;
+  total?: number;
+  yes_share?: number;
+  /** Votos finales (ronda 2), con el peso con que se votó y si cambió de opinión */
+  votes?: (TableVote & { weight: number; changed: boolean })[];
+  round1?: TableVote[];
   streaks?: { team: string; wins: number; played: number; run: number }[];
   confidence?: number;
   threshold?: number;
