@@ -6,6 +6,9 @@ Versions up to 0.8.0 were reconstructed on 16-11-2026 from the git history and `
 
 ## [Unreleased]
 
+### Security
+- Next.js 16.4.2 → 16.4.6 (and `eslint-config-next`), which fixes two moderate cache leaks across root params with `'use cache'` (GHSA-vc7v-qv4w-wrv8, GHSA-mfr8-8qww-v76h). The dashboard didn't use `'use cache'`, `unstable_cache()` or root params, so it wasn't exposed. The remaining `npm audit` warnings (`minimatch` through `typescript-eslint`) only affect the linter.
+
 ### Removed
 - **Understat**, down since 3-11-2026. The model doesn't change: since 2026-27 football-data brings xG for the eight leagues and it's averaged with FotMob's; older matches keep Understat's xG.
 
