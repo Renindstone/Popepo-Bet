@@ -3,7 +3,9 @@
 **English** · [Español](../es/adr/0009-veredicto-de-los-revisores.md)
 
 **Status**: accepted (2026-11-06). Rebuilt on 10-11-2026 from the code, the commits of 6 and 7-11 and
-`docs/estado.md`: the original only lived on the owner's PC and was lost.
+`docs/estado.md`: the original only lived on the owner's PC and was lost. **The Judge was replaced on 19-11-2026 by
+the betting table ([ADR 0010](0010-mesa-de-apostadores.md))**; For and Against, when the review runs and the numbers
+written by the code still apply.
 
 ## Context
 The owner doubts some bets of the day for two recurring reasons:

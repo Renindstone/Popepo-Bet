@@ -126,7 +126,7 @@ cifra en columnas**.
   (`lib/markets.ts`). Un texto nuevo del servidor que llegue al panel se añade a `src/apuestas/api/i18n.py`; si no,
   sale en español (`tests/test_i18n.py` comprueba los mercados). Revisa que el texto inglés, a veces más largo, no
   desborde en el celular.
-- **Opinión frente a cálculo:** lo que escribe Claude (veredicto de los revisores, explicaciones) va siempre debajo de
+- **Opinión frente a cálculo:** lo que escribe Claude (la mesa de apostadores, explicaciones) va siempre debajo de
   las cifras del modelo, sin recuadro que pese más que la ficha, con su nota de que es una opinión y sin cifras propias.
 - **Accesibilidad:** contraste AA, anillo de foco `boli` (ya global), `aria-label` en botones de solo icono, `alt`
   en imágenes (`alt=""` si es decorativa, como los escudos junto al nombre), `role="img"` con descripción para
@@ -136,7 +136,7 @@ cifra en columnas**.
 
 `web/src/components/ui.tsx`: `PageTitle`, `Section`, `Loading`, `ErrorNote` (pide la clave si falta), `Empty`,
 `Tag` (tonos `neutral`, `boli` = negro con letra amarilla, `rojo`, `tarjeta`, `confirmada` = amarillo), `Figure`, `Button`, `EdgeBar`, `TriBar`,
-`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo, solo en el veredicto de Evaluar), `Avisos.tsx` (`AlertBox`, `AlertList` y `AlertTags`: el aviso del radar, con filete arriba rojo si va en baja y de tinta si va en racha), `semana/Radar.tsx` (`AlertTag`, «Equipo en racha/en baja», y el radar con sus listas cortadas en 3 en el celular), `NotaClaude` (explicación de Claude: firmada, con fuentes y como texto plano) y `PorQueFallo`, `PitchFrame`, `PitchName` y `PitchDisc` (`components/Pitch.tsx`: el campo con sus líneas, para las alineaciones y el once de la semana), `ComboResult` (combinadas), `PickRecord` (aciertos), `hoy/Comparador.tsx` (pestaña «Frente a Pinnacle»: lista en el celular y tabla desde `lg`), `hoy/Veredicto.tsx` (veredicto de los revisores debajo de la apuesta del día: palabra grande, motivos en filas y la discusión plegada en un `<details>`; no es el veredicto de Evaluar, que es el del modelo), `LangSwitch` y `tr` (`lib/i18n.tsx`: selector ES / EN de la cabecera y el texto en el idioma en uso), `Unusual.tsx` (`UnusualTag`, «Poco habitual: N de 10» en tono neutro, y `UNUSUAL_NOTE`), `Rivalry.tsx` (`RivalryTag`, etiqueta del clásico en tono `tarjeta`, y `RivalrySection`, su historial: lista en el celular y tabla desde `md`),
+`ApiKeyForm`. Además: `Crest` (escudos), `PenMark` (trazo, solo en el veredicto de Evaluar), `Avisos.tsx` (`AlertBox`, `AlertList` y `AlertTags`: el aviso del radar, con filete arriba rojo si va en baja y de tinta si va en racha), `semana/Radar.tsx` (`AlertTag`, «Equipo en racha/en baja», y el radar con sus listas cortadas en 3 en el celular), `NotaClaude` (explicación de Claude: firmada, con fuentes y como texto plano) y `PorQueFallo`, `PitchFrame`, `PitchName` y `PitchDisc` (`components/Pitch.tsx`: el campo con sus líneas, para las alineaciones y el once de la semana), `ComboResult` (combinadas), `PickRecord` (aciertos), `hoy/Comparador.tsx` (pestaña «Frente a Pinnacle»: lista en el celular y tabla desde `lg`), `hoy/Veredicto.tsx` (la mesa de apostadores debajo de la apuesta del día: resultado grande, una fila por agente con su voto, peso y motivo, y la primera ronda y las noticias plegadas en un `<details>`; no es el veredicto de Evaluar, que es el del modelo), `LangSwitch` y `tr` (`lib/i18n.tsx`: selector ES / EN de la cabecera y el texto en el idioma en uso), `Unusual.tsx` (`UnusualTag`, «Poco habitual: N de 10» en tono neutro, y `UNUSUAL_NOTE`), `Rivalry.tsx` (`RivalryTag`, etiqueta del clásico en tono `tarjeta`, y `RivalrySection`, su historial: lista en el celular y tabla desde `md`),
 `ScrollRow` (fila que se desplaza de lado con difuminado y flecha cuando hay más; la usan el menú y las pestañas) y
 `Tabs` + `useHashTab` (pestañas accesibles, fijas arriba al bajar, con la activa en el ancla de la URL y, si se
 quiere, cuántas filas hay en cada una con `count`).
@@ -154,8 +154,9 @@ menú del celular avisa con una flecha. Queda lo que la auditoría no mide:
 - **Mis apuestas en el celular, sin apuestas registradas** (11-11-2026): el enlace «Evaluar cuota» / «Check odds» del
   aviso vacío mide 19 px de alto (el mínimo es 24). Está en una frase dentro de `Empty`, que no es un párrafo, y por
   eso la auditoría lo cuenta. Sale ahora porque la base de datos nueva no tiene apuestas.
-- **El veredicto de los revisores no sale en las capturas del driver** si no hay una revisión hecha ese día (o con la
-  IA apagada): revisarlo a mano cuando exista la primera revisión real.
+- **La mesa de apostadores no sale en las capturas del driver** si no hay una revisión lista ese día (o con la IA
+  apagada). El 19-11-2026 se revisó con la respuesta de `/picks/*/review` simulada con Playwright (8 variantes, sin
+  desborde ni errores); falta mirarla con la primera votación real.
 
 Al resolver uno, bórralo de esta lista y añade los nuevos que encuentre la auditoría.
 

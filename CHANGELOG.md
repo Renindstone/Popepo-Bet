@@ -6,6 +6,12 @@ Versions up to 0.8.0 were reconstructed on 16-11-2026 from the git history and `
 
 ## [Unreleased]
 
+### Added
+- **The betting table** ([ADR 0010](docs/adr/0010-mesa-de-apostadores.md)): below the bet of the day, seven Claude agents with bettor personalities (the Cautious One, the Odds Hunter, the Statistician, the Sceptic, the Reporter, the Streak Rider and the Contrarian) vote yes or no in two rounds, after For and Against bring the news. The result is "Approved by the agents" (2/3 of the weighted vote), "Partly approved" (more than half) or "Rejected by the agents", with each vote's weight and reason in Spanish and English. Each weight moves 5 % per unit the vote would have won or lost (a no, the other way round), between ×0.5 and ×2. It's an opinion: it doesn't change the model's numbers.
+
+### Changed
+- The table replaces the Judge of the reviewers' verdict (ADR 0009). At most 2 reviews a day (it was 3) and, without a confirmed line-up, 40 minutes before kick-off (it was 30). New table `review_vote`; `pick_review.word` and `motives` removed.
+
 ### Security
 - Next.js 16.4.2 → 16.4.6 (and `eslint-config-next`), which fixes two moderate cache leaks across root params with `'use cache'` (GHSA-vc7v-qv4w-wrv8, GHSA-mfr8-8qww-v76h). The dashboard didn't use `'use cache'`, `unstable_cache()` or root params, so it wasn't exposed. The remaining `npm audit` warnings (`minimatch` through `typescript-eslint`) only affect the linter.
 

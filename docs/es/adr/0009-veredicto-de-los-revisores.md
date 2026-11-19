@@ -3,7 +3,9 @@
 [English](../../adr/0009-veredicto-de-los-revisores.md) · **Español**
 
 **Estado**: aceptada (2026-11-06). Reconstruida el 10-11-2026 a partir del código, los commits del 6 y 7-11 y
-`docs/estado.md`: el original solo vivía en la PC del dueño y se perdió.
+`docs/estado.md`: el original solo vivía en la PC del dueño y se perdió. **El Juez lo reemplazó el 19-11-2026 la mesa de
+apostadores ([ADR 0010](0010-mesa-de-apostadores.md))**; A favor y En contra, cuándo se revisa y los números que pone
+el código siguen valiendo.
 
 ## Contexto
 El dueño duda de algunas apuestas del día por dos motivos que se repiten:

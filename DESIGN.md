@@ -262,13 +262,16 @@ probabilidad ni el corte». En las listas va como etiqueta con palabra («Milan 
 Recuadro de tinta sobre tarjeta-suave con el título «Explicación de Claude», el texto plano, las fuentes como enlaces y
 la hora a la que se escribió. Nunca lleva cifras propias del recuadro: las cifras van fuera, del modelo.
 
-### Veredicto de los revisores
-Debajo de la apuesta del día de Hoy (ADR 0009), abierto por el filete de 3 px. Una línea con la etiqueta en mayúsculas
-pequeñas, la palabra en extracondensada grande («Apostar» en tinta, «Dudosa» en tarjeta, «Mejor no» en rojo) y «La
-decisión es tuya». Debajo, los motivos como filas con regla suave (etiqueta en negrita a la izquierda: Confianza, Racha
-y los del juez), los avisos en tono tarjeta («Revisado sin alineación confirmada») y la nota fija de que es una opinión
-de Claude sin medir que no cambia el cálculo. La discusión (A favor y En contra, con sus fuentes) va plegada en «Ver la
-discusión completa». Sin recuadro ni fondo: no debe pesar más que la ficha del modelo. Con la IA apagada no se pinta.
+### La mesa de apostadores
+Debajo de la apuesta del día de Hoy (ADR 0009 y 0010), abierto por el filete de 3 px. Una línea con la etiqueta en
+mayúsculas pequeñas, el resultado en extracondensada grande («Aprobado por los agentes» en tinta, «Medianamente
+aprobado» en tarjeta, «Desaprobado por los agentes» en rojo) y «La decisión es tuya»; debajo, «4 de 7 dicen sí · 57 %
+del voto con pesos». Luego filas con regla suave y la columna de la izquierda de 14 rem: Confianza y Racha (las escribe
+el código) y una fila por agente con `Tag` «Sí» (tono `boli`) o «No» (neutro), su nombre, su peso `×1.04` en grafito y
+su motivo, con «(cambió de opinión)» si cambió entre rondas. Los avisos en tono tarjeta («Votado sin alineación
+confirmada») y la nota fija de que es una opinión de Claude sin medir que no cambia el cálculo. La primera ronda y las
+noticias a favor y en contra van plegadas en «Ver la conversación». Sin recuadro ni fondo: no debe pesar más que la
+ficha del modelo. Con la IA apagada no se pinta.
 
 ### Frente a Pinnacle
 Pestaña de Hoy (`#precio`) que compara precios sin modelo. Lista en el celular y tabla desde `lg`, cortada en 12 filas
