@@ -400,7 +400,8 @@ class AiNote(Base):
 
 
 class PickReview(Base):
-    """Una revisión de la apuesta del día: A favor, En contra y Juez, con la copia de los números que vieron."""
+    """Una revisión de la apuesta del día: A favor y En contra traen noticias y la mesa de apostadores vota (ADR 0010),
+    con la copia de los números que vieron y los pesos con que se votó."""
 
     __tablename__ = "pick_review"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -414,14 +415,29 @@ class PickReview(Base):
     favor_sources: Mapped[list | None] = mapped_column(JSONType)
     contra: Mapped[str | None] = mapped_column(Text)
     contra_sources: Mapped[list | None] = mapped_column(JSONType)
-    word: Mapped[str | None] = mapped_column(String(10))  # Apostar | Dudosa | Mejor no
-    motives: Mapped[list | None] = mapped_column(JSONType)
+    weights: Mapped[dict | None] = mapped_column(JSONType)  # peso de cada agente al crearse la revisión
     model: Mapped[str | None] = mapped_column(String(40))
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     pick: Mapped[Pick] = relationship()
+    votes: Mapped[list[ReviewVote]] = relationship(order_by="ReviewVote.id", cascade="all, delete-orphan")
+
+
+class ReviewVote(Base):
+    """El voto de un agente de la mesa en una ronda (1: opina solo; 2: tras leer a los demás, el que cuenta)."""
+
+    __tablename__ = "review_vote"
+    __table_args__ = (UniqueConstraint("review_id", "agent", "round"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    review_id: Mapped[int] = mapped_column(ForeignKey("pick_review.id", ondelete="CASCADE"), index=True)
+    agent: Mapped[str] = mapped_column(String(16))
+    round: Mapped[int] = mapped_column(Integer)
+    vote: Mapped[bool] = mapped_column(Boolean)
+    text: Mapped[str] = mapped_column(Text)
+    text_en: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class UserBet(Base, TimestampMixin):

@@ -99,9 +99,10 @@ def command(note: m.AiNote) -> tuple[list[str], dict[str, str], Path]:
     return claude_command(WEB_TOOLS, MCP_TOOLS, get_settings().captures_cli_model)
 
 
-def claude_command(tools: tuple[str, ...], mcp_tools: tuple[str, ...], model: str,
-                   effort: str | None = None) -> tuple[list[str], dict[str, str], Path]:
-    """`claude -p` aislado: solo las herramientas indicadas, sin archivos ni terminal y sin leer esta PC."""
+def claude_command(tools: tuple[str, ...], mcp_tools: tuple[str, ...], model: str, effort: str | None = None,
+                   mcp_env: dict[str, str] | None = None) -> tuple[list[str], dict[str, str], Path]:
+    """`claude -p` aislado: solo las herramientas indicadas, sin archivos ni terminal y sin leer esta PC. `mcp_env` se
+    suma al entorno de su servidor MCP (el asiento de un agente de la mesa)."""
     st = get_settings()
     claude = shutil.which(st.claude_bin)
     if claude is None:
@@ -109,7 +110,7 @@ def claude_command(tools: tuple[str, ...], mcp_tools: tuple[str, ...], model: st
                            "APUESTAS_CLAUDE_BIN")
     mcp_config = {"mcpServers": {"apuestas": {
         "command": str(apuestas_bin()), "args": ["mcp"],
-        "env": {"APUESTAS_MCP_USER": st.default_user, "APUESTAS_MCP_ENGINE": "true"}}}}
+        "env": {"APUESTAS_MCP_USER": st.default_user, "APUESTAS_MCP_ENGINE": "true", **(mcp_env or {})}}}}
     cmd = [
         claude, "-p",
         "--model", model,

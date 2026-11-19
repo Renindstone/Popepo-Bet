@@ -215,7 +215,7 @@ def test_el_mcp_del_motor_solo_tiene_sus_herramientas(monkeypatch):
 
     monkeypatch.setattr(get_settings(), "mcp_engine", True)
     assert {t.name for t in build()._tool_manager.list_tools()} == {
-        "datos_fallo", "datos_radar", "guardar_explicacion", "datos_veredicto", "guardar_revisor", "guardar_veredicto"}
+        "datos_fallo", "datos_radar", "guardar_explicacion", "datos_veredicto", "guardar_revisor", "guardar_voto"}
 
 
 def test_un_fallo_de_las_notas_no_deshace_la_liquidacion(s, monkeypatch):

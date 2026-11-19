@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     mcp_user: str = ""
     # Solo para el MCP que lanza el motor de notas de Claude: habilita guardar_explicacion
     mcp_engine: bool = False
+    # Solo para el MCP de un agente de la mesa: su asiento ("agente:ronda"); guardar_voto solo vota en ese asiento
+    mcp_agent: str = ""
     ai_notes_timeout_s: int = 300
     # Veredicto de los revisores: la regla de confianza del dueño y con qué modelo de Claude se escribe
     verdict_min_confidence: float = 0.80

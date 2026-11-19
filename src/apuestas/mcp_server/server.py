@@ -228,9 +228,10 @@ def build(http: bool = False, public_url: str | None = None) -> MCPServer:
             return _safe(verdict.save_side, ref, papel, texto, fuentes)
 
         @server.tool()
-        def guardar_veredicto(ref: str, palabra: str, motivos: list[dict]) -> str:
-            """Guarda el veredicto del juez: palabra (Apostar, Dudosa o Mejor no) y de 2 a 4 motivos: [{etiqueta, texto}]."""
-            return _safe(verdict.save_verdict, ref, palabra, motivos)
+        def guardar_voto(ref: str, voto: bool, motivo: str, motivo_en: str) -> str:
+            """Guarda tu voto en la mesa (voto: true si apostarías, false si no), con tu motivo de 1 a 3 frases y el
+            mismo motivo en inglés (motivo_en). Tu asiento (quién eres y en qué ronda) ya está fijado."""
+            return _safe(verdict.save_vote, ref, get_settings().mcp_agent, voto, motivo, motivo_en)
 
     @server.tool()
     def capturas_pendientes() -> str:
