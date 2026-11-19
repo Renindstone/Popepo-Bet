@@ -20,7 +20,6 @@ const sources = (): Record<string, { name: string; what: string }> => ({
       "Line-ups, injuries, suspensions, referees and player stats",
     ),
   },
-  understat: { name: "Understat", what: tr("Segundo modelo de xG", "Second xG model") },
   oddspapi: { name: "OddsPapi", what: tr("Cuotas de Betano (opcional, experimental)", "Betano odds (optional, experimental)") },
   dedupe: {
     name: tr("Equipos duplicados", "Duplicate teams"),
@@ -162,8 +161,8 @@ export function DatosView() {
           <Section
             title={tr("Fuentes", "Sources")}
             intro={tr(
-              "Última tarea registrada de cada fuente. Ninguna fuente puede tumbar la ingesta: si una falla, las demás siguen. «Sincronizar» descarga ahora lo de las 05:30 y las 08:30 de FotMob, football-data y Understat y reentrena el modelo (tarda unos minutos y no gasta peticiones de OddsPapi).",
-              "Latest recorded task for each source. No source can bring the ingestion down: if one fails, the others carry on. “Sync” downloads now the 05:30 and 08:30 runs from FotMob, football-data and Understat and retrains the model (it takes a few minutes and spends no OddsPapi requests).",
+              "Última tarea registrada de cada fuente. Ninguna fuente puede tumbar la ingesta: si una falla, las demás siguen. «Sincronizar» descarga ahora lo de las 05:30 y las 08:30 de FotMob y football-data y reentrena el modelo (tarda unos minutos y no gasta peticiones de OddsPapi).",
+              "Latest recorded task for each source. No source can bring the ingestion down: if one fails, the others carry on. “Sync” downloads now the 05:30 and 08:30 runs from FotMob and football-data and retrains the model (it takes a few minutes and spends no OddsPapi requests).",
             )}
             actions={<SyncButton sync={sync.data} onChange={(st) => sync.mutate(st, { revalidate: false })} />}
           >

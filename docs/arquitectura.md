@@ -9,8 +9,8 @@ Free sources                           src/apuestas/
 ────────────                           ─────────────
 football-data.co.uk ─┐   ingest/      polite downloading (disk cache, pacing, retries, pause for hosts that are down)
 FotMob (Opta)        ├─► store.py     entity resolution across sources + stats validation
-Understat            │   pipeline.py  ingest order and frequency
-OddsPapi (optional) ─┘        │
+OddsPapi (optional) ─┘   pipeline.py  ingest order and frequency
+                              │
                               ▼
                     PostgreSQL (own cluster, port 5433)
                               │
@@ -61,7 +61,7 @@ The dashboard reads it with `GET /picks/{pick_id}/review` (`verdict.for_user`), 
 
 ## Daily flow (Lima time)
 
-1. **05:30**: yesterday's results (FotMob, football-data, Understat), details of played matches, merging of duplicate teams, settlement of picks and bets, retraining (`var/models/latest.json`).
+1. **05:30**: yesterday's results (FotMob, football-data), details of played matches, merging of duplicate teams, settlement of picks and bets, retraining (`var/models/latest.json`).
 2. **08:30**: details of the next 4 days (predicted line-up, absences, referee), odds and, if there's a key, Betano and Pinnacle through OddsPapi.
 3. **09:00**: bet of the day (goals markets only) → Telegram.
 4. **70, 50, 35, 20 and 10 minutes before each match** of the eight leagues, the Champions League and the Nations League (the task runs every 5 min; not the Europa League or the Conference, because their line-ups aren't used): if it doesn't have a confirmed line-up yet (only FotMob's official XI counts, not the predicted one or the last starting XI), it's downloaded from FotMob, recalculated and a warning is sent if the bet of the day changes. FotMob usually publishes it an hour before; the 50-minute check leaves room if it's late.
@@ -75,7 +75,7 @@ The dashboard reads it with `GET /picks/{pick_id}/review` (`verdict.for_user`), 
 
 **If the computer was off** at the time of a daily task (05:30, 08:30, 09:00, 02:00 or the Monday one), the worker runs it on start, in that order. The time of each one's last success is saved in `var/worker_state.json`. The bet of the day is only caught up until 12 hours after 09:00; the others, until 20 hours. **If it was suspended**, the late task runs on wake-up if no more than an hour has passed.
 
-**If there's no internet** (when the computer starts the network takes a while; on 23-10-2026 the catch-up started without it and every source failed): the tasks that download wait until FotMob's, Understat's or football-data's name resolves (`scheduler.network_ready`, without making requests). The daily ones wait up to 10 minutes; if there's still none, they aren't marked as done and the catch-up tries again after 15, without computing the bet of the day with old data. The periodic ones (line-ups, settlement, odds) skip that round. A name failure doesn't mark the host as down (`ingest/http.py`), and a task never runs twice at the same time.
+**If there's no internet** (when the computer starts the network takes a while; on 23-10-2026 the catch-up started without it and every source failed): the tasks that download wait until FotMob's or football-data's name resolves (`scheduler.network_ready`, without making requests). The daily ones wait up to 10 minutes; if there's still none, they aren't marked as done and the catch-up tries again after 15, without computing the bet of the day with old data. The periodic ones (line-ups, settlement, odds) skip that round. A name failure doesn't mark the host as down (`ingest/http.py`), and a task never runs twice at the same time.
 
 ## Principles
 

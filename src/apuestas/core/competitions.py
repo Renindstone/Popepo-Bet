@@ -2,7 +2,7 @@
 
 - Nivel "full": se analizan a fondo (estadísticas de partido, jugadores, alineaciones, árbitros, picks). La Serie A y
   la Ligue 1 lo son desde el 21-10-2026, Portugal y Bélgica desde el 29-10-2026 y Turquía desde el 30-10-2026; antes eran "light" y ya daban sus
-  resultados y cuotas de cierre al modelo. Understat no cubre Portugal, Bélgica ni Turquía: su xG es solo el de FotMob.
+  resultados y cuotas de cierre al modelo.
 - Nivel "light": solo resultados/xG para conectar la escala de fuerza entre ligas (rivales de
   Champions, equipos ascendidos, fichajes que llegan de otras ligas). No generan picks.
 
@@ -17,7 +17,7 @@ las ligas en los modelos de remates y córners.
 Selecciones (`national`, desde el 10-11-2026): la UEFA Nations League es "full" pero sin apuesta del día (`picks=False`:
 no hay cuotas históricas de selecciones para medir el modelo contra las casas) y sin mercados de jugador. Los
 clasificatorios europeos al Mundial, el Mundial y la Eurocopa son "light": solo dan historial a esas selecciones. Solo
-vienen de FotMob (football-data y Understat no cubren selecciones) y nunca se cruzan con los clubes.
+vienen de FotMob (football-data no cubre selecciones) y nunca se cruzan con los clubes.
 """
 
 from __future__ import annotations
@@ -34,7 +34,6 @@ class Competition:
     tier: str  # "full" | "light"
     is_cup: bool = False
     fd_code: str | None = None  # football-data.co.uk
-    understat: str | None = None  # understat.com
     fotmob_id: int | None = None  # fotmob.com
     fd_extra: str | None = None  # football-data.co.uk, liga "extra" (new/XXX.csv)
     calendar_year: bool = False  # temporada de marzo a noviembre (se identifica por el año natural)
@@ -52,11 +51,11 @@ COMPETITIONS: dict[str, Competition] = {
     c.code: c
     for c in [
         # --- Análisis completo ---
-        Competition("EPL", "Premier League", "England", "full", fd_code="E0", understat="EPL", fotmob_id=47),
-        Competition("BUN", "Bundesliga", "Germany", "full", fd_code="D1", understat="Bundesliga", fotmob_id=54),
-        Competition("LAL", "LaLiga", "Spain", "full", fd_code="SP1", understat="La_liga", fotmob_id=87),
-        Competition("SA", "Serie A", "Italy", "full", fd_code="I1", understat="Serie_A", fotmob_id=55),
-        Competition("L1", "Ligue 1", "France", "full", fd_code="F1", understat="Ligue_1", fotmob_id=53),
+        Competition("EPL", "Premier League", "England", "full", fd_code="E0", fotmob_id=47),
+        Competition("BUN", "Bundesliga", "Germany", "full", fd_code="D1", fotmob_id=54),
+        Competition("LAL", "LaLiga", "Spain", "full", fd_code="SP1", fotmob_id=87),
+        Competition("SA", "Serie A", "Italy", "full", fd_code="I1", fotmob_id=55),
+        Competition("L1", "Ligue 1", "France", "full", fd_code="F1", fotmob_id=53),
         Competition("POR", "Primeira Liga", "Portugal", "full", fd_code="P1", fotmob_id=61),
         # Fase regular y playoffs (los puntos se dividen a la mitad): FotMob y football-data traen los dos
         Competition("BEL", "Pro League", "Belgium", "full", fd_code="B1", fotmob_id=40),

@@ -127,7 +127,7 @@ El instalador hace todo lo demás:
 - crea el entorno de Python;
 - crea la base de datos propia del proyecto (en `~/.local/share/apuestas/`, solo accesible desde tu PC por el puerto 5433), con una contraseña aleatoria guardada en `.env`;
 - crea las tablas e instala las dependencias del panel;
-- la primera vez, descarga 3 temporadas de historial más la actual de football-data, FotMob y Understat, y entrena los modelos.
+- la primera vez, descarga 3 temporadas de historial más la actual de football-data y FotMob, y entrena los modelos.
 
 **La primera vez tarda 3 o 4 horas**, porque las descargas van despacio a propósito para no saturar las fuentes. Si se corta, vuelve a ejecutar `scripts/instalar.sh`: lo ya descargado está en caché y sigue donde iba. Al terminar te dice el comando del paso 3.
 
@@ -268,7 +268,7 @@ Qué cambió en cada versión está en el [CHANGELOG](../../CHANGELOG.md) (en in
 | El instalador falla con *Microsoft Visual C++ 14.0 or greater is required* | Windows sin WSL | Se creó el entorno con Python 3.15. Instala Python 3.14 (paso 1), borra la carpeta `.venv` y vuelve a ejecutar `scripts/instalar.sh` |
 | *WinError 32 … apuestas.exe* al instalar o actualizar | Windows sin WSL | La API o el worker siguen abiertos: páralos con **Ctrl+C** y repite |
 | *address already in use* al arrancar | Todos | Otro programa usa el puerto 3000, 8000 o 5433; por ejemplo, otra copia de Popepo-Bet o un `npm run dev`. Ciérralo y vuelve a arrancar |
-| Durante la instalación salen avisos de una fuente (por ejemplo, *understat.com no devolvió datos (¿está en mantenimiento?)*) | Todos | Es normal si esa fuente está caída o en mantenimiento: se salta y la instalación sigue. Cuando vuelva, el worker recupera sus datos solo |
+| Durante la instalación salen avisos de una fuente (por ejemplo, *www.football-data.co.uk no devolvió datos (¿está en mantenimiento?)*) | Todos | Es normal si esa fuente está caída o en mantenimiento: se salta y la instalación sigue. Cuando vuelva, el worker recupera sus datos solo |
 | La instalación no escribe nada durante mucho rato | Todos | Está descargando el detalle de miles de partidos de FotMob, despacio a propósito. Avisa cada 100 partidos (*Detalles de FotMob: 100 de 8000 partidos jugados*); entre aviso y aviso pueden pasar varios minutos |
 | "Modelos no entrenados todavía" | Todos | El instalador no llegó al final: vuelve a ejecutar `scripts/instalar.sh` |
 | Una captura queda en "Error" con *No encuentro el CLI de Claude Code* | Todos | Instala Claude Code o ajusta `APUESTAS_CLAUDE_BIN` en `.env` |

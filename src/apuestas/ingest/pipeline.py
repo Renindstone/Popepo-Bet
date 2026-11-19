@@ -13,7 +13,7 @@ from apuestas.config import get_settings
 from apuestas.core.competitions import COMPETITIONS, FULL, LIGHT, NATIONAL, fotmob_season, season_start_year
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
-from apuestas.ingest import dedupe, football_data, fotmob, store, understat
+from apuestas.ingest import dedupe, football_data, fotmob, store
 from apuestas.ingest.http import SourceBlocked, SourceUnavailable
 
 log = logging.getLogger(__name__)
@@ -253,43 +253,6 @@ def sync_upcoming_odds() -> int:
     return _run("fdco", "fixtures odds", task)
 
 
-# --------------------------------------------------------------------------- Understat
-
-
-def sync_understat(start_years: list[int], codes: list[str] | None = None) -> int:
-    total = 0
-    current = season_start_year(datetime.now(UTC).date())
-    for comp_def in FULL:
-        if comp_def.understat is None or (codes and comp_def.code not in codes):
-            continue
-        for year in start_years:
-
-            def task(comp_def=comp_def, year=year) -> int:
-                ttl = 6 * 3600 if year >= current else None
-                games = understat.league_season(comp_def.understat, year, ttl=ttl)
-                n = 0
-                with session_scope() as s:
-                    comp = store.ensure_competitions(s)[comp_def.code]
-                    for g in games:
-                        match = s.scalar(select(m.Match).where(m.Match.understat_id == g.understat_id))
-                        if match is None:
-                            match = store.find_match(s, comp.id, g.kickoff_utc, g.home, g.away)
-                            if match is None:
-                                continue
-                            match.understat_id = g.understat_id
-                            store.learn_team_alias(s, match.home_team_id, "understat", g.home, g.home)
-                            store.learn_team_alias(s, match.away_team_id, "understat", g.away, g.away)
-                        if g.is_result and g.home_xg is not None:
-                            store.set_observations(s, match, match.home_team_id, "understat", {"xg": g.home_xg})
-                            store.set_observations(s, match, match.away_team_id, "understat", {"xg": g.away_xg})
-                            store.reconcile(s, match)
-                            n += 1
-                return n
-
-            total += _run("understat", f"{comp_def.code} {year}", task)
-    return total
-
-
 # --------------------------------------------------------------------------- equipos duplicados
 
 
@@ -314,7 +277,6 @@ def full_sync(start_years: list[int] | None = None, backfill_limit: int = 300) -
     years = start_years or seasons_to_load()
     sync_fotmob_leagues(years)
     sync_football_data(years)
-    sync_understat(years)
     merge_duplicate_teams()
     sync_fotmob_details(backfill_limit=backfill_limit)
     sync_upcoming_odds()

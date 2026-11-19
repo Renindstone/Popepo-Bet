@@ -129,7 +129,7 @@ The installer does everything else:
 - creates the Python environment;
 - creates the project's own database (in `~/.local/share/apuestas/`, only reachable from your PC on port 5433), with a random password saved in `.env`;
 - creates the tables and installs the dashboard's dependencies;
-- the first time, downloads 3 seasons of history plus the current one from football-data, FotMob and Understat, and trains the models.
+- the first time, downloads 3 seasons of history plus the current one from football-data and FotMob, and trains the models.
 
 **The first time it takes 3 or 4 hours**, because the downloads are slow on purpose so as not to overload the sources. If it gets interrupted, run `scripts/instalar.sh` again: what was already downloaded is cached and it carries on where it was. When it finishes it tells you the command for step 3.
 
@@ -270,7 +270,7 @@ What changed in each version is in the [CHANGELOG](../CHANGELOG.md).
 | The installer fails with *Microsoft Visual C++ 14.0 or greater is required* | Windows without WSL | The environment was created with Python 3.15. Install Python 3.14 (step 1), delete the `.venv` folder and run `scripts/instalar.sh` again |
 | *WinError 32 … apuestas.exe* when installing or updating | Windows without WSL | The API or the worker are still open: stop them with **Ctrl+C** and repeat |
 | *address already in use* on start | All | Another program is using port 3000, 8000 or 5433; for example, another copy of Popepo-Bet or an `npm run dev`. Close it and start again |
-| Warnings about a source show up during installation (for example, *understat.com no devolvió datos (¿está en mantenimiento?)*, "returned no data (under maintenance?)") | All | It's normal if that source is down or under maintenance: it's skipped and the installation carries on. When it comes back, the worker recovers its data by itself |
+| Warnings about a source show up during installation (for example, *www.football-data.co.uk no devolvió datos (¿está en mantenimiento?)*, "returned no data (under maintenance?)") | All | It's normal if that source is down or under maintenance: it's skipped and the installation carries on. When it comes back, the worker recovers its data by itself |
 | The installation prints nothing for a long time | All | It's downloading the details of thousands of FotMob matches, slowly on purpose. It reports every 100 matches (*Detalles de FotMob: 100 de 8000 partidos jugados*); several minutes can pass between reports |
 | "Models not trained yet" | All | The installer didn't reach the end: run `scripts/instalar.sh` again |
 | A screenshot stays in "Error" with *No encuentro el CLI de Claude Code* ("can't find the Claude Code CLI") | All | Install Claude Code or set `APUESTAS_CLAUDE_BIN` in `.env` |

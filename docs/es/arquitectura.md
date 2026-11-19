@@ -9,8 +9,8 @@ Fuentes gratis                         src/apuestas/
 ──────────────                         ─────────────
 football-data.co.uk ─┐   ingest/      descarga educada (caché en disco, ritmo, reintentos, pausa de hosts caídos)
 FotMob (Opta)        ├─► store.py     resolución de entidades entre fuentes + validación de stats
-Understat            │   pipeline.py  orden y frecuencia de la ingesta
-OddsPapi (opcional) ─┘        │
+OddsPapi (opcional) ─┘   pipeline.py  orden y frecuencia de la ingesta
+                              │
                               ▼
                     PostgreSQL (cluster propio, puerto 5433)
                               │
@@ -61,7 +61,7 @@ El panel lo lee con `GET /picks/{pick_id}/review` (`verdict.for_user`), y `exper
 
 ## Flujo diario (hora de Lima)
 
-1. **05:30**: resultados de ayer (FotMob, football-data, Understat), detalles de partidos jugados, fusión de equipos duplicados, liquidación de picks y apuestas, reentrenamiento (`var/models/latest.json`).
+1. **05:30**: resultados de ayer (FotMob, football-data), detalles de partidos jugados, fusión de equipos duplicados, liquidación de picks y apuestas, reentrenamiento (`var/models/latest.json`).
 2. **08:30**: detalles de los próximos 4 días (alineación prevista, bajas, árbitro), cuotas y, si hay clave, Betano y Pinnacle por OddsPapi.
 3. **09:00**: apuesta del día (solo mercados de goles) → Telegram.
 4. **70, 50, 35, 20 y 10 minutos antes de cada partido** de las ocho ligas, la Champions y la Nations League (la tarea corre cada 5 min; la Europa League y la Conference no, porque sus alineaciones no se usan): si aún no tiene alineación confirmada (solo cuenta el once oficial de FotMob, no el probable ni el último once titular), se descarga de FotMob, se recalcula y se avisa si cambia la apuesta del día. FotMob suele publicarla una hora antes; la búsqueda de los 50 minutos deja margen si se retrasa.
@@ -75,7 +75,7 @@ El panel lo lee con `GET /picks/{pick_id}/review` (`verdict.for_user`), y `exper
 
 **Si el equipo estaba apagado** a la hora de una tarea diaria (05:30, 08:30, 09:00, 02:00 o la del lunes), el worker la ejecuta al arrancar, en ese orden. La hora del último éxito de cada una se guarda en `var/worker_state.json`. La apuesta del día solo se recupera hasta 12 horas después de las 09:00; las demás, hasta 20 horas. **Si estaba suspendido**, la tarea atrasada corre al despertar si no pasó más de una hora.
 
-**Si no hay internet** (al encender el equipo la red tarda en llegar; el 23-10-2026 la recuperación arrancó sin ella y todas las fuentes fallaron): las tareas que descargan esperan a que se resuelva el nombre de FotMob, Understat o football-data (`scheduler.network_ready`, sin hacer peticiones). Las diarias esperan hasta 10 minutos; si sigue sin haber, no se marcan como hechas y la recuperación vuelve a probar a los 15, sin calcular la apuesta del día con datos viejos. Las periódicas (alineaciones, liquidación, cuotas) se saltan esa vuelta. Un fallo de nombre no da el host por caído (`ingest/http.py`), y una tarea no corre dos veces a la vez.
+**Si no hay internet** (al encender el equipo la red tarda en llegar; el 23-10-2026 la recuperación arrancó sin ella y todas las fuentes fallaron): las tareas que descargan esperan a que se resuelva el nombre de FotMob o football-data (`scheduler.network_ready`, sin hacer peticiones). Las diarias esperan hasta 10 minutos; si sigue sin haber, no se marcan como hechas y la recuperación vuelve a probar a los 15, sin calcular la apuesta del día con datos viejos. Las periódicas (alineaciones, liquidación, cuotas) se saltan esa vuelta. Un fallo de nombre no da el host por caído (`ingest/http.py`), y una tarea no corre dos veces a la vez.
 
 ## Principios
 

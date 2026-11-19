@@ -6,6 +6,9 @@ Versions up to 0.8.0 were reconstructed on 16-11-2026 from the git history and `
 
 ## [Unreleased]
 
+### Removed
+- **Understat**, down since 3-11-2026. The model doesn't change: since 2026-27 football-data brings xG for the eight leagues and it's averaged with FotMob's; older matches keep Understat's xG.
+
 ### Changed
 - The README screenshots show the dashboard in English (`docs/img/`), with a new one of the Surprises radar; the Spanish ones moved to `docs/img/es/` for `README.es.md`.
 - The screenshot driver finds Brave, Chrome or Edge on Windows.

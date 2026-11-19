@@ -8,7 +8,7 @@
 Presupuesto 0 para el primer mes. Se pidió usar FotMob, Opta y SofaScore, y cuotas de bet365 y Betano.
 
 ## Decisión
-- FotMob (que muestra datos Opta), football-data.co.uk y Understat, con caché en disco y una petición cada 1,5 s.
+- FotMob (que muestra datos Opta), football-data.co.uk y Understat, con caché en disco y una petición cada 1,5 s. (Understat se retiró el 19-11-2026: estaba caído desde el 3-11-2026, y football-data trae xG desde 2026-27.)
 - Cuotas de bet365 vía football-data.co.uk. Betano vía OddsPapi (clave gratuita, opcional) y, mientras tanto, por evaluación manual (`evaluar_cuota`).
 - SofaScore descartado porque bloquea (403). **No se usan técnicas para esquivar protecciones anti-bots.**
 

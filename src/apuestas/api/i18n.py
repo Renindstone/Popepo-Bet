@@ -39,7 +39,7 @@ WEEKLY_EN = {"result": "Result", "goals": "Goals", "corners": "Corners", "shots"
              "shots_on_target": "Shots on target", "assists": "Assists", "conceded": "Goals conceded"}
 
 # Pasos de la sincronización manual (sync.py), en el orden de allí
-SYNC_EN = ["FotMob fixtures and results", "football-data results and closing odds", "Understat xG", "Duplicate teams",
+SYNC_EN = ["FotMob fixtures and results", "football-data results and closing odds", "Duplicate teams",
            "Details of the matches played", "Settling bets", "Line-ups, absences and referees of upcoming matches",
            "bet365 odds from football-data", "Retraining the model"]
 

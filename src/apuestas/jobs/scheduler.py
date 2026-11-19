@@ -70,7 +70,7 @@ def last_done(key: str) -> datetime | None:
 # ---------------------------------------------------------------------------------------------- internet
 
 # Para saber si hay internet solo se resuelve el nombre de estos hosts: no se hace ninguna petición a las fuentes
-NETWORK_PROBE_HOSTS = ("www.fotmob.com", "understat.com", "www.football-data.co.uk")
+NETWORK_PROBE_HOSTS = ("www.fotmob.com", "www.football-data.co.uk")
 NETWORK_WAIT_S = 600.0  # una tarea diaria espera hasta 10 min a que haya internet
 NETWORK_POLL_S = 15.0
 CATCH_UP_RETRY_MIN = 15  # si aun así no lo hubo, se vuelve a probar a los 15 min
@@ -155,7 +155,6 @@ def job_results() -> None:
     cur = season_start_year(datetime.now(UTC).date())
     pipeline.sync_fotmob_leagues([cur])
     pipeline.sync_football_data([cur])
-    pipeline.sync_understat([cur])
     pipeline.merge_duplicate_teams()
     pipeline.sync_fotmob_details(days_ahead=1, backfill_limit=150)
     settled = settle_all()

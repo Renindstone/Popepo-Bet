@@ -169,7 +169,7 @@ class TeamMatchStats(Base):
     is_home: Mapped[bool] = mapped_column(Boolean)
     goals: Mapped[int | None] = mapped_column(Integer)
     xg: Mapped[float | None] = mapped_column(Float)  # promedio de los modelos de xG disponibles
-    xg_sources: Mapped[dict | None] = mapped_column(JSONType)  # {"fotmob": 1.2, "understat": 1.1}
+    xg_sources: Mapped[dict | None] = mapped_column(JSONType)  # {"fotmob": 1.2, "fdco": 1.1}
     shots: Mapped[int | None] = mapped_column(Integer)
     shots_on_target: Mapped[int | None] = mapped_column(Integer)
     corners: Mapped[int | None] = mapped_column(Integer)

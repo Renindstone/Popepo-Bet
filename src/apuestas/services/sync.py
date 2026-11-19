@@ -1,7 +1,6 @@
 """Sincronización manual desde el panel (botón «Sincronizar» de Datos).
 
-Hace lo mismo que las tareas de las 05:30 y las 08:30 con las fuentes gratuitas (FotMob, football-data y
-Understat), liquida y reentrena el modelo. **No usa OddsPapi**: cada petición gasta cupo (250 al mes) y sus cuotas ya
+Hace lo mismo que las tareas de las 05:30 y las 08:30 con las fuentes gratuitas (FotMob y football-data), liquida y reentrena el modelo. **No usa OddsPapi**: cada petición gasta cupo (250 al mes) y sus cuotas ya
 se bajan a las 08:30. Corre en segundo plano dentro de la API, una vez a la vez, con una pausa de `COOLDOWN` entre una
 y otra para no cargar a las fuentes, y no arranca si el worker está descargando.
 """
@@ -45,7 +44,6 @@ def steps() -> list[tuple[str, Callable[[], object]]]:
     return [
         ("Calendario y resultados de FotMob", lambda: pipeline.sync_fotmob_leagues([cur])),
         ("Resultados y cuotas de cierre de football-data", lambda: pipeline.sync_football_data([cur])),
-        ("xG de Understat", lambda: pipeline.sync_understat([cur])),
         ("Equipos duplicados", pipeline.merge_duplicate_teams),
         ("Detalles de los partidos jugados", lambda: pipeline.sync_fotmob_details(days_ahead=1, backfill_limit=150)),
         ("Liquidación de apuestas", settle_all),

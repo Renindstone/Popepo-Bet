@@ -1,7 +1,7 @@
 """Guardado en base de datos y resolución de entidades entre fuentes.
 
 La regla general: FotMob define las entidades (equipos, jugadores, partidos) de las competiciones
-principales; football-data.co.uk y Understat se "enganchan" a esos partidos por fecha + equipos.
+principales; football-data.co.uk se "engancha" a esos partidos por fecha + equipos.
 """
 
 from __future__ import annotations

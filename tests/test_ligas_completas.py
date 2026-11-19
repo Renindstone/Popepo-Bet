@@ -29,14 +29,13 @@ def test_serie_a_and_ligue_1_are_full_with_all_sources():
     assert [c.code for c in FULL] == ["EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR", "UCL", "UNL"]
     assert not {"SA", "L1", "POR", "BEL", "TUR"} & {c.code for c in LIGHT}
     sa, l1 = COMPETITIONS["SA"], COMPETITIONS["L1"]
-    assert (sa.fd_code, sa.understat, sa.fotmob_id) == ("I1", "Serie_A", 55)
-    assert (l1.fd_code, l1.understat, l1.fotmob_id) == ("F1", "Ligue_1", 53)
-    # Understat no cubre Portugal ni Bélgica: su xG es solo el de FotMob
+    assert (sa.fd_code, sa.fotmob_id) == ("I1", 55)
+    assert (l1.fd_code, l1.fotmob_id) == ("F1", 53)
     por, bel = COMPETITIONS["POR"], COMPETITIONS["BEL"]
-    assert (por.fd_code, por.understat, por.fotmob_id) == ("P1", None, 61)
-    assert (bel.fd_code, bel.understat, bel.fotmob_id) == ("B1", None, 40)
+    assert (por.fd_code, por.fotmob_id) == ("P1", 61)
+    assert (bel.fd_code, bel.fotmob_id) == ("B1", 40)
     tur = COMPETITIONS["TUR"]
-    assert (tur.fd_code, tur.understat, tur.fotmob_id) == ("T1", None, 71)
+    assert (tur.fd_code, tur.fotmob_id) == ("T1", 71)
 
 
 def test_backtest_evaluates_the_eight_leagues_by_default():

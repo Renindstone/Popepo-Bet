@@ -588,6 +588,7 @@ def data_status() -> dict:
         for src, task, fin, status, error in s.execute(
                 select(m.IngestionRun.source, m.IngestionRun.task, m.IngestionRun.finished_at, m.IngestionRun.status,
                        m.IngestionRun.error)
+                .where(m.IngestionRun.source != "understat")  # retirada el 19-11-2026: su último fallo no se muestra
                 .order_by(m.IngestionRun.id.desc()).limit(200)):
             last.setdefault(src, {"task": task, "finished_at": fin.isoformat() if fin else None, "status": status,
                                   "reason": failure_reason(error) if status == "error" else None})

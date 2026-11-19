@@ -29,7 +29,7 @@ def s():
 def test_nations_league_is_full_without_picks_and_the_rest_is_history():
     unl = COMPETITIONS["UNL"]
     assert unl in FULL and unl.national and not unl.picks and not unl.is_cup
-    assert (unl.fotmob_id, unl.fotmob_more_ids, unl.fd_code, unl.understat) == (9806, (9807, 9808, 9809), None, None)
+    assert (unl.fotmob_id, unl.fotmob_more_ids, unl.fd_code) == (9806, (9807, 9808, 9809), None)
     assert {"UNL", "WCQ", "WC", "EURO"} == NATIONAL
     for code in ("WCQ", "WC", "EURO"):
         c = COMPETITIONS[code]

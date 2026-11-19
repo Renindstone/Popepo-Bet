@@ -21,7 +21,7 @@ El éxito es decidir mejor qué apostar y qué no, con números honestos: "no ap
 
 ## Positioning
 
-Un modelo propio con datos gratuitos (FotMob, football-data, Understat y, opcionalmente, OddsPapi) que dice la probabilidad, la cuota justa y el valor esperado de cada mercado, incluidos córners, tarjetas, remates y props de jugador. Además reconoce con honestidad dónde no le gana a la casa: el backtest muestra que no supera a bet365 en 1X2, goles ni hándicap asiático.
+Un modelo propio con datos gratuitos (FotMob, football-data y, opcionalmente, OddsPapi) que dice la probabilidad, la cuota justa y el valor esperado de cada mercado, incluidos córners, tarjetas, remates y props de jugador. Además reconoce con honestidad dónde no le gana a la casa: el backtest muestra que no supera a bet365 en 1X2, goles ni hándicap asiático.
 
 ## Operating Context
 
