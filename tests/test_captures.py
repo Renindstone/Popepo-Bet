@@ -134,3 +134,16 @@ def test_mcp_server_exposes_capture_tools():
     names = {t.name for t in build()._tool_manager.list_tools()}
     assert {"capturas_pendientes", "ver_captura", "evaluar_captura", "evaluar_combinada", "marcar_no_evaluable",
             "guardar_veredicto_captura"} <= names
+
+
+def test_claude_recibe_el_prompt_con_letras_fuera_de_cp1252(tmp_path):
+    """Regresión del 20-11-2026: en Windows (cp1252) una «ć» de las noticias tumbaba el hilo que escribe el prompt y
+    `claude -p` arrancaba sin él («no stdin data received»). Un hijo que devuelve lo que lee hace de Claude."""
+    import os
+    import sys
+
+    from apuestas.services import capture_engines
+
+    echo = [sys.executable, "-c", "import sys; sys.stdout.buffer.write(sys.stdin.buffer.read())"]
+    proc = capture_engines.run_claude(echo, dict(os.environ), tmp_path, "Pavlović juega; Gençlerbirliği → ≥ 2", 30)
+    assert proc.returncode == 0 and proc.stdout == "Pavlović juega; Gençlerbirliği → ≥ 2"

@@ -24,7 +24,7 @@ from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.services import ai_notes, picks, queries, radar, tracker
 from apuestas.services.analysis import bet_label, book_fair_prob
-from apuestas.services.capture_engines import parse_claude_output
+from apuestas.services.capture_engines import parse_claude_output, run_claude
 
 log = logging.getLogger(__name__)
 
@@ -405,8 +405,7 @@ def _ask(papel: str, review_id: int, ronda: int | None = None) -> str | None:
     with session_scope() as s:
         text = prompt(s.get(m.PickReview, review_id), papel, ronda)
     cmd, env, workdir = command(papel, ronda)
-    proc = subprocess.run(cmd, input=text, capture_output=True, text=True, timeout=get_settings().ai_notes_timeout_s,
-                          cwd=workdir, env=env, check=False)
+    proc = run_claude(cmd, env, workdir, text, get_settings().ai_notes_timeout_s)
     return parse_claude_output(proc.returncode, proc.stdout, proc.stderr).get("error")
 
 

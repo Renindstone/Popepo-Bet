@@ -151,12 +151,19 @@ def claude_code_command(capture_id: int, username: str) -> tuple[list[str], dict
     return cmd, env, workdir
 
 
+def run_claude(cmd: list[str], env: dict[str, str], workdir: Path, prompt: str,
+               timeout: float) -> subprocess.CompletedProcess:
+    """Lanza `claude -p` con el prompt por stdin, siempre en UTF-8. Con la codificación de Windows (cp1252) una letra
+    como «ć» o «ğ» tumba el hilo que escribe el prompt y Claude arranca sin él («no stdin data received»)."""
+    return subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                          timeout=timeout, cwd=workdir, env=env, check=False)
+
+
 def run_claude_code(capture_id: int, username: str) -> dict:
     st = get_settings()
     cmd, env, workdir = claude_code_command(capture_id, username)
     try:
-        proc = subprocess.run(cmd, input=INSTRUCTIONS.format(id=capture_id), capture_output=True, text=True,
-                              timeout=st.captures_timeout_s, cwd=workdir, env=env, check=False)
+        proc = run_claude(cmd, env, workdir, INSTRUCTIONS.format(id=capture_id), st.captures_timeout_s)
     except subprocess.TimeoutExpired:
         return {"error": f"La IA tardó más de {st.captures_timeout_s} s"}
     return parse_claude_output(proc.returncode, proc.stdout, proc.stderr)

@@ -9,6 +9,10 @@ Versions up to 0.8.0 were reconstructed on 16-11-2026 from the git history and `
 ### Added
 - **The betting table** ([ADR 0010](docs/adr/0010-mesa-de-apostadores.md)): below the bet of the day, seven Claude agents with bettor personalities (the Cautious One, the Odds Hunter, the Statistician, the Sceptic, the Reporter, the Streak Rider and the Contrarian) vote yes or no in two rounds, after For and Against bring the news. The result is "Approved by the agents" (2/3 of the weighted vote), "Partly approved" (more than half) or "Rejected by the agents", with each vote's weight and reason in Spanish and English. Each weight moves 5 % per unit the vote would have won or lost (a no, the other way round), between ×0.5 and ×2. It's an opinion: it doesn't change the model's numbers.
 
+### Fixed
+- On Windows, `claude -p` started without its prompt when the prompt had a letter outside cp1252 (a "ć" in a player's name in the news): Python wrote stdin in cp1252, the thread that writes it died, and Claude waited 3 s with no data ("no stdin data received"). That's why the seven agents of the table failed on 20-11. The prompt now always goes in UTF-8 through one shared call (`capture_engines.run_claude`), also for the "Why it failed" notes and the Claude screenshot engine, which had the same bug (a team like Gençlerbirliği would have broken them).
+- When the table can't vote, the dashboard shows a short notice instead of the raw error of the seven agents; the detail stays in the worker's log.
+
 ### Changed
 - The table replaces the Judge of the reviewers' verdict (ADR 0009). At most 2 reviews a day (it was 3) and, without a confirmed line-up, 40 minutes before kick-off (it was 30). New table `review_vote`; `pick_review.word` and `motives` removed.
 

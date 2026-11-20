@@ -27,7 +27,7 @@ from apuestas.config import get_settings
 from apuestas.db import models as m
 from apuestas.db.session import session_scope
 from apuestas.services import failure, queries, radar, tracker
-from apuestas.services.capture_engines import apuestas_bin, parse_claude_output
+from apuestas.services.capture_engines import apuestas_bin, parse_claude_output, run_claude
 
 log = logging.getLogger(__name__)
 
@@ -158,8 +158,7 @@ def run(note_id: int) -> None:
             cmd, env, workdir = command(note)
             prompt = _prompt(note)
         timeout = get_settings().ai_notes_timeout_s
-        proc = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, cwd=workdir,
-                              env=env, check=False)
+        proc = run_claude(cmd, env, workdir, prompt, timeout)
         info = parse_claude_output(proc.returncode, proc.stdout, proc.stderr)
         _finish(note_id, info.get("error"))
     except subprocess.TimeoutExpired:
