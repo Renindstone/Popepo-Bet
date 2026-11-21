@@ -703,6 +703,14 @@ def test_hoy_sin_revision_espera(s):
     assert view(today_pick(s))["status"] == "espera"
 
 
+def test_con_la_alineacion_ya_confirmada_avisa_que_empieza_pronto(s):
+    """Regresión del 21-11-2026: con la alineación confirmada el panel seguía diciendo «votará cuando salga la
+    alineación» durante los minutos que tarda en empezar."""
+    assert view(today_pick(s))["soon"] is True
+    assert view(today_pick(s, stage="predicted", minutes=90))["soon"] is False
+    assert view(today_pick(s, stage="predicted", minutes=40))["soon"] is True  # la última llamada, sin once
+
+
 def test_dia_pasado_sin_revision_no_sale_nada(s):
     pick = today_pick(s, minutes=-600)
     pick.pick_date -= timedelta(days=1)

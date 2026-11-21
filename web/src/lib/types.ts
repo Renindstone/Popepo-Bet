@@ -615,6 +615,8 @@ export interface PickReview {
   status: "espera" | "pendiente" | "trabajando" | "error" | "lista";
   error: string | null;
   outcome: "aprobado" | "medianamente" | "desaprobado" | null;
+  /** Sin votación todavía, pero ya toca: la mesa empieza en su próxima vuelta (cada 5 minutos) */
+  soon?: boolean;
   yes?: number;
   total?: number;
   yes_share?: number;

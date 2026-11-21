@@ -82,7 +82,9 @@ export function Veredicto({ pickId }: { pickId: number }) {
   if (data.status !== "lista" || !outcome) {
     const text =
       data.status === "espera"
-        ? tr("La mesa de apostadores votará cuando salga la alineación.", "The betting table will vote once the lineup is out.")
+        ? data.soon
+          ? tr("La mesa de apostadores empieza a votar en unos minutos.", "The betting table starts voting in a few minutes.")
+          : tr("La mesa de apostadores votará cuando salga la alineación.", "The betting table will vote once the lineup is out.")
         : data.status === "error"
           ? // El detalle (a veces el error de los siete agentes) va al registro del worker, no al panel
             tr("La mesa no pudo votar esta vez.", "The table couldn't vote this time.")

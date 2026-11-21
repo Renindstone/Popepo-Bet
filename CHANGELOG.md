@@ -12,6 +12,7 @@ Versions up to 0.8.0 were reconstructed on 16-11-2026 from the git history and `
 ### Fixed
 - On Windows, `claude -p` started without its prompt when the prompt had a letter outside cp1252 (a "ć" in a player's name in the news): Python wrote stdin in cp1252, the thread that writes it died, and Claude waited 3 s with no data ("no stdin data received"). That's why the seven agents of the table failed on 20-11. The prompt now always goes in UTF-8 through one shared call (`capture_engines.run_claude`), also for the "Why it failed" notes and the Claude screenshot engine, which had the same bug (a team like Gençlerbirliği would have broken them).
 - When the table can't vote, the dashboard shows a short notice instead of the raw error of the seven agents; the detail stays in the worker's log.
+- The table started up to 5 minutes late: its task ran in the same minute as the line-up search, so it looked before the line-up was confirmed and waited for its next turn. It now runs 2 minutes after each line-up search, and meanwhile the dashboard says "starts voting in a few minutes" instead of "will vote once the lineup is out" (21-11, Parma vs Roma).
 
 ### Changed
 - The table replaces the Judge of the reviewers' verdict (ADR 0009). At most 2 reviews a day (it was 3) and, without a confirmed line-up, 40 minutes before kick-off (it was 30). New table `review_vote`; `pick_review.word` and `motives` removed.

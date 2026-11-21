@@ -636,8 +636,10 @@ def for_user(pick_id: int, username: str) -> dict | None:
         if ready is None:
             if past:
                 return None
+            # `soon`: ya toca votar (once confirmado o última llamada) y la mesa empieza en su próxima vuelta
+            soon = pick.stage == "confirmed" or _aware(pick.match.kickoff_utc) - now <= timedelta(minutes=LAST_CALL_MIN)
             return {"status": latest.status if latest else "espera", "error": latest.error if latest else None,
-                    "outcome": None}
+                    "outcome": None, "soon": soon}
         seen = ready.numbers
         threshold = get_settings().verdict_min_confidence
         changed = not past and ((seen["confidence"] >= threshold) != (pick.confidence >= threshold)

@@ -194,3 +194,27 @@ def test_same_job_does_not_run_twice_at_once(state):
         return results()  # una segunda llamada mientras la primera sigue en marcha (a su hora y desde la recuperación)
 
     assert results() is None and calls == [1]
+
+
+def test_la_mesa_corre_despues_de_buscar_alineaciones(monkeypatch):
+    """Regresión del 21-11-2026: las dos tareas corrían en el mismo minuto, la mesa miraba antes de que se confirmara la
+    alineación y no empezaba hasta 5 minutos después. Ahora corre 2 minutos después de cada búsqueda de alineaciones."""
+    from apscheduler.schedulers.blocking import BlockingScheduler
+
+    from apuestas.services import verdict
+
+    monkeypatch.setattr(BlockingScheduler, "start", lambda self: None)  # que no se quede corriendo
+    monkeypatch.setattr(verdict, "reset_running", lambda: 0)
+    scheduler.run()
+    base = datetime(2026, 11, 21, 11, 9, 30, tzinfo=LIMA)
+
+    def next_minutes(job_id):
+        trigger, when, out = scheduler._sched.get_job(job_id).trigger, base, []
+        for _ in range(3):
+            when = trigger.get_next_fire_time(None, when)
+            out.append(when.strftime("%H:%M"))
+            when = when.replace(second=1)
+        return out
+
+    assert next_minutes("lineups") == ["11:10", "11:15", "11:20"]
+    assert next_minutes("verdict") == ["11:12", "11:17", "11:22"]

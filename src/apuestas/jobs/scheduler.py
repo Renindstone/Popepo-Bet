@@ -193,6 +193,7 @@ _last_pod: dict[str, tuple] = {}
 # una hora antes; la de 50 deja margen si se retrasa, y las siguientes la recogen si llega tarde.
 LINEUP_CHECKS_MIN = (70, 50, 35, 20, 10)
 LINEUP_EVERY_MIN = 5  # la tarea corre cada 5 minutos y solo descarga los partidos que tocan
+VERDICT_DELAY_MIN = 2  # la mesa corre este tiempo después de cada búsqueda de alineaciones (que tarda ~1 min)
 
 
 def lineup_due(minutes_to_kickoff: float) -> bool:
@@ -407,7 +408,8 @@ def run() -> None:
     sched.add_job(job_post_match, "cron", minute="15,45", id="post_match")
     sched.add_job(job_odds, "cron", hour="*/3", minute=10, id="odds")
     sched.add_job(job_ai_notes, "cron", minute="5,25,45", id="ai_notes")
-    sched.add_job(job_verdict, "cron", minute=f"*/{LINEUP_EVERY_MIN}", id="verdict")
+    # La mesa, 2 minutos después de cada búsqueda de alineaciones: en el mismo minuto miraba antes de que se confirmaran
+    sched.add_job(job_verdict, "cron", minute=f"{VERDICT_DELAY_MIN}-59/{LINEUP_EVERY_MIN}", id="verdict")
     sched.add_job(catch_up, "date", run_date=datetime.now(tz) + timedelta(seconds=10), id="catch_up")
     log.info("Worker iniciado (%s). Tareas: %s", tz, [j.id for j in sched.get_jobs()])
     sched.start()
