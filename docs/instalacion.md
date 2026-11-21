@@ -17,7 +17,7 @@ The installer and the command-line interface print their messages in Spanish; th
 **What it needs:**
 - about 2 GB of disk (the database takes ~0.5 GB, the Python environment ~0.8 GB, the dashboard ~0.5 GB and the download cache ~0.1 GB);
 - internet;
-- time: the first download of the history takes **3 or 4 hours**.
+- time: the first download of the history takes **about 1 hour**; the details of the oldest matches keep downloading in the background over the first 2-3 days.
 
 ## 1. Install the programs
 
@@ -131,7 +131,7 @@ The installer does everything else:
 - creates the tables and installs the dashboard's dependencies;
 - the first time, downloads 3 seasons of history plus the current one from football-data and FotMob, and trains the models.
 
-**The first time it takes 3 or 4 hours**, because the downloads are slow on purpose so as not to overload the sources. If it gets interrupted, run `scripts/instalar.sh` again: what was already downloaded is cached and it carries on where it was. When it finishes it tells you the command for step 3.
+**The first time it takes about 1 hour**, because the downloads are slow on purpose so as not to overload the sources. It downloads the results and closing odds of the whole history, but FotMob's details (xG, stats, line-ups, players) only for the 1,500 most recent matches, enough for the current season; the worker downloads the rest in the background (200 an hour, about 2-3 days with the PC on), and the model improves with each daily retraining. Until then the predictions are somewhat worse. If it gets interrupted, run `scripts/instalar.sh` again: what was already downloaded is cached and it carries on where it was. When it finishes it tells you the command for step 3.
 
 It uses no OddsPapi requests: Betano odds are only downloaded if you put your key in `.env` (see the [README](../README.md#betano-optional)).
 
@@ -152,7 +152,7 @@ The first command installs the services and starts them. The second keeps them r
 | Service | What it does |
 |---|---|
 | `apuestas-db` | Starts the database |
-| `apuestas-worker` | Scheduled tasks in Lima time: results and retraining (05:30), match previews (08:30), bet of the day (09:00), line-ups every 20 min, odds every 3 h, backlog history and season archive. It only runs from 05:00 to 20:00: at 20:00 it stops and at 05:00 it starts again. Outside those hours it doesn't start even when the PC is switched on. If the PC was off, it catches up the day's tasks on start |
+| `apuestas-worker` | Scheduled tasks in Lima time: results and retraining (05:30), match previews (08:30), bet of the day (09:00), line-ups every 20 min, odds every 3 h, backlog history every hour while any is left, and season archive. It only runs from 05:00 to 20:00: at 20:00 it stops and at 05:00 it starts again. Outside those hours it doesn't start even when the PC is switched on. If the PC was off, it catches up the day's tasks on start |
 | `apuestas-api` | REST API at `127.0.0.1:8000`; it also processes the screenshots |
 | `apuestas-web` | Dashboard at http://localhost:3000. It's built on start, so it takes a minute or two |
 
@@ -271,7 +271,7 @@ What changed in each version is in the [CHANGELOG](../CHANGELOG.md).
 | *WinError 32 … apuestas.exe* when installing or updating | Windows without WSL | The API or the worker are still open: stop them with **Ctrl+C** and repeat |
 | *address already in use* on start | All | Another program is using port 3000, 8000 or 5433; for example, another copy of Popepo-Bet or an `npm run dev`. Close it and start again |
 | Warnings about a source show up during installation (for example, *www.football-data.co.uk no devolvió datos (¿está en mantenimiento?)*, "returned no data (under maintenance?)") | All | It's normal if that source is down or under maintenance: it's skipped and the installation carries on. When it comes back, the worker recovers its data by itself |
-| The installation prints nothing for a long time | All | It's downloading the details of thousands of FotMob matches, slowly on purpose. It reports every 100 matches (*Detalles de FotMob: 100 de 8000 partidos jugados*); several minutes can pass between reports |
+| The installation prints nothing for a long time | All | It's downloading the details of thousands of FotMob matches, slowly on purpose. It reports every 100 matches (*Detalles de FotMob: 100 de 1500 partidos jugados*); several minutes can pass between reports |
 | "Models not trained yet" | All | The installer didn't reach the end: run `scripts/instalar.sh` again |
 | A screenshot stays in "Error" with *No encuentro el CLI de Claude Code* ("can't find the Claude Code CLI") | All | Install Claude Code or set `APUESTAS_CLAUDE_BIN` in `.env` |
 | A screenshot stays in "Error" with an authentication message | All | Your Claude session expired: run `claude` in a terminal, do `/login` and press "Retry" on the screenshot |

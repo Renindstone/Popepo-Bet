@@ -9,7 +9,7 @@
              CLV (como mucho `oddspapi_closing_per_day` peticiones al día).
 cada 30 min  partidos terminados (3 h tras el inicio) o apuestas abiertas de partidos jugados -> resultado y liquidar
 cada 3 h     cuotas
-02:00  descarga de detalles atrasados (historial)
+cada hora (:50)  detalles atrasados del historial, `BACKFILL_PER_HOUR` por vuelta (nada si no queda ninguno)
 lunes 04:00  niveles de almacenamiento (temporadas terminadas -> resumen y archivo)
 
 Si el equipo estuvo apagado a la hora de una tarea diaria, se ejecuta al arrancar el worker (ver `catch_up`).
@@ -329,9 +329,14 @@ def job_odds() -> None:
     pipeline.sync_upcoming_odds()
 
 
-@_safe("historial", key="backfill", network=NETWORK_WAIT_S)
+# La instalación baja solo los 1.500 partidos más recientes (arranque rápido); el resto, aquí, del más nuevo al más
+# viejo. 200 a 1,5 s son ~5 min por hora: unas 6.500 en 2-3 días. Sin nada pendiente, no hace ninguna petición
+BACKFILL_PER_HOUR = 200
+
+
+@_safe("historial", network=0)
 def job_backfill() -> None:
-    pipeline.sync_fotmob_details(days_ahead=0, backfill_limit=400)
+    pipeline.sync_fotmob_details(days_ahead=0, backfill_limit=BACKFILL_PER_HOUR)
 
 
 @_safe("almacenamiento", key="storage")
@@ -347,7 +352,6 @@ DAILY_JOBS: dict[str, tuple] = {
     "results": (job_results, 5, 30, None, 20),
     "preview": (job_preview, 8, 30, None, 20),
     "daily_pick": (job_daily_pick, 9, 0, None, 12),  # pasado ese margen, la apuesta de hoy ya no sirve
-    "backfill": (job_backfill, 2, 0, None, 20),
     "storage": (job_storage, 4, 0, 0, 24 * 6),
 }
 MISFIRE_GRACE_S = 3600  # si el equipo estuvo suspendido, una tarea atrasada aún corre al despertar
@@ -407,6 +411,7 @@ def run() -> None:
     sched.add_job(job_closing_odds, "cron", minute=f"*/{LINEUP_EVERY_MIN}", id="closing_odds")
     sched.add_job(job_post_match, "cron", minute="15,45", id="post_match")
     sched.add_job(job_odds, "cron", hour="*/3", minute=10, id="odds")
+    sched.add_job(job_backfill, "cron", minute=50, id="backfill")
     sched.add_job(job_ai_notes, "cron", minute="5,25,45", id="ai_notes")
     # La mesa, 2 minutos después de cada búsqueda de alineaciones: en el mismo minuto miraba antes de que se confirmaran
     sched.add_job(job_verdict, "cron", minute=f"{VERDICT_DELAY_MIN}-59/{LINEUP_EVERY_MIN}", id="verdict")

@@ -39,7 +39,7 @@ It doesn't promise profits: the backtest honestly shows where the model does not
 It runs on Linux (Arch, Fedora, Debian, Ubuntu…), macOS and Windows (with WSL or Git Bash). The guide with the steps for each system, updating and common problems is **[docs/instalacion.md](docs/instalacion.md)**. In short:
 
 1. Install Git, Python 3.12 or later, PostgreSQL and Node.js 20.9 or later (the command for your system is in the guide).
-2. Download and install; the first run takes 3 or 4 hours because it downloads the match history:
+2. Download and install; the first run takes about 1 hour because it downloads the match history (the oldest match details keep downloading in the background over the first 2-3 days):
 
 ```bash
 git clone https://github.com/Renindstone/Popepo-Bet.git && cd Popepo-Bet

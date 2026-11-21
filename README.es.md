@@ -39,7 +39,7 @@ No promete ganancias: el backtest dice con honestidad dónde el modelo no le gan
 Funciona en Linux (Arch, Fedora, Debian, Ubuntu…), Mac y Windows (con WSL o con Git Bash). La guía con los pasos de cada sistema, la actualización y los problemas frecuentes está en **[docs/instalacion.md](docs/es/instalacion.md)**. Resumen:
 
 1. Instala Git, Python 3.12 o superior, PostgreSQL y Node.js 20.9 o superior (el comando de tu sistema está en la guía).
-2. Descarga e instala; la primera vez tarda 3 o 4 horas porque baja el historial:
+2. Descarga e instala; la primera vez tarda alrededor de 1 hora porque baja el historial (el detalle de los partidos más viejos se sigue bajando en segundo plano los primeros 2-3 días):
 
 ```bash
 git clone https://github.com/Renindstone/Popepo-Bet.git && cd Popepo-Bet

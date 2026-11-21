@@ -35,10 +35,11 @@ def test_missed_jobs_after_a_night_switched_off(state):
     scheduler._state_path().write_text("{" + ",".join(f'"{k}": "{stamp}"' for k in scheduler.DAILY_JOBS) + "}")
 
     now = datetime(2026, 10, 20, 7, 44, tzinfo=LIMA)
-    # resultados (05:30) e historial (02:00) no corrieron; la previa y la apuesta del día de ayer sí
-    assert scheduler.missed_jobs(now) == ["results", "backfill"]
+    # resultados (05:30) no corrió; la previa y la apuesta del día de ayer sí. El historial va cada hora, no se recupera
+    assert scheduler.missed_jobs(now) == ["results"]
     later = datetime(2026, 10, 20, 9, 30, tzinfo=LIMA)
-    assert scheduler.missed_jobs(later) == ["results", "preview", "daily_pick", "backfill"]
+    assert scheduler.missed_jobs(later) == ["results", "preview", "daily_pick"]
+    assert "backfill" not in scheduler.DAILY_JOBS and scheduler.BACKFILL_PER_HOUR * 15 >= 2500  # ~2-3 días para 6.500
 
 
 def test_old_pick_is_not_recovered(state):

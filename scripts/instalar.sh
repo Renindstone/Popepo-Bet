@@ -37,8 +37,10 @@ if [[ ! -f web/node_modules/.package-lock.json || web/package-lock.json -nt web/
 fi
 
 if [[ ! -f var/models/latest.json ]]; then
-  echo "== Historial y modelos: la primera vez tarda 3 o 4 horas. Si se corta, vuelve a ejecutar scripts/instalar.sh"
-  $BIN/apuestas ingest all --seasons 3 --backfill 8000
+  echo "== Historial y modelos: la primera vez tarda alrededor de 1 hora. Si se corta, vuelve a ejecutar scripts/instalar.sh"
+  # Arranque rápido: resultados y cuotas de todo el historial, pero el detalle de FotMob solo de los 1.500 partidos más
+  # recientes; el resto lo baja el worker en segundo plano (scheduler.BACKFILL_PER_HOUR, unos 2-3 días)
+  $BIN/apuestas ingest all --seasons 3 --backfill 1500
   $BIN/apuestas train
 fi
 

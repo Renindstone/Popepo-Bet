@@ -7,6 +7,7 @@ Versions up to 0.8.0 were reconstructed on 16-11-2026 from the git history and `
 ## [Unreleased]
 
 ### Changed
+- **Quick install**: the first install takes about 1 hour instead of 3-4 (or more). It still downloads the results and closing odds of the whole history, but FotMob's details only for the 1,500 most recent matches; the worker downloads the rest in the background, 200 an hour (before, 400 a night), about 2-3 days with the PC on.
 - Measured whether a team with a Champions League match within 4 days scores less in the league: it doesn't (goals 0.987 ± 0.07 of what the model expected, 594 matches), so the model doesn't change (`experimentos/validacion/carga.py`, `docs/modelos.md` section 3).
 
 ## [0.9.0] - 21-11-2026
