@@ -7,7 +7,9 @@ agrupan los partidos por:
 - días de descanso desde su partido anterior;
 - partidos jugados en los 14 días anteriores;
 - «rival chico entre grandes» (la idea del dueño): el rival está entre el 40 % más flojo de su liga y el partido
-  anterior o el siguiente del equipo (a 4 días o menos) es contra un grande (el 20 % más fuerte) o de Champions.
+  anterior o el siguiente del equipo (a 4 días o menos) es contra un grande (el 20 % más fuerte) o de Champions;
+- «Champions en 4 días» (la idea del dueño, 21-11-2026): el siguiente partido del equipo es de Champions (o de Europa
+  League / Conference) a 4 días o menos, contra quien sea el rival de liga; y lo mismo visto desde su rival.
 La fuerza es ataque + defensa del modelo de goles en ese momento. Para cada grupo: real / esperado y el residuo
 estandarizado medio z = (real − esperado) / desviación esperada, con su margen del 95 %.
 
@@ -28,7 +30,7 @@ from apuestas.db.session import _factory
 from apuestas.models import distributions as dist
 from apuestas.models import fitting
 
-START, END = date(2024, 8, 1), date(2026, 10, 28)
+START, END = date(2024, 8, 1), date(2026, 11, 20)
 STATS = ("shots", "shots_on_target", "corners", "fouls", "cards", "goals")
 SPLIT = date(2025, 7, 1)
 
@@ -79,7 +81,7 @@ def main() -> None:
     rows, strength = collect()
     s = _factory()()
     try:
-        allm = fitting.load_matches(s, before=datetime(2026, 11, 1, tzinfo=UTC), since=datetime(2023, 7, 1, tzinfo=UTC))
+        allm = fitting.load_matches(s, before=datetime(2026, 12, 31, tzinfo=UTC), since=datetime(2023, 7, 1, tzinfo=UTC))
     finally:
         s.close()
     sched = defaultdict(list)  # equipo -> [(día, rival, competición)]
@@ -105,8 +107,26 @@ def main() -> None:
             for t in (r.home, r.away):
                 league[t] = r.competition
 
+    europe = ("UCL", "UEL", "UECL")
+
+    def europe_next(team, day):
+        """Competición europea del siguiente partido del equipo si es a 4 días o menos; "" si es europeo pero no; None."""
+        sc = sched[team]
+        i = bisect_left(sc, (day,))
+        nxt = sc[i + 1] if i + 1 < len(sc) and sc[i][0] == day else None
+        if nxt and nxt[2] in europe and (nxt[0] - day).days <= 4:
+            return nxt[2]
+        return "" if any(c in europe and abs((d - day).days) <= 45 for d, _, c in sc) else None
+
     groups = defaultdict(list)
     for x in rows:
+        own, opp = europe_next(x["team"], x["day"]), europe_next(x["opp"], x["day"])
+        x["ucl_next"], x["ucl_next_opp"] = own == "UCL", opp == "UCL"
+        if own is not None:
+            groups["europeo: siguiente " + ("Champions a ≤ 4 días" if own == "UCL" else "EL/ECL a ≤ 4 días" if own
+                                            else "partido a ≥ 5 días o de liga")].append(x)
+        if opp == "UCL":
+            groups["rival con Champions a ≤ 4 días"].append(x)
         sc = sched[x["team"]]
         i = bisect_left(sc, (x["day"],))
         prev = sc[i - 1] if i > 0 else None
@@ -141,7 +161,8 @@ def main() -> None:
 
     print(f"\nFactor estimado con antes del {SPLIT}, probado después (log-verosimilitud del equipo por partido frente a"
           " sin factor; margen del 95 % pareado)")
-    for flag, stat in (("sandwich", "cards"), ("sandwich", "fouls"), ("short_rest", "cards"), ("short_rest", "fouls")):
+    for flag, stat in (("sandwich", "cards"), ("sandwich", "fouls"), ("short_rest", "cards"), ("short_rest", "fouls"),
+                       ("ucl_next", "goals"), ("ucl_next_opp", "goals")):
         tr = [x[stat] for x in rows if x.get(flag) and stat in x and x["day"] < SPLIT]
         te = [x[stat] for x in rows if x.get(flag) and stat in x and x["day"] >= SPLIT]
         f = sum(v[0] for v in tr) / sum(v[1] for v in tr)

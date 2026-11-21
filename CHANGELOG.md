@@ -6,6 +6,9 @@ Versions up to 0.8.0 were reconstructed on 16-11-2026 from the git history and `
 
 ## [Unreleased]
 
+### Changed
+- Measured whether a team with a Champions League match within 4 days scores less in the league: it doesn't (goals 0.987 ± 0.07 of what the model expected, 594 matches), so the model doesn't change (`experimentos/validacion/carga.py`, `docs/modelos.md` section 3).
+
 ## [0.9.0] - 21-11-2026
 
 ### Added
