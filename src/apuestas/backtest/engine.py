@@ -53,6 +53,7 @@ from apuestas.models.fitting import (
     market_obs,
     team_leagues,
 )
+from apuestas.models.market import MARKET_RHO, implied_goals
 
 W_MODEL = 0.25
 
@@ -84,6 +85,17 @@ class BacktestResult:
     ll_by_comp: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
     # Competiciones sin cuotas: log-loss de la referencia simple (los dos equipos como el equipo medio)
     ll_ref_by_comp: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
+    # Goles de cada equipo y «Ambos marcan»: log-loss media por partido de modelo, Pinnacle y mezcla
+    team_goals: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
+
+    def _team_goals_summary(self) -> dict:
+        if not self.team_goals:
+            return {}
+        out = {k: round(float(np.mean(v)), 4) for k, v in self.team_goals.items()}
+        diff = np.array(self.team_goals["mezcla"]) - np.array(self.team_goals["modelo"])  # negativo: mejor
+        out |= {"partidos": len(diff), "mezcla_menos_modelo": round(float(diff.mean()), 4),
+                "margen_95": round(1.96 * float(diff.std(ddof=1)) / math.sqrt(len(diff)), 4)}
+        return out
 
     def _vs_reference(self, comp: str) -> dict:
         ref = self.ll_ref_by_comp.get(comp)
@@ -122,6 +134,7 @@ class BacktestResult:
                                                for k, v in sorted(self.ll_by_comp.items())},
             "betting": {strat: {k: agg(v) for k, v in groups.items()} for strat, groups in by.items()},
             "count_models": self.count_calibration,
+            "logloss_goles_equipo": self._team_goals_summary(),
             **({"lineups": self.lineups} if self.lineups else {}),
         }
 
@@ -328,6 +341,17 @@ def _evaluate_match(r: MatchRow, gm, rho: float, od: dict, res: BacktestResult, 
             candidates.append(("1x2", sel, None, o, od.get(("bet365", "1x2", sel, None, "closing")),
                                dist.prob_outcome(p_model[i]), sharp[i]))
     sh_ou = sharp_two_way("ou_goals", "over", "under", 2.5, 2.5)
+    if sh_ou:
+        # Sin cuotas históricas de goles por equipo: los de Pinnacle salen de su 1X2 y su más/menos 2.5
+        lam, _ = implied_goals(np.array([sharp]), np.array([sh_ou[0]]))
+        implied = dist.dixon_coles_matrix(lam[0, 0], lam[0, 1], MARKET_RHO)
+        per = defaultdict(list)
+        for (pm, hit), (pp, _) in zip(_team_goal_events(mat, r.hg, r.ag), _team_goal_events(implied, r.hg, r.ag),
+                                      strict=True):
+            for name, p in (("modelo", pm), ("pinnacle", pp), ("mezcla", w_model * pm + (1 - w_model) * pp)):
+                per[name].append(-math.log(max(p if hit else 1 - p, 1e-9)))
+        for name, v in per.items():
+            res.team_goals[name].append(float(np.mean(v)))
     for j, sel in enumerate(("over", "under")):
         o = od.get(("bet365", "ou_goals", sel, 2.5, "opening"))
         if o:
@@ -366,6 +390,16 @@ def _evaluate_match(r: MatchRow, gm, rho: float, od: dict, res: BacktestResult, 
             if ev_s >= min_ev:
                 res.bets.append(Bet(r.day, r.competition, market, sel, line, o, closing, sharp_p, ev_s, result,
                                     "solo_mercado_afilado"))
+
+
+TEAM_GOAL_LINES = (0.5, 1.5, 2.5)
+
+
+def _team_goal_events(mat: np.ndarray, hg: int, ag: int) -> list[tuple[float, bool]]:
+    """(probabilidad, ¿pasó?) de «menos de x» goles del local y del visitante en cada línea, y de «ambos marcan»."""
+    ev = [(float(side[: int(x) + 1].sum()), goals <= x)
+          for side, goals in ((mat.sum(1), hg), (mat.sum(0), ag)) for x in TEAM_GOAL_LINES]
+    return [*ev, (float(mat[1:, 1:].sum()), hg > 0 and ag > 0)]
 
 
 def _book_probs(od: dict, book: str, kind: str = "opening") -> list[float] | None:

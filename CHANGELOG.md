@@ -6,7 +6,10 @@ Versions up to 0.8.0 were reconstructed on 16-11-2026 from the git history and `
 
 ## [Unreleased]
 
+## [0.9.0] - 21-11-2026
+
 ### Added
+- **Pinnacle as the reference in more goals markets**: team goals, both teams to score and the European handicap (Pinnacle's own lines) and double chance and draw no bet (its 1X2) are blended 25/75 with Pinnacle, like 1X2, over/under and Asian handicap already were. Before, they went on the model alone: on 21-11 the bet of the day (Roma under 2.5 goals against Parma, +22.7 % value) came only from the model seeing fewer Roma goals than Pinnacle; blended, it has no value. `apuestas backtest` now gives the log-loss of team goals and both teams to score (`logloss_goles_equipo`): blend 0.5432 against the model's 0.5442 (−0.0010 ± 0.0008, 5,149 matches). Details in `docs/modelos.md`, section 6.
 - **The betting table** ([ADR 0010](docs/adr/0010-mesa-de-apostadores.md)): below the bet of the day, seven Claude agents with bettor personalities (the Cautious One, the Odds Hunter, the Statistician, the Sceptic, the Reporter, the Streak Rider and the Contrarian) vote yes or no in two rounds, after For and Against bring the news. The result is "Approved by the agents" (2/3 of the weighted vote), "Partly approved" (more than half) or "Rejected by the agents", with each vote's weight and reason in Spanish and English. Each weight moves 5 % per unit the vote would have won or lost (a no, the other way round), between ×0.5 and ×2. It's an opinion: it doesn't change the model's numbers.
 
 ### Fixed

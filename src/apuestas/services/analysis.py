@@ -419,20 +419,29 @@ def _latest_odds(s: Session, match_id: int) -> list[m.OddsSnapshot]:
             or (r.last_seen_at >= newest[r.bookmaker] - ODDS_FRESH and _utc(r.last_seen_at) >= oldest)]
 
 
+SHARP_MARKETS = ("1x2", "dc", "dnb", "ou_goals", "ou_goals_home", "ou_goals_away", "btts", "eh", "ah")
+
+
 def _sharp_prob(odds_rows: list[m.OddsSnapshot], market: str, selection: str, line: float | None) -> float | None:
-    """Probabilidad sin margen según Pinnacle / Betfair Exchange para esa selección."""
+    """Probabilidad sin margen según Pinnacle / Betfair Exchange para esa selección. Doble oportunidad y empate no
+    válido salen de su 1X2."""
     for book in SHARP_BOOKS:
-        rows = [r for r in odds_rows if r.bookmaker == book and r.market == market]
-        if market == "1x2":
-            book_odds = {r.selection: r.price for r in rows}
+        rows = [r for r in odds_rows if r.bookmaker == book and r.market == ("1x2" if market in ("dc", "dnb") else market)]
+        if market in ("1x2", "dc", "dnb", "eh"):
+            book_odds = {r.selection: r.price for r in rows if market != "eh" or r.line == line}
             if len(book_odds) == 3:
-                probs = oddsmath.devig([book_odds["home"], book_odds["draw"], book_odds["away"]])
-                return dict(zip(["home", "draw", "away"], probs, strict=True))[selection]
-        elif market == "ou_goals":
+                h, d, a = oddsmath.devig([book_odds["home"], book_odds["draw"], book_odds["away"]])
+                if market == "dc":
+                    return {"1x": h + d, "x2": d + a, "12": h + a}[selection]
+                if market == "dnb":
+                    return (h if selection == "home" else a) / (h + a)
+                return {"home": h, "draw": d, "away": a}[selection]
+        elif market in ("ou_goals", "ou_goals_home", "ou_goals_away", "btts"):
             pair = {r.selection: r.price for r in rows if r.line == line}
-            if len(pair) == 2:
-                p_over, p_under = oddsmath.devig([pair["over"], pair["under"]])
-                return p_over if selection == "over" else p_under
+            first, second = ("yes", "no") if market == "btts" else ("over", "under")
+            if first in pair and second in pair:
+                p_first, p_second = oddsmath.devig([pair[first], pair[second]])
+                return p_first if selection == first else p_second
         elif market == "ah":
             home = next((r.price for r in rows if r.selection == "home" and r.line == (line if selection == "home" else -line)), None)
             away = next((r.price for r in rows if r.selection == "away" and r.line == (line if selection == "away" else -line)), None)
@@ -481,7 +490,7 @@ def evaluate_bet(
     settings = get_settings()
     out: Outcome = analysis_model.outcome(market, selection, line, player_id)
     model_p = out.effective_prob()
-    sharp_p = _sharp_prob(odds_rows, market, selection, line) if market in ("1x2", "ou_goals", "ah") else None
+    sharp_p = _sharp_prob(odds_rows, market, selection, line) if market in SHARP_MARKETS else None
     prob = W_MODEL * model_p + (1 - W_MODEL) * sharp_p if sharp_p is not None else model_p
     w_cov = quality.get("market_weight", 1.0)
     book_p = None
