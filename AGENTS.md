@@ -20,7 +20,7 @@ Las skills de la IA (`.claude/`), el contexto de diseño (`DESIGN.md`, `PRODUCT.
 
 ## El proyecto
 
-Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía), Champions League y, de selecciones, la UEFA Nations League (análisis sin apuesta del día). Descarga datos gratuitos, estima con un modelo estadístico la probabilidad de cada mercado, la compara con la cuota de la casa y propone una apuesta del día. Se usa desde un panel web, desde Claude (servidor MCP), desde una API REST y desde Telegram.
+Análisis de apuestas de fútbol prepartido: Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía), Eredivisie (Países Bajos, en prueba desde el 21-11-2026: se analiza pero no entra en la apuesta del día), Champions League y, de selecciones, la UEFA Nations League (análisis sin apuesta del día). Descarga datos gratuitos, estima con un modelo estadístico la probabilidad de cada mercado, la compara con la cuota de la casa y propone una apuesta del día. Se usa desde un panel web, desde Claude (servidor MCP), desde una API REST y desde Telegram.
 
 ## Con quién trabajas
 

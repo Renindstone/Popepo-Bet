@@ -708,6 +708,15 @@ Jugadores fuera de muestra (como en Portugal y Bélgica): corte del 15-01-2026, 
 
 OddsPapi: con ocho competiciones ya eran 2 peticiones por casa casi cada día y la API admite 5 torneos por petición, así que la novena añade de 0 a 10 al mes (70-112 con el calendario de 2025-26). Lo aprobó el dueño el 30-10-2026.
 
+**Eredivisie como liga completa, en prueba** (21-11-2026, a petición del dueño: de las ligas con datos suficientes para medir el modelo, la recomendada primero). Igual que Turquía: los 1.233 partidos de football-data desde 2023-24 pasan a tener los detalles de FotMob (1.035 jugados, todos con xG, estadísticas, árbitro, once y jugadores). Entra **sin apuesta del día** (`Competition.picks=False`) hasta que el dueño decida, a la vista de estas cifras. Walk-forward 2024-26 con las nueve ligas, sobre la misma base de datos antes y después de la descarga (`apuestas backtest --ligas EPL,BUN,LAL,SA,L1,POR,BEL,TUR,NED`, 5.971 → 5.977 partidos):
+
+| Log-loss 1X2, Eredivisie (609 partidos) | Modelo | bet365 | Pinnacle | Mezcla 25/75 |
+|---|---|---|---|---|
+| Antes (solo resultados, estadísticas y cuotas de cierre de football-data) | 0,9635 | 0,9629 | 0,9603 | 0,9601 |
+| Después (con el xG y los detalles de FotMob) | 0,9630 | 0,9629 | 0,9603 | 0,9600 |
+
+El modelo queda a la par de bet365 y detrás de Pinnacle, como en Portugal y Bélgica; las otras ocho ligas no cambian (a cuatro decimales), ni los goles por equipo (mezcla 0,5432). Apuestas en la Eredivisie: solo modelo 375 → 358, rentabilidad −1,7 % → −0,1 %, CLV +2,6 % → +3,1 %; con la mezcla del mercado 28 → 29, −3,5 % → +4,9 % (muy pocas para decir nada). Con las estadísticas de FotMob de una liga más, los modelos de conteo cambian poco en todas las ligas (log-verosimilitud por equipo sobre la media de la liga: fueras de juego 0,1308 → 0,1283, peor; tarjetas 0,0633 → 0,0645; remates y córners igual).
+
 **Selecciones: UEFA Nations League** (10 y 11-11-2026, a petición del dueño; `experimentos/validacion/selecciones.py`). Entra como competición completa para el análisis, **sin apuesta del día y sin mercados de jugador** (decisiones del dueño), con los clasificatorios europeos al Mundial 2026, el Mundial 2026 y la Eurocopa 2024 como historial (683 partidos, 86 selecciones; `docs/fuentes.md`). Lo que cambia frente a un club:
 
 - **Sin cuotas de cierre ni ratings del mercado.** football-data no cubre selecciones, así que su fuerza sale solo de goles y xG de FotMob, con entre 14 y 35 partidos por selección europea en tres años (mediana 19; antes de pedir el historial se estimaron 25-35). Las reglas de prudencia de siempre se aplican solas: `market_matches = 0`, así que la confianza lleva el factor mínimo (×0,6) y la probabilidad se mezcla con la de la casa (25 % modelo). La apuesta lleva además la razón «Selecciones: no entra en la apuesta del día ni pasa el corte…» y nunca da «APOSTAR».

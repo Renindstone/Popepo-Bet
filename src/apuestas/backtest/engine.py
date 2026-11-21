@@ -4,8 +4,8 @@ apuesta contra las cuotas de bet365 de ese momento. Mide si el modelo habría ga
 Métricas:
 - Log-loss / Brier del 1X2: modelo vs probabilidades de bet365 vs Pinnacle (sin margen), en total y por liga. Por
   defecto se evalúan las ligas completas (`LEAGUES`: Premier, Bundesliga, LaLiga, Serie A, Ligue 1, Portugal,
-  Bélgica y Turquía; hasta el 21-10-2026 solo las tres primeras, hasta el 29-10-2026 las cinco primeras y hasta el
-  30-10-2026 sin Turquía). La Champions y la Nations League no tienen cuotas de football-data: solo se mide su
+  Bélgica, Turquía y Eredivisie; hasta el 21-10-2026 solo las tres primeras, hasta el 29-10-2026 las cinco primeras,
+  hasta el 30-10-2026 sin Turquía y hasta el 21-11-2026 sin la Eredivisie). La Champions y la Nations League no tienen cuotas de football-data: solo se mide su
   modelo (`extra_competitions`).
 - ROI de apuestas con valor (1X2, más/menos 2.5 y hándicap asiático principal) a cuota previa de bet365.
 - CLV medio: cuota tomada vs cuota de cierre de bet365 (indicador de ventaja real a corto plazo).

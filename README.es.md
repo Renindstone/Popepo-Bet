@@ -8,7 +8,7 @@
 
 ![Milan-Inter, el Derby della Madonnina: alineaciones previstas en el campo, con el rating de cada jugador](docs/img/es/partido-derbi.png)
 
-Análisis **prepartido** de la **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía) y Champions League**, y de la **UEFA Nations League** (selecciones: análisis y cuotas, sin apuesta del día ni mercados de jugador). Calcula la probabilidad de cada mercado (goles, hándicaps, remates, córners, faltas, tarjetas, offsides y jugadores), la compara con la cuota de la casa (bet365, Betano) y con el precio justo de Pinnacle. Se usa desde un **panel web**, desde Claude (u otro agente) por **MCP**, por **API REST** o por **Telegram**. Todo con datos gratuitos.
+Análisis **prepartido** de la **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Bélgica), Süper Lig (Turquía), Eredivisie (Países Bajos, en prueba: aún sin apuesta del día) y Champions League**, y de la **UEFA Nations League** (selecciones: análisis y cuotas, sin apuesta del día ni mercados de jugador). Calcula la probabilidad de cada mercado (goles, hándicaps, remates, córners, faltas, tarjetas, offsides y jugadores), la compara con la cuota de la casa (bet365, Betano) y con el precio justo de Pinnacle. Se usa desde un **panel web**, desde Claude (u otro agente) por **MCP**, por **API REST** o por **Telegram**. Todo con datos gratuitos.
 
 | Estadísticas esperadas de cada equipo | Sorpresas de la semana |
 |---|---|

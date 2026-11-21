@@ -67,6 +67,8 @@ _TEAM_SEEDS = {
     # Turquía: football-data (izquierda) frente a FotMob (derecha), 30-10-2026
     "ad demirspor": "adana demirspor", "amedspor": "amed sportif", "bodrumspor": "bodrum",
     "karagumruk": "fatih karagumruk",
+    # Países Bajos: football-data (izquierda) frente a FotMob (derecha), 21-11-2026
+    "den haag": "ado den haag", "for sittard": "fortuna sittard", "waalwijk": "rkc waalwijk", "zwolle": "pec zwolle",
     # Selecciones (10-11-2026): como las llama Betano en español y variantes en inglés, frente a FotMob (derecha)
     "espana": "spain", "inglaterra": "england", "francia": "france", "alemania": "germany", "italia": "italy",
     "paises bajos": "netherlands", "holanda": "netherlands", "belgica": "belgium", "croacia": "croatia",

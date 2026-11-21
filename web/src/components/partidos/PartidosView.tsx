@@ -53,8 +53,8 @@ export function PartidosView() {
       <PageTitle
         title={tr("Partidos", "Matches")}
         sub={tr(
-          "Próximos partidos de las diez competiciones. Elige uno para ver el análisis completo.",
-          "Upcoming matches in the ten competitions. Pick one to see the full analysis.",
+          "Próximos partidos de las once competiciones. Elige uno para ver el análisis completo.",
+          "Upcoming matches in the eleven competitions. Pick one to see the full analysis.",
         )}
       />
 

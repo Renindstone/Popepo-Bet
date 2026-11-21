@@ -50,6 +50,8 @@ TOURNAMENTS = {
     "BEL": ("pro-league", "belgium"),
     # Desde el 30-10-2026, con el OK del dueño: 0-10 más al mes (con ocho ya eran 2 peticiones casi cada día)
     "TUR": ("super-lig", "turkiye"),
+    # Desde el 21-11-2026: con diez competiciones siguen cabiendo en 2 peticiones por casa (0-10 más al mes)
+    "NED": ("eredivisie", "netherlands"),
     "UCL": ("uefa-champions-league", "international-clubs"),
     # Desde el 10-11-2026, con el OK del dueño: las ligas A, B, C y D son un solo torneo. Se juega en los parones de
     # clubes, así que casi siempre es 1 petición por casa y día: unas 14 por ventana de selecciones

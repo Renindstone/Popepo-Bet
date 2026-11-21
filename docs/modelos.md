@@ -708,6 +708,15 @@ Players out of sample (as in Portugal and Belgium): cut-off 15-01-2026, 4,497 pl
 
 OddsPapi: with eight competitions it was already 2 requests per bookmaker almost every day and the API allows 5 tournaments per request, so the ninth adds 0 to 10 a month (70-112 with the 2025-26 calendar). The owner approved it on 30-10-2026.
 
+**Eredivisie as a full league, on trial** (21-11-2026, at the owner's request: of the leagues with enough data to measure the model, the one recommended first). Like Turkey: football-data's 1,233 matches since 2023-24 now have FotMob's details (1,035 played, all with xG, stats, referee, XI and players). It goes in **without the bet of the day** (`Competition.picks=False`) until the owner decides, in view of these figures. 2024-26 walk-forward with the nine leagues, on the same database before and after the download (`apuestas backtest --ligas EPL,BUN,LAL,SA,L1,POR,BEL,TUR,NED`, 5,971 → 5,977 matches):
+
+| 1X2 log-loss, Eredivisie (609 matches) | Model | bet365 | Pinnacle | 25/75 blend |
+|---|---|---|---|---|
+| Before (results, football-data stats and closing odds only) | 0.9635 | 0.9629 | 0.9603 | 0.9601 |
+| After (with FotMob's xG and details) | 0.9630 | 0.9629 | 0.9603 | 0.9600 |
+
+The model ends up level with bet365 and behind Pinnacle, as in Portugal and Belgium; the other eight leagues don't change (to four decimals), nor do team goals (blend 0.5432). Bets in the Eredivisie: model only 375 → 358, return −1.7 % → −0.1 %, CLV +2.6 % → +3.1 %; with the market blend 28 → 29, −3.5 % → +4.9 % (too few to tell anything). With FotMob's stats from one more league, the count models improve a little in all leagues (log-likelihood per team over the league average: offsides 0.1308 → 0.1283 worse, cards 0.0633 → 0.0645, shots and corners the same).
+
 **National teams: UEFA Nations League** (10 and 11-11-2026, at the owner's request; `experimentos/validacion/selecciones.py`). It goes in as a full competition for analysis, **without bet of the day and without player markets** (owner's decisions), with the European qualifiers for the 2026 World Cup, the 2026 World Cup and Euro 2024 as history (683 matches, 86 national teams; `docs/fuentes.md`). What changes compared with a club:
 
 - **No closing odds or market ratings.** football-data doesn't cover national teams, so their strength comes only from FotMob goals and xG, with between 14 and 35 matches per European national team over three years (median 19; before requesting the history, 25-35 was estimated). The usual prudence rules apply by themselves: `market_matches = 0`, so confidence carries the minimum factor (×0.6) and the probability is blended with the bookmaker's (25 % model). The bet also carries the reason "Selecciones: no entra en la apuesta del día ni pasa el corte…" ("national teams: not part of the bet of the day and never clears the threshold") and never gives "APOSTAR" ("BET").

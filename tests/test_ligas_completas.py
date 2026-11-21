@@ -1,4 +1,4 @@
-"""Serie A y Ligue 1 (21-10-2026), Portugal y Bélgica (29-10-2026) y Turquía (30-10-2026) como ligas completas: fuentes, cuotas de
+"""Serie A y Ligue 1 (21-10-2026), Portugal y Bélgica (29-10-2026), Turquía (30-10-2026) y Eredivisie (21-11-2026) como ligas completas: fuentes, cuotas de
 OddsPapi, backtest y consultas."""
 
 from contextlib import contextmanager
@@ -26,8 +26,8 @@ def s():
 
 
 def test_serie_a_and_ligue_1_are_full_with_all_sources():
-    assert [c.code for c in FULL] == ["EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR", "UCL", "UNL"]
-    assert not {"SA", "L1", "POR", "BEL", "TUR"} & {c.code for c in LIGHT}
+    assert [c.code for c in FULL] == ["EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR", "NED", "UCL", "UNL"]
+    assert not {"SA", "L1", "POR", "BEL", "TUR", "NED"} & {c.code for c in LIGHT}
     sa, l1 = COMPETITIONS["SA"], COMPETITIONS["L1"]
     assert (sa.fd_code, sa.fotmob_id) == ("I1", 55)
     assert (l1.fd_code, l1.fotmob_id) == ("F1", 53)
@@ -36,10 +36,12 @@ def test_serie_a_and_ligue_1_are_full_with_all_sources():
     assert (bel.fd_code, bel.fotmob_id) == ("B1", 40)
     tur = COMPETITIONS["TUR"]
     assert (tur.fd_code, tur.fotmob_id) == ("T1", 71)
+    ned = COMPETITIONS["NED"]
+    assert (ned.fd_code, ned.fotmob_id, ned.picks) == ("N1", 57, False)  # en prueba: sin apuesta del día
 
 
-def test_backtest_evaluates_the_eight_leagues_by_default():
-    assert engine.LEAGUES == ("EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR")
+def test_backtest_evaluates_the_nine_leagues_by_default():
+    assert engine.LEAGUES == ("EPL", "BUN", "LAL", "SA", "L1", "POR", "BEL", "TUR", "NED")
 
 
 def test_backtest_logloss_by_competition():
@@ -53,7 +55,7 @@ def test_light_league_becomes_full_in_the_database(s):
     s.add(m.Competition(code="BEL", name="Pro League", country="Belgium", tier="light", is_cup=False))
     s.flush()
     comps = store.ensure_competitions(s)
-    assert comps["SA"].tier == "full" and comps["L1"].tier == "full" and comps["NED"].tier == "light"
+    assert comps["SA"].tier == "full" and comps["L1"].tier == "full" and comps["SCO"].tier == "light"
     assert comps["BEL"].tier == "full" and comps["POR"].tier == "full"
     assert s.scalar(select(m.Competition.tier).where(m.Competition.code == "SA")) == "full"
 
@@ -62,7 +64,7 @@ def test_light_league_becomes_full_in_the_database(s):
     ("text", "code"),
     [("SA", "SA"), ("serie a", "SA"), ("Serie A", "SA"), ("ligue 1", "L1"), ("l1", "L1"),
      ("Premier League", "EPL"), ("laliga", "LAL"), ("ucl", "UCL"), ("Primeira Liga", "POR"), ("por", "POR"),
-     ("Pro League", "BEL"), ("bel", "BEL"), ("Süper Lig", "TUR"), ("super lig", "TUR")],
+     ("Pro League", "BEL"), ("bel", "BEL"), ("Süper Lig", "TUR"), ("super lig", "TUR"), ("Eredivisie", "NED"), ("ned", "NED")],
 )
 def test_competition_code_accepts_code_or_name(text, code):
     assert queries.competition_code(text) == code
@@ -79,6 +81,7 @@ def test_oddspapi_requests_per_bookmaker_with_eight_competitions(s, monkeypatch)
         {"tournamentId": 238, "tournamentSlug": "liga-portugal", "categorySlug": "portugal"},
         {"tournamentId": 38, "tournamentSlug": "pro-league", "categorySlug": "belgium"},
         {"tournamentId": 52, "tournamentSlug": "super-lig", "categorySlug": "turkiye"},
+        {"tournamentId": 37, "tournamentSlug": "eredivisie", "categorySlug": "netherlands"},
         {"tournamentId": 7, "tournamentSlug": "uefa-champions-league", "categorySlug": "international-clubs"},
         {"tournamentId": 99, "tournamentSlug": "serie-b", "categorySlug": "italy"},
         {"tournamentId": 239, "tournamentSlug": "liga-portugal-2", "categorySlug": "portugal"},
@@ -97,7 +100,7 @@ def test_oddspapi_requests_per_bookmaker_with_eight_competitions(s, monkeypatch)
     monkeypatch.setattr(oddspapi, "bookmakers", lambda: ["betano.pe", "pinnacle"])
     monkeypatch.setattr(oddspapi, "session_scope", same_session)
     assert oddspapi.tournament_ids() == {"EPL": 17, "BUN": 35, "LAL": 8, "SA": 23, "L1": 34, "POR": 238, "BEL": 38,
-                                         "TUR": 52, "UCL": 7}
+                                         "TUR": 52, "NED": 37, "UCL": 7}
 
     # Fin de semana: juegan las cinco ligas y no la Champions
     monkeypatch.setattr(oddspapi, "playing_soon", lambda days, now=None: {"EPL", "BUN", "LAL", "SA", "L1"})
@@ -153,8 +156,16 @@ def test_fotmob_adopts_the_football_data_match_of_a_league_that_was_light(s):
      ("RWD Molenbeek", "RWDM Brussels"), ("Standard", "Standard Liège"), ("Waregem", "Zulte Waregem"),
      ("Royal Charleroi SC", "Sporting Charleroi"), ("Charleroi", "Sporting Charleroi"),
      ("Ad. Demirspor", "Adana Demirspor"), ("Amedspor", "Amed Sportif"), ("Bodrumspor", "Bodrum FK"),
-     ("Karagumruk", "Fatih Karagümrük")],
+     ("Karagumruk", "Fatih Karagümrük"), ("Den Haag", "ADO Den Haag"), ("For Sittard", "Fortuna Sittard"),
+     ("Waalwijk", "RKC Waalwijk"), ("Zwolle", "PEC Zwolle")],
 )
-def test_portuguese_belgian_and_turkish_names_match_fotmob(other, fotmob):
+def test_portuguese_belgian_turkish_and_dutch_names_match_fotmob(other, fotmob):
     """Nombres de football-data y OddsPapi que no llegaban al umbral de `store.resolve_team` (90)."""
     assert names.similarity(other, fotmob) >= 90
+
+
+def test_league_on_trial_explains_why_it_has_no_bet_of_the_day():
+    from apuestas.services import analysis
+
+    assert analysis.no_picks_note(COMPETITIONS["NED"]) == analysis.NO_PICKS_TRIAL
+    assert analysis.no_picks_note(COMPETITIONS["UNL"]) == analysis.NO_PICKS_NOTE

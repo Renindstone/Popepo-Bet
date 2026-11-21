@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 INSTRUCTIONS = """\
 Sistema de análisis de apuestas de fútbol (Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga,
-Pro League (Bélgica), Süper Lig (Turquía), Champions League y UEFA Nations League).
+Pro League (Bélgica), Süper Lig (Turquía), Eredivisie, Champions League y UEFA Nations League).
 Los números (probabilidades, cuotas justas, valor esperado) los calcula un modelo estadístico; tu papel
 es interpretarlos, explicarlos y combinarlos con información cualitativa (noticias, ruedas de prensa).
 

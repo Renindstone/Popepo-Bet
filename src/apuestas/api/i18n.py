@@ -68,6 +68,8 @@ EXACT: dict[str, str] = {
     "equipo con pocas cuotas de referencia": "team with few reference odds",
     analysis.NO_PICKS_NOTE: "National teams: it does not enter the bet of the day or pass the cut, because the model "
                             "could not be measured against bookmaker odds",
+    analysis.NO_PICKS_TRIAL: "League on trial: it does not enter the bet of the day or pass the cut until the model is "
+                             "measured with the backtest",
     analysis.NO_PLAYERS_NOTE: "National teams: no player markets; what the model knows about each player comes from "
                               "their club",
     analysis.NO_MARKET_NATIONAL: "National teams: no closing odds in our data; the model only uses goals and xG and is "

@@ -471,9 +471,16 @@ def _confidence(
 # Selecciones (Nations League): no hay cuotas históricas para medir el modelo contra las casas, como en las ligas
 NO_PICKS_NOTE = ("Selecciones: no entra en la apuesta del día ni pasa el corte, porque el modelo no se pudo medir "
                  "contra las cuotas de las casas")
+NO_PICKS_TRIAL = ("Liga en prueba: no entra en la apuesta del día ni pasa el corte hasta medir el modelo con el "
+                  "backtest")
 NO_PLAYERS_NOTE = "Selecciones: sin mercados de jugador; lo que el modelo sabe de cada jugador es de su club"
 NO_MARKET_NATIONAL = ("Selecciones: sin cuotas de cierre en nuestros datos; el modelo solo usa goles y xG y es poco "
                       "fiable en este partido")
+
+
+def no_picks_note(cdef) -> str:
+    """Por qué una competición se analiza sin apuesta del día: selecciones o liga en prueba."""
+    return NO_PICKS_NOTE if cdef is None or cdef.national else NO_PICKS_TRIAL
 
 
 def can_bet(market: str, line: float | None) -> bool:
@@ -531,7 +538,7 @@ def evaluate_bet(
         reasons.append(f"Probabilidad del modelo {model_p:.0%} (sin referencia de mercado afilado)")
     eligible = quality.get("picks", True)
     if not eligible:
-        reasons.append(NO_PICKS_NOTE)
+        reasons.append(quality.get("no_picks_note", NO_PICKS_NOTE))
     # float(): los cálculos devuelven tipos numpy, que no se serializan a JSON (p.ej. numpy.bool en comparaciones)
     return BetEval(market, selection, line, bookmaker, float(odds), float(model_p),
                    float(sharp_p) if sharp_p is not None else None, float(prob),
@@ -657,7 +664,7 @@ def analyze(s: Session, bundle: ModelBundle, match: m.Match) -> MatchAnalysis:
             f"{' y '.join(thin)} casi sin cuotas de su liga en nuestros datos; "
             "el modelo es poco fiable en este partido")
     if not quality["picks"]:
-        quality["no_picks_note"] = NO_PICKS_NOTE
+        quality["no_picks_note"] = no_picks_note(cdef)
     if cdef and cdef.national:
         quality["no_players_note"] = NO_PLAYERS_NOTE
 

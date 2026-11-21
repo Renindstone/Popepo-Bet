@@ -1,8 +1,9 @@
 """Competiciones que maneja el sistema y sus códigos en cada fuente.
 
 - Nivel "full": se analizan a fondo (estadísticas de partido, jugadores, alineaciones, árbitros, picks). La Serie A y
-  la Ligue 1 lo son desde el 21-10-2026, Portugal y Bélgica desde el 29-10-2026 y Turquía desde el 30-10-2026; antes eran "light" y ya daban sus
-  resultados y cuotas de cierre al modelo.
+  la Ligue 1 lo son desde el 21-10-2026, Portugal y Bélgica desde el 29-10-2026, Turquía desde el 30-10-2026 y la Eredivisie desde el 21-11-2026; antes eran
+  "light" y ya daban sus resultados y cuotas de cierre al modelo. La Eredivisie entra en prueba (`picks=False`): se
+  analiza, pero no entra en la apuesta del día hasta que el backtest lo justifique.
 - Nivel "light": solo resultados/xG para conectar la escala de fuerza entre ligas (rivales de
   Champions, equipos ascendidos, fichajes que llegan de otras ligas). No generan picks.
 
@@ -60,12 +61,13 @@ COMPETITIONS: dict[str, Competition] = {
         # Fase regular y playoffs (los puntos se dividen a la mitad): FotMob y football-data traen los dos
         Competition("BEL", "Pro League", "Belgium", "full", fd_code="B1", fotmob_id=40),
         Competition("TUR", "Süper Lig", "Turkey", "full", fd_code="T1", fotmob_id=71),
+        # En prueba desde el 21-11-2026 (decisión del dueño): sin apuesta del día hasta medirla con el backtest
+        Competition("NED", "Eredivisie", "Netherlands", "full", fd_code="N1", fotmob_id=57, picks=False),
         Competition("UCL", "Champions League", "Europe", "full", is_cup=True, fotmob_id=42),
         # Selecciones. Las ligas A, B, C y D son cuatro ligas en FotMob y un solo torneo en OddsPapi
         Competition("UNL", "UEFA Nations League", "Europe", "full", fotmob_id=9806, fotmob_more_ids=(9807, 9808, 9809),
                     national=True, picks=False, fotmob_seasons={2024: "2024/2025", 2026: "2026/2027"}),
         # --- Solo para la escala de fuerza ---
-        Competition("NED", "Eredivisie", "Netherlands", "light", fd_code="N1"),
         Competition("SCO", "Premiership", "Scotland", "light", fd_code="SC0"),
         Competition("GRE", "Super League", "Greece", "light", fd_code="G1"),
         Competition("ENG2", "Championship", "England", "light", fd_code="E1"),

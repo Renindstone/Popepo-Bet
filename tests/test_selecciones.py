@@ -35,7 +35,7 @@ def test_nations_league_is_full_without_picks_and_the_rest_is_history():
         c = COMPETITIONS[code]
         assert c.tier == "light" and c.fotmob_stats and c.is_cup
     assert COMPETITIONS["WC"].neutral and COMPETITIONS["EURO"].neutral and not unl.neutral
-    assert all(c.picks for c in FULL if c.code != "UNL")
+    assert all(c.picks for c in FULL if c.code not in ("UNL", "NED"))  # la Eredivisie, en prueba desde el 21-11-2026
 
 
 def test_fotmob_seasons_only_the_editions_that_exist():

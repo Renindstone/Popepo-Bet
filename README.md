@@ -8,7 +8,7 @@
 
 ![Milan-Inter, the Derby della Madonnina: line-ups on the pitch, with the derby label](docs/img/partido-derbi.png)
 
-**Pre-match** analysis for the **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Belgium), Süper Lig (Turkey) and Champions League**, plus the **UEFA Nations League** (national teams: analysis and odds, but no bet of the day and no player markets). It computes the probability of every market (goals, handicaps, shots, corners, fouls, cards, offsides and players) and compares it with the bookmaker's odds (bet365, Betano) and with Pinnacle's fair price. Use it from a **web dashboard**, from Claude (or any other agent) through **MCP**, from a **REST API** or from **Telegram**. All on free data.
+**Pre-match** analysis for the **Premier League, Bundesliga, LaLiga, Serie A, Ligue 1, Primeira Liga (Portugal), Pro League (Belgium), Süper Lig (Turkey), Eredivisie (Netherlands, on trial: no bet of the day yet) and Champions League**, plus the **UEFA Nations League** (national teams: analysis and odds, but no bet of the day and no player markets). It computes the probability of every market (goals, handicaps, shots, corners, fouls, cards, offsides and players) and compares it with the bookmaker's odds (bet365, Betano) and with Pinnacle's fair price. Use it from a **web dashboard**, from Claude (or any other agent) through **MCP**, from a **REST API** or from **Telegram**. All on free data.
 
 | Expected stats for each team | On the radar: teams on a run and in a slump |
 |---|---|
