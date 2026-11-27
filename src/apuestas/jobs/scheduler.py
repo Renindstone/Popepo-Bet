@@ -350,7 +350,9 @@ def job_storage() -> None:
 # (la apuesta del día necesita los resultados y la previa). id -> (función, hora, minuto, día de la semana, horas de margen)
 DAILY_JOBS: dict[str, tuple] = {
     "results": (job_results, 5, 30, None, 20),
-    "preview": (job_preview, 8, 30, None, 20),
+    # 24 h: siempre se recupera. Con la PC apagada más de un día, las cuotas pasan de 30 h (`ODDS_MAX_AGE`) y sin esto
+    # no había ninguna hasta las 08:30. Cuesta una descarga más de OddsPapi solo esos días
+    "preview": (job_preview, 8, 30, None, 24),
     "daily_pick": (job_daily_pick, 9, 0, None, 12),  # pasado ese margen, la apuesta de hoy ya no sirve
     "storage": (job_storage, 4, 0, 0, 24 * 6),
 }

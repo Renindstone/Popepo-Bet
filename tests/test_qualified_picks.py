@@ -202,3 +202,12 @@ def test_el_contador_cuenta_la_anunciada_aunque_se_retire(s, monkeypatch):
     rec = picks.pick_record()
     assert (rec["settled"], rec["hits"], rec["profit_units"]) == (1, 1, 1.0)  # con la cuota anunciada, 2.0
     assert p.clv == pytest.approx(2.0 / 1.9 - 1, abs=1e-4)  # CLV con la cuota anunciada
+
+
+def test_sin_cuotas_vigentes_lo_dice_en_vez_de_hablar_de_umbrales():
+    # 27-11-2026: con la PC apagada dos días ninguna cuota estaba vigente y el aviso hablaba de umbrales
+    sin = SimpleNamespace(bets=[])
+    con = SimpleNamespace(bets=[SimpleNamespace(ev=-0.05)])
+    assert picks.no_pick_note([sin, sin]) == picks.NO_ODDS_NOTE
+    assert picks.no_pick_note([sin, con]) == picks.NO_PICK_NOTE
+    assert picks.no_pick_note([]) == picks.NO_PICK_NOTE

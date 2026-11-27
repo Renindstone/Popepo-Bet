@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from apuestas.api import i18n
 from apuestas.api.app import app
-from apuestas.services import analysis, radar
+from apuestas.services import analysis, picks, radar
 
 
 def test_every_market_label_has_its_english_name():
@@ -26,6 +26,8 @@ def test_every_market_label_has_its_english_name():
     ("aproximado: Tarjetas: Más de 4.5, Córners: Más de 9.5 se combina como si no dependiera del resultado",
      "approximate: Cards: Over 4.5, Corners: Over 9.5 combined as if it did not depend on the result"),
     (radar.NOTE, i18n.EXACT[radar.NOTE]),
+    (picks.NO_PICK_NOTE, i18n.EXACT[picks.NO_PICK_NOTE]),
+    (picks.NO_ODDS_NOTE, i18n.EXACT[picks.NO_ODDS_NOTE]),
 ])
 def test_text_is_translated(es, en):
     assert i18n.text(es) == en

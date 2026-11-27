@@ -133,6 +133,18 @@ def _listed(odds: float, prob: float, started: bool) -> bool:
     return not started and odds >= st.value_list_min_odds and prob >= st.pick_min_prob
 
 
+NO_PICK_NOTE = ("Hoy no hay apuesta del día: ninguna apuesta supera los umbrales de probabilidad, valor y confianza. "
+                "No apostar también es una decisión rentable.")
+# El panel quita el prefijo «Hoy no hay apuesta del día: » y enseña el resto bajo el titular
+NO_ODDS_NOTE = ("Hoy no hay apuesta del día: aún no hay cuotas vigentes de bet365 ni Betano para estos partidos. Se "
+                "descargan a las 08:30, o al arrancar si el equipo estuvo apagado; recalcula en unos minutos.")
+
+
+def no_pick_note(analyses: list) -> str:
+    """Sin ninguna cuota de nuestras casas no se pudo comparar nada: decirlo en vez de hablar de umbrales."""
+    return NO_ODDS_NOTE if analyses and not any(an.bets for an in analyses) else NO_PICK_NOTE
+
+
 def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict:
     day = day or today_local()
     bundle = bundle or load_bundle()
@@ -216,9 +228,7 @@ def generate(day: date | None = None, bundle: ModelBundle | None = None) -> dict
             chosen = None
             if current is not None:
                 current.is_pick_of_day = False
-            report["notes"].append(
-                "Hoy no hay apuesta del día: ninguna apuesta supera los umbrales de probabilidad, valor y confianza. "
-                "No apostar también es una decisión rentable.")
+            report["notes"].append(no_pick_note(analyses))
         s.flush()
         counted = s.scalar(select(m.Pick).where(m.Pick.pick_date == day, m.Pick.was_pick_of_day.is_(True)))
         if counted is not None and counted is not chosen:

@@ -42,6 +42,15 @@ def test_missed_jobs_after_a_night_switched_off(state):
     assert "backfill" not in scheduler.DAILY_JOBS and scheduler.BACKFILL_PER_HOUR * 15 >= 2500  # ~2-3 días para 6.500
 
 
+def test_preview_is_recovered_after_days_switched_off(state):
+    # Caso del 27-11-2026: apagado desde el 25 por la tarde, arranca a las 07:16. La previa de ayer (08:30) queda a más
+    # de 20 h y antes no se recuperaba: las cuotas tenían más de 30 h, se descartaban y hasta las 08:30 no salía ninguna
+    scheduler._state_path().parent.mkdir(parents=True, exist_ok=True)
+    stamp = datetime(2026, 11, 25, 15, 45, tzinfo=LIMA).isoformat()
+    scheduler._state_path().write_text("{" + ",".join(f'"{k}": "{stamp}"' for k in scheduler.DAILY_JOBS) + "}")
+    assert scheduler.missed_jobs(datetime(2026, 11, 27, 7, 16, tzinfo=LIMA)) == ["results", "preview"]
+
+
 def test_old_pick_is_not_recovered(state):
     # Si el equipo arranca de noche, la apuesta del día de la mañana ya no sirve
     now = datetime(2026, 10, 20, 23, 0, tzinfo=LIMA)

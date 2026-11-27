@@ -6,6 +6,9 @@ Versions up to 0.8.0 were reconstructed on 16-11-2026 from the git history and `
 
 ## [Unreleased]
 
+### Fixed
+- After more than a day with the PC off, Today showed no value bets until 08:30: the last odds were over 30 hours old and were discarded, and the worker didn't catch up the previous day's preview (its margin was 20 hours). The preview, which downloads the odds, is now always caught up on start (one extra OddsPapi download only on those days). And when no match has current bet365 or Betano odds, Today says so ("there are no current odds yet… recalculate in a few minutes") instead of "no bet beats the thresholds".
+
 ## [0.10.0] - 21-11-2026
 
 ### Added

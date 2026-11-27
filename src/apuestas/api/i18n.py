@@ -13,7 +13,7 @@ from collections.abc import Callable
 from functools import lru_cache
 
 from apuestas.core import names
-from apuestas.services import analysis, compare, queries, radar, sync, weekly
+from apuestas.services import analysis, compare, picks, queries, radar, sync, weekly
 
 
 def wants_english(accept_language: str | None) -> bool:
@@ -56,9 +56,10 @@ EXACT: dict[str, str] = {
                   "edge, not a sure bet.",
     queries.AI_OFF: "AI is turned off for your user: you can turn it on at the end of Data.",
     # Apuesta del día (picks.py)
-    "Hoy no hay apuesta del día: ninguna apuesta supera los umbrales de probabilidad, valor y confianza. No apostar también es una "
-    "decisión rentable.": "No bet of the day today: no bet beats the probability, value and confidence thresholds. Not betting is "
-                          "also a profitable decision.",
+    picks.NO_PICK_NOTE: "No bet of the day today: no bet beats the probability, value and confidence thresholds. Not betting is "
+                        "also a profitable decision.",
+    picks.NO_ODDS_NOTE: "No bet of the day today: there are no current bet365 or Betano odds for these matches yet. They are "
+                        "downloaded at 08:30, or on start-up if the computer was off; recalculate in a few minutes.",
     "La apuesta del día anterior se retiró: perdió valor con la nueva información":
         "The earlier bet of the day was withdrawn: it lost value with the new information",
     "Sin cuota de referencia: ni Pinnacle ni el cierre de bet365 tenían esta línea antes del partido":
